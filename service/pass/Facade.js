@@ -1,5 +1,7 @@
 /* PASS owns presentation and one configured authority, never a business replica. */
 const schema = ec.resource.script('component://mr-pass/service/pass/Schema.js')
+/* Writes a bearer link's token authorizes for a visitor who is not signed in (Mantle's PassApi lists the same). */
+const TOKEN_WRITES = ['startInvoicePayment', 'submitSupplierBill']
 const fail = (kind, text) => {
     const e = new Error(text)
     e.moquiErrorKind = kind
@@ -70,7 +72,11 @@ function call(operation, input) {
     const client = authorityClient(input.siteId, path, method)
     const token = ec.web.sessionAttributes.passDelegation
     if (token) client.addHeader('authorization', 'Bearer ' + token)
-    else if (method !== 'GET' && operation !== 'applyOptOut')
+    else if (
+        method !== 'GET' &&
+        operation !== 'applyOptOut' &&
+        !(TOKEN_WRITES.includes(operation) && input.token)
+    )
         fail('AuthenticationRequired', 'Sign in to continue')
     if (operation === 'stageAttachment') {
         if (!input.file || Number(input.file.size) > 10485760)
@@ -87,6 +93,18 @@ function call(operation, input) {
         if (Number(upload.statusCode) < 200 || Number(upload.statusCode) >= 300)
             fail(statusKind(upload.statusCode), 'Upload could not be completed')
         return upload.jsonObject()
+    }
+    // Another operation with a file (a supplier's bill) sends its fields and the file as one multipart request.
+    if (def.fields.includes('file')) {
+        if (!input.file || Number(input.file.size) > 10485760)
+            fail('Unprocessable', 'Upload exceeds the size limit')
+        const parts = {}
+        for (const [k, v] of Object.entries(payload))
+            if (v != null && v !== '') parts[k] = k === 'file' ? v : String(v)
+        const sent = client.multipart(parts).send()
+        if (Number(sent.statusCode) < 200 || Number(sent.statusCode) >= 300)
+            fail(statusKind(sent.statusCode), 'The authority could not complete this request')
+        return sent.jsonObject()
     }
     if (method === 'GET') {
         for (const [k, v] of Object.entries(payload))

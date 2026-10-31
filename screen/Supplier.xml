@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Supplier: a supplier's pages for the organization the site's supplier mount targets. BillUpload, which a purchase
+    order's link opens with its token, is Accounting's (mr-mantle mantle.account.PortalServices); Purchasing adds its home,
+    QuoteResponse and OrderAcknowledgement. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Supplier">
+  <always-actions>
+    <set field="passApp" value="supplier"/>
+  </always-actions>
+  <subscreens default-item="BillUpload"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>

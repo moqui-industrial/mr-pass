@@ -18,7 +18,8 @@
             const mounted=info.mounts.filter(m=>path===m.pathPrefix || path.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/')).sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]
             const fail=()=>{const error=new Error('Page not found');error.moquiErrorKind='NotFound';throw error}
             if(!mounted || path.includes('..'))fail()
-            const root={forum:'Forum',account:'Account',members:'Members',sites:'Sites'}[mounted.app];if(!root)fail()
+            const root=ec.resource.script('component://mr-pass/service/pass/Apps.js')[mounted.app]?.screen
+            if(!root)fail()
             const suffix=path.slice(mounted.pathPrefix==='/'?0:mounted.pathPrefix.length)
             const parts=suffix.split('/').filter(Boolean)
             if(mounted.app==='forum' && parts[0]==='t'){

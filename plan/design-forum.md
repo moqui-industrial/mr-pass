@@ -37,7 +37,8 @@ explicitly distinguished in §§14–16; a design service name is not a claim th
 Root `screen/Pass.xml`, displayed as IronStoa PASS or the site's configured brand; Forum icon
 `sym_o_forum`. A deployment maps an allow-listed hostname to a `PublicSite` and an enabled app
 mount. Default mounts are `/forum`, `/account`, `/members`, and `/sites` (site administration);
-a forum-only site may mount Forum at `/`. Commerce and Publishing reserve configurable mounts,
+a forum-only site may mount Forum at `/`. Billing and Supplier (Accounting's, §13.1) mount at `/billing` and
+`/supplier` for one organization each. Commerce and Publishing reserve configurable mounts,
 conventionally `/shop` and `/blog`. Mounts may not overlap reserved authentication/API routes.
 Screen paths below are component-relative identities, not assumptions about an external prefix.
 
@@ -1096,6 +1097,21 @@ record IDs and resolve in the destination's site/authority, not arbitrary suppli
 
 Navigation and account continuity are shared within a site. Across hostnames, use registered
 SSO/session handoff with site eligibility rechecked, not a broadly scoped browser cookie.
+
+**How an app registers** (settled by Accounting P18 with Billing and Supplier; Purchasing P16 and Customer
+Service's Support app follow it). The authority's `mr-mantle/service/mantle/public/PublicApps.js` names the apps a
+site may mount, with a target type for an app bound to business records (Billing and Supplier: an internal
+organization, `PublicSiteApp.targetId`) and a readiness service whose checks join the site's. A targeted mount is
+written only by an operator, and a site owner's save of the core mounts keeps it. PASS's `service/pass/Apps.js` names
+each app's root screen (a `subscreens-item` of `Pass.xml`) and default path; the route resolver and the shell read it,
+and the header shows a targeted app's own navigation. Every page calls `pass.Facade.call#Operation` with an operation
+in `Schema.js` and `Routes.js` (and Mantle's copies), mapped to a Mantle service taking PASS's `input` map that checks
+the mount's target and the caller's capability first. A bearer link is a page of the app taking its token, checked by
+`mantle.party.ExternalAccessServices`; its writes (`TOKEN_WRITES`) reach a remote authority without a member session,
+from the registered deployment only. A contact is a public account invited with `invite#Contact`, bound to the app and
+an outside party; redeeming the invitation gives the account's party a contact grant (`ExternalAccessContact`) for that
+organization, app and party, never a user group. Mantle builds a page's address from the site's canonical host and the app's mount
+(`PublicApps.pageUrl`). Uploads are scanned with the site's scanner before the record takes them.
 The shared search service composes per-app public projections, preserving each app's ACL and
 publication state; no raw UniversalSearch result is exposed to anonymous callers.
 
@@ -1546,10 +1562,17 @@ policies and editorial conveniences within §13's fixed data/access contracts. R
 is established: this document lives in `mr-pass/plan/`, with BOSS retaining its integration notes
 and shared design references.
 
-## Accounting app contracts (P0, Oct 29, 2026)
+## Accounting app contracts (P0, Oct 29, 2026; built in P18, Oct 31, 2026)
 
-Accounting P18 adds two PASS apps: **Billing** (InvoicePay) and **Supplier** (BillUpload on the purchase-order page). They use PublicSiteApp mounts with non-overlapping prefixes and an explicit internal-organization target. The current Forum mount writer only accepts forum/account/members/sites and drops targetId; the future writer must validate and persist the typed target. Navigation, readiness and canonical page URLs must resolve the selected enabled mount rather than assume Forum.
+Accounting P18 built two PASS apps: **Billing** (Invoices and InvoicePay) and **Supplier** (BillUpload for a purchase
+order), registered as §13.1 describes, with the organization as their mount's target. Their operations are Mantle's
+`mantle.account.PortalServices` (`issue#InvoiceAccess`, `find#Invoices`, `get#Invoice`, `start#InvoicePayment`,
+`get#PaymentResult`, `submit#SupplierBill`, `get#Submission`), each checking the target and
+`ExternalAccessCapability` or the contact relationship first; public users gain no group. A supplier's file is staged
+and scanned before the incoming draft bill takes it.
 
-Every operation is declared in PASS Schema/Routes and Mantle PassRoutes, with authority in native Mantle portal and external-access services. Invitations bind the verified recipient and organization capability; public users gain no employee group. Bill evidence uses staged, scanned media finalized into the authorized record only after the submission succeeds.
-
-The default CSP remains `form-action 'self'; frame-ancestors 'none'`. A hosted gateway requires an explicit provider-specific form-action policy or server redirect; no arbitrary destination or return URL is accepted. Gateway returns use validated local paths. TEST_APPROVE and TEST_DECLINE already exist; P18 needs a deterministic durable pending-result/completion fixture and tests for retries, declines, provider returns and CSP. These are contracts only: P0 does not add portal runtime behavior.
+The CSP stays `form-action 'self'; frame-ancestors 'none'`: a hosted gateway's page is reached by a link on the payment
+result, not a form post or a server redirect. The gateway is given a return address Mantle builds on the site's
+canonical host (`<billing mount>/InvoicePay/return?attemptId=`); that page reads only the attempt, and the outcome is the
+gateway's details service's answer. Mantle's test gateway answers hosted-pending, pending and declined lookups for the
+specs. See [Deployment](../docs/Deployment.md) "Billing and Supplier apps".

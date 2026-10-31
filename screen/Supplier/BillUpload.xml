@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- BillUpload (design-accounting §5 SupplierBillUpload): SupplierSubmission and SubmissionReceipt for a purchase order's
+    link (token) or a signed-in contact of its supplier (orderId). The file is scanned before the incoming draft bill is
+    made; a repeat answers the first submission, and nothing here approves a bill. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Bill upload">
+  <transition name="submit" method="post">
+    <actions>
+      <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        const token=p.token || null,orderId=token ? null : p.orderId || null
+        const base=publicPath.replace(/\/submit$/,'')
+        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
+            .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
+        const out=portal.attempt('submitSupplierBill',{siteId:resolvedSiteId,token,orderId,operationId:p.operationId,
+            referenceNumber:p.referenceNumber,invoiceDate:p.invoiceDate || null,amount:p.amount || null,
+            file:ec.web.multiPartParameters?.file})
+        if(out.error){
+            ec.web.sessionAttributes.passBillError=out.error.message
+            ec.web.response.sendRedirect(base+query({token,orderId}))
+            return
+        }
+        ec.web.response.sendRedirect(base+query({token,orderId,submissionId:out.result.submission.submissionId}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        token=p.token || null
+        billError=ec.web.sessionAttributes.passBillError || null
+        if(billError)ec.web.sessionAttributes.remove('passBillError')
+        view=null;failure=null
+        const orderId=token ? null : p.orderId || null
+        if(!token && !orderId)failure={kind:'NotFound',message:'Open the link the buyer sent with the purchase order.'}
+        else{
+            const found=portal.attempt('getSubmission',{siteId:resolvedSiteId,token,orderId,submissionId:p.submissionId || null})
+            if(found.error)failure=found.error
+            else view=found.result
+        }
+        submitOperationId=portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Supplier/BillUpload.html.fancy"/>
+    </render-mode>
+    <section name="SupplierSubmissionSection" condition="view &amp;&amp; !view.submission">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[<form method="post" enctype="multipart/form-data" id="SupplierSubmission" class="card"
+action="${publicPath}/submit"><h2>Send your bill</h2>
+<input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}">]]></text>
+        </render-mode>
+        <form-single name="SupplierSubmission" transition="submit" skip-start="true" skip-end="true"
+            map="{token:token, orderId:(token ? null : view.order.orderId), operationId:submitOperationId}">
+          <field name="token">
+            <default-field>
+              <hidden/>
+            </default-field>
+          </field>
+          <field name="orderId">
+            <default-field>
+              <hidden/>
+            </default-field>
+          </field>
+          <field name="operationId">
+            <default-field>
+              <hidden/>
+            </default-field>
+          </field>
+          <field name="referenceNumber">
+            <default-field title="Your bill number">
+              <text-line size="20"/>
+            </default-field>
+          </field>
+          <field name="invoiceDate">
+            <default-field title="Bill date">
+              <date-time type="date"/>
+            </default-field>
+          </field>
+          <field name="amount">
+            <default-field title="Amount (${view.order.currencyUomId})">
+              <text-line size="12"/>
+            </default-field>
+          </field>
+          <field name="file">
+            <default-field title="Bill file (PDF, PNG or JPEG, at most 10 MB)">
+              <file/>
+            </default-field>
+          </field>
+          <field name="submitAction">
+            <default-field title="Send bill">
+              <submit/>
+            </default-field>
+          </field>
+        </form-single>
+        <render-mode>
+          <text type="html"><![CDATA[<p><small>The buyer's accounts team reviews your bill; sending it does not approve
+it.</small></p></form>]]></text>
+        </render-mode>
+      </widgets>
+    </section>
+  </widgets>
+</screen>

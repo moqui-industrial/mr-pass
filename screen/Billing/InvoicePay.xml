@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- InvoicePay (design-accounting §4): PublicInvoice, PayInvoice and PaymentResult for an invoice's pay link (token) or a
+    signed-in contact (invoiceId). The gateway sends the payer back to the registered local path return, which reads only
+    the attempt and shows what the gateway says, never what the return's parameters claim. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Invoice">
+  <transition name="pay" method="post">
+    <actions>
+      <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        const token=p.token || null,invoiceId=token ? null : p.invoiceId || null
+        const base=publicPath.replace(/\/pay$/,'')
+        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
+            .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
+        const out=portal.attempt('startInvoicePayment',{siteId:resolvedSiteId,token,invoiceId,
+            operationId:p.operationId,confirm:['true','on'].includes(String(p.confirm))})
+        if(out.error){
+            ec.web.sessionAttributes.passPayError=out.error.message
+            ec.web.response.sendRedirect(base+query({token,invoiceId}))
+            return
+        }
+        const attemptId=out.result.attempt.attemptId
+        // the gateway's return carries no token: the session remembers which link this attempt came from
+        if(token)ec.web.sessionAttributes['passPayToken.'+attemptId]=token
+        ec.web.response.sendRedirect(base+query({token,invoiceId,attemptId}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="return" method="get" read-only="true">
+    <actions>
+      <script><![CDATA[
+        // Only the attempt and its reference are read; anything else the gateway or the browser adds is ignored. The
+        // reference reads this attempt without the session (another device, an expired session); the session's link,
+        // when it has one, shows the invoice with it.
+        const clean=(value)=>String(value || '').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64)
+        const attemptId=clean(ec.web.parameters.attemptId),key=clean(ec.web.parameters.key)
+        const token=attemptId ? ec.web.sessionAttributes['passPayToken.'+attemptId] || null : null
+        const base=publicPath.replace(/\/return$/,'')
+        ec.web.response.sendRedirect(base+'?attemptId='+encodeURIComponent(attemptId)
+            +(key?'&key='+encodeURIComponent(key):'')+(token?'&token='+encodeURIComponent(token):''))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="share" method="post">
+    <actions>
+      <script><![CDATA[
+        const invoiceId=ec.web.parameters.invoiceId || ''
+        const out=ec.resource.script('component://mr-pass/screen/Shared/Portal.js')
+            .attempt('issueInvoiceAccess',{siteId:resolvedSiteId,invoiceId})
+        if(out.error)ec.web.sessionAttributes.passPayError=out.error.message
+        else ec.web.sessionAttributes.passShareUrl=out.result.url
+        ec.web.response.sendRedirect(publicPath.replace(/\/share$/,'')+'?invoiceId='+encodeURIComponent(invoiceId))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        token=p.token || null
+        returnKey=p.key || null
+        payError=ec.web.sessionAttributes.passPayError || null
+        shareUrl=ec.web.sessionAttributes.passShareUrl || null
+        if(payError)ec.web.sessionAttributes.remove('passPayError')
+        if(shareUrl)ec.web.sessionAttributes.remove('passShareUrl')
+        attempt=null;failure=null;view=null
+        let invoiceId=token ? null : p.invoiceId || null,resultInvoice=null
+        if(p.attemptId){
+            const found=portal.attempt('getPaymentResult',
+                {siteId:resolvedSiteId,attemptId:String(p.attemptId),token:returnKey ? null : token,returnKey})
+            if(found.error)failure=found.error
+            else{
+                attempt=found.result.attempt;resultInvoice=found.result.invoice
+                if(!token && !invoiceId && siteInfo.authenticated)invoiceId=resultInvoice.invoiceId
+            }
+        }
+        if(!failure){
+            const found=token || invoiceId ? portal.attempt('getInvoice',{siteId:resolvedSiteId,token,invoiceId}) : null
+            if(found?.result){view=found.result;if(!attempt)attempt=view.attempt}
+            // the gateway return's reference shows the attempt and its invoice, and offers nothing else
+            else if(resultInvoice)view={invoice:resultInvoice,attempt:null,capabilities:{canPay:false,canShare:false}}
+            else if(found?.error)failure=found.error
+            else failure={kind:'NotFound',message:'Open the link in your invoice email to see the invoice.'}
+        }
+        payOperationId=portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Billing/InvoicePay.html.fancy"/>
+    </render-mode>
+    <section name="PayInvoiceSection"
+        condition="view?.capabilities.canPay &amp;&amp; (!attempt || attempt.state == 'declined' || attempt.state == 'failed')">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[<form method="post" id="PayInvoice" class="card" action="${publicPath}/pay">
+<h2>Pay this invoice</h2><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}">]]></text>
+        </render-mode>
+        <form-single name="PayInvoice" transition="pay" skip-start="true" skip-end="true"
+            map="{token:token, invoiceId:(token ? null : view.invoice.invoiceId), operationId:payOperationId}">
+          <field name="token">
+            <default-field>
+              <hidden/>
+            </default-field>
+          </field>
+          <field name="invoiceId">
+            <default-field>
+              <hidden/>
+            </default-field>
+          </field>
+          <field name="operationId">
+            <default-field>
+              <hidden/>
+            </default-field>
+          </field>
+          <field name="confirm">
+            <default-field title="Confirm">
+              <check>
+                <option key="true" text="I authorize payment of ${view.invoice.dueText} to ${view.invoice.fromName}"/>
+              </check>
+            </default-field>
+          </field>
+          <field name="submitAction">
+            <default-field title="Pay ${view.invoice.dueText}">
+              <submit/>
+            </default-field>
+          </field>
+        </form-single>
+        <render-mode>
+          <text type="html"><![CDATA[<p><small>You continue on the payment provider's page; this site never sees your
+card.</small></p></form>]]></text>
+        </render-mode>
+      </widgets>
+    </section>
+    <section name="ShareInvoiceSection" condition="view?.capabilities.canShare">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[<form method="post" class="card" action="${publicPath}/share"><h2>Share a pay link</h2>
+<input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}">
+<input type="hidden" name="invoiceId" value="${view.invoice.invoiceId}">
+<p>A link for a colleague who pays this invoice, without signing in.</p><button>Create a pay link</button></form>]]></text>
+        </render-mode>
+      </widgets>
+    </section>
+  </widgets>
+</screen>

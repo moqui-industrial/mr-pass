@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Billing: a customer's invoices from the organization the site's billing mount targets, and InvoicePay, which an
+    invoice's pay link opens with its token (Accounting's pages; mr-mantle mantle.account.PortalServices). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Billing">
+  <always-actions>
+    <set field="passApp" value="billing"/>
+  </always-actions>
+  <subscreens default-item="Invoices"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>
