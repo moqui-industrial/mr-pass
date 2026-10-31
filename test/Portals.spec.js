@@ -180,6 +180,32 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
             },
             upload('bill-100b.pdf', '%PDF-1.4 again'),
         )
+        // a text file sent as a PDF, a PDF named as a JPEG, and a bill date that is not a date
+        const mislabeled = submit(
+            {
+                token: ORDER_TOKEN,
+                referenceNumber: 'SUP-TXT',
+                operationId: 'portals-bill-0003',
+            },
+            upload('bill.pdf', 'plain text, not a PDF'),
+        )
+        const renamed = submit(
+            {
+                token: ORDER_TOKEN,
+                referenceNumber: 'SUP-200',
+                operationId: 'portals-bill-0004',
+            },
+            upload('scan.jpeg', '%PDF-1.4 a scanned bill'),
+        )
+        const badDate = submit(
+            {
+                token: ORDER_TOKEN,
+                referenceNumber: 'SUP-300',
+                invoiceDate: 'not a date',
+                operationId: 'portals-bill-0005',
+            },
+            upload('bill-300.pdf', '%PDF-1.4 dated'),
+        )
         const receipt = facade('getSubmission', { token: ORDER_TOKEN, submissionId: first.submission?.submissionId })
         const foreign = facade('getSubmission', { token: ORDER_TOKEN.replace('1', '2') })
         login('john.doe')
@@ -188,6 +214,9 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
         const bill = lib.one('mantle.account.invoice.Invoice', { invoiceId: first.submission?.billReference })
         return {
             order,
+            mislabeled,
+            renamed,
+            badDate,
             quarantined,
             first,
             sameOperation,
@@ -200,7 +229,11 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
             bills: lib.rows('mantle.account.invoice.Invoice', { fromPartyId: 'PASS_PORTALS_SUPPLIER' }),
         }
     },
-    then({ order, quarantined, first, sameOperation, sameReference, receipt, foreign, bill, items, content, bills }) {
+    then({ order, mislabeled, renamed, badDate, quarantined, first, sameOperation, sameReference, receipt, foreign, bill, items, content, bills }) {
+        mislabeled.errorKind === 'Unprocessable'
+        mislabeled.errorMessage.includes('not the PDF')
+        renamed.submission.filename === 'scan.pdf'
+        badDate.errorKind === 'Unprocessable'
         order.order.orderId === 'PASS_PORTALS_PO'
         order.order.orderName === 'Portals purchase'
         order.submissionList.length === 0
@@ -219,7 +252,7 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
         items.length === 1
         toDecimal(items[0].amount).eq(toDecimal('120.50'))
         content.length === 1
-        bills.length === 1
+        bills.length === 2
     },
 })
 

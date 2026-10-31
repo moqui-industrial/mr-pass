@@ -32,12 +32,15 @@
   <transition name="return" method="get" read-only="true">
     <actions>
       <script><![CDATA[
-        // Only the attempt is read; anything else the gateway or the browser adds is ignored.
-        const attemptId=String(ec.web.parameters.attemptId || '').replace(/[^A-Za-z0-9_-]/g,'').slice(0,40)
+        // Only the attempt and its reference are read; anything else the gateway or the browser adds is ignored. The
+        // reference reads this attempt without the session (another device, an expired session); the session's link,
+        // when it has one, shows the invoice with it.
+        const clean=(value)=>String(value || '').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64)
+        const attemptId=clean(ec.web.parameters.attemptId),key=clean(ec.web.parameters.key)
         const token=attemptId ? ec.web.sessionAttributes['passPayToken.'+attemptId] || null : null
         const base=publicPath.replace(/\/return$/,'')
         ec.web.response.sendRedirect(base+'?attemptId='+encodeURIComponent(attemptId)
-            +(token?'&token='+encodeURIComponent(token):''))
+            +(key?'&key='+encodeURIComponent(key):'')+(token?'&token='+encodeURIComponent(token):''))
     ]]></script>
     </actions>
     <default-response type="none"/>
@@ -59,24 +62,29 @@
     <script><![CDATA[
         const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
         token=p.token || null
+        returnKey=p.key || null
         payError=ec.web.sessionAttributes.passPayError || null
         shareUrl=ec.web.sessionAttributes.passShareUrl || null
         if(payError)ec.web.sessionAttributes.remove('passPayError')
         if(shareUrl)ec.web.sessionAttributes.remove('passShareUrl')
         attempt=null;failure=null;view=null
-        let invoiceId=token ? null : p.invoiceId || null
+        let invoiceId=token ? null : p.invoiceId || null,resultInvoice=null
         if(p.attemptId){
-            const found=portal.attempt('getPaymentResult',{siteId:resolvedSiteId,attemptId:String(p.attemptId),token})
+            const found=portal.attempt('getPaymentResult',
+                {siteId:resolvedSiteId,attemptId:String(p.attemptId),token:returnKey ? null : token,returnKey})
             if(found.error)failure=found.error
-            else{attempt=found.result.attempt;if(!token)invoiceId=found.result.invoice.invoiceId}
+            else{
+                attempt=found.result.attempt;resultInvoice=found.result.invoice
+                if(!token && !invoiceId && siteInfo.authenticated)invoiceId=resultInvoice.invoiceId
+            }
         }
         if(!failure){
-            if(!token && !invoiceId)failure={kind:'NotFound',message:'Open the link in your invoice email to see the invoice.'}
-            else{
-                const found=portal.attempt('getInvoice',{siteId:resolvedSiteId,token,invoiceId})
-                if(found.error)failure=found.error
-                else{view=found.result;if(!attempt)attempt=view.attempt}
-            }
+            const found=token || invoiceId ? portal.attempt('getInvoice',{siteId:resolvedSiteId,token,invoiceId}) : null
+            if(found?.result){view=found.result;if(!attempt)attempt=view.attempt}
+            // the gateway return's reference shows the attempt and its invoice, and offers nothing else
+            else if(resultInvoice)view={invoice:resultInvoice,attempt:null,capabilities:{canPay:false,canShare:false}}
+            else if(found?.error)failure=found.error
+            else failure={kind:'NotFound',message:'Open the link in your invoice email to see the invoice.'}
         }
         payOperationId=portal.operationId()
     ]]></script>

@@ -17,9 +17,22 @@ feature("a pay link at phone width starts a payment, and the provider's return n
         // the provider sends the payer back to the app's return path with a claim of its own, which is not read: the
         // gateway (PortalFixtures' answers pending) decides
         page.goto(provider.replace(/^https:\/\/[^/]+/, ''))
-        return { invoice, pendingText, provider, resultText: page.text(), resultOverflow: overflow(page), url: page.url() }
+        // the same return on another device: no session, no link token; the return's own reference reads the attempt
+        const elsewhere = session().get(provider.replace(/^https:\/\/[^/]+/, ''), { follow: true })
+        return {
+            invoice,
+            pendingText,
+            provider,
+            resultText: page.text(),
+            resultOverflow: overflow(page),
+            url: page.url(),
+            elsewhere: { status: elsewhere.status, text: elsewhere.text },
+        }
     },
-    then({ invoice, pendingText, provider, resultText, resultOverflow, url }) {
+    then({ invoice, pendingText, provider, resultText, resultOverflow, url, elsewhere }) {
+        elsewhere.status === 200
+        elsewhere.text.includes('not confirmed yet')
+        !elsewhere.text.includes('Pay this invoice')
         invoice.status === 200
         invoice.text.includes('Due')
         invoice.text.includes('$125.00')
@@ -28,6 +41,7 @@ feature("a pay link at phone width starts a payment, and the provider's return n
         invoice.overflow === false
         pendingText.includes('not confirmed yet')
         provider.includes('/billing/InvoicePay/return?attemptId=')
+        provider.includes('&key=')
         provider.includes('result=paid')
         resultText.includes('not confirmed yet')
         !resultText.includes('Payment received')
