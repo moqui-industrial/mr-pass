@@ -1,4 +1,4 @@
-# IronStoa PASS — Public Application Software Suite
+# IronStone PASS — Public Application Software Suite
 
 PASS is the public-facing component for Modern Rust Moqui. Its Forum uses Mantle MAILBOX lists and
 CommunicationEvent posts, with a dedicated public shell, explicit publication, public accounts,
@@ -13,6 +13,10 @@ without loading its entity catalog or copying its Party records. BOSS is not a r
 The [Forum design](plan/design-forum.md) defines the stages and how an app registers (§13.1); what is built
 and verified, and what is deferred, is in [the implementation record](plan/implementation-forum.md).
 Operators start with [Deployment](docs/Deployment.md), which also covers the Billing and Supplier apps.
+
+[IronStone Shop](plan/design-shop.md) designs the public storefront, checkout, customer purchases
+and subscriptions. Its theme/page editors are defined in
+[IronStone Commerce](../mr-boss/plan/design-commerce.md); published shops run without BOSS.
 
 ## Starting a community
 

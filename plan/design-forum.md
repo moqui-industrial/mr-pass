@@ -1,13 +1,13 @@
-# IronStoa PASS — Forum design
+# IronStone PASS — Forum design
 
 Oct 27, 2026 — design specification with staged implementation. See [implementation status](implementation-forum.md) for S1 code and verified checks.
 
-**IronStoa PASS — Public Application Software Suite** is the public-facing companion to
+**IronStone PASS — Public Application Software Suite** is the public-facing companion to
 **IronStone BOSS**. Its repository and component name are **`mr-pass`**. Forum serves community
 sites such as forum.moqui.org and customer, supplier, partner and member communities, including
-private and paid communities. Commerce and Blog/Publishing are future PASS apps. This document
-fully designs Forum and the shared foundation; §13 defines the future apps' boundaries and
-integration contracts, not their complete screen designs.
+private and paid communities. [IronStone Shop](design-shop.md) is the separately designed
+commerce app; Blog/Publishing remains future. This document fully designs Forum and the shared
+foundation; §13 defines the companion apps' integration contracts, not their complete screens.
 
 This document belongs to `mr-pass/plan/design-forum.md`. It was developed alongside the BOSS
 designs; those documents remain shared design references, not runtime dependencies.
@@ -34,7 +34,7 @@ explicitly distinguished in §§14–16; a design service name is not a claim th
 
 ## 1. Shell
 
-Root `screen/Pass.xml`, displayed as IronStoa PASS or the site's configured brand; Forum icon
+Root `screen/Pass.xml`, displayed as IronStone PASS or the site's configured brand; Forum icon
 `sym_o_forum`. A deployment maps an allow-listed hostname to a `PublicSite` and an enabled app
 mount. Default mounts are `/forum`, `/account`, `/members`, and `/sites` (site administration);
 a forum-only site may mount Forum at `/`. Billing and Supplier (Accounting's, §13.1) mount at `/billing` and
@@ -81,8 +81,8 @@ light/dark colors and reduced motion follow framework facilities. A dedicated TU
 
 **Scope/stages:** all PASS-owned rows are `new`. S1 is the usable foundation; S2 completes forum
 participation; S3 adds integrations, migration and advanced operations. A screen marked S1/S2
-has an S1 functional core and the specifically named S2 additions below. Future Commerce and
-Publishing screens are not claimed as designed here. Each row has exactly one screen definition
+has an S1 functional core and the specifically named S2 additions below. Shop screens are defined
+in [design-shop.md](design-shop.md); future Publishing screens are not claimed here. Each row has exactly one screen definition
 in §§6–11; simple dialogs remain forms on their parent. `Context` is PASS-local context, usable
 by authorized extensions, and does not imply a BOSS Assist drawer.
 
@@ -142,7 +142,7 @@ revisions: Mantle `909e43053c67`, BOSS `19af60169f2a`, Discourse `568a006ad8f5`,
 | R6 | phpBB `phpBB/styles/prosilver/template/viewforum_body.html`, `viewtopic_body.html`, `posting_editor.html`, `posting_poll_body.html`; `phpBB/language/en/acp/permissions_phpbb.php`; `phpBB/includes/mcp/mcp_main.php`, `mcp_topic.php`, `mcp_queue.php` | Adopt capability distinctions, saved drafts, poll options, bulk move/split/merge, soft-delete/restore and moderation diagnostics. Omit signatures, forum passwords and manual bump privileges; private access uses identity/membership. |
 | R7 | Odoo `addons/website_forum/models/forum_forum.py`, `forum_post.py`, `forum_post_vote.py`; `addons/website_forum/views/forum_forum_templates_post.xml`, `forum_forum_templates_moderation.xml`; `addons/website_forum/controllers/website_forum.py` | Adopt category discussion/Q&A intent, answer filtering, accepted-answer affordances and website integration. Optional Q&A mode keeps the same chronological storage and accepted-answer highlight. Omit a separate karma ledger; PASS trust/reactions cover the need. |
 | R8 | Odoo `addons/website_blog/models/website_blog.py`, `controllers/main.py`, `views/website_blog_templates.xml`, `views/website_blog_posts_loop.xml`; `addons/website_blog/__manifest__.py` | Future Publishing: publications, author/teaser/cover, taxonomy, scheduled visibility, archive/search and public-site integration. Full publishing screens deferred, contracts in §13. |
-| R9 | Odoo `addons/website_sale/models/website.py`, `product_public_category.py`, `controllers/cart.py`, `payment.py`, `portal.py`; `addons/website_sale/__manifest__.py`; `addons/website`, `website_mail`, `website_payment`, `auth_signup`, `portal` | Future Commerce: site/store/account binding, public catalog, cart/checkout, portal and content integration. Full Commerce screens deferred. Website-builder parity and general arbitrary page-layout editing are outside this Forum design. |
+| R9 | Odoo `addons/website_sale/models/website.py`, `product_public_category.py`, `controllers/cart.py`, `payment.py`, `portal.py`; `addons/website_sale/__manifest__.py`; `addons/website`, `website_mail`, `website_payment`, `auth_signup`, `portal` | Shop: site/store/account binding, public catalog, cart/checkout, portal and content integration. Full screens are specified in [Shop design](design-shop.md); BOSS Commerce owns visual theme/page editing. These remain outside Forum's implementation scope. |
 | R10 | Framework `runtime/base-component/framework/entity/ResourceEntities.xml`, `service/org/moqui/impl/WikiServices.xml` under that same component; `docs/interfaces/Mail-Inbound.md`; `runtime/base-component/framework/entity/ChatEntities.xml`; `crates/moqui-core/src/service/remote.rs`; Mantle `entity/ProductDefinitionEntities.xml`, `service/mantle/product/SubscriptionServices.xml` | Reuse wiki versions/reviews, mail ingestion, remote transport and subscription interfaces. Chat reactions/polls are keyed to ChatEvent and cannot be used as forum rows unchanged. |
 
 Additional dispositions: Discourse migration is S3 (§18); phpBB import is deferred. Topic voting
@@ -1088,7 +1088,7 @@ new verified address requires explicit resumption preferences, not automatic res
 
 ### 13.1 Shared foundation and independent app use
 
-Forum is the first PASS app. Commerce and Blog/Publishing use the same PublicSite, host/mount,
+Forum is the first PASS app. Shop and Blog/Publishing use the same PublicSite, host/mount,
 profile, membership, account, media, search-projection and entitlement contracts. A site may
 install/enable any subset. No Forum page assumes a cart, no publication requires a store, and a
 store can link support without exposing a private staff mailbox. A store mount binds an existing
@@ -1115,13 +1115,14 @@ organization, app and party, never a user group. Mantle builds a page's address 
 The shared search service composes per-app public projections, preserving each app's ACL and
 publication state; no raw UniversalSearch result is exposed to anonymous callers.
 
-### 13.2 Future Commerce
+### 13.2 Shop
 
-Commerce's later document designs public catalog/category/product pages, merchandising content,
-cart/checkout, customer account/orders and relevant portal flows using the existing store/order/
-payment/shipping services. BOSS Commerce remains the staff channel/store-management surface.
-These are different views of shared records, not separate order or customer stores. Reconcile
-`research-commerce.md`'s open storefront question accordingly.
+[IronStone Shop](design-shop.md) designs the public catalog, content, cart/checkout, purchases,
+downloads and prepaid/recurring subscriptions over Mantle. [BOSS Commerce](../../mr-boss/plan/design-commerce.md)
+owns staff channel/store operations and all theme/page authoring, including the visual editor.
+Shop renders published JS-template releases without a runtime BOSS dependency; Liquid support
+is later. These are views of shared records, not separate order/customer stores. The Shop design
+extends this foundation explicitly; its application implementation remains future.
 
 This Forum design supplies contracts for product-linked support categories/topics, a product's
 related discussions, topic-to-case escalation, shared site/account links and membership checkout
@@ -1139,8 +1140,8 @@ handlers for site/category/publication access. A source-bound access grant recor
 party, scope, effective dates and subscription identity. Payment success callbacks alone do not
 grant access: the authoritative order/subscription lifecycle does, idempotently. Renewal extends
 that source; expiry/revocation removes it while preserving independent manual/organization grants.
-Restoration reinstates the authorized remaining period. Default is no grace period; a future
-Commerce policy may explicitly define one. A paid subscription never adds a UserGroup. Forum
+Restoration reinstates the authorized remaining period. Default is no grace period; a later
+Shop policy may explicitly define one. A paid subscription never adds a UserGroup. Forum
 shows eligibility/expiry and a registered checkout/manage-subscription handoff; checkout and
 payment-provider implementations are not redesigned in this file.
 
@@ -1231,7 +1232,7 @@ to their linked internal records.
 | CommunicationEventContent, CommunicationEventProduct, CommunicationEventRecord | Same; attachment and record/product joins | Reuse with current audience enforcement and public-safe projections. |
 | ContactListCommStatus | MarketingEntities; key list/event/address, messageId unique | Reuse where applicable alongside the new generic forum delivery ledger. |
 | Request, RequestCommEvent, RequestRecord | Mantle RequestEntities | Case escalation and explicit topic links; no automatic note publication. |
-| ProductStore and its settings/content joins | Mantle ProductStoreEntities | Commerce site mounts and future storefront data. |
+| ProductStore and its settings/content joins | Mantle ProductStoreEntities | Shop mounts and storefront data; detailed public contract in [Shop](design-shop.md). |
 | Subscription, SubscriptionResource, ProductSubscriptionResource | Mantle ProductDefinitionEntities; lifecycle interfaces in SubscriptionServices | Implement scoped access-resource handlers; do not create a second billing ledger. |
 | moqui.resource.wiki.WikiBlog, WikiBlogCategory, WikiPage, WikiSpace | Framework ResourceEntities; WikiServices publication/review/version methods | Article metadata/body/version foundation; needs publication grouping and release/schedule metadata. |
 | moqui.chat.ChatEvent, ChatPoll, ChatPollOption, ChatPollVote | Framework ChatEntities | UI/algorithm patterns only; chat IDs/event log do not fit forum posts. |
@@ -1354,7 +1355,7 @@ require a new version and explicit adapter compatibility check.
 ## 16. Framework and data needs
 
 These are the canonical PASS work items, rolled up by reference in
-[BOSS design-crosscut §7.4](../../mr-boss/plan/design-crosscut.md#74-ironstoa-pass-needs). A need
+[BOSS design-crosscut §7.4](../../mr-boss/plan/design-crosscut.md#74-ironstone-pass-needs). A need
 may extend existing implementation; it does not reclassify all underlying facilities as missing.
 Every screen's Needs labels must resolve here.
 
@@ -1373,7 +1374,7 @@ Every screen's Needs labels must resolve here.
 | PASS-RENDER | render mode, shell item / framework + PASS | public host/mount shell and shared HTML/qvue projection | all public reading screens | Canonical ID routes, server HTML, metadata/feeds, inaccessible cache prevention, accessible enhancement. |
 | PASS-SEARCH | service type, seed data / Mantle + framework search | site/app search projections and invalidation | Search, tags, topic lists, Operations | Filter before snippets/counts, verify stale hits, stable cursors, per-site repair. |
 | PASS-PUBLISH | data model, service type / framework + Mantle | wiki publication/release binding and public page adapter | Guidelines, SiteDetail; future Publishing | Exact published revision, site/locale release metadata, future editorial/schedule contracts, no duplicate bodies. |
-| PASS-INTEGRATE | data model, service type / Mantle | discussion links, support/public reply, entitlement resource handlers | Comms, support, future Commerce/Publishing | Idempotent links/grants, source ACL intersection, no private case-note copying or billing duplicate. |
+| PASS-INTEGRATE | data model, service type / Mantle | discussion links, support/public reply, entitlement resource handlers | Comms, support, Shop/future Publishing | Idempotent links/grants, source ACL intersection, no private case-note copying or billing duplicate. |
 | PASS-OPS | data model, service type / Mantle + framework jobs | checkpointed runs/items, retention/export/health reports | Operations, ActivityReports, account data requests | Independent failure tolerance, item diagnostics, cancel/retry, preview before destructive retention. |
 | PASS-IMPORT | data model, service type / Mantle | staged Discourse importer/maps/permalinks/reconciliation | Migration | Repeatable archive import, strict identity/access checks, stable source mappings and gated cutover. |
 
@@ -1466,7 +1467,7 @@ plugin are deferred.
 | S1 foundation | PASS shell/sites, explicit publication, local+remote APIs/auth, basic discovery/topic/editor/media, internal/public tracking, first-post/account/flag moderation, outbound notifications, baseline health | Local/remote access matrix passes; existing Mailboxes regressions pass; no accidental publication, public recipient fan-out or raw API exposure. |
 | S2 full participation | Tags/reactions/polls/bookmarks/wiki/answers, private conversations, advanced moderation/trust/timers, full preferences, inbound/new-topic email and digests | Web/mail/Comms parity, retry/dedup and private-conversation tests pass; documented screens/features are complete through S2. |
 | S3 integration/operations | Subscription access handlers, support/discussion contracts, Discourse migration, exports/retention/reports | Entitlement lifecycle and source-gate tests pass; migration rehearsal reconciled before any existing-community cutover. |
-| Future apps | Separate Commerce and Blog/Publishing screen/form designs and implementation | Consume PASS contracts without duplicating identity, content, membership or business records. |
+| Shop and future Publishing | [Shop](design-shop.md) has its own screen/form design and staged implementation; Blog/Publishing design remains future | Consume PASS contracts without duplicating identity, content, membership or business records. |
 
 Index/mail/job lag, failed/uncertain deliveries, access-denial anomalies, scan backlog, conversion
 failures and import discrepancies appear in operational diagnostics with site/item IDs. Logs do
@@ -1521,7 +1522,7 @@ have no SimpleScreens predecessor. The Forum UI is new; framework login/wiki pri
 Comms context are explicitly reused above. Existing WikiBlogs/EditWikiBlog forms are future
 Publishing baselines, not claimed as fully designed or implemented here. [BOSS usl-inventory.md](../../mr-boss/plan/usl-inventory.md)
 records the directly reused L/C services under PASS contexts and leaves Implemented in untouched;
-new proposed services remain in this document until they exist. [BOSS crosscut §7.4](../../mr-boss/plan/design-crosscut.md#74-ironstoa-pass-needs) indexes all PASS
+new proposed services remain in this document until they exist. [BOSS crosscut §7.4](../../mr-boss/plan/design-crosscut.md#74-ironstone-pass-needs) indexes all PASS
 needs without changing the six-core-app historical roll-up counts. Commons/Comms, initial-design,
 Commerce and Marketing references point here for the new ownership and shared contracts.
 
@@ -1534,9 +1535,9 @@ this documentation pass.
 
 | Decision | Notes |
 | --- | --- |
-| Suite/component name | IronStoa PASS (Public Application Software Suite), repository/component mr-pass; companion to IronStone BOSS. |
+| Suite/component name | IronStone PASS (Public Application Software Suite), repository/component mr-pass; companion to IronStone BOSS. |
 | Document ownership | Full Forum design plus PASS foundation in mr-pass/plan/design-forum.md; BOSS integration documents link here. S1 implementation and verified checks are tracked in implementation-forum.md. |
-| App family | Forum first; Commerce and Blog/Publishing future apps with concrete shared contracts and separate future detailed designs. |
+| App family | Forum first; IronStone Shop has a [separate design](design-shop.md), with implementation future; Blog/Publishing retains its shared contracts and future detailed design. |
 | Reference priorities | Existing Mailboxes/Mantle first, Discourse primary UI, phpBB functional breadth, Odoo Forum/Blog/Commerce shared-site and feature evidence. |
 | Deployment | One component, several sites/apps, one local or remote authority per deployment; no BOSS dependency or duplicated business store. |
 | Public exposure | Explicit site/category/content publication; anonymous read uses the shared access engine with a safe projection, never unfiltered legacy service access. |
@@ -1547,7 +1548,7 @@ this documentation pass.
 | Email | Full outbound/digest/list and inbound replies/new topics designed; sender identity, deduplication and preference separation required. |
 | Rendering | Dedicated PASS shell; XML forms and server HTML reading, qvue stream/composer, no dedicated TUI in scope. |
 | Publishing | WikiBlog article metadata over versioned WikiPage, shared authoring/review with Commons/Marketing, future release grouping and scheduled publication; forum-backed discussion. |
-| Commerce | Shared store/account/product/support and subscription entitlement contracts; storefront/checkout design later. |
+| Shop | Shared store/account/product/support and subscription entitlement contracts; storefront/checkout specified in [Shop design](design-shop.md), with authoring in BOSS Commerce. |
 | Migration | Discourse backup import first, staged/idempotent/reconciled; phpBB importer later. |
 | Reliability | Continue independent failed items with named errors; fail closed for authorization, identity/privacy mapping and atomic integrity. |
 | Delivery scope | Complete design with S1/S2/S3 build stages; future app documents do not dilute Forum completeness. |
@@ -1557,8 +1558,8 @@ this documentation pass.
 No blocking product/architecture choices remain for this design. Deployment-specific values
 (hostnames, sender domains, gateway/model profiles, quotas and retention durations) are configured
 through the named settings and readiness contracts; they are not missing implementation decisions.
-Future Commerce and Blog/Publishing documents decide their own complete screen layouts, checkout
-policies and editorial conveniences within §13's fixed data/access contracts. Repository ownership
+The [Shop design](design-shop.md) defines storefront layouts, checkout and theme contracts;
+the future Blog/Publishing design defines editorial conveniences within §13's data/access contracts. Repository ownership
 is established: this document lives in `mr-pass/plan/`, with BOSS retaining its integration notes
 and shared design references.
 
