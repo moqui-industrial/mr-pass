@@ -304,3 +304,44 @@ feature(
         },
     },
 )
+feature(
+    "remote Billing and Supplier pages read a link's record, start its payment and take a supplier's bill",
+    {
+        when() {
+            // PortalFixtures' links, served from the authority through this frontend with no local Mantle
+            const invoiceToken = 'PassPortalInvoiceLinkToken0000000000000000000001',
+                orderToken = 'PassPortalOrderLinkToken000000000000000000000001'
+            const s = session()
+            const invoice = s.get('/billing/InvoicePay', { params: { token: invoiceToken } })
+            const paid = s.post('/billing/InvoicePay/pay', {
+                form: { token: invoiceToken, operationId: 'remote-pay-000001', confirm: 'true' },
+            })
+            const result = s.get(paid.location)
+            const bad = s.get('/billing/InvoicePay', { params: { token: 'x'.repeat(48) } })
+            s.get('/supplier/BillUpload', { params: { token: orderToken } })
+            const sent = s.post('/supplier/BillUpload/submit', {
+                multipart: {
+                    token: orderToken,
+                    operationId: 'remote-bill-000001',
+                    referenceNumber: 'REMOTE-BILL-1',
+                    amount: '42.00',
+                    file: { fileName: 'remote-bill.pdf', text: '%PDF-1.4 remote bill', contentType: 'application/pdf' },
+                },
+            })
+            const receipt = s.get(sent.location)
+            return { invoice, paid, result, bad, sent, receipt }
+        },
+        then({ invoice, paid, result, bad, sent, receipt }) {
+            invoice.status === 200
+            invoice.text.includes('Pay this invoice')
+            paid.status === 302
+            paid.location.includes('attemptId=')
+            result.text.includes('not confirmed yet')
+            bad.text.includes('This page is not available')
+            sent.status === 302
+            sent.location.includes('submissionId=')
+            receipt.text.includes('Bill received')
+            receipt.text.includes('REMOTE-BILL-1')
+        },
+    },
+)
