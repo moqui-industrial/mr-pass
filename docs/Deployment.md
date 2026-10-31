@@ -84,8 +84,11 @@ host, from which every link Mantle mails is built.
 - **Links.** An invoice's pay link (`/billing/InvoicePay?token=`) comes from Mantle's `send#Invoice`, and a purchase
   order's bill link (`/supplier/BillUpload?token=`) from BOSS's order screen; each is an `ExternalAccessCapability` with
   only its token's digest kept. A link opens one record of its organization's site, until it expires or is revoked;
-  anything else says the page is not available. A new pay link ends the invoice's earlier ones. Every link lookup counts
-  against a limit per browser address, and a site needs a canonical host for links to be made.
+  anything else says the page is not available. A new pay link ends its issuer's earlier ones (the organization's, or
+  a contact's). Every link lookup counts against a limit per requester, and a site needs a canonical host for links to be
+  made. The requester is the browser's address a registered remote frontend forwards, else the request's own: behind a
+  proxy or load balancer, configure the framework's trusted proxies (see Host and mount bindings) so it is the browser's,
+  not one shared by every visitor.
 - **Contacts.** `mantle.party.ExternalAccessServices.invite#Contact` invites a customer's or supplier's contact to the
   app; redeeming the invitation (Account's Invitation page) gives the account a contact grant for that party on that
   organization's app only. The account holds no user group. A signed-in contact sees the customer's invoices under Billing's Invoices and can make a
@@ -94,7 +97,9 @@ host, from which every link Mantle mails is built.
   its PaymentGatewayOrganization bindings; BOSS Accounting Preferences). A hosted gateway takes the payer to its page from
   a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=&key=`, whose
   reference reads that attempt on any device; the result comes from the gateway's details service, never from the
-  return's parameters. Keep the `resolve_PortalPayments` job running: it settles payments whose payer never comes back. The content security policy stays
+  return's parameters. The reference reads the attempt while it is pending and for a day after it settles. Keep the
+  `resolve_PortalPayments` job running: it settles payments whose payer never comes back, and an attempt pending for
+  seven days is taken as abandoned. The content security policy stays
   `form-action 'self'`: no form posts to the provider. The test gateway (`PaymentTestServices.hostedPending#...`) is for
   tests and demos only.
 - **Bills.** A supplier's file is staged under `pass_media_root/bills`, checked to be the PDF, PNG or JPEG it says by its
