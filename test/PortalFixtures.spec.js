@@ -1,9 +1,11 @@
 // The Billing and Supplier apps on the HTTP test community (PASS_HTTP, from ClientFixtures): their mounts for a test
 // organization, its hosted test gateway, an invoice and a purchase order with known link tokens, and a customer contact
-// invited and redeemed. The browser walk (PortalHttp) and the remote check (RemoteHttp) read these.
+// invited and redeemed. The browser walk (PortalHttp) and the remote check (RemoteHttp) read these, each with its own
+// invoice, since the suite's one server serves both in turn.
 const settlement = () => ec.resource.script('component://mr-mantle/test/AccountingSettlementFixtures.js')
 const INVOICE_TOKEN = 'PassPortalInvoiceLinkToken0000000000000000000001'
 const ORDER_TOKEN = 'PassPortalOrderLinkToken000000000000000000000001'
+const REMOTE_INVOICE_TOKEN = 'PassPortalRemoteInvoiceLinkToken0000000000000001'
 spec({
     dependsOn: ['ClientFixtures'],
     setupSpec() {
@@ -75,6 +77,8 @@ feature('provision the Billing and Supplier apps with link tokens and an invited
                 createdByUserId: ec.user.userId,
             })
         capability('Invoice', invoiceId, 'InvoicePay', INVOICE_TOKEN)
+        // RemoteHttp's own invoice: in the standard run PortalHttp has already started paying the first one
+        capability('Invoice', h.invoice(f, '75'), 'InvoicePay', REMOTE_INVOICE_TOKEN)
         // a purchase order from a supplier, approved
         c('create#mantle.party.Party', { partyId: 'PASS_PORTAL_SUPPLIER', partyTypeEnumId: 'PtyOrganization' })
         c('create#mantle.party.Organization', { partyId: 'PASS_PORTAL_SUPPLIER', organizationName: 'Portal supplier' })

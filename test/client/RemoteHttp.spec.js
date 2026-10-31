@@ -137,6 +137,8 @@ feature(
                     image.attachmentId +
                     '&variant=thumbnail',
             )
+            // a build without image support answers the thumbnail 503; the feature needs it
+            if (thumbnail.status === 503) skip('image derivatives are unavailable in this build (impl-accounting F377): run with an image-enabled build, ./moq build -- --features moqui-host/image')
             const downloaded = s.get(path),
                 changed = s.post('/forum/Settings/Categories/save', {
                     form: {
@@ -231,6 +233,7 @@ feature(
                 }
             const path = match[1].replace(/&amp;/g, '&'),
                 image = session().get(path)
+            if (image.status === 503) skip('image derivatives are unavailable in this build (impl-accounting F377): run with an image-enabled build, ./moq build -- --features moqui-host/image')
             const changed = s.post('/account/Settings/save', {
                 form: {
                     formAction: 'storeProfile',
@@ -308,8 +311,9 @@ feature(
     "remote Billing and Supplier pages read a link's record, start its payment and take a supplier's bill",
     {
         when() {
-            // PortalFixtures' links, served from the authority through this frontend with no local Mantle
-            const invoiceToken = 'PassPortalInvoiceLinkToken0000000000000000000001',
+            // PortalFixtures' links (its invoice for this spec; PortalHttp pays the other one first in the standard run),
+            // served through this frontend: with no local Mantle in the remote pair, or by the suite's own server
+            const invoiceToken = 'PassPortalRemoteInvoiceLinkToken0000000000000001',
                 orderToken = 'PassPortalOrderLinkToken000000000000000000000001'
             const s = session()
             const invoice = s.get('/billing/InvoicePay', { params: { token: invoiceToken } })

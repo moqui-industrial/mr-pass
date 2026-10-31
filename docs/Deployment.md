@@ -275,5 +275,7 @@ authenticates through the authority, saves a private draft, uploads/scans/publis
 downloads it through the frontend, then revokes anonymous access and verifies concealment. It
 also uploads a profile image and verifies that changing profile visibility conceals the image, then opens a pay link,
 starts its payment and sends a supplier's bill through the remote frontend.
-Stop both disposable servers after the run. Live SMTP, IdP, DNS/TLS, and production scanner checks
+Stop both disposable servers after the run. `moqui test-client mr-pass --serve` also runs RemoteHttp against the suite's
+one server (local authority, no remote frontend), after PortalHttp, which is why each has its own fixture invoice; on a
+build without image support its two image features skip with that reason. Live SMTP, IdP, DNS/TLS, and production scanner checks
 remain deployment-specific; the specs use captured mail, a deterministic scanner, and isolated data.
