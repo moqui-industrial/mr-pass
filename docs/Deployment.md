@@ -84,19 +84,21 @@ host, from which every link Mantle mails is built.
 - **Links.** An invoice's pay link (`/billing/InvoicePay?token=`) comes from Mantle's `send#Invoice`, and a purchase
   order's bill link (`/supplier/BillUpload?token=`) from BOSS's order screen; each is an `ExternalAccessCapability` with
   only its token's digest kept. A link opens one record of its organization's site, until it expires or is revoked;
-  anything else says the page is not available. Failed lookups are limited per browser address.
+  anything else says the page is not available. A new pay link ends the invoice's earlier ones. Every link lookup counts
+  against a limit per browser address, and a site needs a canonical host for links to be made.
 - **Contacts.** `mantle.party.ExternalAccessServices.invite#Contact` invites a customer's or supplier's contact to the
-  app; redeeming the invitation (Account's Invitation page) makes the account's party a contact of that party. The
-  account holds no user group. A signed-in contact sees the customer's invoices under Billing's Invoices and can make a
+  app; redeeming the invitation (Account's Invitation page) gives the account a contact grant for that party on that
+  organization's app only. The account holds no user group. A signed-in contact sees the customer's invoices under Billing's Invoices and can make a
   pay link to share. Set the site's registration to invitation so invited contacts can register.
 - **Payment.** Set the organization's invoice payment gateway (`PartyAcctgPreference.invoicePayGatewayConfigId`, one of
   its PaymentGatewayOrganization bindings; BOSS Accounting Preferences). A hosted gateway takes the payer to its page from
-  a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=`; the result comes
-  from the gateway's details service, never from the return's parameters. The content security policy stays
+  a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=&key=`, whose
+  reference reads that attempt on any device; the result comes from the gateway's details service, never from the
+  return's parameters. Keep the `resolve_PortalPayments` job running: it settles payments whose payer never comes back. The content security policy stays
   `form-action 'self'`: no form posts to the provider. The test gateway (`PaymentTestServices.hostedPending#...`) is for
   tests and demos only.
-- **Bills.** A supplier's file is staged under `pass_media_root/bills`, scanned by `pass_scanner_service` (PDF, PNG or
-  JPEG, at most 10 MiB) and becomes the incoming draft bill's file only when clean; a repeat of the request or of the
+- **Bills.** A supplier's file is staged under `pass_media_root/bills`, checked to be the PDF, PNG or JPEG it says by its
+  leading bytes, scanned by `pass_scanner_service` (at most 10 MiB) and becomes the incoming draft bill's file only when clean; a repeat of the request or of the
   supplier's bill number answers the first submission. AP reviews the bill in BOSS; nothing here approves it.
 
 A remote frontend posts a link's payment or bill with no member session; the authority accepts those two operations

@@ -1109,8 +1109,8 @@ in `Schema.js` and `Routes.js` (and Mantle's copies), mapped to a Mantle service
 the mount's target and the caller's capability first. A bearer link is a page of the app taking its token, checked by
 `mantle.party.ExternalAccessServices`; its writes (`TOKEN_WRITES`) reach a remote authority without a member session,
 from the registered deployment only. A contact is a public account invited with `invite#Contact`, bound to the app and
-an outside party; redeeming the invitation makes the account's party a contact (`PrtContact`) of that party, never a
-user group. Mantle builds a page's address from the site's canonical host and the app's mount
+an outside party; redeeming the invitation gives the account's party a contact grant (`ExternalAccessContact`) for that
+organization, app and party, never a user group. Mantle builds a page's address from the site's canonical host and the app's mount
 (`PublicApps.pageUrl`). Uploads are scanned with the site's scanner before the record takes them.
 The shared search service composes per-app public projections, preserving each app's ACL and
 publication state; no raw UniversalSearch result is exposed to anonymous callers.
