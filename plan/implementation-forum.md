@@ -112,6 +112,22 @@ against the code and fixed, with checks for the ones a spec can show:
   same schema and routes (identical-copy test) but have no remote browser feature yet.
 - Activity aggregation was not measured on the 10,000-post Scale fixture.
 
+## Accounting P18: Billing and Supplier
+
+The first PASS apps beyond Forum (Accounting's InvoicePay and SupplierBillUpload), and how an app registers (design §13.1):
+
+| Area | Implementation |
+| --- | --- |
+| Registration | `PublicApps.js` at the authority (app names, targets, readiness) and `service/pass/Apps.js` here (root screens, default paths), `Pass.xml` subscreens `Billing` and `Supplier`; operator-only targeted mounts that a core save keeps; app navigation in the header, and on a site without Forum |
+| Pages | Billing: Invoices (a signed-in contact's), InvoicePay (PublicInvoice, PayInvoice, PaymentResult, the gateway's `return` path, a contact's pay link). Supplier: BillUpload (SupplierSubmission, SubmissionReceipt). Server HTML with XML forms, at 390 px and on the desktop |
+| Authority | `mantle.account.PortalServices` over `mantle.party.ExternalAccessServices` (capabilities with token digests, invitations bound to an app and a party); the hosted gateway's return address and pending outcome; a scanned bill staged under `pass_media_root/bills` |
+| Remote | The facade sends a link's payment and bill (`TOKEN_WRITES`) without a member session and any file operation as multipart; `PassApi` accepts those writes from a registered deployment |
+
+Verified Oct 31, 2026: Portals (3) and PortalFixtures with Mantle's AccountingPortals (8); PortalHttp 3/3 at 390 px and
+on the desktop; RemoteHttp's portal feature through a frontend with only framework, webroot and PASS (its two image
+features need an image-enabled build); Forum, ForumAccess, Media, Integrations, Outbox, PublicIdentity, Operations and
+SsoHandoff unchanged (73/73 with the portal specs).
+
 ## Screens
 
 All 27 S1 screen definitions have their functional core in the dedicated public shell:

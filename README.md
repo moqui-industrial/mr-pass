@@ -2,14 +2,17 @@
 
 PASS is the public-facing component for Modern Rust Moqui. Its Forum uses Mantle MAILBOX lists and
 CommunicationEvent posts, with a dedicated public shell, explicit publication, public accounts,
-moderation, read markers, protected attachments, and outbound notifications.
+moderation, read markers, protected attachments, and outbound notifications. Its Billing app shows an
+organization's invoices to its customers and takes payment from an invoice's pay link; its Supplier app
+takes a supplier's bill for a purchase order (Accounting's pages, over Mantle's PortalServices).
 
 The component has a framework-only static dependency. Local deployments load Mantle. Remote
 frontends need only framework, webroot, and PASS; they use one operator-configured Mantle authority
 without loading its entity catalog or copying its Party records. BOSS is not a runtime dependency.
 
-The [Forum design](plan/design-forum.md) defines the stages; what is built and verified, and what is deferred, is in
-[the implementation record](plan/implementation-forum.md). Operators start with [Deployment](docs/Deployment.md).
+The [Forum design](plan/design-forum.md) defines the stages and how an app registers (§13.1); what is built
+and verified, and what is deferred, is in [the implementation record](plan/implementation-forum.md).
+Operators start with [Deployment](docs/Deployment.md), which also covers the Billing and Supplier apps.
 
 ## Starting a community
 
@@ -29,7 +32,9 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals --db snapshot
+# Billing and Supplier in the browser, at 390 px and on the desktop
+./moq test-client mr-pass --nobuild --serve --spec PortalHttp
 # ForumHttp is slow (over 30 seconds): --slow runs it, only when its browser scenarios are needed
 ./moq test-client mr-pass --nobuild --serve --spec ForumHttp --slow
 ./moq test mr-pass --nobuild --spec Scale --db snapshot -D pass_scale_test=true

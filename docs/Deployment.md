@@ -63,6 +63,54 @@ single-use exchange code. Configure allowed provider IDs in `pass_sso_flows`; th
 framework OIDC/OAuth facilities and account/second-factor policy. SAML remains unavailable where
 the framework package does not provide it.
 
+## Billing and Supplier apps
+
+Billing (an organization's customer invoices and their pay links) and Supplier (a purchase order's bill upload) are PASS
+apps beside Forum. Each serves one internal organization, its mount's target, which only an operator sets:
+
+```json
+{"siteId": "...", "expectedRevision": 3, "mounts": [
+  {"app": "forum", "pathPrefix": "/forum"}, {"app": "account", "pathPrefix": "/account"},
+  {"app": "billing", "pathPrefix": "/billing", "targetId": "ORG_ID"},
+  {"app": "supplier", "pathPrefix": "/supplier", "targetId": "ORG_ID"}]}
+```
+
+A site owner's save of the core mounts (SiteDetail) keeps them. Add `/billing` and `/supplier` to the runtime's
+`<public-site>` mounts (screens `Billing` and `Supplier`). A site without Forum serves only these and Account, and its
+pages show those apps' navigation. Readiness adds each app's checks: the target is an internal organization, the
+organization has an invoice payment gateway (Billing), bill files can be scanned (Supplier) and the site has a canonical
+host, from which every link Mantle mails is built.
+
+- **Links.** An invoice's pay link (`/billing/InvoicePay?token=`) comes from Mantle's `send#Invoice`, and a purchase
+  order's bill link (`/supplier/BillUpload?token=`) from BOSS's order screen; each is an `ExternalAccessCapability` with
+  only its token's digest kept. A link opens one record of its organization's site, until it expires or is revoked;
+  anything else says the page is not available. Failed lookups are limited per browser address.
+- **Contacts.** `mantle.party.ExternalAccessServices.invite#Contact` invites a customer's or supplier's contact to the
+  app; redeeming the invitation (Account's Invitation page) makes the account's party a contact of that party. The
+  account holds no user group. A signed-in contact sees the customer's invoices under Billing's Invoices and can make a
+  pay link to share. Set the site's registration to invitation so invited contacts can register.
+- **Payment.** Set the organization's invoice payment gateway (`PartyAcctgPreference.invoicePayGatewayConfigId`, one of
+  its PaymentGatewayOrganization bindings; BOSS Accounting Preferences). A hosted gateway takes the payer to its page from
+  a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=`; the result comes
+  from the gateway's details service, never from the return's parameters. The content security policy stays
+  `form-action 'self'`: no form posts to the provider. The test gateway (`PaymentTestServices.hostedPending#...`) is for
+  tests and demos only.
+- **Bills.** A supplier's file is staged under `pass_media_root/bills`, scanned by `pass_scanner_service` (PDF, PNG or
+  JPEG, at most 10 MiB) and becomes the incoming draft bill's file only when clean; a repeat of the request or of the
+  supplier's bill number answers the first submission. AP reviews the bill in BOSS; nothing here approves it.
+
+A remote frontend posts a link's payment or bill with no member session; the authority accepts those two operations
+only from a registered deployment.
+
+### Adding an app
+
+An app registers in four places: its name and target type in the authority's
+`mr-mantle/service/mantle/public/PublicApps.js` (with its readiness service, if any), its root screen and default path
+in `service/pass/Apps.js`, a `subscreens-item` of `screen/Pass.xml`, and its operations in `service/pass/Schema.js` and
+`Routes.js` with Mantle's copies (`ForumSchema.js`, `script/PassRoutes.js`), which Forum's spec keeps identical. Each
+operation maps to a Mantle service taking PASS's `input` map; a bearer link's write is listed in `TOKEN_WRITES` in
+`Facade.js` and Mantle's `PassApi.js`. Then mount it in the runtime's `<public-site>`.
+
 ## Provisioning and publication
 
 Provision through an authenticated operator context using
@@ -202,7 +250,7 @@ reconciliation, a frozen source and a backup reference. Proxies can send old com
 Start an authority fixture on a dedicated loopback port:
 
 ```sh
-./moq test mr-pass --nobuild --spec ClientFixtures --db snapshot --serve 127.0.0.1:18091
+./moq test mr-pass --nobuild --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091
 ```
 
 Create a separate scratch runtime containing only symlinks to framework, webroot, tools, and PASS.
@@ -215,8 +263,10 @@ and `--serve 127.0.0.1:18092`; it asserts the Mantle entity catalog is absent. T
 ./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
-The test authenticates through the authority, saves a private draft, uploads/scans/publishes media,
+Run the authority with `--spec ClientFixtures,PortalFixtures` for the Billing and Supplier feature. The test
+authenticates through the authority, saves a private draft, uploads/scans/publishes media,
 downloads it through the frontend, then revokes anonymous access and verifies concealment. It
-also uploads a profile image and verifies that changing profile visibility conceals the image.
+also uploads a profile image and verifies that changing profile visibility conceals the image, then opens a pay link,
+starts its payment and sends a supplier's bill through the remote frontend.
 Stop both disposable servers after the run. Live SMTP, IdP, DNS/TLS, and production scanner checks
 remain deployment-specific; the specs use captured mail, a deterministic scanner, and isolated data.
