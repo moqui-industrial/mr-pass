@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- A signed-in contact's invoices: those of the customers the contact was invited for (find#Invoices). -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd" require-authentication="false" default-menu-title="Invoices">
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Invoices">
   <actions>
     <script><![CDATA[
-        const found=siteInfo.authenticated ? ec.resource.script('component://mr-pass/screen/Shared/Portal.js').attempt('findInvoices',{siteId:resolvedSiteId}) : {result:{invoiceList:[]}}
+        const found=siteInfo.authenticated
+            ? ec.resource.script('component://mr-pass/screen/Shared/Portal.js').attempt('findInvoices',{siteId:resolvedSiteId})
+            : {result:{invoiceList:[]}}
         invoiceList=found.result?.invoiceList || []
         failure=found.error || null
     ]]></script>

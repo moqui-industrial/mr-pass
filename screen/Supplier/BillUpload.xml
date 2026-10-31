@@ -3,16 +3,25 @@
 <!-- BillUpload (design-accounting §5 SupplierBillUpload): SupplierSubmission and SubmissionReceipt for a purchase order's
     link (token) or a signed-in contact of its supplier (orderId). The file is scanned before the incoming draft bill is
     made; a repeat answers the first submission, and nothing here approves a bill. -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd" require-authentication="false" default-menu-title="Bill upload">
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Bill upload">
   <transition name="submit" method="post">
     <actions>
       <script><![CDATA[
         const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
         const token=p.token || null,orderId=token ? null : p.orderId || null
         const base=publicPath.replace(/\/submit$/,'')
-        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
-        const out=portal.attempt('submitSupplierBill',{siteId:resolvedSiteId,token,orderId,operationId:p.operationId,referenceNumber:p.referenceNumber,invoiceDate:p.invoiceDate || null,amount:p.amount || null,file:ec.web.multiPartParameters?.file})
-        if(out.error){ec.web.sessionAttributes.passBillError=out.error.message;ec.web.response.sendRedirect(base+query({token,orderId}));return}
+        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
+            .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
+        const out=portal.attempt('submitSupplierBill',{siteId:resolvedSiteId,token,orderId,operationId:p.operationId,
+            referenceNumber:p.referenceNumber,invoiceDate:p.invoiceDate || null,amount:p.amount || null,
+            file:ec.web.multiPartParameters?.file})
+        if(out.error){
+            ec.web.sessionAttributes.passBillError=out.error.message
+            ec.web.response.sendRedirect(base+query({token,orderId}))
+            return
+        }
         ec.web.response.sendRedirect(base+query({token,orderId,submissionId:out.result.submission.submissionId}))
     ]]></script>
     </actions>
@@ -42,9 +51,12 @@
     <section name="SupplierSubmissionSection" condition="view &amp;&amp; !view.submission">
       <widgets>
         <render-mode>
-          <text type="html"><![CDATA[<form method="post" enctype="multipart/form-data" id="SupplierSubmission" class="card" action="${publicPath}/submit"><h2>Send your bill</h2><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}">]]></text>
+          <text type="html"><![CDATA[<form method="post" enctype="multipart/form-data" id="SupplierSubmission" class="card"
+action="${publicPath}/submit"><h2>Send your bill</h2>
+<input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}">]]></text>
         </render-mode>
-        <form-single name="SupplierSubmission" transition="submit" map="{token:token, orderId:(token ? null : view.order.orderId), operationId:submitOperationId}" skip-start="true" skip-end="true">
+        <form-single name="SupplierSubmission" transition="submit" skip-start="true" skip-end="true"
+            map="{token:token, orderId:(token ? null : view.order.orderId), operationId:submitOperationId}">
           <field name="token">
             <default-field>
               <hidden/>
@@ -87,7 +99,8 @@
           </field>
         </form-single>
         <render-mode>
-          <text type="html"><![CDATA[<p><small>The buyer's accounts team reviews your bill; sending it does not approve it.</small></p></form>]]></text>
+          <text type="html"><![CDATA[<p><small>The buyer's accounts team reviews your bill; sending it does not approve
+it.</small></p></form>]]></text>
         </render-mode>
       </widgets>
     </section>

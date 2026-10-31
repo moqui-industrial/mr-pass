@@ -8,10 +8,14 @@
         publicHost=String(publicHost || "").toLowerCase()
         siteId=resolvedSiteId
         siteInfo=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getSiteInfo',input:{siteId,hostname:publicHost}}).call().result
-        passBases=Object.fromEntries(Object.entries(ec.resource.script('component://mr-pass/service/pass/Apps.js')).map(([app,v])=>[app,v.base]))
+        const passApps=ec.resource.script('component://mr-pass/service/pass/Apps.js')
+        passBases=Object.fromEntries(Object.entries(passApps).map(([app,v])=>[app,v.base]))
         for (const mount of siteInfo.mounts || []) passBases[mount.app]=mount.pathPrefix==='/'?'':mount.pathPrefix
         const requestPath=String(publicPath || '')
-        passApp=(siteInfo.mounts || []).filter(m=>requestPath===m.pathPrefix || requestPath.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/')).sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]?.app || null
+        // the app the request is in, by its mount: the header shows that app's navigation
+        passApp=(siteInfo.mounts || [])
+            .filter(m=>requestPath===m.pathPrefix || requestPath.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/'))
+            .sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]?.app || null
     ]]></script>
   </always-actions>
   <subscreens default-item="Forum">
