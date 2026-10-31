@@ -1,7 +1,7 @@
-suite(['ForumHttp'], {
+suite(['ForumHttp', 'PortalHttp'], {
     server: {
         components: ['mr-pass'],
-        specs: ['ClientFixtures'],
+        specs: ['ClientFixtures', 'PortalFixtures'],
         conf: 'conf/MoquiLoadTestConf.xml',
     },
 })

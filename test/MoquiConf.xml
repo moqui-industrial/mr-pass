@@ -20,6 +20,8 @@
         <mount path="/account" screen="Account"/>
         <mount path="/members" screen="Members"/>
         <mount path="/sites" screen="Sites"/>
+        <mount path="/billing" screen="Billing"/>
+        <mount path="/supplier" screen="Supplier"/>
       </public-site>
     </webapp>
   </webapp-list>
