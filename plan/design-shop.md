@@ -120,8 +120,8 @@ are mounted inside Shop with order context (§9, X7); the PASS Account pages are
 | PaymentMethods | PASS:Shop/Account/PaymentMethods | settings | xml | Manage tokenized methods | PaymentMethod | own safe projection | self | new S2 | self/provider |
 | Orders | PASS:Shop/Orders | list | xml | Find own purchases | OrderHeader | own public view | self | new S2 | filters |
 | OrderDetail | PASS:Shop/Orders/OrderDetail | detail | xml | Follow fulfillment and request help | safe order/shipments projection | own public view | self/order capability | new S2 | order |
-| RequestReturn | PASS:Shop/Orders/RequestReturn | wizard | xml | Ask to return eligible goods of this order | ReturnHeader | Customer Service Support RequestReturn (§8) | self/order capability | new S2 | order, items |
-| NewCustomerCase | PASS:Shop/Orders/NewCustomerCase | wizard | xml | Ask privately about a purchase | Request (case) | Customer Service Support NewCustomerCase (§8) | self/order capability | new S2 | order, store queue |
+| RequestReturn | PASS:Shop/Orders/RequestReturn | wizard | xml | Ask to return eligible goods of this order | ReturnHeader | Customer Service Support RequestReturn (Customer Service §8) | self/order capability | new S2 | order, items |
+| NewCustomerCase | PASS:Shop/Orders/NewCustomerCase | wizard | xml | Ask privately about a purchase | Request (case) | Customer Service Support NewCustomerCase (Customer Service §8) | self/order capability | new S2 | order, store queue |
 | Downloads | PASS:Shop/Downloads | list | xml | Retrieve entitled digital content | proposed StoreDownloadGrant | existing protected media primitives | self/delivery capability | new S2 | order item/grant |
 | Subscriptions | PASS:Shop/Subscriptions | list | xml | Inspect paid/recurring access | Subscription + StoreRecurringContract | own over Mantle | verified self | new S3 | self |
 | SubscriptionDetail | PASS:Shop/Subscriptions/SubscriptionDetail | detail | xml | Renew/manage billing and cancellation | recurring contract projection | own | verified self | new S3 | contract |
@@ -769,7 +769,7 @@ cards; AccountOverview does not repeat them.
 | AccountLinks | display | Open this store's purchase tasks | addresses, methods, orders, downloads, subscriptions; My account hub | registered PASS links | `getShopAccount` | Frappe portal navigation |
 
 Derived from ridgecrest account home and Frappe role-aware portal navigation. An order's invoices
-open the built PASS Billing Invoices page (`pass/screen/Billing/Invoices.xml`), which the self
+open the built PASS Billing Invoices page (`mr-pass/screen/Billing/Invoices.xml`), which the self
 relationship now opens to a Shop-registered buyer (R-SHP-W06). Profile, security and email
 preferences are hub links, not Shop links. Empty sections link back to published catalog; no
 public profile is created to fill an account card. **Needs:** SHOP-ACCOUNT.
@@ -1310,7 +1310,7 @@ projections by site/mount/store, publication generation, theme/page versions, lo
 tax-display context and bounded query parameters. Personalized prices, cart/account/checkout,
 capabilities and drafts are private/no-store and never share anonymous cache entries.
 
-The PASS shell today sends `Cache-Control: no-store` on every page (`pass/screen/Pass.xml`), so
+The PASS shell today sends `Cache-Control: no-store` on every page (`mr-pass/screen/Pass.xml`), so
 none of this HTTP caching exists yet. Shop adds a route-level cache policy: public caching only
 for anonymous catalog and content routes (Home, Categories, CategoryDetail, Search without
 personal facets, ProductDetail, Page) and `no-store` for everything else, including any request
@@ -1542,21 +1542,22 @@ pending attempts on the authority even if the presentation release is rolled bac
 
 ### 17.2 Delivery gates
 
-**Dependencies:** S1 extends the existing PASS site/account/authority registry and depends on
-Commerce C1 for controlled authoring, the extended PublicSitePage (X14) and the route-level cache
-policy; framework locked execution/markup limits and immutable resources must work before any
-merchant package runs. S2 requires S1 plus native price/tax/stock configuration, Accounting's
-typed attempt coordinator (X9) with the payments plan's P1 hosted checkout, guarded placement,
+**Dependencies:** S1 extends the existing PASS site/account/authority registry and shares one
+gate with Commerce C1 (design-commerce §15 requires S1), which brings controlled authoring and
+the extended PublicSitePage (X14); the route-level cache policy is Shop's own SHOP-RENDER work;
+framework locked execution/markup limits and immutable resources must work before any merchant
+package runs. S2 requires S1 plus native price/tax/stock configuration, Accounting's typed
+attempt coordinator (X9) with the payments plan's P1 hosted checkout, guarded placement,
 settlement-before-digital-access automation with `create#InvoiceFromSource`, the ExternalAccess
-self relationship and `SalesOrder` kind (X6), Customer Service's Support pages and services
-(X7), the `OhtPayment` hold (X4) and the Comms delivery ledger (X8). S3 builds on S2's payment
+self relationship and `SalesOrder` kind (X6), Customer Service's Support pages and services (X7),
+the `OhtPayment` hold (X4) and the Comms delivery ledger (X8). S3 builds on S2's payment
 machinery and the existing PASS subscription/resource contract, adding unique occurrences,
 source-instance fulfillment, expiry, recurring consent, the RecurringTemplate marker, Dunning
 exclusion and the refund hook (X5). **S3 is gated on the first adapter's off-session charges**:
 P1 profile charges marked as stored-credential, merchant-initiated (§8.1). S4 uses the same
-catalog/publication generations and intake identities; neither feeds nor a remote storefront
-may invent weaker publication or order acceptance rules. All four gates also require
-local/remote parity; BOSS is needed for authoring, not live Shop operation.
+catalog/publication generations and intake identities; neither feeds nor a remote storefront may
+invent weaker publication or order acceptance rules. All four gates also require local/remote
+parity; BOSS is needed for authoring, not live Shop operation.
 
 | Stage | Capability | Acceptance gate |
 | --- | --- | --- |
@@ -1640,6 +1641,8 @@ as a public UI implementation.
 | Operation names and errors (Nov 1, 2026; R-SHP-19) | Flat camelCase operation names unique across PASS, with a Shop noun where needed; errors use the facade kinds with a camelCase reason |
 | Digital invoicing (Nov 1, 2026; R-SHP-09, R-SC-07) | Digital items sit in their own order part, invoiced by `create#InvoiceFromSource` on the ordered basis, captured, completed by `checkComplete#OrderPart`, then granted |
 | Notices of a digital or subscription purchase (Nov 1, 2026; R-SHP-12) | Placed confirmation, the invoice-finalized receipt and the download-ready or access notice; no approved email |
+| First payment adapter (Nov 1, 2026; R-SHP-05) | Authorize.Net (payments plan P1): Accept Hosted for checkout and customer payment profiles charged as stored-credential, merchant-initiated renewals; Stripe P3 second. P1's scope gains the merchant-initiated indicators and S3 waits for them (§8.1, X9) |
+| Account hub path and owner (Nov 1, 2026; review X6) | `PASS:Account/Home`, owned by the PASS Account foundation (design-forum §8), with registered cards from Shop, Billing, Support, Sales and Marketing; the hub exists without Shop, which is store-scoped and may not be installed |
 
 ## 20. Open
 
@@ -1651,8 +1654,6 @@ a required capability is disabled, not a reason to weaken the contract. These re
 
 | Question | Recommendation | Why |
 | --- | --- | --- |
-| First payment adapter (R-SHP-05) | Authorize.Net (payments plan P1): Accept Hosted for checkout and customer payment profiles charged as stored-credential, merchant-initiated renewals; Stripe P3 second. P1's scope gains the merchant-initiated indicators; S3 waits for them | It is the first planned port that has both hosted checkout and saved profiles; the plan's exclusion of provider-run subscriptions does not block Shop, whose coordinator charges each period |
-| Account hub path and owner (X6) | `PASS:Account/Home`, owned by the PASS Account foundation (design-forum §8), with registered cards from Shop, Billing, Support, Sales and Marketing | The hub must exist without Shop, because Shop is store-scoped and may not be installed |
 | Social sign-in (R-SHP-L02, M) | After S2: "Sign in with Google/Apple" through the framework OIDC `sso` feature, linking to an existing account only through PASS email verification, never by email alone | Faster checkout; the risk is account takeover by an unverified provider email, which the verification step removes |
 | Back-in-stock notice (SHP-F01, M) | Add in S2 or S4: a product/store/party request sent once when availability returns, as a transactional notice on the delivery ledger, not marketing | Mantle has the availability service and the ledger will exist; it needs one small request record and a job |
 | Quote from cart (SHP-F03, M) | After Sales S2: a B2B cart becomes an `RqtQuote` quote request handed to PASS Sales, answered in Sales CustomerQuotes | Reuses Sales' quote flow; Shop adds only the handoff |

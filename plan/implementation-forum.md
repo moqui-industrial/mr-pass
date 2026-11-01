@@ -1,6 +1,6 @@
 # PASS Forum implementation status
 
-Updated October 28, 2026. The [design](design-forum.md) remains the acceptance specification.
+Updated October 31, 2026. The [design](design-forum.md) remains the acceptance specification.
 The S1, S2 and S3 implementations span mr-moqui/framework, mr-mantle, and mr-pass, with Comms
 display changes in mr-boss. Existing BOSS inbox
 regressions run against the shared mailbox changes; BOSS is not a PASS runtime dependency.
@@ -58,7 +58,7 @@ account settings, notifications, unsubscribe, search and mail settings gained th
   snapshot is not built, because PASS has no organization-group recipient source yet.
 - The Regular trust threshold counts visiting days in total, not within a rolling 100 days.
 - The BOSS moderation mount over the Mantle queue (§13.4) is not built; Comms shows forum state and
-  posts through the shared gate.
+  posts through the shared gate (built in S3: Comms/Moderation).
 - `replyToAddresses` is not kept on the stored EmailMessage (it has no Reply-To field), so sending a
   stored notice again would use the template's Reply-To. Forum notices are never re-sent that way.
 - Inbound mail was exercised through the email ECA service with constructed header maps, not a

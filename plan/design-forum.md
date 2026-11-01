@@ -1,6 +1,6 @@
 # IronStone PASS — Forum design
 
-Oct 27, 2026 — design specification with staged implementation. See [implementation status](implementation-forum.md) for S1 code and verified checks.
+Oct 27, 2026 — design specification with staged implementation; Nov 1, 2026 — consistency pass: S1–S3 and the P18 Billing and Supplier apps are built. See [implementation status](implementation-forum.md) for the code and verified checks.
 
 **IronStone PASS — Public Application Software Suite** is the public-facing companion to
 **IronStone BOSS**. Its repository and component name are **`mr-pass`**. Forum serves community
@@ -38,7 +38,7 @@ Root `screen/Pass.xml`, displayed as IronStone PASS or the site's configured bra
 `sym_o_forum`. A deployment maps an allow-listed hostname to a `PublicSite` and an enabled app
 mount. Default mounts are `/forum`, `/account`, `/members`, and `/sites` (site administration);
 a forum-only site may mount Forum at `/`. Billing and Supplier (Accounting's, §13.1) mount at `/billing` and
-`/supplier` for one organization each. Commerce and Publishing reserve configurable mounts,
+`/supplier` for one organization each. Shop and Publishing reserve configurable mounts,
 conventionally `/shop` and `/blog`. Mounts may not overlap reserved authentication/API routes.
 Screen paths below are component-relative identities, not assumptions about an external prefix.
 
@@ -106,7 +106,7 @@ by authorized extensions, and does not imply a BOSS Assist drawer.
 | Notifications | Account/Notifications | list | xml | Act on personal notifications | notification projection | framework notifications | self | new S1 | site, filters |
 | Bookmarks | Forum/Bookmarks | list | xml | Return to saved posts/topics | ForumBookmark | own | self | new S2 | site, filters |
 | Drafts | Forum/Drafts | list | xml | Resume or discard drafts | ForumDraft | own | self | new S1 | site, self |
-| Unsubscribe | Account/Unsubscribe | task | xml | The built token entry for forum email; it forwards to the one Email preferences page, `Account/EmailPreferences` (Commons §16) | ForumDeliveryPreference | Commons §16 Email preferences | token recipient | new S1/S2 | scoped token |
+| Unsubscribe | Account/Unsubscribe | task | xml | The built token entry for forum email; it will forward (proposed, X15) to the one Email preferences page, `Account/EmailPreferences` (Commons §16) | ForumDeliveryPreference | Commons §16 Email preferences | token recipient | new S1/S2 | scoped token |
 | Conversations | Forum/Messages | list | xml | List private conversations | ForumTopic + ForumParticipant | own | participant | new S2 | site, filters |
 | ConversationDetail | Forum/Messages/ConversationDetail | detail | qvue + html | Private topic stream and recipients | CommunicationEvent + ForumParticipant | TopicDetail stream/composer | participant | new S2 | site, root |
 | ReviewQueue | Forum/Moderation/ReviewQueue | list | xml | Triage review work | ForumReviewItem | shared Mantle review projection | scoped moderator | new S1/S2 | site, filters, selection |
@@ -610,14 +610,15 @@ required transaction/audit records; content disposition is explicit, never a cas
 delete. Public anonymity replaces attribution when approved. S2 adds advanced preferences.
 **Needs:** PASS-AUTH, PASS-SITE, PASS-DELIVERY, PASS-OPS.
 
-**One privacy intake (Nov 1, 2026; review X15, R-SC-10).** The Privacy tab links to the PASS Account
-privacy page, which records the request through Admin's proposed `PrivacyServices.create#Request`;
-Forum no longer has its own `request#PersonalDataAction`. Forum registers a privacy provider with
-Admin for its data (profile, memberships, posts and drafts, bookmarks, read state, delivery
-preferences and the delivery ledger rows). The provider previews what it holds and executes the
-disposition Admin records, under §8's erasure rules: authored content follows an explicit
-disposition, never a cascading Party delete. The Notifications/email tab's delivery choices also
-appear on the PASS Account Email preferences page (Unsubscribe below).
+**One privacy intake (Nov 1, 2026; review X15, R-SC-10).** The Privacy tab links to the PASS
+Account privacy page, which records the request through Admin's proposed
+`PrivacyServices.create#Request`; Forum keeps its built `request#PersonalDataAction` until Admin
+PrivacyRequests ships, then it is retired. Forum registers a privacy provider with Admin for its
+data (profile, memberships, posts and drafts, bookmarks, read state, delivery preferences and the
+delivery ledger rows). The provider previews what it holds and executes the disposition Admin
+records, under §8's erasure rules: authored content follows an explicit disposition, never a
+cascading Party delete. The Notifications/email tab's delivery choices also appear on the PASS
+Account Email preferences page (Unsubscribe below).
 
 ### Notifications
 
@@ -675,11 +676,11 @@ Publishing opt-outs are separately named scopes. **Needs:** PASS-DELIVERY, PASS-
 
 **Email preferences (Nov 1, 2026; review X15, R-SC-11).** The one PASS Account **Email
 preferences** page is `PASS:Account/EmailPreferences` (proposed), owned by
-[Commons §16](../../mr-boss/plan/design-drawers-commons.md#16-consent-and-unsubscribe). This built
-token page forwards to it with its token, and it shows the forum delivery choices of this section
-beside list unsubscribe and Marketing topic preferences, each scope labelled. `D.apply#OptOut` stays the forum action and keeps its
-delivery-only meaning. BOSS `/u/<token>` redirects here, and list mail's `List-Unsubscribe` names
-this page at the site's canonical host.
+[Commons §16](../../mr-boss/plan/design-drawers-commons.md#16-consent-and-unsubscribe). This built token
+page will forward (proposed, X15) to it with its token, and it shows the forum delivery choices of
+this section beside list unsubscribe and Marketing topic preferences, each scope labelled.
+`D.apply#OptOut` stays the forum action and keeps its delivery-only meaning. BOSS `/u/<token>`
+redirects here, and list mail's `List-Unsubscribe` names this page at the site's canonical host.
 
 ## 9. Private conversations
 
@@ -1251,13 +1252,13 @@ moderation visibility, accepted-answer/closed status and public-versus-private r
 Its compose path, email ingestion and API all invoke the shared post gate. Internal users keep
 individual message state. Public users remain out of BOSS, even if site/category moderators.
 
-Add a Comms moderation mount over the Mantle queue for authorized internal moderators, using the
-same review/action services. No dependency on PASS screens: reusable widgets can move to the
-framework when justified, while BOSS renders its own queue/context. Comms needs topic-policy,
+BOSS Comms/Moderation (built in S3) lists the Mantle queue for authorized internal moderators,
+using the same review/action services. No dependency on PASS screens: reusable widgets can move to
+the framework when justified, while BOSS renders its own queue/context. Comms needs topic-policy,
 revision and draft-conflict handling so it cannot bypass review, restrictions or notifications.
 `C.create#Message`, `get#InternalThread`, `set#InternalMessageState`, `close#ListThread` and list
-find services gain shared-policy hooks for forum-bound data; security rules do not live only in
-the new public facade. Existing unbound mailbox behavior remains the compatibility baseline.
+find services gain shared-policy hooks for forum-bound data; security rules do not live only in the
+new public facade. Existing unbound mailbox behavior remains the compatibility baseline.
 
 For Customer Service, `I.create#CaseFromTopic` makes a scoped Request plus a stable topic link;
 private case notes remain private. `I.publish#CaseReply` requires the CSR's forum posting rights,
@@ -1287,20 +1288,20 @@ to their linked internal records.
 | mantle.party.ConsentServices.create#UnsubscribeToken, check#UnsubscribeToken, resolve#UnsubscribeToken, apply#UnsubscribePreferences | Mantle service/mantle/party/ConsentServices.xml | Reuse token/consent mechanisms; existing membership-changing unsubscribe is not the forum delivery action. |
 | org.moqui.impl.WikiServices publication/review methods | Framework service/org/moqui/impl/WikiServices.xml | Existing version-bound review; scheduled public release and publication metadata remain new. |
 
-### 14.2 Proposed records
+### 14.2 Records
 
-All following names are proposed. PK columns, relationships and uniqueness below are contract
+Built in S1–S3 unless marked proposed. PK columns, relationships and uniqueness below are contract
 requirements; ordinary created/updated audit fields follow repository conventions. Use framework
 IDs and timestamps, not generated numeric URLs or a second global user ID. Lists may have no
 ForumCategory, and communication events may have no forum metadata: that is normal legacy data.
 
-| Proposed artifact / owner | Key and essential fields / relationships | Invariants and use |
+| Artifact / owner | Key and essential fields / relationships | Invariants and use |
 | --- | --- | --- |
 | mantle.public.PublicSite | siteId; name, state, locale, timeZone, theme settings, policyRevision | Disabled by default; no backend secrets in this row. |
 | PublicSiteHost, PublicSiteApp | host key → siteId/canonical; siteId+appMountId → app, pathPrefix, enabled, target ID | Host unique per deployment; non-overlapping mounts; target is typed store/publication/forum binding. |
 | PublicSiteParty, PublicSiteProfile | siteId+partyId; membership state, role, dates; handle, displayName, avatar, bio, discoverability | One effective site role per party, history audited; normalized handle unique within site. |
 | PublicSiteInvitation | invitationId; token digest, site, verified-address binding, grant scopes, inviter, expiry, redeemed/revoked dates | Single redemption transaction; no raw token persistence or implicit staff grants. |
-| PublicSitePage | siteId+pageRole; wikiPageId, selected published version, publication revision | Guidelines/about binding, checked before anonymous wiki projection. |
+| PublicSitePage | siteId+pageRole; wikiPageId, selected published version, publication revision | Guidelines/about binding, checked before anonymous wiki projection; the X14 extension (mount, route, locale, window, template and SEO, role optional) is proposed. |
 | PublicAccessGrant | grantId; party, site, targetType/ID, sourceType/ID, from/thru, revokedAt | Unique source/scope grant; combine qualifying manual/org/subscription sources without overwriting one another. |
 | mantle.forum.ForumCategory | contactListId PK/FK; siteId, parentContactListId, sequence, slug, publication state, visibility, mode, rules, policyRevision | One site per MAILBOX; acyclic hierarchy; inherited access ceiling. |
 | ForumTopic | rootCommEventId PK/FK; nullable siteId, kind category/private, revision, nextOrdinal, acceptedAnswerId, wiki default, pinned/unlisted, slow interval, visible activity/counters | Category roots retain CommunicationEvent.contactListId; private roots have none. Unbound mailbox metadata has no site and cannot enter the public API. Closed status derives from root CeResolved. |
@@ -1326,7 +1327,7 @@ ForumCategory, and communication events may have no forum metadata: that is norm
 | ForumImportRun, ForumImportMap, ForumPermalink | runId/source manifest/stage; source namespace+type+ID → target/checksum/state; old path → target ID | Never overwrite user identity by matching display name; aliases still check destination visibility. |
 | mantle.public.PublicDiscussionLink | site+sourceType+sourceID → topic, audience/release gate | Product/article/case integration; one publication discussion per configured source; source access can narrow topic access. |
 | framework public registration/delegation records | challenge/session IDs, hashed secrets, subject/client/site scopes, expiry/revocation | New generic framework capability; not stored in public profiles. |
-| framework publishing extensions (future) | publication ID, WikiBlog association, author-party attribution, revision-bound release/review/schedule | Content/version ownership remains framework; PublicSite bindings and paid access remain Mantle. |
+| proposed framework publishing extensions (future) | publication ID, WikiBlog association, author-party attribution, revision-bound release/review/schedule | Content/version ownership remains framework; PublicSite bindings and paid access remain Mantle. |
 
 Index forum queries by site/category/visible last activity/root ID; posts by root/ordinal;
 participants/markers by party/root; pending review by site/state/age; jobs/outbox by due state;
@@ -1582,7 +1583,7 @@ this documentation pass.
 | Decision | Notes |
 | --- | --- |
 | Suite/component name | IronStone PASS (Public Application Software Suite), repository/component mr-pass; companion to IronStone BOSS. |
-| Document ownership | Full Forum design plus PASS foundation in mr-pass/plan/design-forum.md; BOSS integration documents link here. S1 implementation and verified checks are tracked in implementation-forum.md. |
+| Document ownership | Full Forum design plus PASS foundation in mr-pass/plan/design-forum.md; BOSS integration documents link here. S1–S3 and the P18 Billing and Supplier apps are built; their implementation and verified checks are tracked in implementation-forum.md. |
 | App family | Forum first; IronStone Shop has a [separate design](design-shop.md), with implementation future; Blog/Publishing retains its shared contracts and future detailed design. |
 | Reference priorities | Existing Mailboxes/Mantle first, Discourse primary UI, phpBB functional breadth, Odoo Forum/Blog/Commerce shared-site and feature evidence. |
 | Deployment | One component, several sites/apps, one local or remote authority per deployment; no BOSS dependency or duplicated business store. |
