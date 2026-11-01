@@ -106,7 +106,7 @@ by authorized extensions, and does not imply a BOSS Assist drawer.
 | Notifications | Account/Notifications | list | xml | Act on personal notifications | notification projection | framework notifications | self | new S1 | site, filters |
 | Bookmarks | Forum/Bookmarks | list | xml | Return to saved posts/topics | ForumBookmark | own | self | new S2 | site, filters |
 | Drafts | Forum/Drafts | list | xml | Resume or discard drafts | ForumDraft | own | self | new S1 | site, self |
-| Unsubscribe | Account/Unsubscribe | task | xml | Change email delivery by token | ForumDeliveryPreference | framework token/consent primitives | token recipient | new S1/S2 | scoped token |
+| Unsubscribe | Account/Unsubscribe | task | xml | The built token entry for forum email; it forwards to the one Email preferences page, `Account/EmailPreferences` (Commons §16) | ForumDeliveryPreference | Commons §16 Email preferences | token recipient | new S1/S2 | scoped token |
 | Conversations | Forum/Messages | list | xml | List private conversations | ForumTopic + ForumParticipant | own | participant | new S2 | site, filters |
 | ConversationDetail | Forum/Messages/ConversationDetail | detail | qvue + html | Private topic stream and recipients | CommunicationEvent + ForumParticipant | TopicDetail stream/composer | participant | new S2 | site, root |
 | ReviewQueue | Forum/Moderation/ReviewQueue | list | xml | Triage review work | ForumReviewItem | shared Mantle review projection | scoped moderator | new S1/S2 | site, filters, selection |
@@ -602,13 +602,22 @@ framework's account/password/second-factor services through the authority adapte
 | SecuritySettings | component | Manage credentials | password/factors/sessions/verified address | framework account controls | A.manage#Account | framework account |
 | DeliverySettings | single | Set defaults/overrides | notification level, email mode, digest frequency, own posts, ignored users | grouped preferences | D.get#Preferences, D.set#Preferences | R3/R6 |
 | MembershipSettings | list | Inspect/join/leave | site/category, source, state, entitlement period | scoped actions | S.get#Membership, S.leave#Site, F.leave#Category | R1 memberships |
-| PrivacyRequest | dialog | Export or request erasure | request type, scope, confirmation | confirmation | O.request#PersonalDataAction | R2 account privacy |
+| PrivacyRequest | dialog | Export or request erasure | request type, scope, confirmation | confirmation | the PASS Account privacy page's call of proposed `org.moqui.admin.PrivacyServices.create#Request` | R2 account privacy; Admin PrivacyRequests |
 
 **Actions/states:** save each tab independently with revision check; leave confirms lost access
 without deleting authored history. Erasure is a reviewed job preserving referential integrity and
 required transaction/audit records; content disposition is explicit, never a cascading Party
 delete. Public anonymity replaces attribution when approved. S2 adds advanced preferences.
 **Needs:** PASS-AUTH, PASS-SITE, PASS-DELIVERY, PASS-OPS.
+
+**One privacy intake (Nov 1, 2026; review X15, R-SC-10).** The Privacy tab links to the PASS Account
+privacy page, which records the request through Admin's proposed `PrivacyServices.create#Request`;
+Forum no longer has its own `request#PersonalDataAction`. Forum registers a privacy provider with
+Admin for its data (profile, memberships, posts and drafts, bookmarks, read state, delivery
+preferences and the delivery ledger rows). The provider previews what it holds and executes the
+disposition Admin records, under §8's erasure rules: authored content follows an explicit
+disposition, never a cascading Party delete. The Notifications/email tab's delivery choices also
+appear on the PASS Account Email preferences page (Unsubscribe below).
 
 ### Notifications
 
@@ -663,6 +672,14 @@ the identified delivery without login. Broader account changes require authentic
 changes delivery only, unlike existing consent flows that may change `ContactListParty` status.
 It does not cancel membership, organization eligibility or a paid subscription. Marketing and
 Publishing opt-outs are separately named scopes. **Needs:** PASS-DELIVERY, PASS-AUTH.
+
+**Email preferences (Nov 1, 2026; review X15, R-SC-11).** The one PASS Account **Email
+preferences** page is `PASS:Account/EmailPreferences` (proposed), owned by
+[Commons §16](../../mr-boss/plan/design-drawers-commons.md#16-consent-and-unsubscribe). This built
+token page forwards to it with its token, and it shows the forum delivery choices of this section
+beside list unsubscribe and Marketing topic preferences, each scope labelled. `D.apply#OptOut` stays the forum action and keeps its
+delivery-only meaning. BOSS `/u/<token>` redirects here, and list mail's `List-Unsubscribe` names
+this page at the site's canonical host.
 
 ## 9. Private conversations
 
@@ -1033,6 +1050,15 @@ ForumDelivery ledger covers those and links to the existing row when applicable.
 suppression merely because a user is a category member. Framework notification projection is
 restricted to the current recipient and current content visibility.
 
+**One delivery ledger (Nov 1, 2026; review X8).** The built `mantle.forum.ForumDelivery` is
+generalized into the one Comms-owned Mantle delivery attempt and receipt ledger
+([Commons §17](../../mr-boss/plan/design-drawers-commons.md#17-comms-settings), crosscut CX-DELIVERY).
+The ledger keeps ForumDelivery's unique event, recipient and channel key, its permanent, retryable
+and uncertain outcomes and its provider IDs, and adds a template key and consent snapshot. Forum's
+outbox becomes one source of it, as Marketing sends, Shop notices and Sales reminders are. The
+forum recipient policy, preferences, digests and reply routing stay Forum's. The move keeps rows
+already written: they migrate, or are read through the ledger's view, before any worker switches.
+
 Outbound list messages include stable thread references, list identity, a scoped reply address,
 a canonical authorized post link and scoped unsubscribe controls. Per-recipient sender names do
 not disclose email addresses to other members. Private conversation emails default to a minimal
@@ -1081,6 +1107,8 @@ forum delivery action rather than calling the existing membership-unsubscribe ac
 GET renders choices; only POST changes state. Repeated one-click requests return the same result.
 Hard bounce disables the failing address for sending and alerts its owner safely; changing to a
 new verified address requires explicit resumption preferences, not automatic resubscription.
+The opt-out is offered on the one PASS Account Email preferences page with list and Marketing
+choices (§8 Unsubscribe; Nov 1, 2026, review X15).
 
 **Needs:** PASS-READ, PASS-DELIVERY, PASS-AUTH, PASS-OPS.
 
@@ -1115,6 +1143,16 @@ organization, app and party, never a user group. Mantle builds a page's address 
 The shared search service composes per-app public projections, preserving each app's ACL and
 publication state; no raw UniversalSearch result is exposed to anonymous callers.
 
+**One customer account (Nov 1, 2026; review X6).** Besides the invited contact grant,
+`check` in `mr-mantle/service/mantle/party/ExternalAccess.js` gains a self relationship: a record whose party is the
+signed-in account's own party, with a verified email, is that customer's own. `appKinds` gains
+support and sales. One customer-direction record kind, `SalesOrder`, serves Sales quote links and
+Shop order, download and renewal links, all issued through `create#AccessCapability`. "My account"
+is a PASS Account hub with registered cards: Shop's AccountOverview, Billing invoices, Support cases
+and returns, Sales quotes, Email preferences and privacy. A Shop buyer therefore sees their
+invoices and cases without an invitation. The Forum's own account tabs (§8) are one card of the
+hub.
+
 ### 13.2 Shop
 
 [IronStone Shop](design-shop.md) designs the public catalog, content, cart/checkout, purchases,
@@ -1144,6 +1182,14 @@ Restoration reinstates the authorized remaining period. Default is no grace peri
 Shop policy may explicitly define one. A paid subscription never adds a UserGroup. Forum
 shows eligibility/expiry and a registered checkout/manage-subscription handoff; checkout and
 payment-provider implementations are not redesigned in this file.
+
+The manage-subscription handoff is `PublicSite.subscriptionUrl`, which Forum renders. When a store
+is mounted on the site, Shop readiness sets it to Shop's Subscriptions page
+([Shop §10](design-shop.md)) and flags a site with paid categories and no such link. SiteDetail's
+field stays for an operator's outside page. What a product grants, its
+`ProductSubscriptionResource` rows, is edited in the Paid access pane of BOSS Commerce's Product360
+context. SiteDetail's operator-only "Bind a subscription resource" form binds a site or category to
+a `SubscriptionResource` and links to that pane (Nov 1, 2026; review R-SHP-13, X16).
 
 ### 13.3 Future Blog/Publishing
 
@@ -1273,7 +1319,7 @@ ForumCategory, and communication events may have no forum metadata: that is norm
 | ForumReviewItem, ForumReviewReport, ForumReviewNote | reviewId/target/revision/state/claim; individual reporter/evidence; staff note | Deduplicate active review target/reason family; retain distinct reports, minimum private context and decision history. |
 | ForumModerationAction, ForumMemberState, ForumSanction | actionId; site+party trust state; sanctionId with category/site scope, dates and reason | Append-only action audit; sanctions effective at read/write time; staff identity and before/after revision retained. |
 | ForumPolicy, ForumRule, ForumTopicTimer | site+policyRevision; ruleId/type/action/config; timerId/root/action/due/revision | Versioned config; allow-listed timer actions; revision/scope rechecked when fired. |
-| ForumOutbox, ForumDelivery | outboxId/event key/payload references; deliveryId/recipient/channel/scope/attempt/provider ID/state | Unique event+recipient+channel; queue after content transaction; distinguish permanent, retryable and uncertain outcomes. |
+| ForumOutbox, ForumDelivery | outboxId/event key/payload references; deliveryId/recipient/channel/scope/attempt/provider ID/state | Unique event+recipient+channel; queue after content transaction; distinguish permanent, retryable and uncertain outcomes. Built; ForumDelivery is generalized into the Comms-owned delivery ledger (§12.2; Nov 1, 2026, review X8) and ForumOutbox stays the forum's source of it. |
 | ForumMailRoute, ForumReplyToken, ForumInboundReceipt | routeId/address/site/category; token digest/thread/recipient/expiry; ingestion source key/fingerprint/result | Route uniqueness, verified sender, no duplicate post on replay/alias delivery. |
 | ForumOperationReceipt | site+actor+operationId/action; payload hash, result IDs, state | Idempotency stored with write; conflicting operation reuse rejected. |
 | ForumJobRun, ForumJobItem | runId/site/type/checkpoint; run+source item/state/error/attempt | Item isolation, cancellation/checkpoint, retry and partial-success reports. |
@@ -1329,7 +1375,7 @@ are individual services, not dynamically selected service strings from a browser
 | D.find#Notifications, mark#Notifications | Current recipient projection, notice read state distinct from topic consumption. | /me/notifications |
 | D.store#Route, store#MailSettings, find#Deliveries, test#Route | Registered sender/route bindings, safe delivery diagnostics and bounded own-address test. | /mail/routes, /mail/settings, /mail/deliveries, /mail/test |
 | D.process#Inbound, dispatch#Outbox, send#Digest | Backend-only workers: original stored mail identity/recipient evidence; current recipient access; durable outcomes. No public arbitrary-send endpoint. | No public route |
-| O.get#Health, find#Runs, preview#Operation, start#Operation, retry#Items, store#RetentionPolicy, request#PersonalDataAction, get#Activity | Scoped jobs with preview/checkpoint/per-item failures; self-data requests or authorized aggregates. | /operations, /operations/runs, /reports/activity, /me/data-requests |
+| O.get#Health, find#Runs, preview#Operation, start#Operation, retry#Items, store#RetentionPolicy, get#Activity | Scoped jobs with preview/checkpoint/per-item failures; authorized aggregates. Self-data requests go to the PASS Account privacy page and Admin `PrivacyServices.create#Request`; Forum answers as a registered privacy provider (§8; Nov 1, 2026, review X15). | /operations, /operations/runs, /reports/activity |
 | I.get#TopicLinks, create#CaseFromTopic, publish#CaseReply, link#Discussion, draft#ArticleFromTopic | Safe related-record projections, explicit links and audience-reviewed public text, idempotent link/draft creation; current source and destination authority. | /integrations/cases, /integrations/discussions, /integrations/article-drafts |
 | X.preflight#Discourse, store#Mappings, preview#Import, run#Import, retry#ImportItems, reconcile#Import, activate#Import | Operator source manifest, scoped mappings, dry-run/restart, discrepancy report and gated activation. | /imports (operator and site-owner capability required) |
 
@@ -1370,12 +1416,12 @@ Every screen's Needs labels must resolve here.
 | PASS-PRIVATE | data model, service type / Mantle | explicit ForumParticipant and private preferences | Conversations, ConversationDetail, profiles | Snapshot group recipients, confirmed history grant, block rules, audited limited report access. |
 | PASS-MOD | data model, service type, seed data / Mantle | review queue, audit, sanctions, policies/rules, timers/trust | moderation/settings and Comms mount | Revision-bound decisions, claims, bounded defaults, shared posting gate, optional AI queue only. |
 | PASS-MEDIA | service type, tool / framework + Mantle | scoped staging/download/derivatives, scan hook, restricted preview fetch | composer, profile, publishing | Parent ACL at delivery, size/type checks, quarantine, staged expiry, sanitized rendering. |
-| PASS-DELIVERY | data model, service type, seed data / Mantle + framework mail | preference/notification/outbox/delivery/route/reply/receipt services | personal/mail screens, email participation | Independent audience-safe sends, current access, verified inbound sender, one-click delivery opt-out, loop/dedup controls. |
+| PASS-DELIVERY | data model, service type, seed data / Mantle + framework mail | preference/notification/outbox/route/reply services; delivery and receipt rows in the Comms-owned ledger generalized from ForumDelivery (crosscut CX-DELIVERY) | personal/mail screens, email participation, the PASS Account Email preferences page | Independent audience-safe sends, current access, verified inbound sender, one-click delivery opt-out on the one Email preferences page, loop/dedup controls. |
 | PASS-RENDER | render mode, shell item / framework + PASS | public host/mount shell and shared HTML/qvue projection | all public reading screens | Canonical ID routes, server HTML, metadata/feeds, inaccessible cache prevention, accessible enhancement. |
 | PASS-SEARCH | service type, seed data / Mantle + framework search | site/app search projections and invalidation | Search, tags, topic lists, Operations | Filter before snippets/counts, verify stale hits, stable cursors, per-site repair. |
 | PASS-PUBLISH | data model, service type / framework + Mantle | wiki publication/release binding and public page adapter | Guidelines, SiteDetail; future Publishing | Exact published revision, site/locale release metadata, future editorial/schedule contracts, no duplicate bodies. |
 | PASS-INTEGRATE | data model, service type / Mantle | discussion links, support/public reply, entitlement resource handlers | Comms, support, Shop/future Publishing | Idempotent links/grants, source ACL intersection, no private case-note copying or billing duplicate. |
-| PASS-OPS | data model, service type / Mantle + framework jobs | checkpointed runs/items, retention/export/health reports | Operations, ActivityReports, account data requests | Independent failure tolerance, item diagnostics, cancel/retry, preview before destructive retention. |
+| PASS-OPS | data model, service type / Mantle + framework jobs | checkpointed runs/items, retention/export/health reports; the Forum privacy provider registered with Admin | Operations, ActivityReports, Admin privacy requests | Independent failure tolerance, item diagnostics, cancel/retry, preview before destructive retention. |
 | PASS-IMPORT | data model, service type / Mantle | staged Discourse importer/maps/permalinks/reconciliation | Migration | Repeatable archive import, strict identity/access checks, stable source mappings and gated cutover. |
 
 No new general-purpose XML widget is required for S1 beyond existing forms/tree/editor/diff;
@@ -1552,6 +1598,12 @@ this documentation pass.
 | Migration | Discourse backup import first, staged/idempotent/reconciled; phpBB importer later. |
 | Reliability | Continue independent failed items with named errors; fail closed for authorization, identity/privacy mapping and atomic integrity. |
 | Delivery scope | Complete design with S1/S2/S3 build stages; future app documents do not dilute Forum completeness. |
+| One delivery ledger (Nov 1, 2026; review X8) | ForumDelivery is generalized into the one Comms-owned Mantle delivery ledger; ForumOutbox is one of its sources and Forum keeps its recipient policy (§12.2). |
+| Manage-subscription link (Nov 1, 2026; review R-SHP-13) | Shop readiness sets `PublicSite.subscriptionUrl` when a store is mounted; Forum only renders it (§13.2). |
+| Paid-access configuration (Nov 1, 2026; review X16) | `ProductSubscriptionResource` is edited in BOSS Commerce's Product360 context; SiteDetail binds a site or category to a resource and links there (§13.2). |
+| Privacy intake (Nov 1, 2026; review X15) | One intake: the PASS Account privacy page calls Admin `create#Request`; Forum drops `request#PersonalDataAction` and registers a privacy provider (§8). |
+| Email preferences (Nov 1, 2026; review X15) | The Forum opt-out is part of the one PASS Account Email preferences page, `Account/EmailPreferences`, with list unsubscribe and Marketing topics; BOSS `/u/` and this app's `Account/Unsubscribe` token page land there (§8, §12.4). |
+| One customer account (Nov 1, 2026; review X6) | `ExternalAccess.js` `check` gains a self relationship and the PASS Account hub links each app's customer pages (§13.1). |
 
 ## 21. Open
 
