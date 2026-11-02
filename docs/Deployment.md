@@ -16,20 +16,52 @@ frontend through deployment configuration or environment variables:
 
 | Property | Purpose |
 | --- | --- |
-| `pass_backend_url` | Fixed authority origin/base URL; use TLS in production |
+| `pass_backend_url` | Fixed authority origin/base URL; use TLS in production. `edge:` on an edge node: its local node, over the edge link |
 | `pass_client_id` | Registered deployment ID |
 | `pass_client_secret` | Server-side deployment secret |
+| `pass_backend_transport` | `rest`, `grpc`, or empty for automatic (below) |
+| `pass_backend_grpc_url` | The authority's gRPC listener for direct gRPC, such as `grpcs://boss.example.test:4317` |
+| `pass_backend_web_url` | The authority's web address for the browser's SSO front channel; defaults to an http(s) `pass_backend_url`, and is needed with `edge:` (the local node's host name, through the edge node's web access) |
+
+The same operations go to the authority by one of three transports, which callers cannot tell apart (the same results
+and error kinds; `service/pass/Transport.js`):
+
+- **REST**: the authority's `/rest/s1/pass/v1/sites/<siteId>/...` routes at `pass_backend_url`, the client's ID and
+  secret in headers. Every package has it.
+- **gRPC, direct**: the authority's gRPC listener (`pass_backend_grpc_url`), one long-lived HTTP/2 connection; the
+  client's ID and secret in metadata. In Maximal and Enterprise.
+- **gRPC on the edge link**: `pass_backend_url=edge:` on an edge node; its local node is the authority, and the link
+  is the client (no secret, no public authority). Edge nodes are Maximal.
+
+The transport rule: `pass_backend_transport` `rest` or `grpc` forces one. Empty is gRPC when the package has the
+host's gRPC binding and a gRPC endpoint is set (`pass_backend_url=edge:`, or `pass_backend_grpc_url`), else REST, so
+a frontend never moves to an authority port nobody opened. Lite and Dev have no gRPC: REST is their default and a
+supported mode for the long term. `grpc` with no `pass_backend_grpc_url` dials the `pass_backend_url` host on port
+4317, and `edge:` takes gRPC only. Settings that cannot work fail each call as unavailable, naming the setting in the
+log.
+
+`grpc://` is plain HTTP/2: to an authority on another host it sends the client's secret, and the visitors' credentials
+and data, in clear; use it on loopback or a private link only, and `grpcs://` otherwise. `grpcs://` trusts the WebPKI
+roots only; an authority certificate from a private CA is not accepted yet.
 
 On the authority, register `pass_client_<id>_secret` and comma-separated
 `pass_client_<id>_sites`. Register the exact frontend SSO callback URI in
-`pass_client_<id>_callback`, such as `https://forum.example.test/account/Sso`.
+`pass_client_<id>_callback`, such as `https://forum.example.test/account/Sso`. For direct gRPC, also set
+`pass_authority_grpc_enabled=true`: the host's gRPC listener (port `pass_authority_grpc_port`, 4317, on
+`pass_authority_grpc_host`; the OTLP receiver's port when that is on too) then takes PASS calls, TLS with the HTTPS
+listener's certificate. With no certificate it serves plain h2c, and then takes PASS calls only on a loopback address,
+unless `pass_authority_grpc_insecure=true`. For an edge node, the local node's client ID for it is
+`pass_edge_client` (default `edge`):
+set `pass_client_edge_sites` and `pass_client_edge_callback` (no secret; the link authenticates it).
 Delegations are hashed, revocable, site/client scoped, and expire after 15 minutes without use;
 use in the last five minutes extends them, up to twelve hours from sign-in, after which sign-in is
 required again. A failed write retains its draft and operation ID. Every authority call carries the
 deployment's client ID and secret (a credential is refused from any other caller) and the browser's
 address, which the authority trusts only from a registered client for its rate limits. Password changes, account
 termination/disable, or ending the issuing visit invalidate delegations. Credentials and the
-authority's second-factor cookie stay in the frontend's server-side session.
+authority's session for a second factor in progress stay in the frontend's server-side session: REST keeps the
+authority's session cookie, gRPC the same session as an opaque handle (the signed session id) that each account call
+carries and the authority renews when it rotates the session.
 
 ## Host and mount bindings
 
@@ -267,6 +299,35 @@ that runtime. Run `RemoteFixtures` with `MOQUI_RUNTIME` set to that directory, i
 and `--serve 127.0.0.1:18092`; it asserts the Mantle entity catalog is absent. Then run:
 
 ```sh
+./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+```
+
+That run is REST; build the frontend with `--lite` to check REST on Lite. The same test runs over each gRPC transport
+with the Maximal package (`--release`) on both runtimes.
+
+gRPC direct (the authority on loopback serves h2c, which loopback allows):
+
+```sh
+./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
+    -D pass_authority_grpc_enabled=true -D pass_authority_grpc_port=18093
+# the frontend's conf: the remote properties above, and
+#   pass_backend_grpc_url=grpc://127.0.0.1:18093   pass_backend_transport=grpc
+MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --spec RemoteFixtures --serve 127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+```
+
+gRPC on the edge link: the frontend is an edge node, which the authority runtime pairs with. Pairing checks the edge
+node's certificate by WebPKI, so its runtime needs a certificate for a public name of the machine in `cert/`
+(`edge.example.test` below; a self-signed one is refused):
+
+```sh
+./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
+    -D pass_client_edge_sites=PASS_AUTH,PASS_HTTP -D pass_client_edge_callback=https://frontend.example.test/account/Sso
+# the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, node_role=edge,
+#   webapp_https_listen_port=18443 (no pass_client_id or secret: the link is the client)
+MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --spec RemoteFixtures --serve 127.0.0.1:18092
+# on the frontend, signed in as john.doe: System › Edge Clients, make a pairing code; on the authority
+# (http://127.0.0.1:18091): System › Edge Node, pair with https://edge.example.test:18443 and the code, wait for Linked
 ./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 

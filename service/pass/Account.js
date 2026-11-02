@@ -13,16 +13,11 @@ const fail = (kind, text) => {
     e.moquiErrorKind = kind
     throw e
 }
-const facade = () =>
-    ec.resource.script('component://mr-pass/service/pass/Facade.js')
+/* The remote transport, REST or gRPC (Transport.js). */
+const transport = () =>
+    ec.resource.script('component://mr-pass/service/pass/Transport.js')
 function remoteAccount(action, input, siteId) {
-    const response = facade()
-        .authorityClient(siteId, 'account/' + action, 'POST')
-        .jsonObject(input)
-        .call()
-    if (Number(response.statusCode) !== 200)
-        fail('AuthenticationRequired', 'Sign-in handoff could not be completed')
-    return response.jsonObject()
+    return transport().ssoAccount(action, input, siteId)
 }
 function startSso(parameters, siteId) {
     const backend = System.getProperty('pass_backend_url')
@@ -59,9 +54,10 @@ function startSso(parameters, siteId) {
     ec.web.sessionAttributes.passSsoState = state
     ec.web.sessionAttributes.passSsoVerifier = verifier
     ec.web.sessionAttributes.passSsoHandoffId = result.handoffId
+    // the browser's front channel goes to the authority's web address, on either transport
     return {
         redirectUrl:
-            String(backend).replace(/\/$/, '') +
+            transport().webBase() +
             '/rest/s1/pass/v1/sites/' +
             encodeURIComponent(siteId) +
             '/account/sso?handoffId=' +
@@ -103,7 +99,12 @@ function rememberReturn(parameters) {
     if (destination) ec.web.sessionAttributes.passReturnTo = destination
 }
 function clearRemoteSession() {
-    for (const key of ['passDelegation', 'passSubject', 'passAuthorityCookie'])
+    for (const key of [
+        'passDelegation',
+        'passSubject',
+        'passAuthorityCookie',
+        'passAuthoritySession',
+    ])
         ec.web.sessionAttributes.remove(key)
 }
 function call(op, parameters, siteId) {
@@ -117,7 +118,9 @@ function call(op, parameters, siteId) {
         try {
             return callAuthority(op, parameters, siteId)
         } catch (error) {
-            ec.logger.warn('Remote sign-out revocation failed: ' + error.message)
+            ec.logger.warn(
+                'Remote sign-out revocation failed: ' + error.message,
+            )
             return {}
         } finally {
             clearRemoteSession()
@@ -163,7 +166,8 @@ function callAuthority(op, parameters, siteId) {
                 .parameters({ operation: 'getSiteInfo', input: { siteId } })
                 .call().result.site
             // Same rule as the authority's registration route: an unpublished site takes no registrations.
-            if (s.state !== 'published') fail('Unauthorized', 'Registration is closed')
+            if (s.state !== 'published')
+                fail('Unauthorized', 'Registration is closed')
             if (s.registrationMode !== 'open') {
                 if (
                     s.registrationMode !== 'invitation' ||
@@ -192,34 +196,8 @@ function callAuthority(op, parameters, siteId) {
             .parameters({ input })
             .call().result
     } else {
-        const client = facade()
-            .authorityClient(siteId, 'account/' + spec[2], 'POST')
-            .jsonObject(input)
-        if (ec.web.sessionAttributes.passAuthorityCookie)
-            client.addHeader(
-                'Cookie',
-                ec.web.sessionAttributes.passAuthorityCookie,
-            )
-        if (ec.web.sessionAttributes.passDelegation)
-            client.addHeader(
-                'Authorization',
-                'Bearer ' + ec.web.sessionAttributes.passDelegation,
-            )
-        const response = client.call()
-        if (Number(response.statusCode) !== 200)
-            fail(
-                facade().statusKind(response.statusCode),
-                'Authentication could not be completed',
-            )
-        const cookies = response
-            .headerList('set-cookie')
-            .map((c) => String(c).split(';')[0])
-            .filter((c) =>
-                /^moqui\.session=|^JSESSIONID=|^moquiSession=/.test(c),
-            )
-        if (cookies.length)
-            ec.web.sessionAttributes.passAuthorityCookie = cookies.join('; ')
-        result = response.jsonObject()
+        // the authority's session (a second factor in progress) rides along: REST's cookie, or gRPC's handle
+        result = transport().account(spec[2], input, siteId)
         if (result.credential) {
             ec.web.rotateSession()
             ec.web.sessionAttributes.passDelegation = result.credential
