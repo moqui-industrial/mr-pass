@@ -74,7 +74,7 @@ feature('prepare a registered sender and independent recipients', {
                 emailServerId: 'PASS_NOTICE_MAIL',
                 fromAddress: 'community@example.test',
                 subject: 'Forum notice',
-                bodyScreenLocation: 'component://mr-pass/test/NoticeEmail.xml',
+                bodyScreenLocation: 'component://mr-pass/test/Forum/NoticeEmail.xml',
             })
             recipient = call('mantle.party.PartyServices.create#Person', {
                 firstName: 'Notice',

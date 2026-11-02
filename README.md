@@ -45,7 +45,8 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 ./moq run --nobuild lint --screens
 ```
 
-JavaScript service and browser specs run through Moqui, without Node as a test dependency.
+JavaScript service and browser specs run through Moqui, without Node as a test dependency. The specs in `test/` are
+grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`, `Account`, ...).
 `RemoteHttp` and `RemoteFixtures` use two independent runtimes; see the deployment guide.
 Test-only configuration, scanner, and captured email fixtures must not be used as production
 provider configuration.

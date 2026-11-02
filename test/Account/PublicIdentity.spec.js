@@ -35,7 +35,7 @@ spec({
                 emailServerId: 'PASS_TEST_MAIL',
                 fromAddress: 'community@example.test',
                 subject: 'Verify your address',
-                bodyScreenLocation: 'component://mr-pass/test/VerifyEmail.xml',
+                bodyScreenLocation: 'component://mr-pass/test/Account/VerifyEmail.xml',
             })
         })
     },

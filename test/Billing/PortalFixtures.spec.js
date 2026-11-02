@@ -2,7 +2,7 @@
 // organization, its hosted test gateway, an invoice and a purchase order with known link tokens, and a customer contact
 // invited and redeemed. The browser walk (PortalHttp) and the remote check (RemoteHttp) read these, each with its own
 // invoice, since the suite's one server serves both in turn.
-const settlement = () => ec.resource.script('component://mr-mantle/test/AccountingSettlementFixtures.js')
+const settlement = () => ec.resource.script('component://mr-mantle/test/account/AccountingSettlementFixtures.js')
 const INVOICE_TOKEN = 'PassPortalInvoiceLinkToken0000000000000000000001'
 const ORDER_TOKEN = 'PassPortalOrderLinkToken000000000000000000000001'
 const REMOTE_INVOICE_TOKEN = 'PassPortalRemoteInvoiceLinkToken0000000000000001'

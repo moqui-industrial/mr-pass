@@ -1529,7 +1529,7 @@ separately from request latency, with counts/lag reported rather than a fabricat
 
 Use `moqui test` for service/authorization/model behavior and `moqui test-client` for browser
 flows, as repository instructions require; Node is not a test dependency. Extend Mantle
-`test/Mailboxes.spec.js` and BOSS `test/InboxMailboxes.spec.js`, and add PASS/remote contract tests.
+`test/forum/Mailboxes.spec.js` and BOSS `test/Comms/InboxMailboxes.spec.js`, and add PASS/remote contract tests.
 Existing mailbox specs disable artifact authz for some service checks; add real artifact-authz
 and anonymous route tests rather than treating those existing specs as proof of public safety.
 Their newly created party-user fixtures do not currently assign internal groups: mark actors

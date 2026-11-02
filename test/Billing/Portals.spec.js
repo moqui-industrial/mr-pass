@@ -1,7 +1,7 @@
 // The Billing and Supplier apps through the PASS facade and their pages: a supplier's scanned bill upload, the pay link's
 // page and its refusals, and the app registration both sides share. Mantle's AccountingPortals spec covers the capability
 // and payment services themselves.
-const settlement = () => ec.resource.script('component://mr-mantle/test/AccountingSettlementFixtures.js')
+const settlement = () => ec.resource.script('component://mr-mantle/test/account/AccountingSettlementFixtures.js')
 const ORDER_TOKEN = 'PortalsSpecOrderLinkToken00000000000000000000001'
 const INVOICE_TOKEN = 'PortalsSpecInvoiceLinkToken000000000000000000001'
 const siteId = 'PASS_PORTALS'

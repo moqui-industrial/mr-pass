@@ -131,7 +131,7 @@ feature('routes take registered domains and unique addresses', {
             emailServerId: 'PASS_INBOUND_SERVER',
             fromAddress: 'community@example.test',
             subject: 'Forum notice',
-            bodyScreenLocation: 'component://mr-pass/test/NoticeEmail.xml',
+            bodyScreenLocation: 'component://mr-pass/test/Forum/NoticeEmail.xml',
         })
         run(D + 'store#MailSettings', {
             siteId,
