@@ -305,7 +305,10 @@ and `--serve 127.0.0.1:18092`; it asserts the Mantle entity catalog is absent. T
 That run is REST; build the frontend with `--lite` to check REST on Lite. The same test runs over each gRPC transport
 with the Maximal package (`--release`) on both runtimes.
 
-gRPC direct (the authority on loopback serves h2c, which loopback allows):
+gRPC direct (the authority on loopback serves h2c, which loopback allows). When the authority's conf turns on the
+OTLP/gRPC receiver (`MoquiDevConf.xml` has `<receiver grpc-enabled="true"/>`), the PASS authority shares the receiver's
+port (4317) and `pass_authority_grpc_port` is ignored: run the authority with a conf that leaves the receiver off, or
+point `pass_backend_grpc_url` at 4317.
 
 ```sh
 ./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
