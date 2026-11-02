@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd"
 	name="mr-pass" version="0.1.0">
+    <!-- mr-mantle is required but is an optional local dependency; if present on server local services are used;
+        if not an upstream server with mr-mantle installed is required, with communication via gRPC or REST -->
 </component>
 
