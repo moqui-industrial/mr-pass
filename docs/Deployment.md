@@ -63,6 +63,25 @@ authority's session for a second factor in progress stay in the frontend's serve
 authority's session cookie, gRPC the same session as an opaque handle (the signed session id) that each account call
 carries and the authority renews when it rotates the session.
 
+### An edge node as the PASS server
+
+A business whose authority (its BOSS server) runs in the office, behind a firewall, serves its sites from an edge
+node: a small cloud server the authority dials out to and keeps one link open with (mr-moqui `docs/Run-Deploy.md`,
+"A local server with an edge node", and `plans/Edge-Node.md` §5.5). The edge node
+runs mr-pass with `pass_backend_url=edge:` (set in its `MoquiEdgeConf.xml`), so it calls the authority over gRPC down
+the link, and the authority needs no public address, open port or client secret for it.
+
+1. Pair the authority with the edge node: on the edge node, System › Edge Clients, make a pairing code; on the
+   authority, System › Edge Node, Pair with an edge node, with the edge node's address and the code.
+2. In the wizard's Discover step turn PASS on, choose the sites the edge node serves and enter the frontend's SSO
+   callback. Apply writes `pass_edge_client` (`edge`), `pass_client_edge_sites` and `pass_client_edge_callback` to the
+   authority's `runtime/.env`, and its Test step checks them and that the edge node has mr-pass.
+3. On the edge node, set `pass_backend_web_url` to the authority's web address through the edge node (a host name with
+   web access, which the wizard's Discover step sets too), for the SSO front channel, and add the sites' `public-site`
+   bindings to its conf.
+
+While the link is down every PASS page fails as unavailable; a read cache on the edge node is later work.
+
 ## Host and mount bindings
 
 Configure the public routing allowlist on each presentation runtime:
