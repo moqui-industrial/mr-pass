@@ -4,8 +4,7 @@
 
 Use matching framework, Mantle, and PASS source changes. Use a package with image support for
 thumbnails and SSO support when enabling providers; readiness reports missing capabilities. The
-default Dev package omits those capabilities. An image-enabled incremental Dev build is
-`./moq build -- --features moqui-host/image`; Enterprise/Maximal provide image and SSO support. The authority loads Mantle and the
+default Maximal package and Enterprise provide image and SSO support; Lite omits them. The authority loads Mantle and the
 framework security, wiki, entity, job, search, and mail facilities. A local PASS instance loads
 the authority in the same runtime. A remote presentation runtime loads framework, webroot, and
 PASS, with its own framework session database and no Mantle business entity catalog. It does
