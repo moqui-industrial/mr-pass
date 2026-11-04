@@ -39,15 +39,17 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 ./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp
-# ForumHttp is slow (over 30 seconds): --slow runs it, only when its browser scenarios are needed
-./moq test-client mr-pass --nobuild --serve --spec ForumHttp --slow
-./moq test mr-pass --nobuild --spec Scale --db snapshot -D pass_scale_test=true
 ./moq run --nobuild lint --screens
+# the acceptance suite (ForumHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+./moq accept mr-pass
 ```
 
-JavaScript service and browser specs run through Moqui, without Node as a test dependency. The specs in `test/` are
-grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`, `Account`, ...).
-`RemoteHttp` and `RemoteFixtures` use two independent runtimes; see the deployment guide.
+JavaScript service and browser specs run through Moqui, without Node as a test dependency. The specs in `test/` are the
+regression suite, grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
+`Account`, ...). `acceptance/` holds the acceptance suite: the forum's browser scenarios (`ForumHttp`), the large
+fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
+two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
+suites) in the mr-moqui repository.
 Test-only configuration, scanner, and captured email fixtures must not be used as production
 provider configuration.
 

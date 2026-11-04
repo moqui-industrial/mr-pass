@@ -1527,8 +1527,10 @@ separately from request latency, with counts/lag reported rather than a fabricat
 
 ### 19.1 Implementation acceptance scenarios
 
-Use `moqui test` for service/authorization/model behavior and `moqui test-client` for browser
-flows, as repository instructions require; Node is not a test dependency. Extend Mantle
+Each scenario below is an acceptance test in `acceptance/` (server side) or `acceptance/client/`
+(browser flows, desktop and phone), named for its scenario and run with `./moq accept mr-pass`
+([the two suites](../../../../docs/Build-Test.md#the-two-suites)). The rules behind them are
+regression specs in `test/` (`moqui test`); Node is not a test dependency. Extend Mantle
 `test/forum/Mailboxes.spec.js` and BOSS `test/Comms/InboxMailboxes.spec.js`, and add PASS/remote contract tests.
 Existing mailbox specs disable artifact authz for some service checks; add real artifact-authz
 and anonymous route tests rather than treating those existing specs as proof of public safety.

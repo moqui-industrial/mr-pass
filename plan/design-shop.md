@@ -80,9 +80,10 @@ those components, not as the entire storefront delivery model. Public TUI is not
 Commerce authoring has the normal BOSS TUI counterparts.
 
 Use accessible labels/errors, skip links, focus restoration, live total/status announcements,
-keyboard-operable variant/quantity controls, reduced motion, and 390 px phone layouts. Dates,
-language and formatting follow site/user preferences; money calculations stay decimal on the
-authority. Theme translations use stable keys; the site's default locale is the explicit fallback.
+keyboard-operable variant/quantity controls, reduced motion, and 390 px phone layouts (checked by
+an acceptance test, §18.1 Accessibility and devices). Dates, language and formatting follow
+site/user preferences; money calculations stay decimal on the authority. Theme translations use
+stable keys; the site's default locale is the explicit fallback.
 
 **Stack contributions** (crosscut §1.5). Shop's notices are sources on the one Comms delivery
 ledger (X8, CX-DELIVERY). Checkout placement, payment reconciliation, renewal dispatch and
@@ -1577,6 +1578,11 @@ boxes, wishlists/comparison, a theme marketplace and the separate Publishing edi
 ## 18. Validation and completeness
 
 ### 18.1 Acceptance scenarios
+
+Each scenario is an acceptance test in `acceptance/` (server side, or in a browser under
+`acceptance/client/`), named for its scenario and run with `./moq accept mr-pass`; the rules
+behind them are regression specs in `test/`
+([the two suites](../../../../docs/Build-Test.md#the-two-suites)).
 
 | Scenario | Required result |
 | --- | --- |

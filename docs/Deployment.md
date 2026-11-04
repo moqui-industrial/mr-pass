@@ -304,7 +304,7 @@ reconciliation, a frozen source and a backup reference. Proxies can send old com
 
 ## Reproducing the remote check
 
-Start an authority fixture on a dedicated loopback port:
+`RemoteHttp` and its `RemoteFixtures` are acceptance tests, in `acceptance/`. Start an authority fixture on a dedicated loopback port:
 
 ```sh
 ./moq test mr-pass --nobuild --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091
@@ -313,11 +313,11 @@ Start an authority fixture on a dedicated loopback port:
 Create a separate scratch runtime containing only symlinks to framework, webroot, tools, and PASS.
 Copy the normal runtime configuration needed for the frontend and add the remote properties above,
 using the isolated test client ID/secret from `test/MoquiConf.xml`. Do not copy Mantle or BOSS into
-that runtime. Run `RemoteFixtures` with `MOQUI_RUNTIME` set to that directory, its remote conf,
+that runtime. Run `RemoteFixtures` (`--acceptance`) with `MOQUI_RUNTIME` set to that directory, its remote conf,
 and `--serve 127.0.0.1:18092`; it asserts the Mantle entity catalog is absent. Then run:
 
 ```sh
-./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
 That run is REST; build the frontend with `--lite` to check REST on Lite. The same test runs over each gRPC transport
@@ -333,8 +333,8 @@ point `pass_backend_grpc_url` at 4317.
     -D pass_authority_grpc_enabled=true -D pass_authority_grpc_port=18093
 # the frontend's conf: the remote properties above, and
 #   pass_backend_grpc_url=grpc://127.0.0.1:18093   pass_backend_transport=grpc
-MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --spec RemoteFixtures --serve 127.0.0.1:18092
-./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
 gRPC on the edge link: the frontend is an edge node, which the authority runtime pairs with. Pairing checks the edge
@@ -346,10 +346,10 @@ node's certificate by WebPKI, so its runtime needs a certificate for a public na
     -D pass_client_edge_sites=PASS_AUTH,PASS_HTTP -D pass_client_edge_callback=https://frontend.example.test/account/Sso
 # the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, node_role=edge,
 #   webapp_https_listen_port=18443 (no pass_client_id or secret: the link is the client)
-MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --spec RemoteFixtures --serve 127.0.0.1:18092
+MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
 # on the frontend, signed in as john.doe: System › Edge Clients, make a pairing code; on the authority
 # (http://127.0.0.1:18091): System › Edge Node, pair with https://edge.example.test:18443 and the code, wait for Linked
-./moq test-client runtime/component/mr-pass/test/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
 Run the authority with `--spec ClientFixtures,PortalFixtures` for the Billing and Supplier feature. The test
@@ -357,7 +357,7 @@ authenticates through the authority, saves a private draft, uploads/scans/publis
 downloads it through the frontend, then revokes anonymous access and verifies concealment. It
 also uploads a profile image and verifies that changing profile visibility conceals the image, then opens a pay link,
 starts its payment and sends a supplier's bill through the remote frontend.
-Stop both disposable servers after the run. `moqui test-client mr-pass --serve` also runs RemoteHttp against the suite's
-one server (local authority, no remote frontend), after PortalHttp, which is why each has its own fixture invoice; on a
-build without image support its two image features skip with that reason. Live SMTP, IdP, DNS/TLS, and production scanner checks
+Stop both disposable servers after the run. `./moq accept mr-pass` also runs RemoteHttp against its served server
+(local authority, no remote frontend); it has its own fixture invoice, apart from PortalHttp's; on a build without image
+support its two image features skip with that reason. Live SMTP, IdP, DNS/TLS, and production scanner checks
 remain deployment-specific; the specs use captured mail, a deterministic scanner, and isolated data.
