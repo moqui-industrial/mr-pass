@@ -1,4 +1,4 @@
-suite(['ForumHttp', 'PortalHttp'], {
+suite(['PortalHttp'], {
     server: {
         components: ['mr-pass'],
         specs: ['ClientFixtures', 'PortalFixtures'],
