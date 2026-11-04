@@ -349,3 +349,47 @@ feature(
         },
     },
 )
+feature(
+    "remote Supplier pages read a quote's and an order's link, take the supplier's quote and acknowledgement, and say an older revision's link is superseded",
+    {
+        when() {
+            // SupplierPortalFixtures' remote documents, served through this frontend: with no local Mantle in the remote
+            // pair, or by the suite's own server
+            const token = (name) => ('PASS_HTTP_RSUP' + name + '0'.repeat(48)).slice(0, 48)
+            const s = session()
+            const quote = s.get('/supplier/QuoteResponse', { params: { token: token('QuoteLink') } })
+            const sent = s.post('/supplier/QuoteResponse/respond', {
+                multipart: {
+                    token: token('QuoteLink'),
+                    operationId: 'remote-quote-000001',
+                    formAction: 'send',
+                    confirm: 'true',
+                    lineSeqs: '01',
+                    price_01: '2.50',
+                    otherPartyOrderId: 'REMOTE-Q-1',
+                    file: { fileName: 'remote-quote.pdf', text: '%PDF-1.4 remote quote', contentType: 'application/pdf' },
+                },
+            })
+            const received = s.get(sent.location)
+            const order = s.get('/supplier/OrderAcknowledgement', { params: { token: token('OrderLinkRev2') } })
+            const acknowledged = s.post('/supplier/OrderAcknowledgement/acknowledge', {
+                form: { token: token('OrderLinkRev2'), operationId: 'remote-ack-000001', orderRevision: '2', outcome: 'accept', lineSeqs: '01,02' },
+            })
+            const after = s.get(acknowledged.location)
+            const superseded = s.get('/supplier/OrderAcknowledgement', { params: { token: token('OrderLinkRev1') } })
+            return { quote, sent, received, order, after, superseded }
+        },
+        then({ quote, sent, received, order, after, superseded }) {
+            quote.status === 200
+            quote.text.includes('Request for quotation PASS_HTTP_RSUP_RFQ')
+            !quote.text.includes('Rival Brackets')
+            sent.status === 302
+            received.text.includes('Quote received')
+            received.text.includes('REMOTE-Q-1')
+            order.text.includes('Purchase order PASS_HTTP_RSUP_PO')
+            after.text.includes('Acknowledged')
+            after.text.includes('Accepted')
+            superseded.text.includes('has since been revised')
+        },
+    },
+)

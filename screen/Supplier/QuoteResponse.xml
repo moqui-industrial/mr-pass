@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- QuoteResponse (design-purchasing §13): PublishedQuoteRequest, SupplierOffer and SubmitResponse for a quote's link
+    (token) or a signed-in contact of its supplier (orderId), over mantle.order.SupplierPortalServices. Save draft keeps
+    the supplier's offer private; Send quote submits it for the buyer's review and answers a receipt, and a repeat answers
+    the first receipt. Each line is its own block, so a phone shows one line at a time. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Quote">
+  <transition name="respond" method="post">
+    <actions>
+      <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        const token=p.token || null,orderId=token ? null : p.orderId || null
+        const base=publicPath.replace(/\/respond$/,'')
+        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
+            .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
+        const seqs=String(p.lineSeqs || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z0-9_-]{1,20}$/.test(s))
+        const lines=JSON.stringify(seqs.map(seq=>({orderItemSeqId:seq,unitAmount:p['price_'+seq] || null,
+            promisedDate:p['promised_'+seq] || null,otherPartyProductId:p['code_'+seq] || null})))
+        const fields={siteId:resolvedSiteId,token,orderId,rfqRevision:p.rfqRevision || null,
+            otherPartyOrderId:p.otherPartyOrderId || null,validThruDate:p.validThruDate || null,
+            estimatedDeliveryDate:p.estimatedDeliveryDate || null,note:p.note || null,lines}
+        const send=p.formAction === 'send'
+        const out=send ? portal.attempt('submitQuoteResponse',Object.assign(fields,{operationId:p.operationId,
+                confirm:['true','on'].includes(String(p.confirm)),file:ec.web.multiPartParameters?.file}))
+            : portal.attempt('saveQuoteResponse',fields)
+        if(out.error)ec.web.sessionAttributes.passQuoteError=out.error.message
+        else if(!send)ec.web.sessionAttributes.passQuoteSaved='Draft saved. Only you see it until you send the quote.'
+        ec.web.response.sendRedirect(base+query({token,orderId}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        token=p.token || null
+        quoteError=ec.web.sessionAttributes.passQuoteError || null
+        quoteSaved=ec.web.sessionAttributes.passQuoteSaved || null
+        if(quoteError)ec.web.sessionAttributes.remove('passQuoteError')
+        if(quoteSaved)ec.web.sessionAttributes.remove('passQuoteSaved')
+        view=null;failure=null
+        const orderId=token ? null : p.orderId || null
+        if(!token && !orderId)failure={kind:'NotFound',message:'Open the link the buyer sent with the request for quotation.'}
+        else{
+            const found=portal.attempt('getQuoteInvitation',{siteId:resolvedSiteId,token,orderId})
+            if(found.error)failure=found.error
+            else view=found.result
+        }
+        submitOperationId=portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Supplier/QuoteResponse.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

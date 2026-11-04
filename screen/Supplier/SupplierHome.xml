@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- SupplierHome (design-purchasing §13): SupplierDocuments and SupplierContact. A link's one quote or purchase order
+    (token), or for a signed-in contact the requested and proposed quotes, purchase orders and bills sent of the suppliers
+    it was invited for (mantle.order.SupplierPortalServices.get#SupplierHome); the buying organization's public contact and
+    the link's expiry. Nothing of another supplier, and no internal directory. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Documents">
+  <actions>
+    <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js')
+        token=ec.web.parameters.token || null
+        view=null;failure=null
+        const found=portal.attempt('getSupplierHome',{siteId:resolvedSiteId,token})
+        if(found.error)failure=found.error
+        else view=found.result
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Supplier/SupplierHome.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

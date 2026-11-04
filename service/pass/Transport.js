@@ -22,7 +22,15 @@ const statusKind = (status) =>
         429: 'Tarpit',
     })[Number(status)] || 'Unavailable'
 /* Writes a bearer link's token authorizes for a visitor who is not signed in (Mantle's PassAuthority lists the same). */
-const TOKEN_WRITES = ['startInvoicePayment', 'submitSupplierBill']
+const TOKEN_WRITES = [
+    'startInvoicePayment',
+    'submitSupplierBill',
+    // Purchasing P16: a quote's and a purchase order's link
+    'saveQuoteResponse',
+    'submitQuoteResponse',
+    'acknowledgePurchaseOrder',
+    'reportDropShipDelivery',
+]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
 const property = (name) => String(System.getProperty(name) || '').trim()
@@ -191,8 +199,9 @@ const rest = {
                 )
             return upload.jsonObject()
         }
-        // Another operation with a file (a supplier's bill) sends its fields and the file as one multipart request.
-        if (def.fields.includes('file')) {
+        // Another operation with a file (a supplier's bill, quote or acknowledgement) sends its fields and the file as one
+        // multipart request; without a file (a quote's or an acknowledgement's is optional) it is an ordinary call.
+        if (def.fields.includes('file') && input.file) {
             checkUpload(input.file)
             const parts = {}
             for (const [k, v] of Object.entries(payload))
@@ -320,7 +329,7 @@ const grpc = (endpoint) => ({
                 'Upload could not be completed',
             )
         }
-        if (def.fields.includes('file')) {
+        if (def.fields.includes('file') && input.file) {
             checkUpload(input.file)
             const fields = {}
             for (const [k, v] of Object.entries(input))

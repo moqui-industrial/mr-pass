@@ -115,8 +115,9 @@ the framework package does not provide it.
 
 ## Billing and Supplier apps
 
-Billing (an organization's customer invoices and their pay links) and Supplier (a purchase order's bill upload) are PASS
-apps beside Forum. Each serves one internal organization, its mount's target, which only an operator sets:
+Billing (an organization's customer invoices and their pay links) and Supplier (a supplier's quotes, purchase orders and
+bills: Purchasing's SupplierHome, QuoteResponse and OrderAcknowledgement, and Accounting's BillUpload) are PASS apps beside
+Forum. Each serves one internal organization, its mount's target, which only an operator sets:
 
 ```json
 {"siteId": "...", "expectedRevision": 3, "mounts": [
@@ -131,8 +132,11 @@ pages show those apps' navigation. Readiness adds each app's checks: the target 
 organization has an invoice payment gateway (Billing), bill files can be scanned (Supplier) and the site has a canonical
 host, from which every link Mantle mails is built.
 
-- **Links.** An invoice's pay link (`/billing/InvoicePay?token=`) comes from Mantle's `send#Invoice`, and a purchase
-  order's bill link (`/supplier/BillUpload?token=`) from BOSS's order screen; each is an `ExternalAccessCapability` with
+- **Links.** An invoice's pay link (`/billing/InvoicePay?token=`) comes from Mantle's `send#Invoice`; a purchase order's
+  link (`/supplier/OrderAcknowledgement?token=`, with BillUpload beside it) from `send#PurchaseOrder`, for the revision
+  sent, and its bill-only link (`/supplier/BillUpload?token=`) from BOSS's order screen; a quote's link
+  (`/supplier/QuoteResponse?token=`) from `send#QuoteRequest`. Once an order is revised, the older revision's link says
+  so and acknowledges nothing, though it still takes a bill; a cancelled order's and a closed quote's links are revoked; each is an `ExternalAccessCapability` with
   only its token's digest kept. A link opens one record of its organization's site, until it expires or is revoked;
   anything else says the page is not available. A new pay link ends its issuer's earlier ones (the organization's, or
   a contact's). Every link lookup counts against a limit per requester, and a site needs a canonical host for links to be
@@ -142,7 +146,8 @@ host, from which every link Mantle mails is built.
 - **Contacts.** `mantle.party.ExternalAccessServices.invite#Contact` invites a customer's or supplier's contact to the
   app; redeeming the invitation (Account's Invitation page) gives the account a contact grant for that party on that
   organization's app only. The account holds no user group. A signed-in contact sees the customer's invoices under Billing's Invoices and can make a
-  pay link to share. Set the site's registration to invitation so invited contacts can register.
+  pay link to share; a supplier's contact (invited by AP or, from BOSS's Supplier360, a buyer) sees the supplier's quotes,
+  orders and bills on Supplier's SupplierHome. Set the site's registration to invitation so invited contacts can register.
 - **Payment.** Set the organization's invoice payment gateway (`PartyAcctgPreference.invoicePayGatewayConfigId`, one of
   its PaymentGatewayOrganization bindings; BOSS Accounting Preferences). A hosted gateway takes the payer to its page from
   a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=&key=`, whose
@@ -155,9 +160,13 @@ host, from which every link Mantle mails is built.
 - **Bills.** A supplier's file is staged under `pass_media_root/bills`, checked to be the PDF, PNG or JPEG it says by its
   leading bytes, scanned by `pass_scanner_service` (at most 10 MiB) and becomes the incoming draft bill's file only when clean; a repeat of the request or of the
   supplier's bill number answers the first submission. AP reviews the bill in BOSS; nothing here approves it.
+- **Quotes and acknowledgements.** A supplier saves a private draft of its quote and sends it, or acknowledges an order's
+  current revision with its promised dates; either may carry a file, staged and scanned as a bill is (under
+  `pass_media_root/supplier`), and a drop-ship supplier reports what it shipped. Each is a claim the buyers review in
+  BOSS; a repeat answers the first receipt, and the posts are limited per requester.
 
-A remote frontend posts a link's payment or bill with no member session; the authority accepts those two operations
-only from a registered deployment.
+A remote frontend posts a link's writes (a payment, a bill, a quote and its draft, an acknowledgement, a delivery report)
+with no member session; the authority accepts those operations (`TOKEN_WRITES`) only from a registered deployment.
 
 ### Adding an app
 
@@ -307,7 +316,7 @@ reconciliation, a frozen source and a backup reference. Proxies can send old com
 `RemoteHttp` and its `RemoteFixtures` are acceptance tests, in `acceptance/`. Start an authority fixture on a dedicated loopback port:
 
 ```sh
-./moq test mr-pass --nobuild --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091
+./moq test mr-pass --nobuild --acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures --db snapshot --serve 127.0.0.1:18091
 ```
 
 Create a separate scratch runtime containing only symlinks to framework, webroot, tools, and PASS.
@@ -352,11 +361,13 @@ MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --accept
 ./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
-Run the authority with `--spec ClientFixtures,PortalFixtures` for the Billing and Supplier feature. The test
+Run the authority with `--acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures` for the Billing and
+Supplier features; the browser walk `SupplierPortalHttp` runs against the same frontend too. The test
 authenticates through the authority, saves a private draft, uploads/scans/publishes media,
 downloads it through the frontend, then revokes anonymous access and verifies concealment. It
 also uploads a profile image and verifies that changing profile visibility conceals the image, then opens a pay link,
-starts its payment and sends a supplier's bill through the remote frontend.
+starts its payment and sends a supplier's bill, and sends a supplier's quote with its file and acknowledgement through
+the remote frontend.
 Stop both disposable servers after the run. `./moq accept mr-pass` also runs RemoteHttp against its served server
 (local authority, no remote frontend); it has its own fixture invoice, apart from PortalHttp's; on a build without image
 support its two image features skip with that reason. Live SMTP, IdP, DNS/TLS, and production scanner checks

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- OrderAcknowledgement (design-purchasing §13): PublishedPurchaseOrder and AcknowledgeOrder for a purchase order's link
+    (token) or a signed-in contact of its supplier (orderId), over mantle.order.SupplierPortalServices; the same link opens
+    BillUpload. The acknowledgement answers the order's current revision: a link of an earlier revision says the order was
+    revised. A subcontract order shows its service lines and the components in custody; a drop-ship order takes the
+    supplier's delivery report for the buyer to confirm. Each line is its own block, so a phone shows one at a time. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Purchase order">
+  <transition name="acknowledge" method="post">
+    <actions>
+      <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        const token=p.token || null,orderId=token ? null : p.orderId || null
+        const base=publicPath.replace(/\/acknowledge$/,'')
+        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
+            .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
+        const seqs=String(p.lineSeqs || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z0-9_-]{1,20}$/.test(s))
+        const lines=JSON.stringify(seqs.map(seq=>({orderItemSeqId:seq,promisedDate:p['promised_'+seq] || null,
+            promisedQuantity:p['promisedQty_'+seq] || null})).filter(l=>l.promisedDate || l.promisedQuantity))
+        const out=portal.attempt('acknowledgePurchaseOrder',{siteId:resolvedSiteId,token,orderId,
+            orderRevision:p.orderRevision || null,operationId:p.operationId,outcome:p.outcome || 'accept',
+            otherPartyOrderId:p.otherPartyOrderId || null,note:p.note || null,lines,file:ec.web.multiPartParameters?.file})
+        if(out.error)ec.web.sessionAttributes.passOrderError=out.error.message
+        ec.web.response.sendRedirect(base+query({token,orderId}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deliver" method="post">
+    <actions>
+      <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        const token=p.token || null,orderId=token ? null : p.orderId || null
+        const base=publicPath.replace(/\/deliver$/,'')
+        const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
+            .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
+        const seqs=String(p.lineSeqs || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z0-9_-]{1,20}$/.test(s))
+        const lines=JSON.stringify(seqs.map(seq=>({orderItemSeqId:seq,quantity:p['shipped_'+seq] || null})))
+        const out=portal.attempt('reportDropShipDelivery',{siteId:resolvedSiteId,token,orderId,operationId:p.operationId,
+            trackingCode:p.trackingCode || null,shippedDate:p.shippedDate || null,note:p.note || null,lines})
+        if(out.error)ec.web.sessionAttributes.passOrderError=out.error.message
+        else ec.web.sessionAttributes.passOrderNotice='Delivery reported. The buyer confirms it.'
+        ec.web.response.sendRedirect(base+query({token,orderId}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        token=p.token || null
+        orderError=ec.web.sessionAttributes.passOrderError || null
+        orderNotice=ec.web.sessionAttributes.passOrderNotice || null
+        if(orderError)ec.web.sessionAttributes.remove('passOrderError')
+        if(orderNotice)ec.web.sessionAttributes.remove('passOrderNotice')
+        view=null;failure=null
+        const orderId=token ? null : p.orderId || null
+        if(!token && !orderId)failure={kind:'NotFound',message:'Open the link the buyer sent with the purchase order.'}
+        else{
+            const found=portal.attempt('getPublishedPurchaseOrder',{siteId:resolvedSiteId,token,orderId})
+            if(found.error)failure=found.error
+            else view=found.result
+        }
+        ackOperationId=portal.operationId()
+        deliverOperationId=portal.operationId()
+        billPath=passBases.supplier+'/BillUpload?'+(token ? 'token='+encodeURIComponent(token)
+            : 'orderId='+encodeURIComponent(view?.order?.orderId || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Supplier/OrderAcknowledgement.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
