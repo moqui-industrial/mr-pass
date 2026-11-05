@@ -209,6 +209,10 @@ queue and every customer and public knowledge source).
   checks again, keeps once and limits per requester (30 posts and 100 link lookups in ten minutes); a repeat shows the
   first answer's receipt. An expired, withdrawn or forged link shows only guidance. The page loads the framework's
   `/js/moqui-form-when.js` for the form's show and require rules (the CSP stays `script-src 'self'`).
+- **Access.** A customer's account is a public account holding no user group; the Support pages answer only that customer's
+  own records (another customer's case, return or file is "not available", whatever the request names). Where BOSS runs in
+  the same runtime, its Commons and Comms roots are authorized for every user, so narrow them for public accounts with the
+  deployment's own authorization (impl-customer-service F-P16-2); every Customer Service screen and service refuses them.
 - **Remote frontend.** `getCaseFeedbackInvitation`, `submitCaseFeedback` and the `support/...` operations are PASS operations
   served by Mantle's PassApi; the writes a link's token authorizes (the feedback answer, a queue form's request, a case link's
   reply, reopen and cancel, an article rating, an RMA link's evidence and withdrawal) are `TOKEN_WRITES`, accepted from a
