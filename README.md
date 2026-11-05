@@ -18,6 +18,7 @@ Operators start with [Deployment](docs/Deployment.md), which also covers the Bil
 [IronStone Shop](plan/design-shop.md) designs the public storefront, checkout, customer purchases
 and subscriptions. Its theme/page editors are defined in
 [IronStone Commerce](../mr-boss/plan/design-commerce.md); published shops run without BOSS.
+[impl-shop](plan/impl-shop.md) plans Shop's build, in one order with Commerce's.
 
 ## Starting a community
 

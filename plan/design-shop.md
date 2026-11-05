@@ -1,6 +1,9 @@
 # IronStone PASS — Shop design
 
-Nov 1, 2026 — draft; reviewed against research-commerce.md, design-forum.md, the reference apps and the other designs ([review-suite-apps.md](../../mr-boss/plan/review-suite-apps.md)).
+Nov 5, 2026 — checked against the code while writing [impl-shop.md](impl-shop.md) (its F1–F34) and mr-boss
+impl-commerce.md; the changes are marked Nov 5. Nov 1, 2026 — draft; reviewed against research-commerce.md,
+design-forum.md, the reference apps and the other designs (the suite-app review, since removed from mr-boss; read it
+there with `git show bd74564^:plan/review-suite-apps.md`).
 
 **IronStone Shop** is the commerce application of **IronStone PASS — Public Application
 Software Suite**. It serves customers browsing and buying physical goods, digital products and
@@ -25,8 +28,9 @@ port of PopRestStore or a claim of Shopify feature compatibility.
 [Customer Service](../../mr-boss/plan/design-customer-service.md),
 [Sales](../../mr-boss/plan/design-sales.md), [Marketing](../../mr-boss/plan/design-marketing.md),
 [Forum and PASS foundation](design-forum.md), [PASS deployment](../docs/Deployment.md), the
-Mantle [payments plan](../../mr-mantle/plan/payments-shipping-edi.md), the
-[suite-app review](../../mr-boss/plan/review-suite-apps.md), and the source evidence in §3. The
+Mantle [payments plan](../../mr-mantle/plan/payments-shipping-edi.md), the suite-app review (see above), and the
+source evidence in §3. The build is planned in [impl-shop.md](impl-shop.md), in one order with Commerce's
+[impl-commerce.md](../../mr-boss/plan/impl-commerce.md). The
 public screen inventories follow the design guide but use a site shell, shopper capabilities and
 HTML templates rather than the BOSS launcher. Proposed services and records are labelled.
 
@@ -45,15 +49,18 @@ HTML templates rather than the BOSS launcher. Proposed services and records are 
 
 Register app key `shop`, screen root `Shop` under `Pass.xml`, default mount `/shop`, target type
 `productStore`, and a readiness service. Extend both PASS `Apps.js` and Mantle `PublicApps.js`,
-the route/operation registries and the runtime's operator allowlist using Forum §13.1. Shop may
-also mount at `/`; the current registry permits only Forum at root, so this is an explicit
-extension. One Shop mount per PublicSite is the initial rule. Multiple stores use separate sites;
+the route/operation registries and the runtime's operator allowlist using Forum §13.1; the Header's
+app branches, the test runtime's mounts and the three `TOKEN_WRITES` lists are registration places
+too (Nov 5, impl-shop F1). Shop may also mount at `/`; Mantle's `storeMounts` permits only Forum at
+root, so this is an explicit extension: one root app per site, Forum or Shop, with Mantle's reserved
+paths aligned with the framework's (impl-shop F2). One Shop mount per PublicSite is the initial rule. Multiple stores use separate sites;
 one store may have multiple sites with independently bound themes/content. No fallback store
 is chosen for an unknown hostname.
 
 The customer sees the configured brand. Generic defaults say **IronStone PASS** and **Shop**,
 and this application's name is **IronStone Shop**. Shared account/security pages remain PASS
-pages. Do not rename `mr-pass`, `Pass`, or established namespaces/routes as part of branding.
+pages: on a Shop site they keep the PASS shell with the site's brand values from `PublicSite.theme`,
+which nothing reads today, while Shop's own pages render the theme's layout (Nov 5, impl-shop §4). Do not rename `mr-pass`, `Pass`, or established namespaces/routes as part of branding.
 
 Navigation, configurable labels and order within supported destinations:
 
@@ -122,7 +129,7 @@ are mounted inside Shop with order context (§9, X7); the PASS Account pages are
 | Orders | PASS:Shop/Orders | list | xml | Find own purchases | OrderHeader | own public view | self | new S2 | filters |
 | OrderDetail | PASS:Shop/Orders/OrderDetail | detail | xml | Follow fulfillment and request help | safe order/shipments projection | own public view | self/order capability | new S2 | order |
 | RequestReturn | PASS:Shop/Orders/RequestReturn | wizard | xml | Ask to return eligible goods of this order | ReturnHeader | Customer Service Support RequestReturn (Customer Service §8) | self/order capability | new S2 | order, items |
-| NewCustomerCase | PASS:Shop/Orders/NewCustomerCase | wizard | xml | Ask privately about a purchase | Request (case) | Customer Service Support NewCustomerCase (Customer Service §8) | self/order capability | new S2 | order, store queue |
+| NewCustomerCase | PASS:Shop/Orders/NewCustomerCase | wizard | xml | Ask privately about a purchase, or ask to cancel it (its OrderCancelRequest) | Request (case) | Customer Service Support NewCustomerCase (Customer Service §8) | self/order capability | new S2 | order, store queue |
 | Downloads | PASS:Shop/Downloads | list | xml | Retrieve entitled digital content | proposed StoreDownloadGrant | existing protected media primitives | self/delivery capability | new S2 | order item/grant |
 | Subscriptions | PASS:Shop/Subscriptions | list | xml | Inspect paid/recurring access | Subscription + StoreRecurringContract | own over Mantle | verified self | new S3 | self |
 | SubscriptionDetail | PASS:Shop/Subscriptions/SubscriptionDetail | detail | xml | Renew/manage billing and cancellation | recurring contract projection | own | verified self | new S3 | contract |
@@ -255,7 +262,12 @@ purchase access on email alone.
   same kind for QuoteView and QuoteRespond.
 - Cart access stays the session-bound proposed `StoreCartAccess` (§7.1), which rotates at login
   and logout and reuses the ExternalAccess capability digest and throttle rather than a second
-  token scheme. A cart recovery link is a one-time token of that StoreCartAccess.
+  token scheme. A cart recovery link is a one-time token of that StoreCartAccess. Today the digest
+  and throttle are inside ExternalAccess.js's token check, so Shop exports them as helpers (Nov 5,
+  impl-shop F16).
+- Customer Service's customer services (`request#CustomerReturn`, `create#CustomerCase`,
+  `request#CustomerCancel`) admit the `SalesOrder` OrderView capability for its one order, beside a
+  contact and the self relationship (Nov 5, impl-shop F27).
 
 For every operation, intersect routed site/store, active shopper/cart capability, resource
 ownership, publication and business eligibility. Signed-in order lists require customer identity;
@@ -304,7 +316,10 @@ copies of Product. Public category pages omit private/empty descendants unless d
 published as content-only landing pages. Cycle and pagination limits apply to category trees.
 
 Use existing `mantle.product.PriceServices.get#ProductPrice` and its store/buyer/currency/UOM/
-effective-date context, with the existing named price services as extended by Products. Expose
+effective-date context, with the existing named price services as extended by Products. For an
+anonymous user it reads only rows with no vendor, customer or agreement, while a store makes its
+organization the vendor, so the catalog service prices as the authority for the routed store and
+the signed-in customer, its own checks done (Nov 5, impl-shop F18). Expose
 unavailable price separately from valid zero price. Keep quantity breaks and promotional
 adjustments explainable, but never return the internal price-rule trace, cost or margin publicly.
 Final price, promotions, shipping and tax are recalculated by checkout.
@@ -452,7 +467,8 @@ gateway when the store has one (Shippo, payments plan S1) and offers, never forc
 purchase. When the shopper checks it, `submitCheckout` calls Marketing's `request#Subscription`
 with source checkout: pending double opt-in for a guest, accepted for a verified account. That
 service records the evidence with `mantle.party.ConsentServices.store#PartyConsent`; Shop keeps no
-consent of its own (X15, R-SC-12, R-SHP-W03). Provider-hosted fields collect payment credentials;
+consent of its own (X15, R-SC-12, R-SHP-W03). The first build leaves the opt-in out until
+Marketing builds `request#Subscription` (Nov 5, the user's call, impl-commerce §4). Provider-hosted fields collect payment credentials;
 Shop receives only provider references/tokens. Required address fields derive from destination
 and tax rules, not a hard-coded US form. Digital-only carts omit delivery. Totals remain
 authoritative while each invalid/expired quote or changed price returns a clear re-review state
@@ -554,7 +570,8 @@ submission for a frozen revision.
    items/delivery promises, recurring consent and due-now/later totals. The client accepts the
    exact summary revision and terms versions, not an arbitrary `accepted=true` for unknown terms.
 5. **Freeze:** lock/recheck the order, stock policy, effective publication, prices, quotes, code
-   limits and eligibility. A mismatch produces `reviewRequired` and a comparison; never silently
+   limits (Commerce's proposed `P.check#OrderPromotionLimits` under a lock, since Mantle counts
+   uses without one and never at placement; Nov 5) and eligibility. A mismatch produces `reviewRequired` and a comparison; never silently
    charge a higher amount. Persist the immutable monetary snapshot/hash bound to the frozen
    `orderRevision`, and begin attempt metadata, in a committed short transaction before
    contacting a provider.
@@ -584,7 +601,9 @@ map to field errors and customer-safe messages (R-SHP-19):
 | `Unavailable` | `providerUnavailable`, authority unreachable |
 
 A pending or unknown payment is not an error: it is the attempt's state in the result
-(`paymentPending`, `paymentUnknown`). No UI matches raw gateway exception text.
+(`paymentPending`, `paymentUnknown`). No UI matches raw gateway exception text. The authority's
+error envelope today answers a fixed message per status and no field errors, so a remote frontend
+cannot see a reason; it gains an allow-listed `reason` and the field errors (Nov 5, impl-shop F4).
 
 Scope an operation ID to site, principal/capability and operation; persist its normalized input
 digest and result. Matching replay returns the result; changed input with the same key conflicts.
@@ -640,6 +659,15 @@ charges against a profile marked as stored-credential, merchant-initiated transa
 P1's hosted checkout. S3 is gated on P1 delivering profile charges with those indicators, so
 automatic renewal ships only when that adapter does; Stripe (P3) is the second adapter.
 
+**What P1 built (Nov 5, 2026; impl-shop F14).** The payments plan's P1 is built: Accept.js and
+AcceptUI opaque tokens, CIM customer and payment profiles, and webhooks received as SystemMessages.
+Accept Hosted is documented there and not built, and profile charges carry no stored-credential or
+merchant-initiated fields; Billing's hosted redirect is answered only by the test gateway. Shop
+adds Accept Hosted (with its profile save) to the adapter for S2 and the merchant-initiated
+indicators for S3. Accept Hosted, a redirect as Billing's hosted flow, is the S2 payment page, so
+PASS's CSP stays as it is; AcceptUI on Shop's page is later (Nov 5, the user's call,
+impl-commerce §4).
+
 Payment forms use provider-hosted redirects or operator-installed tokenization components.
 Raw card numbers/security codes never enter Shop templates, logs, records or frontend caches.
 Provider capability registration covers currencies, tokenization, hosted/customer-action flow,
@@ -657,7 +685,8 @@ An amount mismatch remains an exception, not a successful payment.
 **Exceptions after placement (X4, R-SHP-06).** A capture that fails, an amount or account
 mismatch found after placement, or a chargeback puts the order on hold with existing
 `mantle.order.OrderServices.hold#Order` and the proposed `OhtPayment` hold type. Its `enumCode`
-names an Accounting payment-operator release permission, so Accounting releases it with existing
+names an Accounting payment-operator release permission, proposed `PAYMENT_HOLD_RELEASE` (held by
+Accounting's treasury group; Nov 5), so Accounting releases it with existing
 `release#OrderHold`; Commerce shows it. There is no `OhtStock`.
 
 Physical items normally authorize first and capture through existing shipment/invoice policy.
@@ -685,7 +714,7 @@ reconciliation/compensation; do not lose them in a rolled-back cart transaction.
 | D7 `OrderHold`, OrderHoldEntities.xml | Extended with the proposed `OhtPayment` type for exceptions after placement (§8.2, X4); no `OhtStock`. |
 | ProductAsset.secas.xml reservation rules and `OrderItemHandleChange` EECA | Kept: native reservation/line-change paths and store policy. Enforce checkout freeze in the guarded order mutation services; staff edits to an active checkout must explicitly resolve/release it first. Conditioned: no reservation for a RecurringTemplate base (X5). |
 | `OrderPartHandleChange` and the revision EECAs `OrderContentRevision`, `OrderPartPartyRevision`, `OrderPartContactMechRevision`, `OrderPartTermRevision`, `OrderNoteRevision` in entity/Order.eecas.xml | Kept. `orderRevision` is the cart and checkout revision (§7.1); under X2, OrderContent, OrderNote and status-only part updates stop incrementing it, so a note or a status change does not invalidate a frozen checkout. |
-| `OrderPlacedSendEmail`, `OrderApprovedSendEmail`, `OrderApprovedNotify` | Kept as status-triggered outputs, delivered through the Comms ledger, whose keys prevent replay duplicates (X8). Confirmation rendering does not send mail. Conditioned: none runs for a RecurringTemplate base (X5), and `OrderApprovedSendEmail` does not run for an order whose parts are all digital or subscription items, whose approval follows payment at once. |
+| `OrderPlacedSendEmail`, `OrderApprovedSendEmail`, `OrderApprovedNotify` | Kept as status-triggered outputs, delivered through the Comms ledger, whose keys prevent replay duplicates (X8); in the first build they keep `send#OrderStoreEmail` and join the ledger when Comms moves them (Nov 5, impl-shop §4). Confirmation rendering does not send mail. Conditioned: none runs for a RecurringTemplate base (X5), and `OrderApprovedSendEmail` does not run for an order whose parts are all digital or subscription items, whose approval follows payment at once. |
 | `ShipmentShippedSendEmail`, `ShipmentDeliveredSentEmail` in Shipment.secas.xml | Kept for physical parts. A digital part has no shipment, so neither runs for it. |
 | `InvoiceFinalizedSendEmail` in AccountingInvoice.secas.xml | Kept. For a digital or subscription purchase it is the receipt, sent when fulfillment finalizes the invoice. So such a purchase sends the placed confirmation, the receipt and the download-ready or access notice (§10), and no approved email. |
 | `ShipmentOutgoingPackedCreateInvoices`, `ShipmentShippedFinalizeInvoices` | Kept for physical invoicing/capture, including `salesInvoiceFinalizedAtShip`. The public frontend only reports it. |
@@ -710,7 +739,9 @@ items with a ProductSubscriptionResource, and the pack SECA needs a shipment. Pr
 3. complete the part with existing `mantle.order.OrderServices.checkComplete#OrderPart`;
 4. issue the download grant (§10).
 
-Accounting names Shop as a caller of `create#InvoiceFromSource`. The durable fulfillment marker is
+Accounting names Shop as a caller of `create#InvoiceFromSource`. That service needs
+`RECEIVABLE_EDIT` for a sales order, which fulfillment's actor does not hold, so the step calls an
+internal Mantle service split from it under fulfillment's own entry point (Nov 5, impl-shop F22). The durable fulfillment marker is
 keyed by order item/resource, so a crash after invoice creation but before activation resumes each
 step independently. Do not assume Subscription existence proves that its payment succeeded.
 Failed capture gives no new download or access grant. A fully paid zero-charge resource follows
@@ -831,15 +862,17 @@ other purchases. **Needs:** SHOP-ACCOUNT.
 | Shipments | list, read | Follow delivery | shipped items, packages, carrier, tracking/ETA | approved carrier link | order projection | Mantle Shipment and package routes |
 | PurchaseDocuments | list, read | Read permitted documents | invoice/receipt, available date | authorized PDF or Billing link | `getShopOrderDocument` | existing invoice print and external access |
 | Reorder | single | Rebuild eligible lines in a current cart | selected order items, quantities, changed/unavailable summary | preview before add | `previewReorder`, `reorder` | Odoo reorder controller |
-| OrderActions | display | Request permitted help | return eligibility, ask a question, downloads, cancel eligibility, pending cancellation proposal | capability-derived actions | order projection; `requestCancellation` | Customer Service Support pages and order-change proposals |
+| OrderActions | display | Request permitted help | return eligibility, ask a question, downloads, cancel eligibility, pending cancellation proposal | capability-derived actions | order projection; Support's `requestOrderCancel` through OrderCancelRequest | Customer Service Support pages and order-change proposals |
 
 Reorder calls the current cart/pricing path; it does not clone historic prices, discounts,
 shipping or subscription consent. Subscription lines require a fresh offer/consent through
 SubscriptionDetail. "Request return" opens RequestReturn and "Get help" opens NewCustomerCase,
-both mounted in Shop with this order (below). "Request cancellation" calls `requestCancellation`,
-whose proposed `A.request#Cancellation` files a cancel-kind `RqtOrderChange` proposal through
-`OrderChangeServices.save#OrderChange` with the customer's consent recorded; Customer Service
-decides it. Cancellation is immediate only when Customer Service's ServicePolicy flag
+both mounted in Shop with this order (below). "Request cancellation" opens NewCustomerCase's
+OrderCancelRequest for this order, whose Support operation `requestOrderCancel` calls Customer
+Service's proposed `OrderChangeServices.request#CustomerCancel`, filing a cancel-kind
+`RqtOrderChange` proposal through `save#OrderChange` with the customer's consent recorded; Customer
+Service decides it. Shop has no cancellation operation or service of its own (Nov 5, impl-shop
+F26). Cancellation is immediate only when Customer Service's ServicePolicy flag
 `customerImmediateCancel` is on for the organization, for an order with nothing reserved, picked,
 shipped or invoiced and not yet approved, and then goes through `apply#OrderChange` with the policy
 as the recorded decision ([Customer Service §4](../../mr-boss/plan/design-customer-service.md#orderchangedetail);
@@ -866,8 +899,8 @@ form of its own.
 | Login | Existing PASS Account/Login and its second-factor/recovery flow. Site and checked local return path point back to checkout; successful login explicitly reconciles proven carts. |
 | Registration | Existing Account/Register verification/site-eligibility flow. Registration policy comes from the site; purchase does not bypass a closed/invitation-only policy. No automatic public profile discoverability. |
 | AccountSettings | Existing Account/Settings identity/security/preferences. Shop links its addresses/payment methods/orders; it does not duplicate password, verification or second-factor forms. |
-| AccountHub | The PASS Account "My account" hub (X6, crosscut §5.1). Shop registers one card, the AccountOverview summary for each store the customer bought from; Billing, Support, Sales and Marketing register theirs. |
-| EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
+| AccountHub | The PASS Account "My account" hub (X6, crosscut §5.1); not built yet, so Shop builds it as the PASS Account foundation's unless Customer Service has (Nov 5, impl-shop F6). Shop registers one card, the AccountOverview summary for each store the customer bought from; Billing, Support, Sales and Marketing register theirs. |
+| EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Today `Account/Unsubscribe` handles only the Forum opt-out and `/u/` is a BOSS route, so Shop builds the page with the hub (Nov 5, impl-shop F6). Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
 
 ## 10. Digital delivery and subscriptions
 
@@ -1070,8 +1103,9 @@ code may provide new trusted data sources and interaction components; a merchant
 
 The initial engine ID is **`js-fancy`**, implemented using MR's locked `.html.fancy-locked`
 renderer plus the guarded composition adapter below. Current configuration already registers
-`fancy-locked` and `html.fancy-locked`; they receive plain snapshots without `ec`. That alone is
-not the full Shop theme system. Schema validation, bounded composition, SafeHtml/URL handling,
+`fancy-locked` and `html.fancy-locked`; they receive plain snapshots without `ec`, in a frozen
+sandbox with a 5 s deadline and 32 MiB of memory, and no file uses them yet (Nov 5, impl-shop F10).
+That alone is not the full Shop theme system. Schema validation, bounded composition, SafeHtml/URL handling,
 asset policy, resource limits, release management and remote delivery are explicit new work.
 
 The proposed renderer registration contract is `validate(package, apiVersion)` and
@@ -1254,9 +1288,9 @@ escaping HTML text alone is insufficient for URL/CSS/attribute contexts. Test th
 
 Enforce execution time, memory, expression/loop, include depth, output size and query-count
 budgets. Defaults for the first renderer: 100 sections per page, 100 blocks per section, nesting
-depth 8 and 2 MiB rendered HTML; operator limits may lower them. Use the framework runtime's
-bounded execution facility, adding one if its current template API cannot enforce a per-render
-budget. No infinite loop, recursion or output expansion can consume an unbounded request worker.
+depth 8 and 2 MiB rendered HTML; operator limits may lower them. The locked renderer already
+enforces a per-render deadline and memory limit; the composition adapter adds the output, section,
+block, depth and include budgets (Nov 5, impl-shop F10). No infinite loop, recursion or output expansion can consume an unbounded request worker.
 
 An independent optional section failure logs its release/template/section ID and safe reason,
 omits that section or uses its defined neutral placeholder, and lets the rest render. Required
@@ -1364,8 +1398,8 @@ are a further restricted projection, not every API result made automatically ava
 
 Anonymous writes are limited to proven cart/checkout capabilities, `SalesOrder` capabilities
 and explicit registration/guest-recovery/intake paths. Extend PASS's token-write handling (the
-facade's `TOKEN_WRITES`) with operation-specific grant checks and registered remote-deployment
-binding; do not turn every Shop operation into `anonymous-all` authority. Authenticated
+`TOKEN_WRITES` lists of PASS's `Transport.js` and Mantle's `PassApi.js` and `PassAuthority.js`) with
+operation-specific grant checks and registered remote-deployment binding; do not turn every Shop operation into `anonymous-all` authority. Authenticated
 self-service still checks ownership through the self relationship. Payment webhooks, workers,
 theme authoring and BOSS operations are not public Shop operations.
 
@@ -1388,17 +1422,19 @@ These wrappers add public ownership/projection/orchestration, not merely alterna
 | `getDeliveryOptions`, `selectDelivery` | X.get#DeliveryOptions, select#Delivery | address/part/quote → eligible rates and revised checkout | StoreServices.get#StoreShippingOptions; CarrierServices.get#OrderShippingRatesBulk; TaxServices.calculate#OrderSalesTax |
 | `getPaymentOptions`, `selectPayment`, `submitCheckout`, `getCheckoutPaymentResult` | X.get#PaymentOptions, select#Payment, submit#Checkout, get#PaymentResult | permitted method, accepted snapshot/terms, optional marketing opt-in → attempt/action or placed order | OrderServices.add#OrderPartPayment, place#Order; PaymentServices.authorize#OrderPayments and `authorize#SinglePayment` with `operationKey`; Accounting's typed attempt coordinator (purpose shopCheckout, X9); Marketing `request#Subscription` for the opt-in |
 | `getOrderConfirmation`, `getShopAccount`, `findShopOrders`, `getShopOrder`, `getShopOrderDocument` | A.get#OrderConfirmation, get#Account, find#Orders, get#Order, get#OrderDocument | self (ExternalAccess self relationship) or `SalesOrder` OrderView capability → safe summary or protected document | OrderInfoServices.get#OrderDisplayInfo; ExternalAccessServices.check#AccessCapability; native document rendering/access; no raw internal order display output |
-| `previewReorder`, `reorder`, `requestCancellation` | A.preview#Reorder, reorder#Order, request#Cancellation | owned order/items → current offer preview/cart or cancellation proposal receipt | OrderServices.add#OrderProductQuantity; proposed OrderChangeServices.save#OrderChange (cancel kind, customer consent); new ownership and replay guards |
+| `previewReorder`, `reorder` | A.preview#Reorder, reorder#Order | owned order/items → current offer preview/cart | OrderServices.add#OrderProductQuantity; new ownership and replay guards |
 | `getAddresses`, `storeAddress`, `endAddress` | A.get#Addresses, store#Address, end#Address | self + own address/revision → own addresses | ContactServices.get#PartyContactInfoList, store#PartyContactInfo, create#PostalAddress, update#PartyPostalAddress; CarrierServices.validate#PostalAddress |
 | `getPaymentMethods`, `beginPaymentMethodSetup`, `finishPaymentMethodSetup`, `endPaymentMethod` | A.get#PaymentMethods, begin#PaymentMethodSetup, finish#PaymentMethodSetup, end#PaymentMethod | self + registered provider/own method → masked choices/setup action | PaymentMethodServices.get#PartyPaymentMethodInfoList, store#PaymentMethodInfo, delete#PaymentMethod; new hosted setup and contract-impact guard |
 | `submitProductReview` | K.submit#Review | proven purchase/product + rating/body, optional own review/revision → pending receipt | ProductReview; new moderated public write and approved-to-pending edit transition, no generic entity API |
 | `getDownloads`, `issueDownload` | D.get#Downloads, issue#Download | self or `SalesOrder` Download capability + grant → protected download action | PcntDownload content and framework protected streaming; new order-item entitlement |
 | `getSubscriptions`, `getSubscription`, `beginSubscriptionPurchase`, `changeSubscriptionMethod`, `cancelSubscription`, `resumeRenewal` | R.get#Subscriptions, get#Subscription, begin#SubscriptionPurchase, change#SubscriptionMethod, cancel#Subscription, resume#Renewal | verified self (or `SalesOrder` RenewalAction capability for one occurrence) + owned contract/offer/occurrence → subscription view or checkout/action | existing Subscription/recurring-order/payment services with proposed offer/contract/occurrence guards; Accounting's coordinator (purpose shopRenewal) |
 
-Returns and questions are not Shop operations: the mounted Support pages RequestReturn and
-NewCustomerCase call Customer Service's operations over `ReturnPolicyServices.request#CustomerReturn`
-(with existing `ReturnServices.find#ReturnableOrderItems` for eligibility) and
-`SupportCaseServices.create#CustomerCase` (§9, X7).
+Returns, questions and cancellation requests are not Shop operations: the mounted Support pages
+RequestReturn and NewCustomerCase call Customer Service's operations over
+`ReturnPolicyServices.request#CustomerReturn` (with existing
+`ReturnServices.find#ReturnableOrderItems` for eligibility), `SupportCaseServices.create#CustomerCase`
+and, for NewCustomerCase's OrderCancelRequest, `requestOrderCancel` over
+`OrderChangeServices.request#CustomerCancel` (§9, X7; Nov 5).
 
 Additional internal service operations prepare/resolve attempts through Accounting's
 coordinator, consume provider SystemMessage receipts, expire checkouts, fulfill settled items
@@ -1418,14 +1454,14 @@ scanned handles cross into intake services.
 | `mantle.product.store.ProductStore` and its category/product/settings/ship/gateway/email/facility/party/group/approval/wiki/document children | Store/channel policy and bindings; ProductStoreProduct currently has signature requirements, not a complete publication/theme model |
 | `mantle.order.OrderHeader`, OrderPart, OrderItem, OrderPromoCode; OrderServices and OrderInfoServices | Cart/order/recurring templates and totals; public cart ownership, frozen checkout and durable attempts need extensions |
 | Product, variants/features/associations, ProductContent, ProductCategoryContent, ProductPrice/list/rule services | One catalog/pricing model; public projection/explicit assortment and protected digital delivery are additional |
-| ProductReview and `PrvwPending`, `PrvwApproved`, `PrvwDeleted` | Existing moderation states; guarded submission, purchase proof, decision history and safe public projection are new |
+| ProductReview and `PrvwPending`, `PrvwApproved`, `PrvwDeleted` | Existing moderation states, the author keyed by user account and the status audit-logged; no service reads or writes it; guarded submission, purchase proof, reply and safe public projection are new |
 | Payment, PaymentMethod, PaymentGatewayResponse (with `operationKey`) and `PortalPaymentAttempt` | Native financial records, idempotent `authorize#`/`capture#SinglePayment` by `operationKey`, `poll#PaymentGatewayDetails`, and the hosted Billing precedent; the attempt is currently invoice-specific, and Accounting generalizes it (X9) |
 | D7 `OrderHold`/`OrderHoldReason`, `hold#Order`, `release#OrderHold` | Typed holds released by the permission in each type's `enumCode`; types today are Credit, Change, Purchase and Manual |
-| `ExternalAccessCapability`, ExternalAccess.js, ExternalAccessServices | One capability service; record kinds today are Invoice and supplier-direction Order, and contact access needs an invitation |
+| `ExternalAccessCapability`, ExternalAccess.js, ExternalAccessServices | One capability service; record kinds today are Invoice, supplier-direction Order and Quote, and Customer Service's RequestCategory and Request; contact access needs an invitation |
 | `mantle.account.InvoiceServices.create#InvoiceFromSource` | Ordered-basis invoice of an approved order part's unbilled lines, idempotent by `operationKey` |
 | ProductSubscriptionResource, SubscriptionResource, Subscription; recurring OrderHeader fields | Existing resource lifecycle and recurring-order jobs; source-instance-safe paid activation, accepted terms and per-period charge recovery are incomplete |
 | PublicSite/Host/App/Party/Profile/Page, PublicAccessGrant, PublicSubscriptionBinding | Shared sites/accounts/access, targeted mounts and entitlement sources; Shop target/operations/theme bindings are new |
-| PublicSitePage with `get#SitePage`/`publish#SitePage` | Site + page role → exact WikiPage version and publication revision; no mount, route, locale or window yet (X14) |
+| PublicSitePage with `get#SitePage`/`publish#SitePage` | Keyed by site + page role → exact WikiPage version and publication revision; `get#SitePage` serves the guidelines and about roles only; no mount, route, locale or window yet (X14) |
 | framework WikiPage/resources/revisions, media, jobs, search, mail, SystemMessage | Reuse content versions and infrastructure; not a pre-existing theme publisher |
 
 ### 14.2 Proposed extensions and coordination records
@@ -1438,21 +1474,21 @@ and stored only as digests, separately from record IDs.
 
 | Record / extension | Essential fields and invariant |
 | --- | --- |
-| `ProductStoreProduct` extension, `mantle.product.store` | product/store existing key; publication state, publishFrom/thru, template key, badge/featured metadata, localized override reference, revision. No row means not publicly published; default-null legacy data is not automatically visible. |
+| `ProductStoreProduct` as a dated association, `mantle.product.store` (Nov 5) | `fromDate` joins the product/store key, with `thruDate`, the publication kind (published, or a variant's exclusion), template key, badge text and featured rank, key fields audit-logged; a change is a new row. Store-specific text is the store's existing `ProductContent` rows. No current row means not publicly published; legacy data is not automatically visible. |
 | `StoreCartAccess`, `mantle.order` | access ID, order/site/mount/store/currency, optional verified customer, capability digest (same digest and throttle as ExternalAccess), one-time recovery token digest, last shopper activity, expiry/revocation. Its revision is the order's `orderRevision`. One authoritative order; capability cannot switch scope. |
 | `StoreCheckout`, `mantle.order` | checkout ID, order/cart access, state, frozen `orderRevision`, accepted policy/terms versions, quote references/expiry, frozen summary/hash, current submission operation, expiry, completion result. Unique active coordination per order. |
 | `PortalPaymentAttempt` extension, `mantle.account.payment` (Accounting-owned, X9) | existing Payment key; typed purpose (invoice, shopCheckout, shopRenewal, eventRegistration), order/checkout/occurrence, store/site, monetary snapshot hash, phase and safe outcome. The provider key is `PaymentGatewayResponse.operationKey`; no second idempotency field. Preserve invoice fields/semantics; purpose-specific workers. Provider secrets stay configuration. |
 | `SalesOrder` record kind in ExternalAccess.js (Mantle, X6) | customer-direction sales order: resolves organization (internal vendor) and customer party; scopes `OrderView`, `Download`, `RenewalAction` for Shop and `QuoteView`, `QuoteRespond` for Sales; plus the self relationship in `check` and `support`/`sales` in `appKinds`. |
 | `OhtPayment` seed (Mantle, X4) | OrderHoldType enumeration whose `enumCode` is Accounting's payment-operator release permission. |
-| durable Shop operation results | existing PASS idempotency facility extended for cart capabilities and Shop scopes; normalized input digest, scope, operation key, result/reference, retention. Do not invent a second global operation ledger if the existing facility can hold the required scope. |
+| durable Shop operation results | the CX-POSTING operation record (`PostingOperation`), as Billing and Customer Service use it, scoped by site and cart capability or party (Nov 5; the Forum's receipts are keyed by a party, which a guest lacks); normalized input digest, operation key, result/reference, retention. No second operation ledger. |
 | `StoreItemFulfillment`, `mantle.product.store` | order/item/resource unique source, invoice from `create#InvoiceFromSource` and payment links, settlement/activation states, granted resource/subscription ID, last safe error. Enables retry between settlement and activation without duplicate grants/invoices. |
 | `StoreDownloadGrant`, `mantle.product.store` | grant ID, source order/item, recipient, resource/version, from/thru, revocation reason/date, usage audit. Never stores a publicly reusable raw resource URL. |
 | `StoreRecurringOffer`, `mantle.product.subscription` | offer ID, store/product/resource, effective dates, fixed plan/price/currency/cadence, terms version, eligible providers, retry/cancellation policy, revision. Accepted contracts pin this version. |
 | `StoreRecurringContract`, `mantle.product.subscription` | contract ID, verified customer/site/store, accepted offer/terms/consent, owned payment-method reference with its off-session consent (time, method, terms version, evidence), recurring base-order refs (RecurringTemplate purpose), resource instance, schedule zone/next due, paid-through, cancel-at, state/revision. No separate money balance. |
 | `StoreRenewalOccurrence`, `mantle.product.subscription` | occurrence ID, contract/scheduled-period unique key, order, attempt, invoice, due period, state, attempt count/next retry, settled/fulfilled facts. At most one renewal order per period; no second clone loop. |
-| review extension/audit | review order-item proof plus append-only decision actor/time/reason and revision; store reply text/actor/time (COM-F03); approved-to-pending status transition for owned edits. Public aggregates include only approved state. |
+| review fields and audit | review order-item proof and store reply text/actor/time (COM-F03) on ProductReview, audit-logged with its status; a decision is a status change with its reason in the audit log, no decision record (Nov 5); approved-to-pending status transition for owned edits. Public aggregates include only approved state. |
 | `PublicTheme`, `PublicThemeRelease`, `PublicThemeBinding`, `mantle.public` | theme identity/engine/draft revision; immutable release manifest/version/digest and validation; site/app-mount active release/revision/generation. File contents remain framework resources. |
-| `PublicSitePage` extension and `PublicSiteNavigation`, `mantle.public` (X14) | PublicSitePage gains app mount, route, locale, template/composition version, publication window, SEO, with page role optional (policy pages keep it); navigation: site/mount/locale menu key, typed destinations, redirects, revision. No `PublicShopPage`. Avoid copying wiki bodies into Mantle. |
+| `PublicSitePage` extension and `PublicSiteNavigation`, `mantle.public` (X14) | PublicSitePage gains a sequenced `sitePageId` key, with site + page role unique when a role is set (Nov 5), and app mount, route, locale, template/composition version, publication window, SEO, with page role optional (policy pages keep it); navigation: site/mount/locale menu key, typed destinations, redirects, revision. No `PublicShopPage`. Avoid copying wiki bodies into Mantle. |
 
 Store shipping-rate and product-feed records belong to Commerce's needs table. They feed Shop
 quotes/catalog outputs; this document does not define competing records. `PublicSite.theme`
@@ -1467,8 +1503,13 @@ These limits of today's code are what the needs of §15 remove:
   missing;
 - remote anonymous cart capability writes are not supported;
 - locked-renderer budgets and safe composition are missing;
-- no payment adapter is ported, so hosted checkout and off-session charges wait on the payments
-  plan's P1 (§8.1);
+- the Authorize.Net adapter is built with browser tokens and saved profiles, but not the hosted
+  payment page or merchant-initiated charges (§8.1);
+- the authority's error envelope carries no reason or field errors to a remote frontend (§7.3);
+- PASS has no Account hub or list email preferences page, and list unsubscribe is a BOSS route;
+- Mantle's reserved mount paths miss some of the framework's, and the Forum's product link looks
+  for an app named `store`;
+- digital fulfillment's invoice service needs `RECEIVABLE_EDIT`;
 - `PortalPaymentAttempt` is invoice-specific;
 - paid fulfillment orders invoicing before settlement, and plain digital items have no invoice
   path;
@@ -1570,7 +1611,8 @@ parity; BOSS is needed for authoring, not live Shop operation.
 | S4 — channel/operational completion | Commerce feeds/connectors, scheduled publication/metrics, adoption diagnostics and production operations | Withdrawal-safe outputs, partial-failure continuation, observability, retention and rollback/reconciliation drills |
 
 S1–S4 define the complete first release; visual editing and recurring purchases are included,
-not future optional placeholders. Provider adapters are explicit deployment capabilities; unsupported
+not future optional placeholders. mr-boss impl-commerce §1 orders both apps' phases within these
+stages and gates (Nov 5). Provider adapters are explicit deployment capabilities; unsupported
 ones stay out of the public method selector. Later scope is Liquid compatibility, advanced B2B,
 POS/offline terminals, loyalty/cross-store programs, proration/usage billing, physical subscription
 boxes, wishlists/comparison, a theme marketplace and the separate Publishing editorial app.
@@ -1651,6 +1693,7 @@ as a public UI implementation.
 | Notices of a digital or subscription purchase (Nov 1, 2026; R-SHP-12) | Placed confirmation, the invoice-finalized receipt and the download-ready or access notice; no approved email |
 | First payment adapter (Nov 1, 2026; R-SHP-05) | Authorize.Net (payments plan P1): Accept Hosted for checkout and customer payment profiles charged as stored-credential, merchant-initiated renewals; Stripe P3 second. P1's scope gains the merchant-initiated indicators and S3 waits for them (§8.1, X9) |
 | Account hub path and owner (Nov 1, 2026; review X6) | `PASS:Account/Home`, owned by the PASS Account foundation (design-forum §8), with registered cards from Shop, Billing, Support, Sales and Marketing; the hub exists without Shop, which is store-scoped and may not be installed |
+| Code check (Nov 5, 2026; impl-shop F1–F34; the user's calls in impl-commerce §4) | Accept Hosted is the S2 payment page and the checkout opt-in waits for Marketing (§6, §8.1); the registration places and one root app per site (§1); the PASS shell keeps Account, Billing and Support pages on a Shop site with the site's brand (§1); catalog prices computed as the authority (§5.1); promotion limits rechecked under lock at freeze (§7.2); reasons through the remote error envelope (§7.3); the hosted page and merchant-initiated charges added to the built Authorize.Net adapter (§8.1); `PAYMENT_HOLD_RELEASE` (§8.2); digital invoicing through an internal service, and the existing store emails keeping their senders in the first build (§8.3); cancellation through Support's OrderCancelRequest, Customer Service's services admitting the `SalesOrder` capability (§4.2, §9); dated ProductStoreProduct, review decisions in the audit log, operation results on `PostingOperation`, a `sitePageId` key (§14.2) |
 
 ## 20. Open
 

@@ -1,0 +1,574 @@
+# IronStone PASS — Shop implementation
+
+Nov 5, 2026 — plan, written while Customer Service is being built and before Shop starts; P0 partly done (F1–F34, found
+while writing it), and design-shop brought in line with them (§6); the open questions shared with Commerce answered
+(impl-commerce §4). Shop is built with IronStone Commerce in one build
+order, kept in [mr-boss impl-commerce.md](../../mr-boss/plan/impl-commerce.md) §1.
+
+How [design-shop.md](design-shop.md) gets built, in phases from the app's mount to its operations, each ending tested
+and usable. This file is kept at a high level, as mr-boss's
+[impl-customer-service.md](../../mr-boss/plan/impl-customer-service.md) and
+[impl-commerce.md](../../mr-boss/plan/impl-commerce.md) are: each phase names its scope by the design's sections and
+§15 needs rather than restating them, and the design stays the place for page and record detail. During the build this
+file is the log: phase status and what each built, the decisions made, findings against the code, and what is
+deferred. The ground rules and the open questions Shop shares with Commerce are kept in impl-commerce §2 and §5.
+
+Today mr-pass registers six apps (Forum, Account, Members, Sites, Billing and Supplier), and Customer Service P13 and P15
+add Support. None of the design's Shop services, records or operations exist (F1–F34). Shop is built after Customer
+Service, beside Commerce, on what is built:
+- from PASS (design-forum, implementation-forum): sites with hosts and targeted app mounts, the root mount, public
+  accounts with verification, recovery, second factor and SSO handoff, invitations, the facade with its operation
+  catalogue and Mantle's PassApi and gRPC authority for a remote frontend, CSRF and throttling, media staging and
+  scanning, readiness per app, the Forum's delivery and its entitlement handlers (`PublicAccessGrant`,
+  `PublicSubscriptionBinding`, `expire#SubscriptionAccess`);
+- from Accounting P18: the Billing app's hosted payment over `PortalPaymentAttempt`, ExternalAccess capabilities with
+  token digests and invitations bound to an app, and the CX-POSTING operation record;
+- from Mantle: open orders as carts, the price resolver, availability over a store's facilities, promotions, payment
+  gateways with `operationKey` replay and the Authorize.Net and PayTrace adapters, Shippo address validation and rates,
+  the tax gateway, `create#InvoiceFromSource`, subscriptions and recurring orders, consent and unsubscribe tokens;
+- from Customer Service (once its P9–P16 land): the Support app with RequestReturn, NewCustomerCase and
+  OrderCancelRequest, `create#CustomerCase`, `request#CustomerReturn`, `request#CustomerCancel`, the ExternalAccess
+  self relationship and the `support` app kind;
+- from Commerce, in the shared order: stores and readiness, publication, site pages and navigation, theme editors and
+  preview, checkout settings, promotions, and the staff views of what Shop records.
+
+**Inputs.**
+- Designs:
+  - [design-shop.md](design-shop.md)
+  - [mr-boss design-commerce.md](../../mr-boss/plan/design-commerce.md): §4 publication, §5 authoring (the one
+    definition of the staff editors), §6 the staff views, §8 checkout settings, §11 automation
+  - [design-forum.md](design-forum.md): §1 (the public shell and mounts), §4 (deployment, the authority boundary and the
+    request contract), §5 (identity), §8 (the PASS Account foundation and its hub), §13.1 (how an app registers)
+  - mr-boss [design-customer-service.md](../../mr-boss/plan/design-customer-service.md) §4 (customer cancellation) and
+    §8 (the Support pages and their access)
+  - mr-boss [design-crosscut.md](../../mr-boss/plan/design-crosscut.md) §1.3 (the automation register and Shop's
+    conditions), §3.7 (availability bands), §5 and §5.1 (PASS rows, the account hub), §7 (CX-DELIVERY)
+  - mr-boss [design-accounting.md](../../mr-boss/plan/design-accounting.md) AC-02 and Dunning;
+    [design-sales.md](../../mr-boss/plan/design-sales.md) RecurringTemplate and SAL-RECURRENCE
+- Plans:
+  - [mr-boss impl-commerce.md](../../mr-boss/plan/impl-commerce.md): the order (§1), the shared ground rules (§2), the
+    shared decisions and open questions (§4, §5).
+  - [mr-boss impl-customer-service.md](../../mr-boss/plan/impl-customer-service.md): P10 (the customer cancel and the
+    sales commercial revision), P13 and P15 (the Support app, its registration and the self relationship).
+  - [mr-boss impl-accounting.md](../../mr-boss/plan/impl-accounting.md) P18 and §7 (chargebacks calling
+    `reconcile#RefundedItem`).
+  - [implementation-forum.md](implementation-forum.md), [Deployment](../docs/Deployment.md) and the README's development
+    checks.
+  - mr-mantle `plan/payments-shipping-edi.md` (F14).
+- The suite-app design review, which explains the design's X and R-SHP IDs, was removed from mr-boss (bd74564); read it
+  with `git show bd74564^:plan/review-suite-apps.md` in mr-boss.
+- Guides and rules: mr-boss [design-doc-guide.md](../../mr-boss/plan/design-doc-guide.md), mr-boss
+  [impl-drawers-commons.md](../../mr-boss/plan/impl-drawers-commons.md) §4, mr-moqui `docs/dev/Practices-App-Dev.md`.
+- Inventories: mr-boss [usl-inventory.md](../../mr-boss/plan/usl-inventory.md), where the services the public facade
+  calls are mapped with `PASS:` paths.
+
+Framework paths are under the mr-moqui checkout (`crates/`, `runtime/base-component/`), Mantle paths under
+`runtime/component/mr-mantle/`, BOSS paths under `runtime/component/mr-boss/`.
+
+Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phases](#3-phases) ·
+[4 decisions](#4-decisions) · [5 open](#5-open-questions) · [6 findings](#6-findings) · [7 later](#7-later) ·
+[8 verification](#8-verification)
+
+---
+
+## 1. Scope and order
+
+- **Repositories.** Each is its own git repo:
+  - `mr-moqui` (`crates/`, `runtime/base-component`): the theme composition adapter and its budgets on the locked
+    renderer (P2), and what the route cache policy needs of the public-site routing (P1, P3);
+  - `runtime/component/mr-mantle`: Shop's Mantle services and records (design-shop §13.2's K, C, X, A, D and R) and the
+    owners' contracts of §4;
+  - `runtime/component/mr-pass`: the Shop app, the PASS Account hub and email preferences page (P6), and the starter
+    theme;
+  - `runtime/component/mr-boss`: the Commerce phases (impl-commerce) and BOSS's grants of the permissions Shop's Mantle
+    services seed.
+- **Scope.**
+  - Every Shop row of design-shop §2 and the §15 needs they use, with design-shop §6's changes (F26, F27).
+  - The Support pages RequestReturn and NewCustomerCase (with OrderCancelRequest) mounted in Shop with the order's
+    context; Customer Service builds them.
+  - The PASS Account hub and email preferences page (design-shop §2's AccountHub and EmailPreferences), built here as
+    the PASS Account foundation's unless Customer Service P15 has (F6).
+  - The owners' contracts Shop needs (impl-commerce §4): Accounting's typed payment-attempt coordinator, the
+    `OhtPayment` hold and Dunning's renewal exclusion; Sales' RecurringTemplate marker and the recurring worker's skip;
+    Comms' delivery ledger; ExternalAccess's `SalesOrder` kind; Customer Service's customer services admitting it.
+  - §7 holds the design's later scope and §20 items, and the Marketing, Admin and Sales parts that wait for their owners.
+- **Order.** impl-commerce §1 holds the one order of both apps. Shop's phases in it:
+  - P1 App and mount, after Commerce P1;
+  - P2 Theme engine and releases, after Commerce P3;
+  - P3 Catalog pages, after Commerce P4 (stage C1/S1 ends with Commerce P5);
+  - P4 Cart and shopper identity, P5 Checkout and payment and P6 Orders, account and digital delivery, after Commerce
+    P6 and P7 (stage C2/S2 ends with Commerce P11);
+  - P7 Prepaid and recurring access (stage C3/S3 ends with Commerce P12);
+  - P8 Adoption and operations, after Commerce P14 (stage C4/S4);
+  - P9 Finish, with Commerce P15.
+
+## 2. Ground rules
+
+- **Commerce's rules hold** (impl-commerce §2): the Commons rules, service rows through services, staff and public
+  apart, what Mantle runs is Mantle's, store records by the shared rules, one publication generation, restricted values
+  on the server, revisions and operations on the CX-POSTING record, owner contracts, Mantle's defaults kept, and
+  existing callers compatible.
+- **PASS's foundation** (design-forum §1, §4, §5, §13.1):
+  - Shop is a targeted app of PASS's public shell: its mount names a ProductStore, set by an operator; a site has at most
+    one Shop mount.
+  - Public accounts hold only `ALL_USERS`; no purchase, paid resource or role ever adds a UserGroup.
+  - Pages reach the authority only through `pass.Facade.call#Operation`: each operation is in `Schema.js` and
+    `Routes.js` with Mantle's mirrors, and the same pages work with a local Mantle or a remote authority with only
+    framework, webroot and PASS installed. BOSS is not a runtime dependency: no `ironstone.*` service, BOSS screen or
+    group is called.
+- **The request contract** (design-shop §13.1): inputs allow-listed (never a store, organization, customer, price,
+  status or adjustment from the browser); the trusted site, mount, store, actor and cart context come from the facade;
+  answers are declared projections with capabilities and revisions, money and quantities as decimal strings with
+  display text; opaque cursors and bounded pages; operation IDs on writes and `expectedRevision` on changes; the facade's
+  error kinds with a camelCase `reason`, the same through a remote frontend (P1, F4).
+- **Capabilities, not new tokens** (X6): a guest's order, download and renewal links are `SalesOrder` capabilities of
+  ExternalAccess checked by `check#AccessCapability`; a cart's access is its StoreCartAccess on the same digest and
+  throttle (F16); a link's write is in the three `TOKEN_WRITES` lists (F1).
+- **Money and access are strict.** No gateway call inside an open transaction; no new provider key to escape an
+  unknown outcome; access and downloads only after settlement; one logical order, payment, capture, invoice, grant and
+  notice per event. Independent work still continues and names its failures: an optional theme section, a feed product,
+  a delivery, a renewal, an adoption row.
+- **Merchant source is sandboxed.** Themed pages render through the composition adapter in the locked renderer: theme
+  source never reaches `ec`, services, entities, resources or the network; trusted components and data sources are
+  operator-installed code.
+- **Pages.** Discovery is server-rendered HTML usable without JavaScript; cart, checkout and account tasks are HTML forms
+  with trusted Vue enhancement; every page works at 390 px. Public caching only for anonymous catalog and content
+  routes, by generation; everything personal is `no-store`. PASS has no terminal UI; Commerce's editors have the twins.
+- **Done for a phase** is impl-commerce §2's, with these for mr-pass:
+  - the phase's rules in `ShopAccess` (local, and remote through the transport) where it adds an access rule, and in
+    its own rule spec otherwise; the Mantle rules in mr-mantle's specs;
+  - `moqui lint --screens` clean for PASS;
+  - the Schema and Routes mirrors identical (Forum's spec) and Portals' registry parity (F1);
+  - its row and **Built** note here.
+
+  The phase's "usable when" is an acceptance test to write in mr-pass `acceptance/` (the browser walk on ForumHttp's
+  pattern in `acceptance/client/`, the remote one on RemoteHttp's, the remote fixture on RemoteFixtures'); running it is
+  not part of Done.
+
+## 3. Phases
+
+| Phase | Repos | Pages | Status |
+| --- | --- | --- | --- |
+| P0 Checks | all (read) | — | partly done Nov 5 (§6 F1–F34); the rest when Customer Service is done |
+| P1 App and mount | Mantle, mr-pass | the Shop root, the PASS shell on a Shop site | — |
+| P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | — |
+| P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | — |
+| P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | — |
+| P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | — |
+| P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | — |
+| P7 Prepaid and recurring access | Mantle, mr-pass | Subscriptions, SubscriptionDetail | — |
+| P8 Adoption and operations | Mantle, mr-pass | — | — |
+| P9 Finish | mr-pass | — | — |
+
+### P0 — Checks
+
+Verify the design's riskiest assumptions against the code before building. F1–F34 were found on Nov 5 while writing this
+plan, and the design edits they call for were made then (§6). Still to check, when Customer Service is done:
+
+- **Customer Service's Support pieces** (F26, F27): how a Support page takes an order and a capability so Shop can mount
+  RequestReturn and NewCustomerCase inside its own mount, and what they show on a site with no Support mount; the self
+  relationship's verified-email rule; `request#CustomerCancel`'s check; the media module it shares (its F58); and what
+  it built of the PASS Account hub.
+- **The sales commercial revision** (F17): that Customer Service P10's flag makes OrderContent, OrderNote and status-only
+  part updates leave a sales order's `orderRevision` alone, so a note does not invalidate a frozen checkout.
+- **Authorize.Net** (F14; Accept Hosted, impl-commerce §4): the hosted payment page request with its return options and the
+  attempt's reference, saving a profile from it, the hosted profile page for adding a method outside checkout, the
+  stored-credential and merchant-initiated fields of a profile charge, and the webhook events of each, against the
+  current API reference.
+- **The routing:** whether the public-site routing can give Shop's catalog routes their own cache headers, or Pass.xml
+  sets them per app (F3); what a remote frontend needs to cache by generation; a cart capability as a token write
+  without a member session, over REST and gRPC (F29).
+- **Trusted Vue components on PASS:** the qvue enhancement the Forum's composer uses, as the pattern for purchase
+  selection, cart, checkout and payment components under PASS's CSP.
+
+### P1 — App and mount
+
+Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
+
+- **Registration** (F1): `shop` in `service/pass/Apps.js` (screen `Shop`, base `/shop`) and Mantle's `PublicApps.js`
+  (target `productStore`: a real store whose organization is internal; readiness Commerce P2's
+  `mantle.product.StoreAdminServices.check#StoreReadiness`, F34); `screen/Pass.xml`'s subscreens item; the Header's
+  branches; `test/MoquiConf.xml`'s mounts; Portals' targeted-app assertion; the `TOKEN_WRITES` lists (empty for Shop
+  until P4); `docs/Deployment.md`'s "Adding an app" corrected.
+- **The root** (F2): `root` for `shop` in PublicApps; `storeMounts` allows one root app per site, Forum or Shop; Mantle's
+  reserved mount paths aligned with the framework's (`static`, `assets`, `sw.js`, `manifest.webmanifest`, `WebPush`
+  added); `resolve#Route` for Shop's product, category and page paths. A Shop at `/` never captures Account, Forum, API,
+  token, asset or operational routes.
+- **The Shop root and shell** (F7): `screen/Shop.xml`, concealed until its site and mount are published; a themed app
+  renders its own layout (P2), while Account, Billing and Support pages on a Shop site keep the PASS shell with the
+  site's brand values read from `PublicSite.theme`; `getSiteInfo` returns the brand and `subscriptionUrl`.
+- **Headers** (F3): Pass.xml's headers become per route, `no-store` by default; P3 opens public caching for the
+  anonymous catalog routes.
+- **Errors** (F4): the authority's error envelope carries an allow-listed camelCase `reason` and field errors, and
+  Transport maps them back, so a remote page shows the same refusal as a local one (Purchasing F170 closed);
+  `Shared/Portal.js` maps a reason to the page's text.
+- **Context:** the `getShopContext` operation (site, store, locale, currency, the active release, capabilities).
+- **Demo** (F33): the PASS site ZIZI_SHOP (host `shop.zizi.localhost`) with Shop at `/` for POPC_DEFAULT and Account,
+  Billing and Support mounts, made by Commerce's demo service, disabled until published.
+- **Specs:** mr-pass `test/Shop/ShopSpecLib.js` and `ShopAccess` (an unknown or another organization's store refused as
+  a target, a second Shop mount and a root conflict refused, reserved paths kept, an unpublished site concealed, the
+  context through the local adapter and the transport); Mantle `PassAuthority` (+1 feature: a reason through the
+  envelope).
+- **Usable when:** an operator mounts Shop at the root of ZIZI_SHOP for POPC_DEFAULT, and `/account`, `/billing`, the
+  API, `/static` and token routes still reach their owners; readiness lists the store's findings; a remote frontend gets
+  the same context, and a refused write shows its reason there.
+
+### P2 — Theme engine and releases
+
+Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME, SHOP-RENDER's adapter.
+
+- **The composition adapter** (mr-moqui, F10), on the locked renderer: a package's layout, JSON templates, sections,
+  blocks and snippets resolved outside the template's expression namespace; the settings types of design-shop §12.3
+  validated by their schemas; markup, URL, CSS and attribute contexts validated, rich text and SVG sanitized, `raw`
+  only for adapter-made fragments; the budgets of design-shop §12.4 (100 sections a page, 100 blocks a section, depth 8,
+  2 MiB of output, include depth) beside the renderer's deadline and memory, which operator configuration lowers; a
+  renderer registry with `validate` and `render` (engine `js-fancy`); diagnostics with file and line; an optional
+  section's failure omitted and logged, a required component's failure stopping purchase. Rust tests and goldens.
+- **The release records** (Mantle `mantle.public`): `PublicTheme`, `PublicThemeRelease` (the immutable manifest: file
+  versions and digests, schemas, settings, composition, renderer and view-API versions, the validation digest) and
+  `PublicThemeBinding` (site and app mount to the active release, its revision and the site's generation). Theme files
+  are `dbresource://` versions under one package root.
+- **`mantle.public.ThemeServices`' core:** a draft from a starter package, `validate#Theme`, `publish#Theme` (the expected
+  active revision, atomic switch, the generation), `restore#ThemeRelease` and the export manifest, which Commerce P5's
+  editors call; the live render path: resolve the mount, authorize the site and page, select the active release,
+  assemble the approved sources in batches, compose, render.
+- **The view contract** v1 (design-shop §12.3) and the approved source descriptors; no `ec`, entity, session or secret
+  in a view.
+- **Assets and remote delivery:** release assets served by digest under the Shop mount; a remote frontend fetches a
+  release's manifest and files over its authority connection, verifies every digest, and shows a safe unavailable page
+  for a release it does not have.
+- **The starter theme** in mr-pass, with every page kind and the required components, copied into editable resources
+  when a draft starts from it.
+- **Specs:** Rust tests of the adapter (each budget, each escaping context, script, event, scheme and recursion
+  refusals); Mantle `test/public/ThemeReleases` (validation digest, publish and restore with the generation, a stale
+  active revision refused); mr-pass `ShopThemes` (each page kind from the starter, an optional section's failure leaving
+  the rest).
+- **Usable when:** the starter theme publishes to ZIZI_SHOP and its home renders the store's name and an empty state; a
+  section that loops forever stops at its budget and is left out; a template naming `ec` fails validation; a remote
+  frontend renders the same release after checking its digests.
+
+### P3 — Catalog pages
+
+Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-RENDER. Ends stage C1/S1 with Commerce P5.
+
+- **`mantle.product.ShopCatalogServices`** (K): `get#Home`, `get#Categories`, `get#Category`, `find#Products`,
+  `search#Shop`, `get#Product`, `quote#Selection` and `get#Page`, over Commerce P3's publication resolver:
+  - prices through `get#ProductPrice` as the authority for the routed store and the signed-in customer (F18): an
+    unavailable price apart from a zero one, never the trace, cost or margin;
+  - availability bands of crosscut §3.7 from `get#AvailableInventory` and its Multi form over the store's facilities,
+    never quantities;
+  - registered sort and facet keys; the `MantleProduct` index's hits filtered by the resolver (F32);
+  - pages through Commerce P4's extended `get#SitePage`, the exact published version.
+- **Operations:** `getShopHome`, `getStoreCategories`, `getStoreCategory`, `findProducts`, `searchShop`, `getProduct`,
+  `quoteSelection` and `getShopPage`, with their mirrors.
+- **Pages:** Home, Categories, CategoryDetail, Search, ProductDetail (purchase selection shows the price of a variant and
+  quantity, with no add until P4) and Page; the not-available, empty and maintenance states; canonical URLs with stable
+  IDs and slugs, old slugs redirected after the access check; sitemap, robots and hreflang of current public pages only;
+  structured product data equal to the visible projection.
+- **Caches** (F3): public caching of the anonymous catalog and content routes by the publication generation, release,
+  locale and currency; a request with a cart or a signed-in user is `no-store`; an entry whose eligibility cannot be
+  established is not served.
+- **Links:** the Forum's product discussion checks the `shop` mount and the resolver (F28); ZZW_RETAIL's pages are
+  served by the demo site's Page route, and the space's `publicPageUrl` moves there (impl-commerce F17).
+- **Specs:** Mantle `test/product/ShopCatalog` (an unpublished product, an excluded variant, a wiki draft and another
+  store's product absent from every read, the sitemap and search included; unavailable against zero price; no trace);
+  mr-pass `ShopCatalog` (one render per page kind, the cache headers by route).
+- **Usable when** (design-shop §18.1 "Two sites", "Anonymous browse"): an anonymous visitor browses POPC_DEFAULT's
+  published categories and products, searches, and reads its returns policy page, with and without JavaScript, at 390 px
+  and on the desktop (`acceptance/client/ShopHttp`); nothing unpublished shows anywhere; the same through a remote
+  frontend (`acceptance/client/ShopRemoteHttp` with its fixture).
+
+### P4 — Cart and shopper identity
+
+Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
+
+- **`StoreCartAccess`** (`mantle.order`): the order, site, mount, store and currency, an optional verified customer, the
+  capability digest, a one-time recovery token digest (Commerce P10), last shopper activity, expiry and revocation.
+  ExternalAccess.js exports its digest and throttle helpers for it (F16).
+- **`mantle.order.ShopCartServices`** (C): `get#Cart`, `add#CartItem`, `update#CartItem`, `remove#CartItem`,
+  `apply#PromoCode` and `remove#PromoCode` over the Mantle order and promotion services, checking the cart's
+  `orderRevision` (F17); activity on shopper actions only; login attaches the shopper's cart or merges two proven carts of
+  one scope with no pending checkout, repricing and naming unavailable lines; logout rotates the capability.
+- **Operations:** `getCart`, `addCartItem`, `updateCartItem`, `removeCartItem`, `applyPromoCode` and `removePromoCode`,
+  the cart writes in `TOKEN_WRITES` with the session-bound capability, local and remote (F29); rate limits on cart
+  creation and code tries.
+- **Pages:** Cart (CartItems, PromoCode, CartTotals, BeginCheckout from P5); ProductDetail's PurchaseSelection, a trusted
+  Vue component over the plain form; the mini-cart projection.
+- **Specs:** Mantle `test/order/ShopCart` (no price, customer, store or status from input; a stale revision refused; one
+  merge of proven same-scope carts; another store's or currency's cart kept apart; an order ID alone grants nothing;
+  logout rotation); mr-pass `ShopCart`.
+- **Usable when** (design-shop §18.1 "Guest checkout and later account login", its cart half): a guest adds two items,
+  applies TEST1 and sees the discount; signing in merges a proven cart once; another tab's stale change is refused with
+  its reason; the same through a remote frontend.
+
+### P5 — Checkout and payment
+
+Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §8; SHOP-CHECKOUT, SHOP-PAYMENT.
+
+- **`StoreCheckout`** (`mantle.order`; states as StatusItems) and **`mantle.order.ShopCheckoutServices`** (X): begin,
+  get and resume; contact; addresses, with `validate#PostalAddress` through the store's carrier gateway offering a
+  correction; delivery quotes over `get#StoreShippingOptions`, `get#OrderShippingRatesBulk` and Commerce P6's local
+  rates; tax by `calculate#OrderSalesTax`; payment options from the store's gateways and their capabilities; review with
+  the terms version of Commerce P4's policy page; freeze under lock (stock policy, publication, prices, quotes, Commerce
+  P7's promotion limits), the snapshot bound to the frozen `orderRevision` and committed before any provider call;
+  submit; one placement with durable intent; complete.
+- **Accounting's coordinator** (AC-02, X9; impl-commerce §4, F13): `PortalPaymentAttempt` gains its purpose
+  (invoice, shopCheckout, shopRenewal, eventRegistration), the order, checkout or occurrence, store and site, snapshot
+  hash, phase and safe outcome; each worker selects its purpose; Billing's invoice attempts and URLs are unchanged.
+  Provider callbacks are SystemMessage receipts into one reconciliation with polling.
+- **The adapter** (F14; the user's call, impl-commerce §4): Authorize.Net Accept Hosted, with the canonical return address,
+  the attempt's `operationKey`, the outcome looked up by the authority and a profile saved for a signed-in buyer who
+  asks; the test gateway's hosted outcome for the specs.
+- **Mantle conditions** (design-shop §8.3, crosscut §1.3): `authorize#OrderPayments` skips a Promised payment with an
+  unresolved attempt (impl-commerce F32); placement never authorizes twice.
+- **`OhtPayment`** (X4, F15): the hold type, its release permission `PAYMENT_HOLD_RELEASE` seeded in mr-mantle with its
+  ADMIN grant and granted in BOSS to Accounting's treasury group; reconciliation places it when a capture fails or an
+  amount or account mismatches after placement. Chargeback intake is Accounting's (§7).
+- **ExternalAccess `SalesOrder`** (X6, F16): the customer-direction record kind with the OrderView scope (and Download and
+  RenewalAction for P6 and P7), for the guest's order link.
+- **Operations:** `beginCheckout`, `getCheckout`, `resumeCheckout`, `setCheckoutContact`, `setCheckoutAddresses`,
+  `getDeliveryOptions`, `selectDelivery`, `getPaymentOptions`, `selectPayment`, `submitCheckout`,
+  `getCheckoutPaymentResult` and `getOrderConfirmation`.
+- **Jobs:** checkout expiry and attempt reconciliation, bounded with backoff, each attempt in its own transaction, with
+  `operation` marks; readiness flags the reconciliation and polling jobs when they are paused (F13).
+- **Pages:** Checkout (Contact, Addresses, Delivery, Payment, ReviewPurchase; trusted Vue enhancement of plain forms);
+  PaymentResult (bounded polling, the provider's link); OrderConfirmation (the QR of the signed-in order page). No
+  marketing opt-in (impl-commerce §4).
+- **Specs:** Mantle `test/order/ShopCheckout` (a changed price gives reviewRequired; a double submit makes one order; an
+  unknown outcome stays unknown with no new key; a failed placement after the provider's success keeps the evidence; a
+  promotion limit at freeze; a zero total skips the gateway) and `test/account/PaymentAttemptPurpose` (Billing's worker
+  never touches a Shop attempt and the reverse; the hold and its release permission); mr-pass `ShopCheckout`. Shop's
+  one golden-path client walk, `test/client/Shop/ShopGoldenPath`, starts here: browse, add to the cart, check out through
+  the test gateway's hosted page, and see the confirmation.
+- **Usable when** (design-shop §18.1 "Price, stock, address and promotion changes", "Duplicate submit, crash and
+  callbacks", "Unknown provider outcome", "Failed placement after provider success"): a guest checks out a physical item
+  through the hosted page and returns to the confirmation; a price changed during checkout asks for review; a second
+  submit answers the first order; an unknown outcome stays processing across a refreshed frontend and is reconciled by
+  the lookup; a capture failure after placement holds the order, which Commerce shows and Accounting releases.
+
+### P6 — Orders, account and digital delivery
+
+Design-shop §9, §10 Downloads and §11's delivery; SHOP-ACCOUNT, SHOP-DIGITAL, SHOP-SUPPORT's order requests, CX-DELIVERY.
+Stage C2/S2 ends with Commerce P11.
+
+- **`mantle.party.ShopCustomerServices`** (A): `get#Account`, `find#Orders`, `get#Order`, `get#OrderDocument`,
+  `preview#Reorder`, `reorder#Order`, the addresses (`get#`, `store#`, `end#Address`) and payment methods (`get#`,
+  `begin#`/`finish#PaymentMethodSetup` through the provider's hosted setup per P0, `end#PaymentMethod` naming the
+  contracts it affects); ownership by Customer Service's self relationship or the `SalesOrder` capability, never a
+  browser party ID.
+- **The Support pages in Shop** (F26, F27): RequestReturn and NewCustomerCase mounted at `Shop/Orders` with the order;
+  "Request cancellation" opens NewCustomerCase's OrderCancelRequest for the order; Customer Service's
+  `request#CustomerReturn`, `create#CustomerCase` and `request#CustomerCancel` admit the `SalesOrder` OrderView capability
+  for that order (owner contract, written into design-customer-service §8); the receipts link the Support pages when the
+  site has a Support mount.
+- **The PASS Account hub and email preferences** (F6; X6, X15; owner contract, unless Customer Service P15 built them):
+  `Account/Home` with a card registered by each app (Shop's AccountOverview summary, Billing's, Support's) and
+  `Account/EmailPreferences` combining list unsubscribe over ConsentServices' tokens, topics and the Forum opt-out;
+  ConsentServices' unsubscribe link goes to the recipient's site page when there is one.
+- **Digital delivery** (F22): `StoreItemFulfillment` (`mantle.product.store`) drives an approved digital order part:
+  the invoice through an internal Mantle service split from `create#InvoiceFromSource` under fulfillment's own entry
+  point, capture, finalization (the invoice-finalized email is the receipt), `checkComplete#OrderPart`, then a
+  `StoreDownloadGrant`, each step resumable by its marker; `OrderApprovedSendEmail` does not run for an all-digital
+  order. `ShopFulfillmentServices` (D) `get#Downloads` and `issue#Download`: a short-lived scoped capability, range
+  requests, streaming through a remote frontend.
+- **The delivery ledger** (X8, CX-DELIVERY; owner contract, F24): Comms' Mantle attempt and receipt ledger generalized
+  from ForumDelivery (event, recipient, channel and template key, consent snapshot, outcome) over `send#EmailMessage`'s
+  outcomes and the SystemMessage retry jobs. Its first source is the download-ready notice; the review request
+  (Commerce P9), recovery (P10) and renewal notices (P7) follow. The existing store emails keep their senders (§4).
+- **Merges** (F23): StoreCartAccess and StoreDownloadGrant follow `merge#Parties` by rule, and a merge never moves
+  purchase access on email alone.
+- **Operations:** `getShopAccount`, `findShopOrders`, `getShopOrder`, `getShopOrderDocument`, `previewReorder`,
+  `reorder`, `getAddresses`, `storeAddress`, `endAddress`, `getPaymentMethods`, `beginPaymentMethodSetup`,
+  `finishPaymentMethodSetup`, `endPaymentMethod`, `getDownloads` and `issueDownload`.
+- **Pages:** AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail (OrderSummary, Shipments,
+  PurchaseDocuments, Reorder, OrderActions), Downloads; the hub's Shop card; RequestReturn and NewCustomerCase in Shop.
+- **Specs:** Mantle `test/party/ShopCustomer` (own orders by self or capability, another's refused alike; reorder
+  reprices; addresses owned), `test/product/StoreFulfillment` (no grant before capture; resumed after a crash between
+  invoice and grant) and `test/party/DeliveryLedger` (one notice per event and recipient, the consent snapshot, an
+  uncertain send kept for review); mr-pass `ShopAccount`.
+- **Usable when** (design-shop §18.1 "Mixed physical/digital purchase", "Protected download", "Account/payment
+  self-service", "Reviews and support", "One account"):
+  - a guest buys a physical and a digital item; the digital part is invoiced and captured, the receipt and the
+    download-ready notice arrive, and the guest's link downloads only that file; the physical part ships on its own
+    invoice policy;
+  - the guest registers with the purchase email and verifies it, and the hub shows the order, its invoice in Billing
+    and a case filed from it in Support; an unverified account sees none of them;
+  - a return request and a question from OrderDetail are a ReturnHeader in ReturnRequested and a case in the store's
+    queue; a cancel request shows "Cancellation requested" unless Customer Service's flag applies it at once.
+
+### P7 — Prepaid and recurring access
+
+Design-shop §10 Subscriptions and SubscriptionDetail, §10.1–§10.2; SHOP-SUBSCRIPTION. Ends stage C3/S3 with Commerce
+P12; gated on the adapter's off-session charges (design-shop §8.1).
+
+- **RecurringTemplate** (X5; Sales' contract, F21): `OrderHeader.orderPurposeEnumId` with its RecurringTemplate value;
+  credit exposure, the reservation and approved-email rules, subscription fulfillment and the Commerce, Warehouse and
+  Insights order queries leave a base out, behind its crosscut §1.3 condition; `create#RecurringOrders` hands
+  Shop-linked bases to Shop's coordinator and keeps every other base as today.
+- **The records** (`mantle.product.subscription`): `StoreRecurringOffer`, `StoreRecurringContract` (with the
+  off-session consent's time, method, terms version and evidence, and the resource instance) and
+  `StoreRenewalOccurrence` (unique by contract and period).
+- **`mantle.product.ShopSubscriptionServices`** (R): `get#Subscriptions`, `get#Subscription`,
+  `begin#SubscriptionPurchase`, `change#SubscriptionMethod`, `cancel#Subscription` and `resume#Renewal`; the occurrence
+  coordinator, which claims a period, clones the base with `copyPayment=false`, charges through the coordinator's
+  shopRenewal purpose only with recorded consent, then places; retries at one, three and seven days within the store's
+  policy; the notices `PsetPaymentRetry` and `PsetSubscriptionRenewal` through the ledger; Dunning's preview skipping the
+  invoice of a renewal in retry (Accounting's contract).
+- **Fulfillment** (F20): `OrderApprovedFulfillSubscriptions` conditioned for Shop items, preparation and settlement
+  apart from activation, activation once by its marker with the contract's resource instance; `reconcile#RefundedItem`
+  with the SECAs `PaymentRefundedReconcileAccess` and `ReturnSettledReconcileAccess` (crosscut §1.3).
+- **The adapter** (F14): stored-credential, merchant-initiated indicators on Authorize.Net profile charges.
+- **Readiness** sets `PublicSite.subscriptionUrl` to Shop's Subscriptions when the store sells paid access for the site.
+- **Operations:** `getSubscriptions`, `getSubscription`, `beginSubscriptionPurchase`, `changeSubscriptionMethod`,
+  `cancelSubscription` and `resumeRenewal`.
+- **Pages:** Subscriptions, SubscriptionDetail (Subscription, RenewPrepaid, RenewalHistory, ChangeMethod,
+  CancelRenewal, ResolveRenewal); Checkout's recurring consent.
+- **Specs:** Mantle `test/product/ShopSubscriptions` (one occurrence and order per period under two concurrent jobs, no
+  charge without consent, no extension on a failed payment, cancellation keeping the paid term, a refund revoking only
+  its source, a base never reserving, invoicing or emailing, other bases unchanged) and
+  `test/account/DunningRenewalExclusion`; mr-pass `ShopSubscriptions`.
+- **Usable when** (design-shop §18.1 "Prepaid/recurring purchase", "Renewal race/failure/cancellation", "Multiple access
+  sources"): a verified buyer subscribes to the Forum's paid category of the demo site, and its "Manage your
+  subscription" link opens Shop; the renewal charges once under a retried job; a declined renewal sends one notice and
+  no Dunning letter; cancelling keeps access to the paid term; refunding the term leaves a manual grant.
+
+### P8 — Adoption and operations
+
+Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate. Ends stage C4/S4 with Commerce P14.
+
+- **Adoption preview:** a legacy store's categories, settings, content, slugs, gateways, facilities and email templates
+  reviewed; publication rows proposed for a publisher to approve; template roles and wiki template spaces (POPC_DEFAULT's
+  ZZWR_TMP) mapped to package sections with conversion findings; nothing enabled by the preview.
+- **Operations:** open carts expired through the order path once no attempt is unresolved; Commerce's alert templates
+  on checkout failures and long-unresolved attempts; the jobs' `operation` marks in the framework Monitor; withdrawal
+  and rollback leaving placed orders and payments, with pending attempts reconciled.
+- **Remote:** generation-checked caches on frontends; an authority outage serves no personal or unverifiable page.
+- **Specs:** Mantle `test/product/StoreAdoption` (proposed rows only, findings for unsupported syntax).
+- **Usable when** (design-shop §18.1 "Rollback and withdrawal", "Partial failures"): adopting POPC_DEFAULT's categories
+  proposes publication rows a publisher approves; withdrawing the mount leaves orders intact and an open attempt is
+  reconciled; a remote frontend refuses cached personal pages while the authority is down.
+
+### P9 — Finish
+
+- The design-shop §18.1 review, each scenario with its spec or walk (§8), and the accessibility and device checks:
+  keyboard checkout, labelled errors and focus, announced totals, reduced motion, no overflow at 390 px, discovery with
+  JavaScript disabled.
+- `docs/Deployment.md`'s Shop section (hosts and the root mount, provider configuration and CSP, scanner, caches, the
+  reconciliation jobs), the README's Shop lines and development checks.
+- The USL inventory's `PASS:` rows, design-shop's status, and Remaining-Work.
+
+## 4. Decisions
+
+These are made before and during the build. Each one that changes the design is also written into design-shop.md or
+the owner's design. Shop's shared decisions are in impl-commerce §4 (the order, operation identities, the store
+records, the deferred Marketing, Admin and Insights parts).
+
+| Date | Decision | Notes |
+| --- | --- | --- |
+| Nov 5, 2026 | One root app per site, Forum or Shop; Shop's root is optional, its default mount `/shop`; its target is a ProductStore set by an operator | F2; design-shop §1 as written, the rule's place named |
+| Nov 5, 2026 | On a Shop site, Shop's pages render the active theme's layout; Account, Billing and Support pages keep the PASS shell with the site's brand values from `PublicSite.theme` | F7; design-shop §1 changed. A themed Account is later (§7) |
+| Nov 5, 2026 | The authority's error envelope carries an allow-listed camelCase reason and field errors to a remote frontend | F4; design-shop §7.3's reasons need it |
+| Nov 5, 2026 | Shop's order page asks to cancel through Support's OrderCancelRequest (`requestOrderCancel`, `OrderChangeServices.request#CustomerCancel`); Shop has no cancellation operation or service of its own | F26; design-shop §9 and §13.2 changed (no pass-through) |
+| Nov 5, 2026 | Customer Service's customer services admit the `SalesOrder` OrderView capability for its one order, as they admit a contact or the self relationship (P6) | F27; owner contract, written into design-customer-service §8 |
+| Nov 5, 2026 | The payment-hold release permission is `PAYMENT_HOLD_RELEASE`, held by Accounting's treasury group | F15; X4 named no permission |
+| Nov 5, 2026 | Digital fulfillment invoices through an internal Mantle service split from `create#InvoiceFromSource`, under fulfillment's own check, as Customer Service P10 split the package reopen | F22; design-shop §8.3 changed |
+| Nov 5, 2026 | The delivery ledger is built in P6 as Comms' contract; the existing store emails (placed, approved, shipped, delivered, invoice finalized) keep `send#OrderStoreEmail` and their senders, and join the ledger when Comms moves them | F24, impl-commerce §4; design-shop §8.3's ledger delivery of those emails is later (§7) |
+| Nov 5, 2026 | The PASS Account hub and email preferences page are built in P6 as the PASS Account foundation's, unless Customer Service P15 built them | F6 |
+| Nov 5, 2026 | No marketing opt-in at checkout until Marketing builds `request#Subscription` | The user's call (impl-commerce §4, answer 5); design-shop §6 changed |
+| Nov 5, 2026 | The payment page is Authorize.Net Accept Hosted, a redirect as Billing's; PASS's CSP stays as it is | The user's call (impl-commerce §4, answer 2); design-shop §8.1 changed. AcceptUI is later (§7) |
+| Nov 5, 2026 | The store privacy provider waits for Admin's PrivacyServices (§7); the Shop records keep what it will need (owner, source order, dates) | F28 of impl-commerce |
+
+## 5. Open questions
+
+The questions Shop shared with Commerce (the owners' contracts, the payment page, gift cards and click and collect, the
+regression budgets, the checkout opt-in) were answered on Nov 5 and are in impl-commerce §4; further ones go in
+impl-commerce §5.
+
+## 6. Findings
+
+Design assumptions found wrong or unstated in the code, with the resolution. Where a resolution changes the design, it
+is written there too. F1–F34 were found on Nov 5, 2026, while writing this plan.
+
+| # | Finding | Resolution |
+| --- | --- | --- |
+| F1 | P0: an app registers in more places than `docs/Deployment.md` (:171-178) lists: `service/pass/Apps.js`, Mantle's `PublicApps.js` (target and readiness), `screen/Pass.xml`'s subscreens, the Header's hardcoded branches (`Shared/Header.html.fancy`:4-10), `Schema.js` and `Routes.js` with Mantle's `forum/ForumSchema.js` and `script/PassRoutes.js` (kept identical by Forum.spec and SupplierPages.spec), three `TOKEN_WRITES` lists (`Transport.js`:25, Mantle's `PassApi.js`:6 and `PassAuthority.js`:9; the doc names `Facade.js`), `test/MoquiConf.xml`'s mounts and Portals.spec's assertion that the targeted apps are billing and supplier | P1 registers in each and corrects the doc |
+| F2 | P0: only Forum may mount at `/`, a rule in Mantle's `storeMounts` (Forum.js:2153-2154, `root:true` on forum alone in PublicApps.js); the framework does not restrict it. Mantle's reserved mount paths (Forum.js:2094-2119) lack `static`, `assets`, `sw.js`, `manifest.webmanifest` and `WebPush`, which `public_site.rs` reserves | P1 (§4) |
+| F3 | P0: Pass.xml:7 sends `Cache-Control: no-store` and a CSP with `script-src 'self' 'unsafe-eval'` and `frame-ancestors 'none'` on every page | P1 makes the headers per route, P3 opens public caching for anonymous catalog routes; the preview has its own origin (impl-commerce P5) |
+| F4 | P0: the authority's error envelope (Mantle `script/PassAuthority.js` `envelope`) answers a fixed message per status and empty field errors, so a remote page cannot tell why it was refused (impl-purchasing F170) | P1 (§4) |
+| F5 | P0: operation results are kept three ways: the Forum's `ForumOperationReceipt` by site, actor party, operation ID and action (an 8–64 character ID); Billing's on `PostingOperation` through `EntityLib.operation` (8–40 characters); the Supplier app's submission records. A guest cart has no party | Shop's writes use `PostingOperation` with a scope of site and cart capability or party (impl-commerce §4) |
+| F6 | P0: PASS has no Account hub; `Account/Unsubscribe`, titled "Email preferences", handles the Forum opt-out by token; list unsubscribe `/u/<token>` is a BOSS token route (mr-boss MoquiConf.xml:17-18 to `screen/Unsubscribe.xml`) whose URL ConsentServices builds (:1224), so a PASS-only deployment has no list unsubscribe page | P6 (§4) |
+| F7 | P0: `PublicSite.theme` exists and nothing reads it; `getSiteInfo` returns neither it nor `subscriptionUrl`; the PASS shell's style is a fixed `<style>` in Header.html.fancy | P1 (§4) |
+| F8 | P0: `storeMounts` keeps targeted mounts on a site owner's save, deletes untargeted ones it is not given, and lets only an operator set a target | None: Shop is targeted, so a site owner's SiteDetail save keeps its mount |
+| F9 | P0: media staging is the Forum's (Forum.js:2437-2528) and Accounting's `Portal.js` `stage` (PDF, PNG or JPEG, 10 MiB, scanned), shared with the Supplier app | Review attachments (impl-commerce P9) use the shared module Customer Service P15 makes (its F58) |
+| F10 | P0: the locked renderer (`crates/moqui-core/src/script/template.rs`) runs a frozen sandbox that sees only its data with `format` and `localize`, with a 5 s deadline, 32 MiB of memory and a cache of 4096 compiled templates; it has no output, loop or include-depth limit, no `.fancy-locked` file exists under `runtime/`, and PASS's pages are trusted `.html.fancy` | P2's adapter adds the budgets beside the deadline and memory; design-shop §12.1, §12.4 and §14.3 changed |
+| F11 | P0: `PublicSitePage` is keyed by site and page role (wiki page, version, publication revision); `get#SitePage` serves the roles guidelines and about only; `publish#SitePage` needs the site owner or an operator, the wiki's `canUpdate`, the page's published version and the expected revision, and advances the site's generation | impl-commerce P4: a `sitePageId` key with the role unique when set, and the mount, route, locale, window and SEO fields; design-shop §14.1–§14.2 changed |
+| F12 | P0: site writes check the site's owner or an operator (`isOperator` is `isInGroup('ADMIN')`, ForumCore.js:63-85) | Commerce's and Shop's Mantle services check `COMMERCE_*` permissions and the store; the Forum's rule stays for its own pages and settings |
+| F13 | P0: `PortalPaymentAttempt` (`mantle.account.payment`) has no purpose; its only source is an invoice and its only user is Portal.js; `begin#PaymentGatewayOperation` replays an `operationKey` and refuses a conflicting one or an unknown or pending outcome; the `resolve_PortalPayments` and `poll_PaymentGatewayDetails` jobs are paused | P5 (impl-commerce §4) |
+| F14 | P0: the payments plan's Authorize.Net (P1) and PayTrace (P2) adapters, Shippo (S1) and X12 (E1) are built; Stripe (P3) and SPS (E2) are not. Authorize.Net takes Accept.js and AcceptUI opaque tokens and CIM profiles and receives webhooks as SystemMessages; Accept Hosted is documented and not built, and there are no stored-credential or merchant-initiated fields. Billing's hosted redirect is answered only by the test gateway. The plan's records still say nothing is committed | P5 adds Accept Hosted (impl-commerce §4), P7 the indicators; design-shop §8.1 changed |
+| F15 | P0: the OrderHold types are Credit, Change, Purchase and Manual; there is no `OhtPayment` | P5 (§4) |
+| F16 | P0: ExternalAccess's record kinds are Invoice, Order (purchase orders only), Quote, RequestCategory and Request; its app kinds billing and supplier; it has no self relationship, and `invite#Contact` refuses a person; the token throttle (100 lookups per 10 minutes) and digest (`singleUseCodeHash`) are inside `tokenCapability`, not exported | P4 exports the helpers for StoreCartAccess; P5 adds the `SalesOrder` kind; Customer Service P15 the self relationship and `support` |
+| F17 | P0: `add#OrderProductQuantity` is anonymous and makes the order; `add#OrderPartPayment` defaults to Promised; `clone#Order` copies payments by default as Promised; `checkComplete#OrderPart` acts on Approved or Sent parts; `orderRevision` is audit-logged and counts only commercial changes for purchase parts, by PurchasePolicy | P4 binds the cart revision to Customer Service P10's sales flag (X2); P7 clones with `copyPayment=false` |
+| F18 | P0: `get#ProductPrice` is anonymous-view; for an anonymous user it reads only rows with no vendor, customer or agreement (PriceResolver.js:71-72), a store makes its organization the vendor, and the trace is filled only for a price reader | P3 prices as the authority for the routed store and customer; design-shop §5.1 changed |
+| F19 | P0: promotion use limits are counted over placed orders only, without a lock, and never at `place#Order` | impl-commerce P7's locked check, called at P5's freeze |
+| F20 | P0: `fulfill#OrderPartSubscriptions` acts on PtDigital and PtDigitalAsset items, then invoices as Finalized, applies payments and completes the part, with no capture first; `fulfill#ProductSubscriptionResource` renews the latest subscription of the resource and subscriber (a resource-instance TODO, SubscriptionServices.xml:149); the handler interfaces take only a subscription ID; no SubscriptionResource row is in any data | P6 for plain digital items, P7 for paid access (design-shop §8.3, §10.2 as written) |
+| F21 | P0: OrderHeader has no `orderPurposeEnumId`; a header with `recurCronExpression` is a recurring base; `create#RecurringOrder` clones it with payments copied (the default) and places it; the job runs nightly; `fulfill#OrderSubscriptions` skips a base | P7 (design-shop §10.1 as written) |
+| F22 | P0: `create#InvoiceFromSource` (InvoiceServices.xml:4358, Payables.js:271) invoices an approved part on the ordered basis by `operationKey`, but needs `RECEIVABLE_EDIT` for a sales order and defaults to part 01 | P6 (§4) |
+| F23 | P0: `merge#Parties` is Mantle's, with its guards there; it moves orders, invoices, payments, parties and consents, not ExternalAccessContact or ExternalAccessCapability | P4 and P6 add StoreCartAccess and StoreDownloadGrant to it, P7 the contracts |
+| F24 | P0: there is no Mantle delivery ledger; only the Forum's ForumDelivery and DeliveryWorker | P6 (§4) |
+| F25 | P0: ConsentServices has `store#PartyConsent`, `get#PartyConsentState` and the unsubscribe token services (`create#`, `check#`, `resolve#UnsubscribeToken`, `apply#UnsubscribePreferences`) | P6's email preferences and impl-commerce P10 use them |
+| F26 | P0: design-shop's `requestCancellation` operation and `A.request#Cancellation` duplicate Customer Service's `requestOrderCancel` and `OrderChangeServices.request#CustomerCancel` (design-customer-service §8 NewCustomerCase) | §4; design-shop §2, §9 and §13.2 changed |
+| F27 | P0: Customer Service's customer services check a contact's customer relationship or the self relationship; a guest's `SalesOrder` OrderView capability, which design-shop §4.2 says admits return and help requests for its order, is not among them | §4, P6 |
+| F28 | P0: the Forum's product discussion link treats a PublicSiteApp of app `store` with the store as target as the site's store, and checks ProductStoreProduct (ForumIntegration.js:379-385) | P3 reads the `shop` mount and the publication resolver |
+| F29 | P0: the gRPC transport sends an `operationId` that the authority's `handle#Call` does not pass on (Transport.js:303, PassAuthorityServices.xml:17-28) | Shop's writes carry their operation ID in `input`; P0 checks token writes with a cart capability on both transports |
+| F30 | P0: Billing and Supplier pages are XML screens whose actions call `Shared/Portal.js` `attempt` and render `.html.fancy` with raw forms in `form-single` sections; the error kinds' texts are fixed in Portal.js | Shop's account and result pages follow it; themed pages render through the adapter (P2) |
+| F31 | P0: mr-pass's regression budget is 15 s server and 6 s client | Raised per phase by its measured share, with the user's agreement (impl-commerce §4) |
+| F32 | P0: Mantle's `MantleProduct` DataDocument is the product search index | P3 filters its hits by the resolver |
+| F33 | P0: the demo PASS site ZIZI_PORTAL (host `portal.zizi.localhost`, Account, Billing and Supplier mounts) is made by Accounting's demo service; the test runtime's `<public-site>` is host 127.0.0.1 with six mounts | P1's demo site ZIZI_SHOP, made by Commerce's demo service; the test conf gains a Shop mount |
+| F34 | P0: readiness per app is PublicApps' `readiness` service, run by the Forum's `checkReadiness` for each enabled mount (Billing and Supplier use Portal's `check#AppReadiness`) | P1 registers Commerce P2's `check#StoreReadiness` as Shop's |
+
+## 7. Later
+
+Designed, not in this build:
+
+- **The design's later scope** (design-shop §17.2, §20): Liquid compatibility, advanced B2B, POS and offline terminals,
+  loyalty and cross-store programs, proration and usage billing, physical subscription boxes, wishlists and comparison, a
+  theme marketplace, the Publishing app; social sign-in, back-in-stock notices, quote from cart (with Sales), semantic
+  catalog search, shopper agents over MCP, recently viewed products, video help from an order.
+- **Owners not built:** Marketing's tracking and visitor key, attribution at placement and the checkout opt-in; Admin's
+  privacy request page and the store privacy provider; Sales' quote scopes of the `SalesOrder` kind and its Account hub
+  card; Accounting's chargeback intake calling `reconcile#RefundedItem` (impl-accounting §7).
+- **Delivery:** the existing store emails as sources on the delivery ledger, when Comms moves them.
+- **Payments:** AcceptUI or another embedded provider form as an operator capability with its CSP (Accept Hosted was
+  chosen for the first build); Stripe as the second adapter (the payments plan's P3).
+- **Pages:** a themed PASS Account on a Shop site; a PASS terminal UI.
+
+## 8. Verification
+
+- **Per phase,** the "Done" rule of §2.
+- **End to end,** open the demo Shop site ZIZI_SHOP as an anonymous visitor, a guest buyer and a signed-in buyer, and
+  walk each built phase's "usable when", locally and through a remote frontend with only framework, webroot and PASS
+  installed; then the staff side in Commerce (impl-commerce §8).
+- **Design-shop §18.1 scenarios,** each an acceptance test (`./moq accept mr-pass`, when asked):
+
+| Scenario | Phase |
+| --- | --- |
+| Two sites and stores, one shopper, local and remote | P1, P3, P4 |
+| Anonymous browse and explicit publication | P3; impl-commerce P3, P14 |
+| Guest checkout and later account login | P4, P5, P6 |
+| Price, stock, address and promotion changes | P5; impl-commerce P7 |
+| Duplicate submit, crash and callbacks | P5, P6 |
+| Unknown provider outcome | P5 |
+| Mixed physical and digital purchase | P6 |
+| Failed placement after provider success | P5 |
+| Protected download | P6; refund revocation P7 |
+| Prepaid and recurring purchase; renewal race, failure and cancellation; multiple access sources | P7 |
+| Account and payment self-service | P6 |
+| Reviews and support | P6; impl-commerce P8, P9 |
+| One account | P6 |
+| Payment exception after placement | P5; impl-commerce P8 |
+| Theme visual and source edit; renderer attacks and limits; preview and publication | P2; impl-commerce P5 |
+| Rollback and withdrawal; partial failures | P2, P3, P8 |
+| Accessibility and devices | P3–P7; P9 |
+
+- **Walks.** Shop's browser walks are acceptance tests in mr-pass at 390 px and on the desktop, locally and through a
+  remote frontend; the regression suite has one golden-path walk for the app (P5's ShopGoldenPath). No screenshots.
