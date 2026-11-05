@@ -30,6 +30,8 @@ const TOKEN_WRITES = [
     'submitQuoteResponse',
     'acknowledgePurchaseOrder',
     'reportDropShipDelivery',
+    // Customer Service P13: a feedback invitation's link
+    'submitCaseFeedback',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']

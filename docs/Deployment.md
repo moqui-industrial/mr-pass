@@ -168,6 +168,26 @@ host, from which every link Mantle mails is built.
 A remote frontend posts a link's writes (a payment, a bill, a quote and its draft, an acknowledgement, a delivery report)
 with no member session; the authority accepts those operations (`TOKEN_WRITES`) only from a registered deployment.
 
+## Support app
+
+The Support app (`screen/Support.xml`, the `support` mount) is Customer Service's customer pages, served for one internal
+organization, its mount's target, like Billing and Supplier: `{"app": "support", "pathPrefix": "/support", "targetId":
+"ORG_ID"}`, and `/support` in the runtime's `<public-site>` mounts (screen `Support`). Its first page is Feedback; the
+help, cases and returns pages follow (impl-customer-service P15). Readiness adds the app's checks: the target is an
+internal organization with a service policy and a feedback delivery policy, and the site has a canonical host.
+
+- **Feedback.** A resolved case's customer gets one invitation by email from the organization's address, after the
+  feedback delivery policy's delay (BOSS Customer Service › Settings › Service defaults); its link,
+  `/support/Feedback?token=`, is an `ExternalAccessCapability` of the invitation that ends when the invitation expires,
+  each send and reminder its own. Keep the `send_CaseFeedbackInvitations` job running (every 15 minutes, a bounded batch).
+  The page shows the organization's feedback form as of now and the customer's name, never the case; a GET answers
+  nothing, so a mail scanner following the link submits no rating; Send my answer posts the answer, which the authority
+  checks again, keeps once and limits per requester (30 posts and 100 link lookups in ten minutes); a repeat shows the
+  first answer's receipt. An expired, withdrawn or forged link shows only guidance. The page loads the framework's
+  `/js/moqui-form-when.js` for the form's show and require rules (the CSP stays `script-src 'self'`).
+- **Remote frontend.** `getCaseFeedbackInvitation` and `submitCaseFeedback` are PASS operations served by Mantle's PassApi;
+  the answer is a bearer link's write (`TOKEN_WRITES`), accepted from a registered deployment without a member session.
+
 ### Adding an app
 
 An app registers in four places: its name and target type in the authority's
@@ -316,7 +336,7 @@ reconciliation, a frozen source and a backup reference. Proxies can send old com
 `RemoteHttp` and its `RemoteFixtures` are acceptance tests, in `acceptance/`. Start an authority fixture on a dedicated loopback port:
 
 ```sh
-./moq test mr-pass --nobuild --acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures --db snapshot --serve 127.0.0.1:18091
+./moq test mr-pass --nobuild --acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures,SupportFixtures --db snapshot --serve 127.0.0.1:18091
 ```
 
 Create a separate scratch runtime containing only symlinks to framework, webroot, tools, and PASS.
@@ -361,8 +381,9 @@ MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --accept
 ./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
-Run the authority with `--acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures` for the Billing and
-Supplier features; the browser walk `SupplierPortalHttp` runs against the same frontend too. The test
+Run the authority with `--acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures,SupportFixtures` for the
+Billing, Supplier and Support features; the browser walks `SupplierPortalHttp` and `SupportFeedbackHttp` run against the
+same frontend too. The test
 authenticates through the authority, saves a private draft, uploads/scans/publishes media,
 downloads it through the frontend, then revokes anonymous access and verifies concealment. It
 also uploads a profile image and verifies that changing profile visibility conceals the image, then opens a pay link,
