@@ -91,6 +91,22 @@ function downloadFile(siteId, operation, input) {
     const backend = System.getProperty('pass_backend_url')
     if (!backend) {
         const result = call(operation, { siteId, ...input })
+        // the authority checked the asker; the file is read as the authority reads it (a record's content may sit in the
+        // database resource store, which a public account may not read itself), before anything is written
+        const wasDisabled = ec.artifactExecution.disableAuthz()
+        let bytes
+        try {
+            const stream = ec.resource
+                .getLocationReference(result.location)
+                .openStream()
+            try {
+                bytes = stream.readAllBytes()
+            } finally {
+                stream.close()
+            }
+        } finally {
+            if (!wasDisabled) ec.artifactExecution.enableAuthz()
+        }
         ec.web.response.setContentType(result.file.mimeType)
         ec.web.response.setHeader('Cache-Control', 'no-store')
         ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
@@ -100,14 +116,7 @@ function downloadFile(siteId, operation, input) {
                 String(result.file.filename).replace(/["\\\r\n]/g, '_') +
                 '"',
         )
-        const stream = ec.resource
-            .getLocationReference(result.location)
-            .openStream()
-        try {
-            ec.web.response.write(stream.readAllBytes())
-        } finally {
-            stream.close()
-        }
+        ec.web.response.write(bytes)
         return
     }
     transport().downloadOperation(siteId, operation, { siteId, ...input })
