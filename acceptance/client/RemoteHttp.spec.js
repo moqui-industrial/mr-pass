@@ -431,3 +431,41 @@ feature(
         },
     },
 )
+feature(
+    "a remote Support page reads a case's link and takes the customer's reply, an RMA link reads the return, and its label downloads",
+    {
+        when() {
+            // SupportFixtures' remote Support pages data (Customer Service P15), served through this frontend
+            const token = (name) => ('PASS_HTTP_RSP' + name + '0'.repeat(48)).slice(0, 48)
+            const s = session()
+            const page = s.get('/support/CustomerCase', { params: { token: token('CaseLink') } })
+            const sent = s.post('/support/CustomerCase/reply', {
+                form: { token: token('CaseLink'), operationId: 'remote-case-reply-0001', body: 'Remote: any news?' },
+            })
+            const after = s.get(sent.location)
+            const rma = s.get('/support/CustomerReturn', { params: { token: token('RmaLink') } })
+            const bad = s.get('/support/CustomerCase', { params: { token: 'x'.repeat(48) } })
+            // the return label streamed through this frontend from the authority (Transport.downloadOperation)
+            const label = s.get('/support/CustomerReturn/label', { params: { token: token('LabelLink') } })
+            return {
+                page,
+                sent,
+                after,
+                rma,
+                bad,
+                label: { status: label.status, type: label.header('content-type'), text: label.text },
+            }
+        },
+        then({ page, sent, after, rma, bad, label }) {
+            page.status === 200
+            page.text.includes('About OWN')
+            sent.status === 302
+            after.text.includes('Remote: any news?')
+            rma.text.includes('Return PASS_HTTP_RSP_RET')
+            bad.text.includes('This case is not available')
+            label.status === 200
+            String(label.type).startsWith('application/pdf')
+            label.text.startsWith('%PDF-1.4')
+        },
+    },
+)

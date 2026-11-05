@@ -1,0 +1,15 @@
+<h1>Request a return</h1>
+<#if flash.error><p role="alert" class="error">${flash.error}</p></#if>
+<#if !siteInfo.authenticated><p>Sign in to return something you bought.</p><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath || '')}">Sign in</a></p>
+<#elseif failure><p role="alert" class="error">${failure.message}</p>
+<#elseif !view.order><section class="card" aria-label="Your orders"><h2>Which order?</h2><#if !view.orderList.length><p>No orders to return from.</p></#if><ul><#list view.orderList as o><li><a href="${publicPath}?orderId=${encodeURIComponent(o.orderId)}">Order ${o.orderId}</a><#if o.orderName> · ${o.orderName}</#if> · ${o.placedText} · ${o.statusText}</li></#list></ul></section>
+<#else><#assign o = view.order><form method="post" enctype="multipart/form-data" id="ReturnRequest" class="card" action="${publicPath}/submit"><h2>Order ${o.orderId}</h2><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="orderId" value="${o.orderId}"><input type="hidden" name="operationId" value="${submitOperationId}">
+<#if view.instructions><p>${view.instructions}</p></#if><#if view.feeText><p><small>${view.feeText}</small></p></#if>
+<#list o.lines as l><fieldset class="field"><legend>${l.productText}</legend><#if l.returnable><label><input type="checkbox" name="return_${l.orderItemSeqId}" value="Y"> Return this item</label><label>How many (up to ${l.eligibleQuantity}) <input name="quantity_${l.orderItemSeqId}" value="1" inputmode="decimal" size="6"></label>
+<label>Why <select name="reason_${l.orderItemSeqId}"><option value=""></option><#list view.reasons as r><option value="${r.returnReasonEnumId}">${r.text}</option></#list></select></label>
+<label>What would you like <select name="remedy_${l.orderItemSeqId}"><#list l.remedies as m><option value="${m.returnResponseEnumId}">${m.text}</option></#list></select></label>
+<label>Its condition (optional) <input name="condition_${l.orderItemSeqId}" maxlength="255"></label><#if l.windowEndText><p><small>Return by ${l.windowEndText}</small></p></#if><#if l.evidenceRequired><p><small>Add a photo of it below.</small></p></#if>
+<#else><p>${l.note}</p></#if></fieldset></#list>
+<label>Your reference (optional) <input name="customerReference" maxlength="60"></label><label>Anything else we should know (optional) <textarea name="note" rows="3" maxlength="2000"></textarea></label>
+<label>A photo or document (PDF, PNG or JPEG, at most 10 MB) <input type="file" name="file" accept="application/pdf,image/png,image/jpeg"></label>
+<p><button>Request the return</button></p><p><small>We review your request and tell you how to send the goods back; what you would like is not yet approved.</small></p></form><p><a href="${publicPath}">Another order</a></p></#if>

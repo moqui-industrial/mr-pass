@@ -5,8 +5,9 @@ CommunicationEvent posts, with a dedicated public shell, explicit publication, p
 moderation, read markers, protected attachments, and outbound notifications. Its Billing app shows an
 organization's invoices to its customers and takes payment from an invoice's pay link; its Supplier app
 takes a supplier's quote, purchase order acknowledgement and bill (Purchasing's and Accounting's pages, over Mantle's
-SupplierPortalServices and PortalServices). Its Support app is Customer Service's customer pages, starting with Feedback, a
-resolved case's rating from its invitation link (over Mantle's CaseFeedbackServices).
+SupplierPortalServices and PortalServices). Its Support app is Customer Service's customer pages: help, a customer's
+cases and returns, a cancel request for an order, and Feedback, a resolved case's rating from its invitation link (over Mantle's
+SupportCaseServices, KnowledgeServices, ReturnPolicyServices, OrderChangeServices and CaseFeedbackServices).
 
 The component has a framework-only static dependency. Local deployments load Mantle. Remote
 frontends need only framework, webroot, and PASS; they use one operator-configured Mantle authority
@@ -39,18 +40,18 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
 JavaScript service and browser specs run through Moqui, without Node as a test dependency. The specs in `test/` are the
 regression suite, grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
 `Account`, ...). `acceptance/` holds the acceptance suite: the forum's, the Supplier app's and the Support app's browser scenarios (`ForumHttp`,
-`SupplierPortalHttp` and `SupportFeedbackHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the large
+`SupplierPortalHttp`, `SupportFeedbackHttp` and `SupportPagesHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.

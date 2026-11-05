@@ -85,4 +85,40 @@ function downloadExport(siteId, exportId) {
     }
     transport().downloadExport(siteId, exportId)
 }
-;({ call, download, downloadExport, authorityClient, statusKind })
+/* A file an operation answers, rechecked by the authority (the Support app's case file and return label; Customer Service
+   P15): its result's file and, in process, its location. */
+function downloadFile(siteId, operation, input) {
+    const backend = System.getProperty('pass_backend_url')
+    if (!backend) {
+        const result = call(operation, { siteId, ...input })
+        // the authority checked the asker; the file is read as the authority reads it (a record's content may sit in the
+        // database resource store, which a public account may not read itself), before anything is written
+        const wasDisabled = ec.artifactExecution.disableAuthz()
+        let bytes
+        try {
+            const stream = ec.resource
+                .getLocationReference(result.location)
+                .openStream()
+            try {
+                bytes = stream.readAllBytes()
+            } finally {
+                stream.close()
+            }
+        } finally {
+            if (!wasDisabled) ec.artifactExecution.enableAuthz()
+        }
+        ec.web.response.setContentType(result.file.mimeType)
+        ec.web.response.setHeader('Cache-Control', 'no-store')
+        ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
+        ec.web.response.setHeader(
+            'Content-Disposition',
+            'attachment; filename="' +
+                String(result.file.filename).replace(/["\\\r\n]/g, '_') +
+                '"',
+        )
+        ec.web.response.write(bytes)
+        return
+    }
+    transport().downloadOperation(siteId, operation, { siteId, ...input })
+}
+;({ call, download, downloadExport, downloadFile, authorityClient, statusKind })

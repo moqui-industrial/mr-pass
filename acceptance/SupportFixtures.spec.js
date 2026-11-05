@@ -1,7 +1,8 @@
 // Customer Service's Support app on the HTTP test community (PASS_HTTP, from PortalFixtures; impl-customer-service P13): its
 // support mount for PortalFixtures' organization, a customer, and two resolved cases' feedback invitations with their link
 // tokens (SupportFixtures.js): one for the browser walk (SupportFeedbackHttp), one for RemoteHttp, each with an expired and
-// a withdrawn link beside it.
+// a withdrawn link beside it. P15: the Support pages' customer contacts, cases, return and links (SupportFixtures.js
+// contacts): one set for the browser walk (SupportPagesHttp), one for RemoteHttp.
 const fixtures = () =>
     ec.resource.script('component://mr-pass/test/Support/SupportFixtures.js')
 spec({
@@ -66,5 +67,29 @@ feature("provision the Support app's mount and its feedback links", {
     then({ walk, remote }) {
         walk.tokens.open.length === 48
         remote.invitationId === 'PASS_HTTP_RFB_INV_OPEN'
+    },
+})
+feature("provision the Support pages' contacts, cases, return and links", {
+    when() {
+        const org = ec.entity
+            .find('mantle.public.PublicSiteApp')
+            .condition({ siteId: 'PASS_HTTP', app: 'support' })
+            .disableAuthz()
+            .one().targetId
+        const walk = fixtures().contacts({
+            prefix: 'PASS_HTTP_SP',
+            org,
+            customer: 'PASS_HTTP_FB_CUST',
+        })
+        const remote = fixtures().contacts({
+            prefix: 'PASS_HTTP_RSP',
+            org,
+            customer: 'PASS_HTTP_FB_CUST',
+        })
+        return { walk, remote }
+    },
+    then({ walk, remote }) {
+        walk.contact === 'pass_http_sp_contact'
+        remote.own === 'PASS_HTTP_RSP_OWN'
     },
 })

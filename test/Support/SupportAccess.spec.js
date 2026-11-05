@@ -3,10 +3,13 @@
 // expired or withdrawn link shows only guidance; an answer through the facade is checked by the authority (the rule that
 // requires a comment for a low rating), kept once, a repeat answering the first, and the page then shows its receipt.
 // Mantle's CaseFeedback spec covers the rules; the acceptance walks (SupportFeedbackHttp, RemoteHttp) post through the page.
+// P15: a contact invited for the customer reads its own case in MyCases and CustomerCase; a colleague's case, another
+// customer's and an uninvited account get nothing, and a case's CaseView link reads it signed out (Mantle's SupportPortal spec
+// covers the rules; the acceptance walk SupportPagesHttp goes through the pages).
 const fixtures = () =>
     ec.resource.script('component://mr-pass/test/Support/SupportFixtures.js')
 const siteId = 'PASS_SUPPORT_PAGES'
-let docs
+let docs, people
 const render = (path, parameters) => {
     const rendered = ec.screen
         .makeTest()
@@ -98,6 +101,11 @@ spec({
             org,
             customer,
         })
+        people = fixtures().contacts({
+            prefix: 'PASS_SUPPORT_PAGES',
+            org,
+            customer,
+        })
         ec.artifactExecution.enableAuthz()
     },
 })
@@ -164,6 +172,76 @@ feature(
             page.html.includes('Thank you')
             page.html.includes('2 of 5')
             !page.html.includes('name="rating"')
+        },
+    },
+)
+feature(
+    "a contact reads its own cases; a colleague's, another customer's and an uninvited account's are not available",
+    {
+        when() {
+            const operation = (operation, input) => {
+                try {
+                    return ec.service
+                        .sync()
+                        .throwOnError(true)
+                        .name('pass.Facade.call#Operation')
+                        .parameters({ operation, input: { siteId, ...input } })
+                        .call().result
+                } catch (error) {
+                    ec.message.clearErrors()
+                    return { kind: error.moquiErrorKind || 'Error' }
+                }
+            }
+            login(people.contact, 'moqui')
+            const list = render('Support/MyCases', {})
+            const detail = render('Support/CustomerCase', {
+                requestId: people.own,
+            })
+            const colleague = operation('getCustomerCase', {
+                requestId: people.colleague,
+            })
+            const foreign = operation('getCustomerCase', {
+                requestId: people.foreign,
+            })
+            login(people.outsider, 'moqui')
+            const outsider = operation('findCustomerCases', {})
+            const outsiderCase = operation('getCustomerCase', {
+                requestId: people.own,
+            })
+            logout()
+            const byLink = operation('getCustomerCase', { token: people.link })
+            login('john.doe')
+            return {
+                list,
+                detail,
+                colleague,
+                foreign,
+                outsider,
+                outsiderCase,
+                byLink,
+            }
+        },
+        then({
+            list,
+            detail,
+            colleague,
+            foreign,
+            outsider,
+            outsiderCase,
+            byLink,
+        }) {
+            list.errors.length === 0
+            list.html.includes('Case OWN')
+            !list.html.includes('Case COLLEAGUE')
+            !list.html.includes('Case FOREIGN')
+            detail.errors.length === 0
+            detail.html.includes('About OWN')
+            detail.html.includes('id="CaseReply"')
+            colleague.kind === 'NotFound'
+            foreign.kind === 'NotFound'
+            outsider.caseList.length === 0
+            outsiderCase.kind === 'NotFound'
+            byLink.case.requestId === people.own
         },
     },
 )

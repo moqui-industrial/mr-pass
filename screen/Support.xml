@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Support: a customer's pages for the service organization the site's support mount targets (Customer Service; mr-mantle
-    mantle.request.CaseFeedbackServices, and from P15 SupportCaseServices' customer services; impl-customer-service P13,
-    P15). Feedback, which a resolved case's feedback invitation opens with its token, is the first page; P15 adds the help,
-    cases and returns pages. -->
+    mantle.request.CaseFeedbackServices, SupportCaseServices', KnowledgeServices', ReturnPolicyServices' and
+    OrderChangeServices' customer services; impl-customer-service P13, P15): SupportHome (help and the way in), MyCases,
+    NewCustomerCase (with OrderCancelRequest), CustomerCase, MyReturns, RequestReturn, CustomerReturn, CustomerArticle, and
+    Feedback, which a resolved case's feedback invitation opens with its token. Every page calls the authority through
+    pass.Facade.call#Operation only (Support.js, Shared/Portal.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Support">
   <always-actions>
     <set field="passApp" value="support"/>
   </always-actions>
-  <subscreens default-item="Feedback"/>
+  <subscreens default-item="SupportHome"/>
   <widgets>
     <subscreens-active/>
   </widgets>
