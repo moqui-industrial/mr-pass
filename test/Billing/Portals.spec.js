@@ -283,7 +283,7 @@ feature('the pay link page shows the invoice with no internal navigation; a bad 
     },
 })
 
-feature('PASS and the authority register the same apps, and only Billing and Supplier take a target', {
+feature('PASS and the authority register the same apps, and only Billing, Supplier and Support take a target', {
     when() {
         const pass = ec.resource.script('component://mr-pass/service/pass/Apps.js')
         const mantle = ec.resource.script('component://mr-mantle/service/mantle/public/PublicApps.js').apps
@@ -303,7 +303,7 @@ feature('PASS and the authority register the same apps, and only Billing and Sup
     },
     then({ pass, mantle, targeted, route }) {
         pass === mantle
-        targeted === 'billing,supplier'
+        targeted === 'billing,supplier,support'
         route === '/Billing/InvoicePay/return'
     },
 })

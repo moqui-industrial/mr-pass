@@ -393,3 +393,41 @@ feature(
         },
     },
 )
+feature(
+    "a remote Support page reads a feedback link, takes the customer's rating once and shows only guidance for a bad link",
+    {
+        when() {
+            // SupportFixtures' remote invitation, served through this frontend: with no local Mantle in the remote pair, or
+            // by the suite's own server; the authority keeps the one response
+            const token = (name) => ('PASS_HTTP_RFB' + name + '0'.repeat(48)).slice(0, 48)
+            const s = session()
+            const page = s.get('/support/Feedback', { params: { token: token('FeedbackLink') } })
+            const sent = s.post('/support/Feedback/submit', {
+                form: {
+                    token: token('FeedbackLink'),
+                    operationId: 'remote-feedback-000001',
+                    fieldNames: 'rating,comment',
+                    rating: '2',
+                    comment: 'Remote: slow to answer',
+                },
+            })
+            const receipt = s.get(sent.location)
+            const repeat = s.post('/support/Feedback/submit', {
+                form: { token: token('FeedbackLink'), operationId: 'remote-feedback-000002', fieldNames: 'rating', rating: '5' },
+            })
+            const after = s.get(repeat.location)
+            const bad = s.get('/support/Feedback', { params: { token: token('ExpiredLink') } })
+            return { page, sent, receipt, after, bad }
+        },
+        then({ page, sent, receipt, after, bad }) {
+            page.status === 200
+            page.text.includes('How did we do?')
+            !page.text.includes('Thermostat reads two degrees high')
+            sent.status === 302
+            receipt.text.includes('Thank you')
+            receipt.text.includes('2 of 5')
+            after.text.includes('2 of 5')
+            bad.text.includes('This feedback link is not available')
+        },
+    },
+)

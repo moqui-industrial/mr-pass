@@ -11,4 +11,6 @@
     sites: { screen: 'Sites', base: '/sites' },
     billing: { screen: 'Billing', base: '/billing' },
     supplier: { screen: 'Supplier', base: '/supplier' },
+    // Customer Service P13: the Support app (its Feedback page; P15 the rest)
+    support: { screen: 'Support', base: '/support' },
 })

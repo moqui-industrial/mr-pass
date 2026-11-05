@@ -25,6 +25,7 @@
     <subscreens-item name="Sites" location="component://mr-pass/screen/Sites.xml"/>
     <subscreens-item name="Billing" location="component://mr-pass/screen/Billing.xml"/>
     <subscreens-item name="Supplier" location="component://mr-pass/screen/Supplier.xml"/>
+    <subscreens-item name="Support" location="component://mr-pass/screen/Support.xml"/>
   </subscreens>
   <widgets>
     <render-mode>

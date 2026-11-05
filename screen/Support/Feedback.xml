@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Feedback (design-customer-service §8 Feedback; impl-customer-service P13, CS-FEEDBACK): CaseFeedback, the form a resolved
+    case's feedback invitation opens with its token (getCaseFeedbackInvitation): the organization's name, the customer's
+    label and the questions of the feedback form as of now, never the case. A GET only reads, so a mail scanner following the
+    link submits nothing; Send posts the answer (submitCaseFeedback), which the authority checks again (the form's show and
+    require rules), keeps once and throttles per requester; a repeat shows the first answer's receipt. The page loads the
+    framework's /js/moqui-form-when.js itself (CSP script-src 'self') for the show and require rules in the browser. A
+    forged, expired or withdrawn link shows only guidance. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Feedback">
+  <transition name="submit" method="post">
+    <actions>
+      <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        const token=p.token || null
+        const base=publicPath.replace(/\/submit$/,'')
+        // the answers of the fields the page showed, by name (a checkbox or a multiple choice sends several)
+        const names=String(p.fieldNames || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z][A-Za-z0-9_]{0,59}$/.test(s))
+        const values={}
+        for(const name of names){
+            const value=p[name]
+            if(value==null || value==='')continue
+            values[name]=Array.isArray(value)?value.map(String):(typeof value==='object' && value.length!=null?Array.from(value).map(String):String(value))
+        }
+        const out=portal.attempt('submitCaseFeedback',{siteId:resolvedSiteId,token,values:JSON.stringify(values),
+            operationId:p.operationId || null})
+        if(out.error)ec.web.sessionAttributes.passFeedbackError=out.error.message
+        ec.web.response.sendRedirect(base+(token?'?token='+encodeURIComponent(token):''))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
+        token=p.token || null
+        feedbackError=ec.web.sessionAttributes.passFeedbackError || null
+        if(feedbackError)ec.web.sessionAttributes.remove('passFeedbackError')
+        view=null;failure=null
+        if(!token)failure={kind:'NotFound',message:'Open the link in the email we sent you about your request.'}
+        else{
+            const found=portal.attempt('getCaseFeedbackInvitation',{siteId:resolvedSiteId,token})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This feedback link is not available. It may have expired or been replaced; you can still reply to the email we sent you.'}:found.error
+            else view=found.result
+        }
+        // each field's show and require rules as moqui-form-when.js reads them (data-visible-when, data-require-when)
+        const ruleText=(rule)=>rule?JSON.stringify({form:'CaseFeedback',field:rule.field,operator:rule.operator,values:rule.values || []}):''
+        feedbackFields=view?(view.fields || []).map(f=>Object.assign({},f,{showText:ruleText(f.show),requireText:ruleText(f.require)})):[]
+        fieldNames=feedbackFields.map(f=>f.fieldName).join(',')
+        submitOperationId=portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/Feedback.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
