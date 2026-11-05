@@ -3,7 +3,7 @@
 <!-- MyCases (design-customer-service §8 MyCases; impl-customer-service P15): MyCaseFind (search, open or resolved, the customer
     when the account acts for several) and MyCaseList (findCustomerCases): a contact's own cases, every case of the customer for
     a customer administrator or the customer's own account; the customer label of each status, dates and whether it waits for a
-    reply. No team, agent or other customer. -->
+    reply, 30 to a page (Older cases: the list's opaque cursor). No team, agent or other customer. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="My cases">
@@ -11,8 +11,13 @@
     <script><![CDATA[
         const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
         query=support.param('q');statusCategory=support.param('statusCategory') || 'all';customerPartyId=support.param('customerPartyId')
-        const found=siteInfo.authenticated ? support.portal.attempt('findCustomerCases',{siteId:resolvedSiteId,query,statusCategory,customerPartyId}) : {result:null}
+        cursor=support.param('cursor')
+        const found=siteInfo.authenticated ? support.portal.attempt('findCustomerCases',{siteId:resolvedSiteId,query,statusCategory,customerPartyId,cursor}) : {result:null}
         view=found.result || null
+        // the next page's and the first page's addresses (the list's opaque cursor, design-forum §4.3)
+        const filters={q:query,statusCategory:statusCategory === 'all' ? null : statusCategory,customerPartyId}
+        nextHref=view?.nextCursor ? publicPath + support.query(Object.assign({},filters,{cursor:view.nextCursor})) : null
+        firstHref=cursor ? publicPath + support.query(filters) : null
         failure=found.error || null
         flash=support.take()
     ]]></script>
