@@ -335,6 +335,103 @@ function contacts(p) {
         thruDate: new Date(Date.now() + 14 * day),
         createdByUserId: ec.user.userId,
     })
-    return { contact, outsider, own, colleague, foreign, link, returnId, rma }
+    // an authorized return with its return label on its shipment's route segment, and its RMA link (the P15 review: the label
+    // downloads through the facade)
+    const labelReturnId = prefix + '_LRET'
+    call('create#mantle.order.return.ReturnHeader', {
+        returnId: labelReturnId,
+        statusId: 'ReturnApproved',
+        customerPartyId: customer,
+        vendorPartyId: org,
+        entryDate: since,
+        authorizationExpireDate: new Date(Date.now() + 14 * day),
+        currencyUomId: 'USD',
+    })
+    call('create#mantle.order.return.ReturnItem', {
+        returnId: labelReturnId,
+        returnItemSeqId: '01',
+        description: 'Air filter 20x20',
+        returnQuantity: 1,
+        statusId: 'ReturnApproved',
+        returnReasonEnumId: 'RrsnDefective',
+        returnResponseEnumId: 'RrspCredit',
+    })
+    const productId = prefix + '_FILTER'
+    call('create#mantle.product.Product', {
+        productId,
+        productName: 'Air filter 20x20',
+        productTypeEnumId: 'PtAsset',
+    })
+    const shipmentId = prefix + '_LSHIP'
+    call('create#mantle.shipment.Shipment', {
+        shipmentId,
+        shipmentTypeEnumId: 'ShpTpSalesReturn',
+        statusId: 'ShipScheduled',
+        fromPartyId: customer,
+        toPartyId: org,
+    })
+    call('create#mantle.shipment.ShipmentItem', {
+        shipmentId,
+        productId,
+        quantity: 1,
+    })
+    call('create#mantle.shipment.ShipmentItemSource', {
+        shipmentItemSourceId: prefix + '_LSIS',
+        shipmentId,
+        returnId: labelReturnId,
+        returnItemSeqId: '01',
+        productId,
+        quantity: 1,
+    })
+    call('create#mantle.shipment.ShipmentPackage', {
+        shipmentId,
+        shipmentPackageSeqId: '01',
+    })
+    call('create#mantle.shipment.ShipmentRouteSegment', {
+        shipmentId,
+        shipmentRouteSegmentSeqId: '01',
+    })
+    const labelRef = ec.resource.getLocationReference(
+        'dbresource://pass-test/support/' + prefix + '-label.pdf',
+    )
+    labelRef.putText('%PDF-1.4\n% return label ' + prefix + '\n%%EOF\n')
+    const stream = labelRef.openStream()
+    let labelImage
+    try {
+        labelImage = stream.readAllBytes()
+    } finally {
+        stream.close()
+    }
+    call('create#mantle.shipment.ShipmentPackageRouteSeg', {
+        shipmentId,
+        shipmentPackageSeqId: '01',
+        shipmentRouteSegmentSeqId: '01',
+        trackingCode: prefix + 'TRACK',
+        labelImage,
+    })
+    const labelLink = token(prefix, 'LabelLink')
+    call('create#mantle.party.ExternalAccessCapability', {
+        organizationPartyId: org,
+        partyId: customer,
+        recordType: 'ReturnHeader',
+        recordId: labelReturnId,
+        scopes: 'ReturnRma',
+        tokenDigest: ec.user.singleUseCodeHash(labelLink),
+        fromDate: since,
+        thruDate: new Date(Date.now() + 14 * day),
+        createdByUserId: ec.user.userId,
+    })
+    return {
+        contact,
+        outsider,
+        own,
+        colleague,
+        foreign,
+        link,
+        returnId,
+        rma,
+        labelReturnId,
+        labelLink,
+    }
 }
 ;({ feedback, parties, token, contacts })

@@ -2,7 +2,8 @@
 // pages data: the invited contact signs in at phone width, sees only its own case in My cases, opens it, replies and sees its
 // message, and files a new request that lands on its case page; a colleague's case by its address shows nothing of it; the
 // case's link reads it signed out on the desktop; the RMA link shows the return and the customer withdraws it before receipt;
-// a visitor sees the help home and is asked to sign in to contact support; a forged link shows only guidance.
+// an authorized return's RMA link offers its label, which downloads through the facade (a forged link gets no file); a
+// visitor sees the help home and is asked to sign in to contact support; a forged link shows only guidance.
 const token = (name) => ('PASS_HTTP_SP' + name + '0'.repeat(48)).slice(0, 48)
 const overflow = (page) =>
     page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
@@ -85,14 +86,39 @@ feature(
             )
             const withdrawn = page.text()
             const s = session()
+            // an authorized return's RMA link offers its label, which downloads through the facade
+            const authorized = s.get('/support/CustomerReturn', {
+                params: { token: token('LabelLink') },
+            }).text
+            const label = s.get('/support/CustomerReturn/label', {
+                params: { token: token('LabelLink') },
+            })
+            const noLabel = s.get('/support/CustomerReturn/label', {
+                params: { token: 'x'.repeat(48) },
+            })
             const home = s.get('/support/SupportHome').text
             const contact = s.get('/support/NewCustomerCase').text
             const forged = s.get('/support/CustomerCase', {
                 params: { token: 'x'.repeat(48) },
             }).text
-            return { byLink, rma, withdrawn, home, contact, forged }
+            return {
+                byLink,
+                rma,
+                withdrawn,
+                authorized,
+                label: {
+                    status: label.status,
+                    type: label.header('content-type'),
+                    disposition: label.header('content-disposition'),
+                    text: label.text,
+                },
+                noLabel: { status: noLabel.status, type: noLabel.header('content-type') },
+                home,
+                contact,
+                forged,
+            }
         },
-        then({ byLink, rma, withdrawn, home, contact, forged }) {
+        then({ byLink, rma, withdrawn, authorized, label, noLabel, home, contact, forged }) {
             byLink.includes('About OWN')
             rma.text.includes('Return PASS_HTTP_SP_RET')
             rma.text.includes('Requested')
@@ -100,6 +126,13 @@ feature(
             withdrawn.includes('Your return request is withdrawn')
             !withdrawn.includes('Withdraw this return')
             !withdrawn.includes('Furnace filter 16x25')
+            authorized.includes('Download your return label')
+            authorized.includes('PASS_HTTP_SPTRACK')
+            label.status === 200
+            String(label.type).startsWith('application/pdf')
+            String(label.disposition).includes('return-label-PASS_HTTP_SP_LRET.pdf')
+            label.text.startsWith('%PDF-1.4')
+            !String(noLabel.type).startsWith('application/pdf')
             home.includes('Help from')
             home.includes('Sign in')
             contact.includes('Sign in to send us a request')
