@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- RequestReturn (design-customer-service §8 RequestReturn; impl-customer-service P15): the customer's orders, and for one its
+    lines it may return now (getReturnableOrder: a self-service policy's, within the window and what is left), each with a
+    customer reason, a remedy of the policy and a word on its condition, the evidence file and the customer's reference
+    (requestCustomerReturn). The server picks the facility and keeps the policy and window; a requested remedy is not an approved
+    refund; a line outside self-service says to ask us. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Request a return">
+  <transition name="submit" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js'),p=ec.web.parameters
+        const orderId=support.param('orderId')
+        const lines=Object.keys(p).filter(k=>/^return_[A-Za-z0-9]{1,20}$/.test(k)).map(k=>{const seq=k.slice(7)
+            return {orderItemSeqId:seq,quantity:support.param('quantity_'+seq),returnReasonEnumId:support.param('reason_'+seq),
+                returnResponseEnumId:support.param('remedy_'+seq),condition:support.param('condition_'+seq)}})
+        support.post('requestCustomerReturn',{siteId:resolvedSiteId,orderId,lines:JSON.stringify(lines),customerReference:support.param('customerReference'),
+            note:support.param('note'),file:support.file(),operationId:support.param('operationId')},{path:support.base(publicPath,'submit'),params:{orderId}},
+            result=>({path:passBases.support+'/CustomerReturn',params:{returnId:result.returnId}}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        orderId=support.param('orderId')
+        flash=support.take()
+        const found=siteInfo.authenticated ? support.portal.attempt('getReturnableOrder',{siteId:resolvedSiteId,orderId}) : {result:null}
+        view=found.result || null
+        failure=found.error || null
+        submitOperationId=support.portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/RequestReturn.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

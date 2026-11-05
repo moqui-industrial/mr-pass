@@ -172,9 +172,33 @@ with no member session; the authority accepts those operations (`TOKEN_WRITES`) 
 
 The Support app (`screen/Support.xml`, the `support` mount) is Customer Service's customer pages, served for one internal
 organization, its mount's target, like Billing and Supplier: `{"app": "support", "pathPrefix": "/support", "targetId":
-"ORG_ID"}`, and `/support` in the runtime's `<public-site>` mounts (screen `Support`). Its first page is Feedback; the
-help, cases and returns pages follow (impl-customer-service P15). Readiness adds the app's checks: the target is an
-internal organization with a service policy and a feedback delivery policy, and the site has a canonical host.
+"ORG_ID"}`, and `/support` in the runtime's `<public-site>` mounts (screen `Support`). Its pages are SupportHome (help),
+MyCases, NewCustomerCase, CustomerCase, MyReturns, RequestReturn, CustomerReturn, CustomerArticle and Feedback. Readiness adds
+the app's checks: the target is an internal organization with a service policy and a feedback delivery policy, and the site
+has a canonical host. Which queues and case types a signed-in customer may file into, and which knowledge spaces its help
+reads, are the organization's Support app settings (BOSS Customer Service › Settings › Service defaults; empty: the default
+queue and every customer and public knowledge source).
+
+- **Customers.** A customer's contact is invited from BOSS (Customer Service › Customers › a contact › Invite to support),
+  through `invite#Contact` with the `support` app; redeeming the invitation (Account's Invitation page) lets the account see
+  and file its own cases and returns, a customer administrator every case of the customer. A customer who is a person
+  reaches their own cases and returns with no invitation, once their account's email is verified. Set the site's
+  registration to invitation, or open for consumers. Matching an email domain never makes anyone a customer's contact.
+- **Cases.** NewCustomerCase files a case in one of the offered queues (the queue's priority, assignment and service level),
+  with the case type's template fields for the customer and a file; with an order selected it also asks to cancel the
+  order's open lines ("Cancellation requested" for an agent unless the organization cancels at once). A queue's public form
+  is `/support/NewCustomerCase?token=`, the queue's intake token (BOSS Channel routing); a sender the organization does not
+  serve is held for review and reads nothing. CustomerCase shows the case's outward messages and the files shared with the
+  customer only, and takes a reply, a file while open, a reopen within the window and a cancel; a case's link
+  (`/support/CustomerCase?token=`) opens it signed out. Outside the queue team's working hours the pages say when the team
+  replies next.
+- **Returns.** RequestReturn offers an order's lines under a self-service return policy, within its window; the server picks
+  the receiving facility. The RMA mail's link (`/support/CustomerReturn?token=`) shows the return, its label and tracking,
+  takes evidence and a withdrawal before the goods are received.
+- **Help.** SupportHome and CustomerArticle read the published pages of the organization's customer and public knowledge
+  sources (a visitor only public ones); a rating counts once per page view, 30 in ten minutes per requester.
+- **Files.** Case files and return evidence are staged under `pass_media_root/support` and scanned as a bill is (PDF, PNG or
+  JPEG, at most 10 MB); downloads go through the facade, which a remote frontend streams.
 
 - **Feedback.** A resolved case's customer gets one invitation by email from the organization's address, after the
   feedback delivery policy's delay (BOSS Customer Service › Settings › Service defaults); its link,
@@ -185,8 +209,10 @@ internal organization with a service policy and a feedback delivery policy, and 
   checks again, keeps once and limits per requester (30 posts and 100 link lookups in ten minutes); a repeat shows the
   first answer's receipt. An expired, withdrawn or forged link shows only guidance. The page loads the framework's
   `/js/moqui-form-when.js` for the form's show and require rules (the CSP stays `script-src 'self'`).
-- **Remote frontend.** `getCaseFeedbackInvitation` and `submitCaseFeedback` are PASS operations served by Mantle's PassApi;
-  the answer is a bearer link's write (`TOKEN_WRITES`), accepted from a registered deployment without a member session.
+- **Remote frontend.** `getCaseFeedbackInvitation`, `submitCaseFeedback` and the `support/...` operations are PASS operations
+  served by Mantle's PassApi; the writes a link's token authorizes (the feedback answer, a queue form's request, a case link's
+  reply, reopen and cancel, an article rating, an RMA link's evidence and withdrawal) are `TOKEN_WRITES`, accepted from a
+  registered deployment without a member session.
 
 ### Adding an app
 

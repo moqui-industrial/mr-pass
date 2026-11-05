@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CustomerReturn (design-customer-service §8 CustomerReturn, crosscut §3.18's Support row; impl-customer-service P15): a return
+    the signed-in account reaches for its customer, or the RMA's link (token): its reference, status in the customer's words,
+    lines with their remedy and what was issued (never an amount), the RMA's expiry and instructions, tracking, the label
+    (downloaded through the facade), the customer's evidence and a form to add more, and withdraw before any physical or
+    financial effect; after it, ask an agent. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Return">
+  <transition name="evidence" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const token=support.param('token'),returnId=token?null:support.param('returnId')
+        support.post('addReturnEvidence',{siteId:resolvedSiteId,returnId,token,note:support.param('note'),file:support.file(),
+            operationId:support.param('operationId')},{path:support.base(publicPath,'evidence'),params:{returnId,token}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="withdraw" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const token=support.param('token'),returnId=token?null:support.param('returnId')
+        support.post('withdrawCustomerReturn',{siteId:resolvedSiteId,returnId,token,reason:support.param('reason'),
+            expectedRevision:support.param('expectedRevision'),operationId:support.param('operationId')},{path:support.base(publicPath,'withdraw'),params:{returnId,token}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="label" method="get" read-only="true">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const token=support.param('token'),returnId=token?null:support.param('returnId')
+        support.download(resolvedSiteId,'getReturnLabel',{returnId,token},{path:support.base(publicPath,'label'),params:{returnId,token}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        token=support.param('token');returnId=token?null:support.param('returnId')
+        flash=support.take()
+        view=null;failure=null
+        if(!token && !returnId)failure={kind:'NotFound',message:'Open the return from My returns, or the link in our return email.'}
+        else{
+            const found=support.portal.attempt('getCustomerReturn',{siteId:resolvedSiteId,returnId,token})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This return is not available. The link may have expired or been replaced.'}:found.error
+            else view=found.result
+        }
+        returnQuery=token?'token='+encodeURIComponent(token):'returnId='+encodeURIComponent(returnId || '')
+        evidenceOperationId=support.portal.operationId()
+        withdrawOperationId=support.portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/CustomerReturn.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

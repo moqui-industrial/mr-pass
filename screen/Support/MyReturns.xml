@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- MyReturns (design-customer-service §8 MyReturns; impl-customer-service P15): MyReturnFind and MyReturnList
+    (findCustomerReturns): the returns of the customers the account acts for, in the customer's words, with quantities, remedy,
+    RMA expiry and tracking; no cost or amount. Request a return, open one. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="My returns">
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        query=support.param('q');customerPartyId=support.param('customerPartyId')
+        const found=siteInfo.authenticated ? support.portal.attempt('findCustomerReturns',{siteId:resolvedSiteId,query,customerPartyId}) : {result:null}
+        view=found.result || null
+        failure=found.error || null
+        flash=support.take()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/MyReturns.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

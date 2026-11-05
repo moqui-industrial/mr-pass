@@ -32,6 +32,14 @@ const TOKEN_WRITES = [
     'reportDropShipDelivery',
     // Customer Service P13: a feedback invitation's link
     'submitCaseFeedback',
+    // Customer Service P15: a queue's form token, a case's CaseView link, an article view's rating nonce and an RMA link
+    'createCustomerCase',
+    'replyCustomerCase',
+    'requestCaseReopen',
+    'cancelCustomerCase',
+    'rateArticle',
+    'addReturnEvidence',
+    'withdrawCustomerReturn',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -426,6 +434,21 @@ function downloadExport(siteId, exportId) {
         return rest.download(siteId, 'exports/' + encodeURIComponent(exportId))
     transport.download(siteId, 'getExport', { exportId })
 }
+/* A file an operation answers (the Support app's case file and return label, Customer Service P15), streamed through: over
+   REST its route's path with the input as the query, over gRPC the operation itself. */
+function downloadOperation(siteId, operation, input) {
+    const transport = remote()
+    if (transport === rest) {
+        const route = routes().find(([method, , op]) => method === 'GET' && op === operation)
+        if (!route) fail('NotFound', 'Resource not found')
+        const query = Object.entries(input || {})
+            .filter(([k, v]) => k !== 'siteId' && v != null && v !== '')
+            .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(String(v)))
+            .join('&')
+        return rest.download(siteId, route[1] + (query ? '?' + query : ''))
+    }
+    transport.download(siteId, operation, input)
+}
 const ssoAccount = (action, input, siteId) =>
     remote().ssoAccount(action, input, siteId)
 const account = (action, input, siteId) =>
@@ -439,6 +462,7 @@ const account = (action, input, siteId) =>
     call,
     download,
     downloadExport,
+    downloadOperation,
     ssoAccount,
     account,
     authorityClient,

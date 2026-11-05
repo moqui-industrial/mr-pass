@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- NewCustomerCase (design-customer-service §8 NewCustomerCase; impl-customer-service P15): a signed-in customer's request in
+    one of the Support mount's queues and types, with the type's template fields for the customer (their show and require rules
+    through /js/moqui-form-when.js, checked again by the authority), the order or article it is about and a file; or, with a
+    queue's form token, the queue's public form (the sender's name and email; the answer is a receipt and reads no case).
+    Nothing internal is posted: the queue's priority, assignment and service level are the server's. Help the subject finds is
+    offered first; the outside-working-hours notice. With an order selected, OrderCancelRequest asks to cancel its open lines
+    (requestOrderCancel), which says "Cancellation requested" unless the organization cancels at once. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="New request">
+  <transition name="submit" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js'),p=ec.web.parameters
+        const token=support.param('token')
+        const back={path:support.base(publicPath,'submit'),params:{token,orderId:support.param('orderId'),wikiPageId:support.param('wikiPageId'),
+            requestCategoryId:support.param('requestCategoryId'),requestTypeEnumId:support.param('requestTypeEnumId')}}
+        // the template answers of the fields the page showed, by name (a checkbox or a multiple choice sends several)
+        const names=String(support.param('fieldNames') || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z][A-Za-z0-9_]{0,59}$/.test(s))
+        const values={}
+        for(const name of names){
+            const value=p['tv_'+name]
+            if(value==null || value==='')continue
+            values[name]=Array.isArray(value)?value.map(String):(typeof value==='object' && value.length!=null?Array.from(value).map(String):String(value))
+        }
+        const input={siteId:resolvedSiteId,token,requestName:support.param('requestName'),description:support.param('description'),
+            requestCategoryId:support.param('requestCategoryId'),requestTypeEnumId:support.param('requestTypeEnumId'),
+            customerPartyId:support.param('customerPartyId'),orderId:support.param('orderId'),wikiPageId:support.param('wikiPageId'),
+            templateValues:JSON.stringify(values),firstName:support.param('firstName'),lastName:support.param('lastName'),
+            emailAddress:support.param('emailAddress'),website:support.param('website'),file:support.file(),operationId:support.param('operationId')}
+        support.post('createCustomerCase',input,back,result=>result.requestId
+            ? {path:passBases.support+'/CustomerCase',params:{requestId:result.requestId}}
+            : {path:back.path,params:{token,received:'Y'}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="cancelOrder" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js'),p=ec.web.parameters
+        const orderId=support.param('orderId')
+        const lines=Object.keys(p).filter(k=>/^cancel_[A-Za-z0-9]{1,20}$/.test(k)).map(k=>{const seq=k.slice(7)
+            return {orderItemSeqId:seq,quantity:support.param('quantity_'+seq)}})
+        support.post('requestOrderCancel',{siteId:resolvedSiteId,orderId,lines:JSON.stringify(lines),reason:support.param('reason'),
+            consent:support.param('consent'),operationId:support.param('operationId')},{path:support.base(publicPath,'cancelOrder'),params:{orderId}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        token=support.param('token');orderId=support.param('orderId');wikiPageId=support.param('wikiPageId');query=support.param('q')
+        received=support.param('received')==='Y'
+        flash=support.take()
+        view=null;failure=null
+        if(!token && !siteInfo.authenticated)failure={kind:'AuthenticationRequired',message:'Sign in to send us a request, or use the form link we gave you.'}
+        else{
+            const found=support.portal.attempt('getCaseIntake',{siteId:resolvedSiteId,token,orderId,wikiPageId,query})
+            if(found.error)failure=found.error.kind==='NotFound' && token?{kind:'NotFound',message:'This form is not available. The link may have expired or been replaced.'}:found.error
+            else view=found.result
+        }
+        // the queue and type chosen (a GET of the page changes them), and the chosen type's template fields with their rules
+        const queues=view?.queues || []
+        queue=queues.find(q=>q.requestCategoryId===support.param('requestCategoryId')) || queues[0] || null
+        type=queue ? (queue.types.find(t=>t.requestTypeEnumId===support.param('requestTypeEnumId')) || queue.types[0] || null) : null
+        const ruleText=(rule)=>rule?JSON.stringify({form:'NewCustomerCaseForm',field:'tv_'+rule.field,operator:rule.operator,values:rule.values || []}):''
+        caseFields=(type?.fields || []).map(f=>Object.assign({},f,{showText:ruleText(f.show),requireText:ruleText(f.require)}))
+        fieldNames=caseFields.map(f=>f.fieldName).join(',')
+        submitOperationId=support.portal.operationId()
+        cancelOperationId=support.portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/NewCustomerCase.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

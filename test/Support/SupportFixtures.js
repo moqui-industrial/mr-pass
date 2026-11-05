@@ -195,4 +195,146 @@ function parties(prefix) {
     party(customer, 'Support Pages Customer', 'Customer', org)
     return { org, customer }
 }
-;({ feedback, parties, token })
+/* P15: p: {prefix, org, customer}: the customer's contact (a public account invited for it: its contact grant), an account of
+ * the same customer never invited, another customer, a case the contact filed, a colleague's case and the other customer's
+ * case, with a CaseView link of the contact's case; the ids and accounts. A service policy for the organization. */
+function contacts(p) {
+    const { prefix, org, customer } = p
+    const since = new Date(Date.now() - day)
+    if (
+        !ec.entity
+            .find('mantle.request.support.ServicePolicy')
+            .condition({ organizationPartyId: org })
+            .disableAuthz()
+            .count()
+    ) {
+        // the organization's support queue, its default
+        const queueId = prefix + '_Q'
+        call('create#mantle.request.RequestCategory', {
+            requestCategoryId: queueId,
+            ownerPartyId: org,
+            description: 'Support pages queue',
+        })
+        call('create#mantle.request.support.ServiceQueue', {
+            requestCategoryId: queueId,
+            visibilityEnumId: 'SqvOrganization',
+            fromDate: since,
+        })
+        call('create#mantle.request.support.ServicePolicy', {
+            organizationPartyId: org,
+            caseWorkflowId: 'CwfDefault',
+            defaultCategoryId: queueId,
+            reopenWindowDays: 14,
+            fromDate: since,
+        })
+    }
+    const other = prefix + '_OTHER'
+    party(other, 'Support Pages Other Customer', 'Customer', org)
+    const person = (partyId, name) => {
+        call('create#mantle.party.Party', {
+            partyId,
+            partyTypeEnumId: 'PtyPerson',
+        })
+        call('create#mantle.party.Person', {
+            partyId,
+            firstName: name,
+            lastName: 'Pages',
+        })
+        call('create#moqui.security.UserAccount', {
+            userId: partyId,
+            username: partyId.toLowerCase(),
+            partyId,
+            emailAddress:
+                partyId.toLowerCase() + '@support-customer.example.test',
+            currentPassword: '16ac58bbfa332c1c55bd98b53e60720bfa90d394',
+            passwordHashType: 'SHA',
+        })
+        return partyId.toLowerCase()
+    }
+    const contact = person(prefix + '_CONTACT', 'Ana')
+    const outsider = person(prefix + '_OUTSIDER', 'Cy')
+    call('create#mantle.party.ExternalAccessContact', {
+        partyId: prefix + '_CONTACT',
+        outsidePartyId: customer,
+        organizationPartyId: org,
+        app: 'support',
+        fromDate: since,
+    })
+    const supportCase = (name, customerPartyId, reporter) => {
+        const requestId = prefix + '_' + name
+        call('create#mantle.request.Request', {
+            requestId,
+            requestTypeEnumId: 'RqtSupport',
+            requestName: 'Case ' + name,
+            description: 'About ' + name,
+            statusId: 'ReqSubmitted',
+            requestDate: since,
+            filedByPartyId: reporter || null,
+        })
+        call('create#mantle.request.support.CaseProfile', {
+            requestId,
+            intakeDate: since,
+            caseWorkflowId: 'CwfDefault',
+        })
+        for (const [partyId, roleTypeId] of [
+            [org, 'OrgInternal'],
+            [customerPartyId, 'Customer'],
+        ].concat(reporter ? [[reporter, 'Reporter']] : []))
+            call('create#mantle.request.RequestParty', {
+                requestId,
+                partyId,
+                roleTypeId,
+                fromDate: since,
+            })
+        return requestId
+    }
+    const own = supportCase('OWN', customer, prefix + '_CONTACT')
+    const colleague = supportCase('COLLEAGUE', customer, null)
+    const foreign = supportCase('FOREIGN', other, null)
+    const link = token(prefix, 'CaseLink')
+    call('create#mantle.party.ExternalAccessCapability', {
+        organizationPartyId: org,
+        partyId: customer,
+        recordType: 'Request',
+        recordId: own,
+        scopes: 'CaseView',
+        tokenDigest: ec.user.singleUseCodeHash(link),
+        fromDate: since,
+        thruDate: new Date(Date.now() + 14 * day),
+        createdByUserId: ec.user.userId,
+    })
+    // a requested return of the customer with its RMA link
+    const returnId = prefix + '_RET'
+    call('create#mantle.order.return.ReturnHeader', {
+        returnId,
+        statusId: 'ReturnRequested',
+        customerPartyId: customer,
+        vendorPartyId: org,
+        entryDate: since,
+        currencyUomId: 'USD',
+        customerReference: 'PO-' + prefix,
+    })
+    call('create#mantle.order.return.ReturnItem', {
+        returnId,
+        returnItemSeqId: '01',
+        description: 'Furnace filter 16x25',
+        returnQuantity: 1,
+        statusId: 'ReturnRequested',
+        returnReasonEnumId: 'RrsnDefective',
+        returnResponseEnumId: 'RrspCredit',
+    })
+    const rma = token(prefix, 'RmaLink')
+    call('create#mantle.party.ExternalAccessCapability', {
+        organizationPartyId: org,
+        partyId: customer,
+        recordType: 'ReturnHeader',
+        recordId: returnId,
+        scopes: 'ReturnRma',
+        tokenDigest: ec.user.singleUseCodeHash(rma),
+        fromDate: since,
+        thruDate: new Date(Date.now() + 14 * day),
+        createdByUserId: ec.user.userId,
+    })
+    return { contact, outsider, own, colleague, foreign, link, returnId, rma }
+}
+;({ feedback, parties, token, contacts })

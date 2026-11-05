@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- MyCases (design-customer-service §8 MyCases; impl-customer-service P15): MyCaseFind (search, open or resolved, the customer
+    when the account acts for several) and MyCaseList (findCustomerCases): a contact's own cases, every case of the customer for
+    a customer administrator or the customer's own account; the customer label of each status, dates and whether it waits for a
+    reply. No team, agent or other customer. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="My cases">
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        query=support.param('q');statusCategory=support.param('statusCategory') || 'all';customerPartyId=support.param('customerPartyId')
+        const found=siteInfo.authenticated ? support.portal.attempt('findCustomerCases',{siteId:resolvedSiteId,query,statusCategory,customerPartyId}) : {result:null}
+        view=found.result || null
+        failure=found.error || null
+        flash=support.take()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/MyCases.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

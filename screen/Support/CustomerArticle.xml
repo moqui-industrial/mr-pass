@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CustomerArticle (design-customer-service §8 CustomerArticle; impl-customer-service P15, F59, F109): a published page of the
+    Support mount's customer and public knowledge sources, its exact published version cleaned (getCustomerArticle; an anonymous
+    reader a public source's only; a draft, an internal or unsourced page is not available whatever the address); Was this
+    helpful? with an optional comment once per view (its nonce) and a limit per requester (rateArticle); Contact support citing
+    the article. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Article">
+  <transition name="rate" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const wikiPageId=support.param('wikiPageId')
+        support.post('rateArticle',{siteId:resolvedSiteId,wikiPageId,token:support.param('nonce'),helpful:support.param('helpful'),
+            comment:support.param('comment')},{path:support.base(publicPath,'rate'),params:{wikiPageId}},
+            ()=>({path:support.base(publicPath,'rate'),params:{wikiPageId,rated:'Y'}}))
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        wikiPageId=support.param('wikiPageId');rated=support.param('rated')==='Y'
+        flash=support.take()
+        const found=support.portal.attempt('getCustomerArticle',{siteId:resolvedSiteId,wikiPageId})
+        view=found.result || null
+        failure=found.error ? (found.error.kind==='NotFound' ? {kind:'NotFound',message:'This article is not available.'} : found.error) : null
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/CustomerArticle.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

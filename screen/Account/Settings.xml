@@ -43,6 +43,10 @@
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Shared/Page.html.fancy"/>
     </render-mode>
+    <!-- Customer Service P15: the account hub's links to the Support app's cases and returns, where the site mounts it -->
+    <render-mode>
+      <text type="html"><![CDATA[<#if siteInfo.authenticated && (siteInfo.mounts || []).some(m => m.app == 'support')><nav class="card" id="AccountSupport" aria-label="Support"><h2>Support</h2><a href="${passBases.support}/MyCases">My cases</a> · <a href="${passBases.support}/MyReturns">My returns</a></nav></#if>]]></text>
+    </render-mode>
     <section name="PassSettingsManageAccountSection" condition="view.forms.some(form =&gt; form.op === 'manageAccount')">
       <widgets>
         <render-mode>

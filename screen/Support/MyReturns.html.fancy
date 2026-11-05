@@ -1,0 +1,9 @@
+<h1>My returns</h1>
+<#if flash.notice><p role="status" class="card">${flash.notice}</p></#if>
+<#if !siteInfo.authenticated><p>Sign in to follow your returns, or open the link in our return email.</p><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath || '')}">Sign in</a></p>
+<#elseif failure><p role="alert" class="error">${failure.message}</p>
+<#else><#if view.capabilities.canRequestReturn><p><a href="${passBases.support}/RequestReturn">Request a return</a></p></#if>
+<form method="get" id="MyReturnFind" class="card" role="search" action="${publicPath}"><label>Order or reference <input type="search" name="q" value="${query || ''}" maxlength="60"></label><#if (view.customers.length > 1)><label>For <select name="customerPartyId"><option value="">Everyone I act for</option><#list view.customers as c><option value="${c.partyId}"<#if customerPartyId == c.partyId> selected</#if>>${c.name}</option></#list></select></label></#if><button>Find</button></form>
+<section id="MyReturnList" aria-label="Returns"><#if !view.returnList.length><p class="card">No returns to show.</p></#if>
+<#list view.returnList as r><article class="card"><h2><#if r.canOpen><a href="${passBases.support}/CustomerReturn?returnId=${encodeURIComponent(r.returnId)}">Return ${r.reference}</a><#else>Return ${r.reference}</#if></h2><p><strong>${r.statusText}</strong><#if r.orderId> · order ${r.orderId}</#if><#if r.customerReference> · your reference ${r.customerReference}</#if></p>
+<p><small>Requested ${r.requestedQuantity}<#if r.approvedQuantity> · authorized ${r.approvedQuantity}</#if> · received ${r.receivedQuantity}<#if r.remedyText> · ${r.remedyText}</#if><#if r.expiryText> · send by ${r.expiryText}</#if><#if r.trackingText> · tracking ${r.trackingText}</#if></small></p></article></#list></section></#if>

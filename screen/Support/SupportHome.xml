@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- SupportHome (design-customer-service §8 SupportHome; impl-customer-service P15): HelpSearch and HelpResults, the published
+    help of the Support mount's knowledge sources (getSupportHome; an anonymous reader public sources only), and the way to
+    a case: My cases, My returns and Contact us for a signed-in customer, sign in otherwise. A failed search never blocks a
+    case. The outside-working-hours notice of the first offered queue. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Help">
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        query=support.param('q')
+        const found=support.portal.attempt('getSupportHome',{siteId:resolvedSiteId,query})
+        view=found.result || null
+        failure=found.error || null
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/SupportHome.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

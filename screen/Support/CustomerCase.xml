@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CustomerCase (design-customer-service §8 CustomerCase, crosscut §3.11's Support row; impl-customer-service P15): a case the
+    signed-in account reaches for its customer, or the case's CaseView link (token): the customer's status label, the
+    request, the customer's template answers, the outward messages and the customer-shared files only (never a note, an
+    internal message or file, or a staff name), the customer's own order and return links, and reply (with a file while open),
+    ask to reopen, cancel (at the revision shown) and, for a linked order, ask to cancel it (NewCustomerCase). The
+    outside-working-hours notice. Files download through the facade. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Case">
+  <transition name="reply" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const requestId=support.param('requestId'),token=support.param('token')
+        const back={path:support.base(publicPath,'reply'),params:{requestId:token?null:requestId,token}}
+        support.post('replyCustomerCase',{siteId:resolvedSiteId,requestId:token?null:requestId,token,body:support.param('body'),file:support.file(),
+            operationId:support.param('operationId')},back)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="reopen" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const requestId=support.param('requestId'),token=support.param('token')
+        const back={path:support.base(publicPath,'reopen'),params:{requestId:token?null:requestId,token}}
+        support.post('requestCaseReopen',{siteId:resolvedSiteId,requestId:token?null:requestId,token,reason:support.param('reason'),
+            operationId:support.param('operationId')},back)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="cancel" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const requestId=support.param('requestId'),token=support.param('token')
+        const back={path:support.base(publicPath,'cancel'),params:{requestId:token?null:requestId,token}}
+        support.post('cancelCustomerCase',{siteId:resolvedSiteId,requestId:token?null:requestId,token,reason:support.param('reason'),
+            expectedRevision:support.param('expectedRevision')},back)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="file" method="get" read-only="true">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const requestId=support.param('requestId'),token=support.param('token')
+        support.download(resolvedSiteId,'getCaseFile',{requestId:token?null:requestId,token,fileId:support.param('fileId')},
+            {path:support.base(publicPath,'file'),params:{requestId:token?null:requestId,token}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        token=support.param('token');requestId=token?null:support.param('requestId')
+        flash=support.take()
+        view=null;failure=null
+        if(!token && !requestId)failure={kind:'NotFound',message:'Open the case from My cases, or the link in our email.'}
+        else{
+            const found=support.portal.attempt('getCustomerCase',{siteId:resolvedSiteId,requestId,token})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This case is not available. The link may have expired, or the case is not one of yours.'}:found.error
+            else view=found.result
+        }
+        // what identifies the case in this page's links and posts: the link's token, else the case
+        caseQuery=token?'token='+encodeURIComponent(token):'requestId='+encodeURIComponent(requestId || '')
+        replyOperationId=support.portal.operationId()
+        reopenOperationId=support.portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Support/CustomerCase.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
