@@ -123,16 +123,41 @@ function takeNotice(siteId) {
         return null
     }
 }
+/* Shop P9 (design-shop §18.1 "Accessibility and devices"): an error notice is an alert with an id the refused field names
+ * (aria-describedby); it takes the focus itself when no field of the page is named (markInvalid gives the field the focus). */
 const noticeHtml = (notice) =>
     notice
         ? '<p class="shop-notice shop-notice-' +
           (notice.kind === 'error' ? 'error' : 'ok') +
           '" role="' +
           (notice.kind === 'error' ? 'alert' : 'status') +
-          '">' +
+          '"' +
+          (notice.kind === 'error'
+              ? ' id="ShopNotice" tabindex="-1"' +
+                (notice.field ? '' : ' autofocus')
+              : '') +
+          '>' +
           esc(notice.text) +
           '</p>'
         : ''
+/* The refused field of an error notice, when the page has it: invalid, described by the notice and focused (without
+ * script, by autofocus); otherwise the notice takes the focus. */
+function markInvalid(html, notice) {
+    if (notice?.kind !== 'error' || !notice.field) return html
+    if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(notice.field))
+        return html.replace(' tabindex="-1">', ' tabindex="-1" autofocus>')
+    const found = new RegExp('<input([^>]*?) name="' + notice.field + '"')
+    // a hidden field (the revision, the operation id) cannot take the focus: the notice does
+    const match = found.exec(html)
+    if (!match || match[1].includes('type="hidden"'))
+        return html.replace(' tabindex="-1">', ' tabindex="-1" autofocus>')
+    return html.replace(
+        found,
+        '<input$1 aria-invalid="true" aria-describedby="ShopNotice" autofocus name="' +
+            notice.field +
+            '"',
+    )
+}
 const hidden = (name, value) =>
     '<input type="hidden" name="' + name + '" value="' + esc(value ?? '') + '">'
 const formToken = () =>
@@ -412,10 +437,11 @@ function checkoutHtml(context, view, deliveryOptions, notice) {
                   '</button></form>') +
             '</section>',
     )
-    return (
+    return markInvalid(
         '<div class="shop-checkout" id="ShopCheckout"><h1>Checkout</h1>' +
-        parts.join('') +
-        '</div>'
+            parts.join('') +
+            '</div>',
+        notice,
     )
 }
 /* The page through the active release's checkout page kind with the shop.checkout component, or in the PASS shell.
@@ -485,6 +511,7 @@ const back = (context, found, okText, location) => {
                   text:
                       found.error.fieldErrors?.[0]?.message ||
                       found.error.message,
+                  field: found.error.fieldErrors?.[0]?.field || null,
               }
             : { kind: 'ok', text: okText },
     )
@@ -810,7 +837,7 @@ function resultHtml(context, view, notice) {
               '"'
             : '') +
         '><h1>Payment</h1>' +
-        parts.join('') +
+        markInvalid(parts.join(''), notice) +
         '</section>' +
         (poll ? enhanceScript(context) : '')
     )
@@ -1024,6 +1051,9 @@ function act(context, name) {
     confirmationPage,
     act,
     checkoutHtml,
+    // Shop P9: the labelled, focused error (ShopCheckout spec)
+    noticeHtml,
+    markInvalid,
     keysKey,
     ordersKey,
     // Shop P6: the guest's order links kept in this session, and the themed page, for the order and account pages

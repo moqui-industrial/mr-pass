@@ -1,5 +1,7 @@
 # IronStone PASS — Shop design
 
+Nov 6, 2026 — built (impl-shop P0–P9); the sections are as built, with the later scope in §17.2 and §20 and
+impl-shop §7. §18.1's scenarios are each covered by acceptance tests and regression specs (the map is in impl-shop P9).
 Nov 5, 2026 — checked against the code while writing [impl-shop.md](impl-shop.md) (its F1–F34) and mr-boss
 impl-commerce.md; the changes are marked Nov 5. Nov 1, 2026 — draft; reviewed against research-commerce.md,
 design-forum.md, the reference apps and the other designs (the suite-app review, since removed from mr-boss; read it
@@ -87,7 +89,11 @@ Commerce authoring has the normal BOSS TUI counterparts.
 
 Use accessible labels/errors, skip links, focus restoration, live total/status announcements,
 keyboard-operable variant/quantity controls, reduced motion, and 390 px phone layouts (checked by
-an acceptance test, §18.1 Accessibility and devices). Dates, language and formatting follow
+an acceptance test, §18.1 Accessibility and devices). As built (Nov 6, impl-shop P9): a refused form
+field comes back after the redirect as an alert the field is described by, the field marked invalid
+and focused without script (`autofocus`; the alert takes the focus when the page has no such field);
+cart and checkout totals are polite live regions; the starter theme and the PASS shell stop
+animations and transitions under `prefers-reduced-motion`. Dates, language and formatting follow
 site/user preferences; money calculations stay decimal on the authority. Theme translations use
 stable keys; the site's default locale is the explicit fallback.
 

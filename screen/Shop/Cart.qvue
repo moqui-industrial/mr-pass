@@ -5,7 +5,7 @@
     reason and the cart read again. -->
 <template>
     <div class="shop-cart" id="ShopCart">
-        <p v-if="message" :class="error ? 'shop-notice shop-notice-error' : 'shop-notice shop-notice-ok'" aria-live="polite">
+        <p v-if="message" :class="error ? 'shop-notice shop-notice-error' : 'shop-notice shop-notice-ok'" :role="error ? 'alert' : 'status'" aria-live="polite">
             {{ message }}
         </p>
         <template v-if="cart && cart.items.length">
@@ -43,7 +43,7 @@
                     <button type="submit" :disabled="busy">Apply</button>
                 </form>
             </section>
-            <dl class="shop-cart-totals" id="ShopCartTotals">
+            <dl class="shop-cart-totals" id="ShopCartTotals" aria-live="polite">
                 <dt>Items</dt>
                 <dd>{{ cart.totals.items.display }}</dd>
                 <template v-if="Number(cart.totals.discounts.amount) !== 0">

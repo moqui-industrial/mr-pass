@@ -302,6 +302,59 @@ is kept for a visitor not signed in under the site's generation (read at most ev
 answer, nothing kept is served. Product images are `public, max-age=60` only under the current generation's link (`&v=`),
 and only `dbresource://` and `component://` locations are read.
 
+**Subscriptions, reviews, recovery and feeds** (impl-shop P7; impl-commerce P9, P10, P14). A store's recurring offers
+(Commerce's paid-access editor, `store#RecurringOffer`) sell a term of a `SubscriptionResource`; a verified, signed-in buyer
+subscribes with recorded off-session consent, and `/Subscriptions` lists the contracts (cancel keeps the paid term, change
+the card, resolve a failed renewal). `store#RecurringOffer` keeps the site's `subscriptionUrl` on Shop's Subscriptions
+page. Automatic renewal needs a gateway that charges a kept card off-session (Authorize.Net's CIM profile; the stored
+credential indicators are untried against the sandbox, impl-shop F115). Review photos (PNG or JPEG) are staged under
+`pass_media_root/reviews` and scanned by `pass_scanner_service` as the Billing and Support files are; with no scanner the
+review keeps its text and refuses the photo. Cart recovery mails a signed-in customer who turned on the store's cart
+reminders (`/account/EmailPreferences`) a link to `/Recover?r=`, which the frontend keeps in its session; guests never get
+one. A published product feed is served at `{mount}/feeds/{key}.xml` (or `.csv`) from its active build.
+
+**Deploying a Shop site** (impl-shop P9). In order:
+- **Hosts and mounts.** Give the site a canonical host (the provider's return address and every emailed link use it) and
+  mount Shop with `store#Mounts` as an operator, at `/` or `/shop`, targeting the ProductStore; mount Account, Billing and
+  Support beside it (Support targeting the store's organization: the order page's return, question and cancel links need
+  it). For a root Shop add `<mount path="/" screen="Shop"/>` to the host's `<public-site>`; the other apps' paths and the
+  framework's stay theirs. Publish the site once `checkReadiness` shows Shop's findings resolved.
+- **Payments.** Bind the store's card payments (`ProductStorePaymentGateway`, `PiCreditCard`) to a gateway with a hosted page:
+  Authorize.Net Accept Hosted (mr-mantle `docs/AuthorizeNet.md`: API login, transaction key, signature key, the webhook
+  endpoint and its events; `merchantName` set) or, in development only, the test gateway's `hostedPending`. Keep the
+  credentials in the authority's conf, never on a frontend. The checkout and payment-method pages keep PASS's CSP
+  (`form-action 'self'`); only `PaymentRelay` and `MethodRelay` add `form-action https://accept.authorize.net
+  https://test.authorize.net`, since Accept Hosted takes its form token by an HTML POST (impl-shop F37). A proxy or CDN
+  must pass those routes' own `Content-Security-Policy` through, not replace it. Tax and shipping are the store's Mantle
+  gateways (Shippo for rates and address checks), set in Commerce's CheckoutSettings.
+- **Email.** The store's emails (`ProductStoreEmail`): order placed and approved, `PsetInvoiceFinalized` (the receipt),
+  `PsetDownloadReady`, `PsetSubscriptionRenewal`, `PsetPaymentRetry` and the cart reminder; an email server the
+  authority reaches.
+- **Media.** `pass_media_root` on private storage and `pass_scanner_service` (below, "Mail, accounts, and media") for review
+  photos; product images are read only from `dbresource://` and `component://` locations.
+- **Caches.** Anonymous catalog pages are `public, max-age=60` with an ETag under the site's generation; everything with a
+  session or a user is `no-store`. A CDN may keep catalog pages for that minute; it must keep nothing marked `no-store` and
+  must forward cookies, since a cookieless anonymous catalog response is the only kind marked public and it sets none. Theme assets under
+  `{mount}/theme/{digest}/` are immutable. A remote frontend keeps anonymous catalog reads and the site information under
+  the generation, and serves nothing kept when the authority cannot answer it.
+- **Jobs.** Mantle's jobs, each in its own transaction per item (one failing is named and the rest go on); keep them
+  unpaused (the store's readiness names a paused checkout job) and watch their `operation` marks in the framework Monitor:
+
+  | Job | Schedule | What it does |
+  | --- | --- | --- |
+  | `reconcile_StoreCheckouts` | every 5 minutes | finishes checkouts whose payer never returned: looks up the payment, places the order |
+  | `expire_StoreCheckouts` | hourly | expires unsubmitted checkouts |
+  | `fulfill_StoreItems` | every 5 minutes | captures, invoices and grants paid digital lines; resumes a crashed run; starts an approved Shop or renewal order whose fulfillment never started |
+  | `run_MessageDeliveries` | every 2 minutes | sends the delivery ledger's notices (downloads, renewals), retrying a mail outage |
+  | `run_StoreRenewals` | hourly | starts due renewals (one occurrence and order per period), retries failed ones, sends their notices |
+  | `run_ShopOperations` | hourly | retires expired carts and their guest parties; searches recent Accept Hosted references for a second approval |
+  | `run_CartRecovery` | every 10 minutes | sends cart reminders for stores that turned recovery on |
+  | `run_StoreFeeds` | hourly | builds and publishes scheduled product feeds |
+  | `expire_SubscriptionAccess` | every 10 minutes | revokes paid access once its term ends |
+
+  A paid checkout whose order could not be placed (it changed after the payer paid, or its tries ran out) waits in
+  Commerce's CartDetail for a holder of `COMMERCE_PLACEMENT_RESOLVE` to place it again or give the payment back.
+
 **Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
 `mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published
 release Shop's pages are the release's own documents instead of the PASS shell, and its assets are served under the

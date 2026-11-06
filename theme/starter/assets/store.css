@@ -28,3 +28,6 @@ img { max-width: 100%; }
 .shop-quote { flex-basis: 100%; font-weight: 600; margin: 0; }
 .categories ul { margin: .25rem 0 0; }
 .badge { display: inline-block; padding: 0 .5rem; border-radius: 1rem; background: var(--accent); color: #fff; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}

@@ -19,7 +19,7 @@
         </label>
         <button v-if="purchasable" type="submit" class="shop-add" :disabled="busy">Add to cart</button>
         <p class="shop-quote" aria-live="polite">{{ quoteLabel }}</p>
-        <p v-if="message" :class="error ? 'shop-notice shop-notice-error' : 'shop-notice shop-notice-ok'" aria-live="polite">
+        <p v-if="message" :class="error ? 'shop-notice shop-notice-error' : 'shop-notice shop-notice-ok'" :role="error ? 'alert' : 'status'" aria-live="polite">
             {{ message }}
         </p>
         <p class="shop-cart-link">
