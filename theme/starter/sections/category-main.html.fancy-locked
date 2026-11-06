@@ -1,0 +1,13 @@
+<section class="store-section">
+  <h1>${category.name}</h1>
+  <#if category.description><p>${category.description}</p></#if>
+  <#if productList && productList.length>
+  <ul class="grid">
+    <#list productList as product>
+    <li class="card"><#include "product-card"></li>
+    </#list>
+  </ul>
+  <#else>
+  <p class="empty">No products here yet.</p>
+  </#if>
+</section>

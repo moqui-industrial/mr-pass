@@ -1,0 +1,9 @@
+<article class="store-section product">
+  <h1>${product.name}</h1>
+  <#if product.image><img src="${product.image.url}" alt="${product.image.alt || product.name}"></#if>
+  <#if product.price><p class="price">${product.price.display}</p></#if>
+  <#if product.availability><p class="availability">${product.availability.label}</p></#if>
+  <#if section.settings.showSku && product.sku><p class="sku">SKU ${product.sku}</p></#if>
+  <#if product.description><div class="description">${product.description}</div></#if>
+  <div class="component">${components["shop.productPurchase"]}</div>
+</article>

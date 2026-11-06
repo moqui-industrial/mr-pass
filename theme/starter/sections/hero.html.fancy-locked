@@ -1,0 +1,13 @@
+<section class="store-hero">
+  <h1>${section.settings.heading || shop.name}</h1>
+  <#if section.settings.text><p>${section.settings.text}</p></#if>
+  <#if section.settings.image>
+  <img src="${section.settings.image.url}" alt="${section.settings.image.alt || ''}" loading="lazy">
+  </#if>
+  <#if section.settings.destination>
+  <p><a href="${section.settings.destination.url}">${section.settings.destination.label}</a></p>
+  </#if>
+  <#list blocks as block>
+  ${block.html}
+  </#list>
+</section>

@@ -11,6 +11,7 @@
       <parameter name="topicId"/>
       <parameter name="topicSlug"/>
       <parameter name="postId"/>
+      <parameter name="screenParameters" type="Map"/>
     </out-parameters>
     <actions>
       <script><![CDATA[
@@ -34,6 +35,11 @@
                 const id=/^[A-Za-z0-9_-]{1,40}$/,slug=/^[A-Za-z0-9_-]{0,200}$/
                 if(parts[0]==='pages'){if(parts.length<2 || parts.length>6 || !parts.slice(1).every(p=>id.test(p)))fail();screenPath='/Shop/Page'}
                 else{if(!id.test(parts[1] || '') || parts.length>3 || !slug.test(parts[2] || ''))fail();screenPath=parts[0]==='products'?'/Shop/Products/ProductDetail':'/Shop/Categories/CategoryDetail'}
+            }else if(mounted.app==='shop' && parts[0]==='theme'){
+                // a theme release's asset (impl-shop P2): theme/{the release's manifest digest}/{path under assets/}
+                const name=/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,100}$/
+                if(!/^[0-9a-f]{64}$/.test(parts[1] || '') || parts.length<3 || parts.length>8 || !parts.slice(2).every(p=>name.test(p)))fail()
+                screenPath='/Shop/themeAsset';screenParameters={themeDigest:parts[1],assetPath:parts.slice(2).join('/')}
             }else screenPath='/'+root+suffix
         ]]></script>
     </actions>

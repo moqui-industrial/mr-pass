@@ -1,0 +1,6 @@
+{
+  "name": "Product",
+  "settings": [{"id": "showSku", "type": "boolean", "label": "Show the SKU", "default": false}],
+  "allowedPageKinds": ["product"],
+  "required": true
+}

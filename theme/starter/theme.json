@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "name": "IronStone Starter",
+  "engine": "js-fancy",
+  "viewApiVersion": 1,
+  "layout": "store",
+  "requiredComponents": ["shop.productPurchase", "shop.cart", "shop.checkout"],
+  "styles": ["assets/store.css"],
+  "defaultTemplates": {
+    "home": "home",
+    "category": "category",
+    "product": "product",
+    "search": "search",
+    "page": "page",
+    "cart": "cart",
+    "checkout": "checkout",
+    "order": "order",
+    "account": "account",
+    "orders": "orders",
+    "downloads": "downloads",
+    "subscriptions": "subscriptions",
+    "not-found": "not-found"
+  }
+}

@@ -1,0 +1,4 @@
+<section class="store-section">
+  <#if section.settings.heading><h2>${section.settings.heading}</h2></#if>
+  <#if section.settings.body><div class="rich">${section.settings.body}</div></#if>
+</section>

@@ -233,6 +233,14 @@ Billing and Support pages keep the PASS shell with the site's brand values from 
 
 Responses are `no-store` with the shell's CSP unless a route in `screen/Shared/Headers.js` says otherwise.
 
+**Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
+`mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published
+release Shop's pages are the release's own documents instead of the PASS shell, and its assets are served under the
+mount at `theme/{manifest digest}/{path}`, immutable. A remote frontend fetches the active release's manifest and files
+over its authority connection (registered clients only), checks every digest and keeps the release; one it cannot
+verify, or an engine or view API it does not have, shows a safe "not available" page. The renderer's budgets are
+lowered in conf with `<resource-facade><theme-limits .../>` (mr-moqui `docs/ui/Themes.md`).
+
 ## Adding an app
 
 An app registers in these places: its name, target type and readiness service in the authority's

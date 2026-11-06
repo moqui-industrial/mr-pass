@@ -1,0 +1,15 @@
+{
+  "name": "Account page",
+  "settings": [
+    {"id": "heading", "type": "text", "label": "Heading", "maxLength": 160, "localized": true},
+    {
+      "id": "component",
+      "type": "enum",
+      "label": "Content",
+      "options": ["shop.account", "shop.orders", "shop.order", "shop.downloads", "shop.subscriptions"],
+      "default": "shop.account"
+    }
+  ],
+  "allowedPageKinds": ["account", "orders", "order", "downloads", "subscriptions"],
+  "required": true
+}

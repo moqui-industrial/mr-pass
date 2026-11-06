@@ -1265,7 +1265,7 @@ Example approved product-page view fragment (proposed view API v1):
   "section": {
     "id": "story",
     "settings": {"heading": "Made for everyday use"},
-    "image": {"url": "/shop/assets/sha256-example/mug.webp", "alt": "Stoneware mug"}
+    "image": {"url": "/shop/theme/<manifest digest>/mug.webp", "alt": "Stoneware mug"}
   },
   "product": {
     "id": "10000",
@@ -1277,7 +1277,8 @@ Example approved product-page view fragment (proposed view API v1):
 ```
 
 IDs, locale, price and asset path are illustrative. The real asset route comes from the
-validated manifest, and the trusted purchase component receives only its separate permitted
+validated manifest: a release's assets are under the Shop mount at `theme/{manifest digest}/{path}` (the framework keeps
+`/assets` at the root, so a root Shop cannot use it; impl-shop F-SP2-2), and the trusted purchase component receives only its separate permitted
 action/variant contract. No template computes an authoritative total from this display data.
 
 Registered source descriptors choose approved catalog/page/media queries with typed arguments
@@ -1374,7 +1375,10 @@ be established. Immutable public assets can remain cached by digest only if thei
 classification permits it; protected downloads always use current access checks.
 
 Remote PASS obtains theme bundles through its fixed authenticated authority connection and
-verifies manifest digests/API compatibility. Themes cannot name arbitrary origins or initiate
+verifies manifest digests/API compatibility: `getShopThemeRelease` (the active release's manifest and its digest) and
+`getShopThemeFiles` (its files, each checked against the manifest's digest), which the authority answers only to a
+registered frontend, never to a browser; a verified release is kept by release and digest, and one that does not verify
+is the built-in unavailable page (impl-shop P2). Themes cannot name arbitrary origins or initiate
 network fetches. Readiness blocks unsupported renderer versions before activation. Operator
 assets/components have their own approved CSP entries; theme settings cannot broaden CSP.
 

@@ -1,10 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
-<!-- Home (design-shop §5 Home; impl-shop P1): the Shop root. Until the theme (P2) and the catalog pages (P3) it shows the
-    store's name and an empty state, from the context Shop.xml read. -->
+<!-- Home (design-shop §5 Home; impl-shop P1, P2): the Shop root. With a published theme it is the release's home page
+    (ShopTheme.js; P3 adds the catalog to its view); without one it shows the store's name and an empty state in the PASS
+    shell, from the context Shop.xml read. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Home">
+  <actions>
+    <script><![CDATA[
+        const shopTheme=ec.resource.script('component://mr-pass/screen/Shop/ShopTheme.js')
+        shopPage=shopThemed ? (shopTheme.renderPage(shopContext,'home') || {status:503,html:shopTheme.unavailablePage(shopContext)}) : null
+        if(shopPage && shopPage.status!==200 && ec.web?.response)ec.web.response.setStatus(shopPage.status)
+    ]]></script>
+  </actions>
   <widgets>
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Shop/Home.html.fancy"/>

@@ -3,8 +3,10 @@
 <!-- Shop: a ProductStore's storefront (design-shop; impl-shop P1), the `shop` app of PublicSiteApp, mounted at /shop or at the
     site's root, its target the store an operator set. Every page reads the trusted context first (getShopContext through
     pass.Facade.call#Operation, Shared/Portal.js): a site not published, a disabled Shop mount or a store no longer
-    available answers Not Found, as an unknown page does. P1 renders Home in the PASS shell; P2's theme renders Shop's own
-    pages in the active release's layout, while Account, Billing and Support keep the PASS shell with the site's brand. -->
+    available answers Not Found, as an unknown page does. With a published theme (P2) Shop's own pages render the active
+    release through ShopTheme.js, in its own layout instead of the PASS shell (Pass.xml leaves its header and footer out when
+    shopThemed); without one Home keeps the PASS shell. Account, Billing and Support keep the PASS shell with the
+    site's brand. The release's assets are under the mount at theme/{manifest digest}/{path} (resolve#Route). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Shop">
@@ -14,8 +16,18 @@
         const found=ec.resource.script('component://mr-pass/screen/Shared/Portal.js').attempt('getShopContext',{siteId:resolvedSiteId})
         if(found.error){const e=new Error(found.error.message);e.moquiErrorKind=found.error.kind==='NotFound'?'NotFound':'Unavailable';throw e}
         shopContext=found.result
+        // a published theme renders Shop's pages as whole documents, so Pass.xml leaves out the PASS shell (P2)
+        shopThemed=!!shopContext.release
     ]]></script>
   </always-actions>
+  <transition name="themeAsset" method="get" read-only="true">
+    <parameter name="themeDigest"/>
+    <parameter name="assetPath"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopTheme.js').sendAsset(shopContext,themeDigest,assetPath)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <subscreens default-item="Home"/>
   <widgets>
     <subscreens-active/>

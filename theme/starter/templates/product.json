@@ -1,0 +1,7 @@
+{
+  "sections": {
+    "main": {"type": "product-main", "settings": {"showSku": false}, "required": true},
+    "story": {"type": "rich-text", "settings": {}}
+  },
+  "order": ["main", "story"]
+}

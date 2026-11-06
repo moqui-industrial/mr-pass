@@ -1,0 +1,7 @@
+{
+  "name": "Rich text",
+  "settings": [
+    {"id": "heading", "type": "text", "label": "Heading", "maxLength": 160, "localized": true},
+    {"id": "body", "type": "richText", "label": "Text", "localized": true}
+  ]
+}

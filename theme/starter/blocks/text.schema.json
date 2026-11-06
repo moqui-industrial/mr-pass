@@ -1,0 +1,1 @@
+{"name": "Text", "settings": [{"id": "body", "type": "multilineText", "label": "Text", "required": true, "maxLength": 600, "localized": true}]}

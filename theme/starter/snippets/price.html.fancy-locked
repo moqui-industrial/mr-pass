@@ -1,0 +1,1 @@
+<#if product.price><span class="price">${product.price.display}</span></#if>

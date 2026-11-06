@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="${locale}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${page.title ? page.title + ' | ' + shop.name : shop.name}</title>
+<#if page.canonicalUrl><link rel="canonical" href="${page.canonicalUrl}"></#if>
+${styles}</head>
+<body style="--accent: ${settings.accent}; --surface: ${settings.surface}">
+<a class="skip" href="#main">Skip to content</a>
+<header class="store-header">
+<a class="brand" href="${shop.baseUrl}"><img src="${assets["assets/logo.svg"]}" alt="" width="32" height="32"> <span>${shop.name}</span></a>
+<#if navigation && navigation.length>
+<nav aria-label="Store menu"><ul>
+<#list navigation as item>
+<li><a href="${item.url}">${item.label}</a></li>
+</#list>
+</ul></nav>
+</#if>
+</header>
+<main id="main">
+${content}</main>
+<footer class="store-footer"><small>${site.displayName}</small></footer>
+</body>
+</html>
