@@ -5,7 +5,7 @@
  * noindex, no referrer and a CSP whose frame-ancestors are the BOSS origins of pass_preview_frame_origins (none: not
  * framed). The page is the draft rendered by the same composition adapter and trusted components as the live page,
  * with the view the authority answers (synthetic private state); it sends no mail and makes no cart or payment call
- * (the framework's session cookie on its answer still starts a Visit on the frame's next request: impl-commerce F-P5-7). Previews are served by the authority's runtime only: a remote frontend (pass_backend_url) has no preview
+ * and declines a session (no cookie, no token, no Visit: impl-commerce F86). Previews are served by the authority's runtime only: a remote frontend (pass_backend_url) has no preview
  * host. The selection script talks to the editor only through the MessageChannel port the editor transfers with the
  * nonce of the preview's URL, from an allowed origin, and carries section ids only. CC0 plus patent grant. */
 const PREVIEW_SERVICE = 'mantle.public.ThemeServices.get#ThemePreviewPage'
@@ -168,6 +168,7 @@ function selectionScript(scriptNonce, origins) {
  * theme.json declares), answered as a whole document; a draft the adapter cannot render shows the safe unavailable page
  * with the reason in the log. */
 function page(siteId, hostname, token) {
+    ec.web?.declineSession()
     const response = ec.web?.response
     const preview = previewOf(siteId, hostname, token)
     const theme = ec.resource.script(
@@ -240,6 +241,7 @@ function page(siteId, hostname, token) {
 }
 /* A draft asset of a token: its bytes or text, no-store (a draft changes), an SVG cleaned again, sandboxed. */
 function asset(siteId, hostname, token, assetPath) {
+    ec.web?.declineSession()
     const extension = String(assetPath || '').slice(
         String(assetPath || '').lastIndexOf('.') + 1,
     )
