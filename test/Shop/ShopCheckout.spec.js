@@ -38,7 +38,7 @@ const CHECKOUT_OPS = [
 ]
 // The cart-making specs of one run (mr-mantle's, mr-pass's and mr-boss's in one process) share this requester's Shop
 // cart-creation throttle (30 in ten minutes, Shop P4): this window's bucket for the requester goes first, so this spec's
-// carts are made (F-P10-2); the throttle itself is unchanged.
+// carts are made (Commerce F128); the throttle itself is unchanged.
 function resetCartCreations() {
     const requester = ec.resource
         .script('component://framework/service/org/moqui/public/Account.js')
