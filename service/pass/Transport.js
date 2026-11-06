@@ -444,9 +444,101 @@ function remote() {
     if (chosen.kind === 'local') fail('Unavailable', 'The authority is local')
     return chosen.kind === 'grpc' ? grpc(chosen.endpoint) : rest
 }
+/* ---- the anonymous catalog read cache (Shop P3, F43, F58; design-shop §12.7) ----
+   A remote frontend keeps the authority's answers to anonymous catalog reads, keyed by site, operation, input, locale,
+   currency, the site's publication generation and its active theme release, so a page whose publication is unchanged
+   costs one generation read (getSiteGeneration, kept for GENERATION_MS) instead of its reads. Only a visitor who is not
+   signed in, without a delegation or a bearer token, on a GET route; an answer naming another generation, and every
+   refusal, is not kept. When the generation cannot be read nothing cached is served. The cache is bounded: a fixed number
+   of slots, a key's slot by its digest (a collision replaces the slot), each entry kept at most ENTRY_MS. */
+const CATALOG_CACHE = 'pass.shop.catalogReads'
+const GENERATION_CACHE = 'pass.shop.siteGenerations'
+const CACHE_SLOTS = 512
+const ENTRY_MS = 60000
+const GENERATION_MS = 2000
+const CACHED_READS = [
+    'getShopContext',
+    'getShopPage',
+    'getShopHome',
+    'getStoreCategories',
+    'getStoreCategory',
+    'findProducts',
+    'searchShop',
+    'getProduct',
+    'quoteSelection',
+    'getStorePage',
+    'getShopSitemap',
+    'getSiteNavigation',
+    'resolveSiteRedirect',
+]
+/* Whether a read may be answered from the cache: a listed operation, by a visitor not signed in, without a token. */
+function cacheable(operation, input) {
+    if (!CACHED_READS.includes(operation) || ec.user.userId) return false
+    if (input.token != null && input.token !== '') return false
+    try {
+        return !ec.web || !ec.web.sessionAttributes.passDelegation
+    } catch (error) {
+        return false
+    }
+}
+const nowMs = () => Date.now()
+/* The site's generation and active release ({generation, releaseId}), read at most every GENERATION_MS; null when it
+   cannot be read. read: the authority read (getSiteGeneration by default). */
+function siteGeneration(siteId, read) {
+    const cache = ec.cache.getCache(GENERATION_CACHE)
+    const kept = cache.get(String(siteId))
+    if (kept && nowMs() - Number(kept.at) < GENERATION_MS) return kept.value
+    try {
+        const answer = (read || ((id) => remote().call('getSiteGeneration', { siteId: id }, { fields: ['siteId'] })))(
+            siteId,
+        )
+        const value = {
+            generation: Number(answer.generation || 0),
+            releaseId: answer.release ? String(answer.release.releaseId) : null,
+        }
+        cache.put(String(siteId), { at: nowMs(), value })
+        return value
+    } catch (error) {
+        ec.message.clearErrors()
+        cache.remove(String(siteId))
+        return null
+    }
+}
+/* The cache key of a read: its site, operation, input (in key order), locale, currency, generation and release. */
+function cacheKey(operation, input, publication) {
+    const fields = Object.keys(input)
+        .sort()
+        .map((k) => [k, input[k] == null ? null : String(input[k])])
+    return JSON.stringify([
+        String(input.siteId || ''),
+        operation,
+        fields,
+        String(ec.user.locale || ''),
+        String(input.currencyUomId || ''),
+        publication.generation,
+        publication.releaseId,
+    ])
+}
+const slotOf = (key) => 'slot:' + (parseInt(ec.resource.digestText(key, 'sha256').slice(0, 8), 16) % CACHE_SLOTS)
+/* A read through the cache: the kept answer of the same key, else fetch()'s, kept when it may be. generationRead: the
+   generation read (the authority's by default). */
+function readThrough(operation, input, fetch, generationRead) {
+    if (!cacheable(operation, input)) return fetch()
+    const publication = siteGeneration(input.siteId, generationRead)
+    if (!publication) return fetch()
+    const key = cacheKey(operation, input, publication)
+    const cache = ec.cache.getCache(CATALOG_CACHE)
+    const slot = slotOf(key)
+    const kept = cache.get(slot)
+    if (kept && kept.key === key && nowMs() - Number(kept.at) < ENTRY_MS) return kept.value
+    const value = fetch()
+    if (value && typeof value === 'object' && (value.generation == null || Number(value.generation) === publication.generation))
+        cache.put(slot, { key, at: nowMs(), value })
+    return value
+}
 /* A remote operation: its result, or the error kind REST's status would give. */
 function call(operation, input, def) {
-    return remote().call(operation, input, def)
+    return readThrough(operation, input, () => remote().call(operation, input, def))
 }
 /* A remote attachment (getAttachment) or export (getExport) download, streamed to the browser. */
 function download(siteId, attachmentId, variant) {
@@ -504,4 +596,6 @@ const account = (action, input, siteId) =>
     statusKind,
     answered,
     refused,
+    readThrough,
+    CACHED_READS,
 })

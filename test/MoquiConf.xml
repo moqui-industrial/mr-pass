@@ -2,7 +2,7 @@
 <moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
   <default-property name="pass_verification_template" value="PASS_TEST_VERIFY"/>
   <default-property name="pass_client_test_secret" value="test-deployment-secret"/>
-  <default-property name="pass_client_test_sites" value="PASS_AUTH,PASS_HTTP"/>
+  <default-property name="pass_client_test_sites" value="PASS_AUTH,PASS_HTTP,ZIZI_SHOP,ZIZI_DIGITAL"/>
   <default-property name="pass_sender_addresses" value="community@example.test"/>
   <default-property name="pass_mail_template_ids" value="PASS_TEST_NOTICE,PASS_TEST_INBOUND"/>
   <default-property name="pass_sso_flows" value="PASS_TEST_SSO"/>
@@ -24,6 +24,20 @@
         <mount path="/supplier" screen="Supplier"/>
         <mount path="/support" screen="Support"/>
         <mount path="/shop" screen="Shop"/>
+      </public-site>
+      <!-- Shop P3's acceptance walks (acceptance/ShopFixtures, client/ShopHttp): the demo Shop sites, ZIZI_SHOP with Shop at
+          its root, ZIZI_DIGITAL with Shop at /shop; a browser reaches *.localhost on this machine -->
+      <public-site host="shop.zizi.localhost" site-id="ZIZI_SHOP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Shop"/>
+        <mount path="/account" screen="Account"/>
+        <mount path="/billing" screen="Billing"/>
+        <mount path="/support" screen="Support"/>
+      </public-site>
+      <public-site host="digital.zizi.localhost" site-id="ZIZI_DIGITAL" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/shop" screen="Shop"/>
+        <mount path="/account" screen="Account"/>
+        <mount path="/billing" screen="Billing"/>
+        <mount path="/support" screen="Support"/>
       </public-site>
     </webapp>
   </webapp-list>

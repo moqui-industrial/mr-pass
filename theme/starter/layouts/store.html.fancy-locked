@@ -5,18 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${page.title ? page.title + ' | ' + shop.name : shop.name}</title>
 <#if page.canonicalUrl><link rel="canonical" href="${page.canonicalUrl}"></#if>
+<link rel="icon" href="${assets["assets/logo.svg"]}">
 ${styles}</head>
 <body style="--accent: ${settings.accent}; --surface: ${settings.surface}">
 <a class="skip" href="#main">Skip to content</a>
 <header class="store-header">
 <a class="brand" href="${shop.baseUrl}"><img src="${assets["assets/logo.svg"]}" alt="" width="32" height="32"> <span>${shop.name}</span></a>
-<#if navigation && navigation.length>
 <nav aria-label="Store menu"><ul>
+<#if navigation && navigation.length>
 <#list navigation as item>
 <li><a href="${item.url}">${item.label}</a></li>
 </#list>
-</ul></nav>
 </#if>
+<#if shop.categoriesUrl><li><a href="${shop.categoriesUrl}">Categories</a></li></#if>
+<#if shop.searchUrl><li><a href="${shop.searchUrl}">Search</a></li></#if>
+</ul></nav>
 </header>
 <main id="main">
 ${content}</main>

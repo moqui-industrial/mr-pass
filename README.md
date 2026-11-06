@@ -41,11 +41,11 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ThemeReleases --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ThemeReleases --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -53,7 +53,8 @@ JavaScript service and browser specs run through Moqui, without Node as a test d
 regression suite, grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
 `Account`, ...). `acceptance/` holds the acceptance suite: the forum's, the Supplier app's and the Support app's browser scenarios (`ForumHttp`,
 `SupplierPortalHttp`, `SupportFeedbackHttp` and `SupportPagesHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the
-Support app's isolation between customers (`SupportIsolation`), Shop's mount at a site's root (`ShopMount`) and its theme release (`ShopThemeRelease`), the large
+Support app's isolation between customers (`SupportIsolation`), Shop's mount at a site's root (`ShopMount`), its theme release (`ShopThemeRelease`), its catalog walks over the demo Shop
+sites (`ShopHttp` and `ShopRemoteHttp`, with `ShopFixtures`, and `ShopRemoteFixtures` for the remote frontend), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- ProductDetail (design-shop §5 ProductDetail; impl-shop P3): a product public in the store, its description, price,
+    availability band and public variants; the purchase selection (a GET form of the variant and quantity) shows that
+    selection's price (getShopPage's product kind with the quote), with no add until P4. Routed from
+    products/{productId}/{slug}; an old slug is redirected to the canonical URL after the access check; a product that is not
+    public is the not-found page, the same for a draft, an excluded variant and another store's product. The head carries
+    the schema.org product data of what the page shows (Shop/Catalog.js). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Product">
+  <parameter name="productId"/>
+  <parameter name="productSlug"/>
+  <always-actions>
+    <script><![CDATA[
+        const catalog=ec.resource.script('component://mr-pass/screen/Shop/Catalog.js')
+        shopPage=catalog.show(shopContext,'product',{productId:String(productId || ''),variantId:catalog.param('variantId'),quantity:catalog.param('quantity')},{path:String(publicPath || '')})
+    ]]></script>
+  </always-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/Catalog.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

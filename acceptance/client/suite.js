@@ -1,9 +1,9 @@
 // The acceptance client specs of mr-pass (./moq accept mr-pass), against mr-pass with the fixtures of test/ and
-// SupplierPortalFixtures and SupportFixtures (acceptance/).
-suite(['ForumHttp', 'SupplierPortalHttp', 'SupportFeedbackHttp', 'SupportPagesHttp'], {
+// SupplierPortalFixtures, SupportFixtures and ShopFixtures (acceptance/).
+suite(['ForumHttp', 'SupplierPortalHttp', 'SupportFeedbackHttp', 'SupportPagesHttp', 'ShopHttp', 'ShopRemoteHttp'], {
     server: {
         components: ['mr-pass'],
-        specs: ['ClientFixtures', 'PortalFixtures', 'SupplierPortalFixtures', 'SupportFixtures'],
+        specs: ['ClientFixtures', 'PortalFixtures', 'SupplierPortalFixtures', 'SupportFixtures', 'ShopFixtures'],
         conf: 'conf/MoquiLoadTestConf.xml',
     },
 })

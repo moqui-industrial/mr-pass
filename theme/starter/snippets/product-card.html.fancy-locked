@@ -1,1 +1,1 @@
-<a href="${product.url}"><#if product.image><img src="${product.image.url}" alt="${product.image.alt || ''}" loading="lazy"></#if><span>${product.name}</span></a> <#include "price">
+<a href="${product.url}"><#if product.image><img src="${product.image.url}" alt="${product.image.alt || ''}" loading="lazy"></#if><span>${product.name}</span></a> <#include "price"><#if product.availability> <small class="availability">${product.availability.label}</small></#if>

@@ -215,7 +215,9 @@ feature(
             home.html.includes('Shop Spec Store')
             home.html.includes('a{color:#7a1f5c}')
             home.html.includes('aria-label="Shop"')
-            home.html.includes('/account/Login')
+            // an anonymous visitor's page may be shared-cached (P3, F42): no session token, no signed-in state
+            home.html.includes('/account/Settings')
+            !home.html.includes('moquiSessionToken')
             policy.cacheControl === 'no-store'
             csp ===
                 "script-src 'self' 'unsafe-eval'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

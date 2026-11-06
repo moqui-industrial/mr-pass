@@ -33,8 +33,14 @@
                 // Shop's canonical paths (impl-shop P1; design-shop §11): a stable id and a decorative slug, or a page's
                 // path; the page reads them from publicPath
                 const id=/^[A-Za-z0-9_-]{1,40}$/,slug=/^[A-Za-z0-9_-]{0,200}$/
-                if(parts[0]==='pages'){if(parts.length<2 || parts.length>6 || !parts.slice(1).every(p=>id.test(p)))fail();screenPath='/Shop/Page'}
-                else{if(!id.test(parts[1] || '') || parts.length>3 || !slug.test(parts[2] || ''))fail();screenPath=parts[0]==='products'?'/Shop/Products/ProductDetail':'/Shop/Categories/CategoryDetail'}
+                if(parts[0]==='pages'){if(parts.length<2 || parts.length>6 || !parts.slice(1).every(p=>id.test(p)))fail();screenPath='/Shop/Page';screenParameters={routePath:parts.slice(1).join('/')}}
+                else{if(!id.test(parts[1] || '') || parts.length>3 || !slug.test(parts[2] || ''))fail()
+                    // P3: the id and the slug as screen parameters (F47); the page redirects an old slug after its access check
+                    if(parts[0]==='products'){screenPath='/Shop/Products/ProductDetail';screenParameters={productId:parts[1],productSlug:parts[2] || ''}}
+                    else{screenPath='/Shop/Categories/CategoryDetail';screenParameters={productCategoryId:parts[1],categorySlug:parts[2] || ''}}}
+            }else if(mounted.app==='shop' && parts.length===1 && ['robots.txt','sitemap.xml'].includes(parts[0])){
+                // P3: the Shop's robots and sitemap (design-shop §11: only current public pages)
+                screenPath=parts[0]==='robots.txt'?'/Shop/robots':'/Shop/sitemap'
             }else if(mounted.app==='shop' && parts[0]==='theme'){
                 // a theme release's asset (impl-shop P2): theme/{the release's manifest digest}/{path under assets/}
                 const name=/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,100}$/

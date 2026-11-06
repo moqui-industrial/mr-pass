@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Categories' tree (design-shop §5 Categories, CategoryTree; impl-shop P3): getShopPage's category kind with no category,
+    the store's browse tree of categories with published products (Shop/Catalog.js). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Categories">
+  <always-actions>
+    <script>shopPage=ec.resource.script('component://mr-pass/screen/Shop/Catalog.js').show(shopContext,'category',{})</script>
+  </always-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/Catalog.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

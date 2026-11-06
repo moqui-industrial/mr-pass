@@ -4,7 +4,7 @@
   "engine": "js-fancy",
   "viewApiVersion": 1,
   "layout": "store",
-  "requiredComponents": ["shop.productPurchase", "shop.cart", "shop.checkout"],
+  "requiredComponents": ["shop.productPurchase", "shop.cart", "shop.checkout", "shop.search"],
   "styles": ["assets/store.css"],
   "defaultTemplates": {
     "home": "home",

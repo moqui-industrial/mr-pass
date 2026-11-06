@@ -231,7 +231,17 @@ store readiness (`mantle.product.StoreAdminServices.check#StoreReadiness`) under
 Billing and Support pages keep the PASS shell with the site's brand values from `PublicSite.theme` (a small JSON object:
 `primaryColor`, `backgroundColor`, `textColor`, `surfaceColor` as six-digit hex colors, `logoUrl` a local path or https; an https logo's origin joins the shell's `img-src`).
 
-Responses are `no-store` with the shell's CSP unless a route in `screen/Shared/Headers.js` says otherwise.
+Responses are `no-store` with the shell's CSP unless a route in `screen/Shared/Headers.js` says otherwise. Shop's
+catalog routes (Home, `Categories`, `categories/{id}/{slug}`, `Search`, `products/{id}/{slug}`, `pages/{route}`,
+`sitemap.xml`, `robots.txt`) are `public, max-age=60` with an ETag to a request with no session cookie and no signed-in
+user, and `no-store` otherwise; a CDN in front may keep them that minute. A withdrawal advances the site's generation and
+reaches visitors within it.
+
+**Catalog** (impl-shop P3; design-shop §5, §11). The pages show only what Commerce's publication resolver answers public
+in the store for the site now, priced as the store's authority, with availability bands rather than quantities; a
+product's or category's old slug redirects (301) to its canonical URL, a path the site redirects goes there, and anything
+else not public is the theme's not-found page (404). A remote frontend keeps anonymous catalog reads for at most a minute,
+keyed by the site's generation and release, and serves nothing cached when it cannot read the generation.
 
 **Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
 `mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published

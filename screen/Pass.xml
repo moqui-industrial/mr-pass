@@ -19,7 +19,9 @@
             .filter(m=>requestPath===m.pathPrefix || requestPath.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/'))
             .sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]?.app || null
         const appBase=passApp ? passBases[passApp] : ''
-        headers.apply(passApp,requestPath.slice(appBase.length) || '/',siteInfo.brand?.logoUrl)
+        passHeaderPolicy=headers.apply(passApp,requestPath.slice(appBase.length) || '/',siteInfo.brand?.logoUrl)
+        // a page a shared cache may keep (Shop P3, F42): no session token and no signed-in state in it
+        passPublicPage=String(passHeaderPolicy.cacheControl).startsWith('public')
     ]]></script>
   </always-actions>
   <subscreens default-item="Forum">
