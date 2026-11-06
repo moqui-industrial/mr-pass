@@ -286,6 +286,22 @@ for the download notice and a `PsetInvoiceFinalized` one for the receipt; the `f
 preferences page `/account/EmailPreferences` (a list link's token, its one-click POST at `EmailPreferences/oneClick`, and
 each store's cart reminders).
 
+**Operations** (impl-shop P8; design-shop §7.1, §8.4, §17.1). Mantle's `run_ShopOperations` job (hourly) retires expired
+open carts through the order path once nothing of their money is unresolved (no checkout waiting, no unsettled attempt, no
+payment that took money) and disables a retired cart's guest party that has nothing else; it also searches each recently
+completed Accept Hosted checkout's reference once, after its form tokens expire, for a later second approval, which holds the
+order (OhtPayment). `fulfill_StoreItems` also starts an approved Shop order whose fulfillment never started. A stuck placement
+(a paid checkout whose order was not placed) is resolved in Commerce's CartDetail by a holder of
+`COMMERCE_PLACEMENT_RESOLVE`: placed again, or its payment released or refunded and the cart cancelled. Withdrawing a Shop
+mount (or restoring a theme) leaves placed orders and payments as they are; the reconciliation job still finishes open
+attempts. Each job names its operation for the framework Monitor (`shop.checkout.reconcile`, `shop.fulfillment.run`,
+`shop.operations.step`, ...). An existing store's adoption is previewed by Mantle's `preview#StoreAdoption` (read only:
+template roles and wiki spaces mapped to the theme package with conversion findings, settings, gateways, facilities, emails,
+and Commerce's publication proposal for a publisher to approve). On a remote frontend the site information every page reads
+is kept for a visitor not signed in under the site's generation (read at most every two seconds); when the authority cannot
+answer, nothing kept is served. Product images are `public, max-age=60` only under the current generation's link (`&v=`),
+and only `dbresource://` and `component://` locations are read.
+
 **Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
 `mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published
 release Shop's pages are the release's own documents instead of the PASS shell, and its assets are served under the

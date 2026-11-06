@@ -108,7 +108,11 @@ function downloadFile(siteId, operation, input) {
             if (!wasDisabled) ec.artifactExecution.enableAuthz()
         }
         ec.web.response.setContentType(result.file.mimeType)
-        ec.web.response.setHeader('Cache-Control', 'no-store')
+        // Shop P8 (F75): the authority lets a public product image of the current generation be kept a minute; else no-store
+        ec.web.response.setHeader(
+            'Cache-Control',
+            result.file.cacheControl === 'public, max-age=60' ? result.file.cacheControl : 'no-store',
+        )
         ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
         ec.web.response.setHeader(
             'Content-Disposition',

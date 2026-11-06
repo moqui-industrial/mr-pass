@@ -1466,7 +1466,10 @@ of its content (a revalidation is a 304) and no session token or signed-in state
 PASS shell's header leaves out its token and shows a neutral Account link). A remote frontend keeps anonymous catalog
 reads in a bounded read-through cache (Transport.js) keyed by site, operation, input, locale, currency, generation and
 release, the generation read at most every 2 s; an entry lives at most a minute, so a price change, which does not
-advance the generation, shows within it.
+advance the generation, shows within it. As built (impl-shop P8, F63, F75): the site information Pass.xml reads on every
+page (`getSiteInfo`) is kept the same way for a visitor not signed in (a site, host or mount change advances the
+generation), never for a signed-in visitor; a product image's link carries the generation (`&v=`) and only the current
+generation's answer is `public, max-age=60`, read only from `dbresource://` or `component://` locations.
 
 Authority-issued publication generations invalidate affected catalog, content, feeds and public
 HTML. Request authorization checks current generation before using cached projections; cluster
@@ -1740,6 +1743,18 @@ Start with a disabled mount, validate a browse-only site and theme preview, then
 only after provider, stock/tax and digital/recurring lifecycle checks pass. Rollback can withdraw
 the mount or restore a prior theme without undoing already placed orders/payments. Reconcile
 pending attempts on the authority even if the presentation release is rolled back.
+
+As built (impl-shop P8): Mantle's `StoreAdoptionServices.preview#StoreAdoption` is the read-only preview (COMMERCE_VIEW and
+the store's scope): categories and their roles, settings mapped to Commerce's or named unused, PopRestStore template roles
+(ProductStoreWikiContent) and wiki spaces mapped to the theme package's layout, templates and snippets with conversion
+findings (FreeMarker, Groovy and `ec`, Vue 2, scripts) by line, Shop's paths, gateways without a hosted page, facilities,
+email templates kept, the sites mounting the store, and Commerce P3's `propose#StorePublication` rows for a publisher to
+approve. Each finding has a code, severity and source; nothing is enabled, published or written. Operations
+(`ShopOperationsServices`): expired carts are cancelled through `cancel#Order` once no attempt is unresolved and their guest
+parties disabled (never deleted); recent hosted references are searched once for a later second approval; a stuck
+placement is retried, or its payment released or refunded and the cart cancelled, by `COMMERCE_PLACEMENT_RESOLVE`
+(Commerce CartDetail); withdrawing the mount leaves orders and payments and the reconciliation job still finishes open
+attempts.
 
 ### 17.2 Delivery gates
 

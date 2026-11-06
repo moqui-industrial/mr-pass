@@ -519,6 +519,10 @@ const CACHED_READS = [
     'getShopSitemap',
     'getSiteNavigation',
     'resolveSiteRedirect',
+    // Shop P8 (impl-shop F63): the site information Pass.xml reads on every page, for a visitor not signed in (a signed-in
+    // visitor's names their membership and profile, so it is never kept); kept under the site's generation, which a site,
+    // host or mount change advances
+    'getSiteInfo',
 ]
 /* Whether a read may be answered from the cache: a listed operation, by a visitor not signed in, without a token. */
 function cacheable(operation, input) {
@@ -581,9 +585,15 @@ function readThrough(operation, input, fetch, generationRead) {
     const kept = cache.get(slot)
     if (kept && kept.key === key && nowMs() - Number(kept.at) < ENTRY_MS) return kept.value
     const value = fetch()
-    if (value && typeof value === 'object' && (value.generation == null || Number(value.generation) === publication.generation))
-        cache.put(slot, { key, at: nowMs(), value })
+    if (keepable(value, publication)) cache.put(slot, { key, at: nowMs(), value })
     return value
+}
+/* Whether an answer may be kept under the generation read: one naming another generation (a catalog read's own, or the site
+   information's site.generation) is not, nor one that says its visitor is signed in. */
+function keepable(value, publication) {
+    if (!value || typeof value !== 'object' || value.authenticated === true) return false
+    const generation = value.generation != null ? value.generation : value.site ? value.site.generation : null
+    return generation == null || Number(generation) === publication.generation
 }
 /* A remote operation: its result, or the error kind REST's status would give. */
 function call(operation, input, def) {

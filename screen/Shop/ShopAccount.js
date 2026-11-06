@@ -251,6 +251,8 @@ function ordersPage(context) {
             '</section>',
     )
 }
+const CLAIMED_LINK =
+    'If you created an account with the email address of this order, sign in to see it.'
 /* Orders/Status?token=: an emailed order link: kept in this session for its order, and the page opened without it. */
 function statusPage(context) {
     const token = String(param('token') || '')
@@ -264,6 +266,13 @@ function statusPage(context) {
                   message: portal().reasons.notAvailable,
               },
           }
+    // Shop P8 (impl-shop F99): once a guest registers with the order's email and verifies it, the order is the account's
+    // and its emailed links open only after signing in (design-shop §4.2's one account); the refusal says so
+    if (found.error && found.error.kind === 'NotFound')
+        found.error = {
+            ...found.error,
+            message: found.error.message + ' ' + CLAIMED_LINK,
+        }
     if (found.error) return refusal(context, 'Your order', found, '/Orders')
     checkout().keepOrderLink(
         context.site.siteId,
