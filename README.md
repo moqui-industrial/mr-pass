@@ -55,7 +55,8 @@ regression suite, grouped in subdirectories named for the `screen/` directory of
 `SupplierPortalHttp`, `SupportFeedbackHttp` and `SupportPagesHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the
 Support app's isolation between customers (`SupportIsolation`), Shop's mount at a site's root (`ShopMount`), its theme release (`ShopThemeRelease`), its catalog walks over the demo Shop
 sites (`ShopHttp` and `ShopRemoteHttp`, with `ShopFixtures`, and `ShopRemoteFixtures` for the remote frontend), its cart walks
-(`ShopCartHttp` in the browser, `ShopCartRemoteHttp` with plain requests, locally or through a remote frontend), the large
+(`ShopCartHttp` in the browser, `ShopCartRemoteHttp` with plain requests, locally or through a remote frontend), Commerce's
+store operations over the Shop orders (`ShopOrdersInCommerce`, after `ShopOrderScenarios`; it needs mr-boss), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.
