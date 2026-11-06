@@ -165,9 +165,14 @@ function finish(context, kind, page, status) {
         out = shellPage(context, kind, page ? page.view : null, status || 200)
     }
     if (out.status !== 200) return commit(out.status, out.html)
+    // a shell page's tag covers the shell's header too (the site's name, brand and mounts), not only the view
     cacheHeaders(
         out.status,
-        out.html || JSON.stringify(out.view || {}),
+        out.html ||
+            JSON.stringify([
+                out.view || {},
+                ec.context.get('siteInfo') || null,
+            ]),
         policyOf(),
     )
     return out

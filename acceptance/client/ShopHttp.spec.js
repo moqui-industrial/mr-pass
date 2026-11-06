@@ -241,9 +241,13 @@ feature(
             const notFound = plain(
                 SHOP + '/products/DEMO_VAR/demo-with-variants',
             )
-            return { first, again, mine, notFound }
+            // the PASS shell's Not Found (ZIZI_DIGITAL has no theme): the framework's page, never public
+            const shellNotFound = plain(
+                DIGITAL + '/shop/products/DEMO_1_1/demo-product-one-one',
+            )
+            return { first, again, mine, notFound, shellNotFound }
         },
-        then({ first, again, mine, notFound }) {
+        then({ first, again, mine, notFound, shellNotFound }) {
             first.status === 200
             first.header('cache-control') === 'public, max-age=60'
             first.headers('set-cookie').length === 0
@@ -253,6 +257,8 @@ feature(
             again.status === 304
             mine.header('cache-control') === 'no-store'
             notFound.header('cache-control') === 'no-store'
+            shellNotFound.status === 404
+            String(shellNotFound.header('cache-control')).includes('no-store')
         },
     },
 )
