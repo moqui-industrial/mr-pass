@@ -53,6 +53,11 @@
             }else if(mounted.app==='shop' && parts.length===1 && ['robots.txt','sitemap.xml'].includes(parts[0])){
                 // P3: the Shop's robots and sitemap (design-shop §11: only current public pages)
                 screenPath=parts[0]==='robots.txt'?'/Shop/robots':'/Shop/sitemap'
+            }else if(mounted.app==='shop' && parts[0]==='feeds'){
+                // Commerce P14: a store feed's active build, feeds/{feedKey}.{extension} (PublicApps.js reserves 'feeds')
+                const found=parts.length===2 ? /^([a-z0-9][a-z0-9-]{0,39})\.(xml|csv|json)$/.exec(parts[1]) : null
+                if(!found)fail()
+                screenPath='/Shop/feed';screenParameters={feedKey:found[1],feedExtension:found[2]}
             }else if(mounted.app==='shop' && parts[0]==='theme'){
                 // a theme release's asset (impl-shop P2): theme/{the release's manifest digest}/{path under assets/}
                 const name=/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,100}$/

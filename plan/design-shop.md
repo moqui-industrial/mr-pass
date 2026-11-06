@@ -1592,6 +1592,12 @@ my cart posts to spend it, so a mail scanner's fetch spends nothing. The authori
 cart is that account's, rotates its capability into the session, reprices its lines and names the
 unavailable ones (the cart page's notice). A spent, expired, replaced or revoked token, or another
 account's, is NotFound and the page says the link is no longer available.
+**As built (Nov 6, 2026; impl-commerce P14).** The feed destination is `getShopFeed` (route `GET shop/feeds`,
+`StoreChannelServices.get#ShopFeed`, anonymous): `resolve#Route` sends `feeds/{key}.{xml|csv|json}` under the Shop
+mount to Shop's `feed` transition (Shop/ShopFeeds.js), which answers the feed's active build with its content type,
+`no-store` and an ETag of its digest, or 404 when the feed has no active build, the extension is not its format's, or a
+product in the build was withdrawn after the generation it was built at; `feeds` is a reserved first path segment, so a
+Shop at `/` keeps it.
 Commerce calls scoped staff methods of the same business modules, not public operations with
 forged shopper context. Media uploads use existing staging/scanner handling; only server-owned
 scanned handles cross into intake services.
