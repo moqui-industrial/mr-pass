@@ -1134,6 +1134,16 @@ revokes or shortens the matching download grant or subscription period through
 touches independent grants. Webhooks do not directly edit site membership. The rule belongs in the
 crosscut §1.3 register.
 
+**As built (Nov 6, impl-commerce P12; Shop F112–F114).** A refund of an automatic contract's latest
+paid term (its paid-through drops back) ends the contract's automatic renewal at the new paid-through
+date: a refunded buyer is never charged again, and starts over by subscribing again; a refund of an
+earlier term leaves the renewal as it is. The hourly `run_StoreRenewals` job also claims each active
+contract whose renewal is due and whose period has no occurrence, under the same contract lock and
+unique period as the nightly `create_RecurringOrders` hand-off, so access does not lapse until the
+night and the two together still make one occurrence. Ending a card (ShopCustomer) clears its
+contracts' consent and moves each contract's revision on. Commerce's staff retry and cancel
+(`retry#Renewal`, `cancel#RecurringContract`) go through the same coordinator and stop rule.
+
 ## 11. Content, navigation and cross-app integration
 
 Published pages bind exact WikiPage versions through the extended `PublicSitePage` (X14), the
