@@ -479,18 +479,38 @@ presentation never changes the business state machine.
 | Addresses | wizard step | Supply billing/delivery facts | saved own address or postal fields, billing-same flag | locale-aware address, own-address picker; suggested correction from address validation | `setCheckoutAddresses`; existing `mantle.shipment.CarrierServices.validate#PostalAddress` | Mantle set#OrderBillingShippingInfo and contact services |
 | Delivery | wizard step | Select a current quote | order part, carrier/method, quote ID, amount, estimate | available options with full cost | `getDeliveryOptions`, `selectDelivery` | StoreServices.get#StoreShippingOptions; Odoo delivery |
 | Payment | wizard step | Choose an eligible method | provider/instrument, existing own token or hosted setup result, off-session consent for a recurring offer | operator-installed provider component | `getPaymentOptions`, `selectPayment` | Mantle gateways; Frappe registry |
-| ReviewPurchase | wizard step | Accept the authoritative purchase | lines, totals, due-now/later, recurring cadence/amount, delivery, terms version, required consents, optional marketing opt-in (not in the first build, below) | changed-value comparison; unchecked opt-in | `getCheckout`, `submitCheckout`; Marketing's proposed `mantle.marketing.MarketingPortalServices.request#Subscription` | Odoo checkout validation; PopRestStore composition |
+| ReviewPurchase | wizard step | Accept the authoritative purchase | lines, totals, due-now/later, recurring cadence/amount, delivery, terms version, required consents, the store's optional emails (below) | changed-value comparison; separate unchecked opt-ins, each with what it is and is not | `getCheckout`, `submitCheckout` (`optIns`); Mantle's StoreTopics.js over `ConsentServices` | Odoo checkout validation; PopRestStore composition |
 
 Contact/account creation is optional for ordinary guest purchases; recurring offers require a
 verified account before payment, and Payment records the customer's explicit off-session consent
 for renewal charges on the chosen method (X5). Address validation runs through the carrier
 gateway when the store has one (Shippo, payments plan S1) and offers, never forces, a correction
 (R-SHP-W02). Marketing consent is an unchecked separate choice and is never a prerequisite for
-purchase. When the shopper checks it, `submitCheckout` calls Marketing's `request#Subscription`
-with source checkout: pending double opt-in for a guest, accepted for a verified account. That
-service records the evidence with `mantle.party.ConsentServices.store#PartyConsent`; Shop keeps no
-consent of its own (X15, R-SC-12, R-SHP-W03). The first build leaves the opt-in out until
-Marketing builds `request#Subscription` (Nov 5, the user's call, impl-commerce §4). Provider-hosted fields collect payment credentials;
+purchase; Shop keeps no consent of its own (X15, R-SC-12, R-SHP-W03).
+
+**Optional emails (Nov 6, 2026; the user's call, impl-commerce §4).** ReviewPurchase offers a few
+clearly marked opt-ins, each a separate checkbox, unchecked until the buyer checks it, each with a
+one-line statement of what it is and what it is not: "Ask me to review what I bought" (one email
+per item after it arrives; no offers or newsletters), "Remind me about a cart I leave" (this store
+only, while signed in; no newsletters; offered only to a signed-in buyer whose account email is
+verified, since a guest's cart is never recovered and a reminder goes to the account's address) and the store's "news and offers" (its marketing list; offered only when the store
+names one, `PsstNewsList`). Which ones a store offers is its `PsstCheckoutOptIns` setting (absent:
+all three, news only with its list, so the demo stores offer the first two; `none` offers none).
+None is a prerequisite: the receipt and the order's notices are transactional whatever is chosen,
+and the box says so. The submit carries what was checked (`optIns`); placement records it. A
+signed-in buyer whose verified account email is the checkout's gets each choice granted at once
+(the topic's `store#PartyConsent`, the news list's subscription). Anyone else's choice (a guest,
+an unverified account; Shop P6 review R2 requires a verified email to turn a topic on) waits:
+Mantle's `PartyConsent` has no pending state, so it is the list's existing pending membership
+(`ContactListParty` `CLPT_PENDING`, never sent to), confirmed by the link in the order receipt
+(`PsetOrderPlaced`: a one-time code whose digest the checkout keeps, to Account/EmailPreferences,
+whose page only reads until its one button confirms, so a mail scanner's fetch changes nothing; 60
+days) or, for a choice checked while signed in, by the account signing in with that email
+verified (Shop P6's claim, and the preferences page). A guest's choice, even once Shop P6's claim
+moves it to the account, is confirmed only by the receipt's link or by the account turning the
+topic on itself: whoever checked it was not signed in (P9 follow-up review R1). A choice turned off on the preferences page before it is confirmed stays off. Marketing's
+`request#Subscription`, when built, takes over the news opt-in's recording.
+Provider-hosted fields collect payment credentials;
 Shop receives only provider references/tokens. Required address fields derive from destination
 and tax rules, not a hard-coded US form. Digital-only carts omit delivery. Totals remain
 authoritative while each invalid/expired quote or changed price returns a clear re-review state
@@ -942,7 +962,7 @@ designs no return or question form of its own.
 | Registration | Existing Account/Register verification/site-eligibility flow. Registration policy comes from the site; purchase does not bypass a closed/invitation-only policy. No automatic public profile discoverability. |
 | AccountSettings | Existing Account/Settings identity/security/preferences. Shop links its addresses/payment methods/orders; it does not duplicate password, verification or second-factor forms. |
 | AccountHub | The PASS Account "My account" hub (X6, crosscut §5.1); not built yet, so Shop builds it as the PASS Account foundation's unless Customer Service has (Nov 5, impl-shop F6). Shop registers one card, the AccountOverview summary for each store the customer bought from; Billing, Support, Sales and Marketing register theirs. |
-| EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Today `Account/Unsubscribe` handles only the Forum opt-out and `/u/` is a BOSS route, so Shop builds the page with the hub (Nov 5, impl-shop F6). Among its topics is each store's "cart reminders", which a signed-in customer turns on (`ConsentServices.store#PartyConsent`) and cart recovery requires, there being no checkout opt-in (Nov 5, impl-commerce §4). Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
+| EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Today `Account/Unsubscribe` handles only the Forum opt-out and `/u/` is a BOSS route, so Shop builds the page with the hub (Nov 5, impl-shop F6). Its topics are each store's "cart reminders", which cart recovery requires (Nov 5, impl-commerce §4), and "review requests", which the review request requires (Nov 6), each turned on by a signed-in customer with a verified email (`ConsentServices.store#PartyConsent`) or by a confirmed checkout opt-in (§6 Checkout); a choice waiting for confirmation is marked so. The order receipt's link (`?confirm=`) shows the checkout's optional emails and confirms them with one button. Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
 
 **Checkout return (Nov 6, impl-shop P6, F85).** The reference and key of a provider's return read
 only the payment's state and the order's reference: no contact, address or line, no order link
@@ -1139,7 +1159,13 @@ generalized from Forum's ForumDelivery: event, recipient, channel and template k
 snapshot and outcome, built on `send#EmailMessage`'s retryable, permanent and uncertain outcomes
 and the SystemMessage retry jobs. Shop keeps no delivery ledger or outbox of its own.
 Transactional notices are distinguished from marketing consent; marketing and recovery messages
-carry an unsubscribe link to the PASS Account email preferences page (X15). Guest recovery is
+carry an unsubscribe link to the PASS Account email preferences page (X15). **Message classes
+(Nov 6, 2026; impl-commerce §4):** transactional, sent whatever the buyer chose: the receipt, order,
+shipment, download-ready, invoice and subscription notices, and instructional or documentation
+follow-ups of a purchase (how to use it, download instructions, setup guides), which need no topic;
+opt-in per store topic: review requests and cart reminders (§6 Checkout's optional emails, §9
+EmailPreferences); marketing: the store's news and offers, by list consent. A message that both
+instructs and promotes is marketing. Guest recovery is
 opt-in by store and subject to recipient eligibility/consent, capped sends and completion
 suppression. A recovery link restores only its owned cart scope, reprices it, and requires new
 purchase consent.
@@ -1656,7 +1682,7 @@ Tracking is Marketing's MKT-TRACKING (X10).
 | Receipt/invoice/return documents | authorized HTML-print/PDF with a QR | OrderDetail; Support CustomerReturn | existing Accounting/Warehouse documents and access checks; the QR (`ec.resource.barcodeSvg('QR', …)`) encodes the signed-in order page or the RMA number, never a bearer token |
 | Digital delivery | protected bytes + notice | Downloads | settled source entitlement, immutable version, `SalesOrder` Download capability |
 | Subscription notices | transactional email through the Comms delivery ledger | SubscriptionDetail / renewal lifecycle | accepted contract, occurrence and source access state; `PsetPaymentRetry`, `PsetSubscriptionRenewal` |
-| Review request | consent-eligible email | after delivery or download | proposed `PsetReviewRequest` store email (COM-F03) |
+| Review request | email needing the store's "review requests" topic (Nov 6) | after delivery or download | `PsetReviewRequest` store email (COM-F03) on the delivery ledger |
 | Cart recovery | consent-eligible email | Commerce recovery job/action | inactive cart, registered template and one-time StoreCartAccess recovery token |
 | Product feeds | registered XML/CSV/JSON | Commerce FeedDetail | public catalog projection; Commerce owns builds/publication |
 | Theme preview/release | isolated HTML / immutable manifest+assets | Commerce editors | exact draft or pinned release; never customer state in an archive |
@@ -1785,6 +1811,7 @@ as a public UI implementation.
 | Tracking (Nov 1, 2026; review X10) | Shop forwards the tracking code and an opaque visitor key; Marketing records tracking on the authority and attribution at placement by SECA |
 | Site pages (Nov 1, 2026; review X14) | Pages bind through the extended `PublicSitePage` and `get#SitePage`; no `PublicShopPage` |
 | Identity hygiene (Nov 1, 2026; review X15) | Checkout opt-in records through Marketing `request#Subscription`; one PASS Account email preferences page; Shop registers the store privacy provider; merges go through Commons' guarded `merge#Parties` |
+| Optional emails at checkout (Nov 6, 2026; the user's call, impl-commerce §4) | A few separate, unchecked opt-ins with what each is and is not: review requests (a store topic of their own, not marketing), cart reminders (signed in), the store's news when it has a list; offered by the store's `PsstCheckoutOptIns`; a guest's or unverified account's choice waits as a pending list membership until the receipt's link (or, for an account's own choice, its verified sign-in) confirms it; receipts and order notices stay transactional; instructional follow-ups of a purchase are transactional (§6, §9, §11) |
 | Paid-access editor (Nov 1, 2026; review X16) | Commerce's Product360 Paid access pane is the one ProductSubscriptionResource editor |
 | Stack contributions (Nov 1, 2026; review L4, L6, L7) | Delivery on CX-DELIVERY; `operation` marks on placement, reconciliation, renewal and download jobs with Commerce's checkout-failure alert; video help later through an Event with a CallLink |
 | Operation names and errors (Nov 1, 2026; R-SHP-19) | Flat camelCase operation names unique across PASS, with a Shop noun where needed; errors use the facade kinds with a camelCase reason |

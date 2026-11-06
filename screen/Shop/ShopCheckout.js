@@ -393,6 +393,7 @@ function checkoutHtml(context, view, deliveryOptions, notice) {
                   action('submit') +
                   '" id="CheckoutSubmit">' +
                   changeFields(c) +
+                  optInFields(c) +
                   (c.terms.required
                       ? hidden('termsVersion', c.terms.version) +
                         '<label><input type="checkbox" name="acceptTerms" value="true" required> I accept the ' +
@@ -488,6 +489,39 @@ const back = (context, found, okText, location) => {
     )
     ec.web?.response?.sendRedirect(location || base(context) + '/Checkout')
 }
+/* The store's optional emails (Commerce P9 follow-up): separate boxes, none checked but by the buyer, each saying what it is
+ * and is not; the receipt and order notices come either way. */
+function optInFields(c) {
+    const offered = c.optIns || []
+    if (!offered.length) return ''
+    return (
+        '<fieldset class="shop-checkout-optins" id="CheckoutOptIns"><legend>Optional emails</legend>' +
+        offered
+            .map(
+                (o) =>
+                    '<label><input type="checkbox" name="optIn" value="' +
+                    esc(o.optInId) +
+                    '"' +
+                    (o.chosen ? ' checked' : '') +
+                    '> ' +
+                    esc(o.label) +
+                    '</label><p><small>' +
+                    esc(o.statement) +
+                    (o.alreadyOn ? ' Already on for your account.' : '') +
+                    '</small></p>',
+            )
+            .join('') +
+        '<p><small>Not needed for your order: your receipt and order updates come either way.</small></p></fieldset>'
+    )
+}
+/* Every value of a repeated form field. */
+const params = (name) => {
+    const value = ec.web?.parameters?.[name]
+    if (value == null) return []
+    if (typeof value === 'object' && value.length != null)
+        return Array.from(value).map(String)
+    return [String(value)]
+}
 const changeInput = () => ({
     expectedRevision: param('expectedRevision'),
     ...(param('operationId') ? { operationId: param('operationId') } : {}),
@@ -572,6 +606,9 @@ function submit(context) {
         ...changeInput(),
         termsVersion: param('termsVersion'),
         acceptTerms: param('acceptTerms') === 'true' ? 'true' : 'false',
+        optIns: params('optIn')
+            .filter((id) => /^[A-Za-z]{1,30}$/.test(id))
+            .join(','),
     })
     if (found.error) return back(context, found, '')
     const c = found.result.checkout

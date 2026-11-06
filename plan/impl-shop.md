@@ -927,7 +927,8 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
   `operation` marks; readiness flags the reconciliation and polling jobs when they are paused (F13).
 - **Pages:** Checkout (Contact, Addresses, Delivery, Payment, ReviewPurchase; trusted Vue enhancement of plain forms);
   PaymentResult (bounded polling, the provider's link); OrderConfirmation (the QR of the signed-in order page). No
-  marketing opt-in (impl-commerce §4).
+  marketing opt-in (impl-commerce §4). Since Nov 6 (Commerce P9 follow-up, below P6) ReviewPurchase offers the store's
+  optional emails, each unchecked.
 - **Specs:** Mantle `test/order/ShopCheckout` (a changed price gives reviewRequired; a double submit makes one order; an
   unknown outcome stays unknown with no new key; a failed placement after the provider's success keeps the evidence; a
   promotion limit at freeze; a zero total skips the gateway) and `test/account/PaymentAttemptPurpose` (Billing's worker
@@ -1439,6 +1440,18 @@ Stage C2/S2 ends with Commerce P11.
   - An attempt that hands a message to the mail server and then fails to commit its record leaves the delivery queued, so
     the job sends it again (a narrow window; ForumDelivery's as well).
 
+- **Note Nov 6 (Commerce P9 follow-up; impl-commerce P9 "Follow-up Nov 6", §4).** Checkout consent and the store topics:
+  EmailPreferences lists each store's "review requests" beside "cart reminders" (StoreTopics.js, which now holds both topics;
+  R2's verified email applies to both), and marks a choice waiting for confirmation. Checkout's ReviewPurchase offers the
+  store's optional emails (`PsstCheckoutOptIns`: review requests, cart reminders to a signed-in buyer with a verified email, the store's news when
+  `PsstNewsList` names its list), separate and unchecked, each saying what it is and is not; `submitCheckout` takes `optIns`.
+  At placement a verified account's choice is granted; a guest's or an unverified account's waits as a `CLPT_PENDING`
+  membership of the topic's list, confirmed by the order receipt's link (`?confirm=` on EmailPreferences: read only, one
+  Confirm button) or, for an account's own choice, by its verified sign-in (a claimed guest's choice only by the link). The receipt and order notices stay transactional, and so do
+  instructional follow-ups of a purchase (design-shop §11's message classes). Specs: mr-pass ShopCheckout (the unchecked
+  box and its statement) and ShopAccount (the review requests topic); Mantle ShopCheckout +1 feature, ShopCustomer (the
+  claim confirming a pending choice).
+
 ### P7 — Prepaid and recurring access
 
 Design-shop §10 Subscriptions and SubscriptionDetail, §10.1–§10.2; SHOP-SUBSCRIPTION. Ends stage C3/S3 with Commerce
@@ -1528,7 +1541,7 @@ records, the deferred Marketing, Admin and Insights parts).
 | Nov 5, 2026 | Digital fulfillment invoices through an internal Mantle service split from `create#InvoiceFromSource`, under fulfillment's own check, as Customer Service P10 split the package reopen | F22; design-shop §8.3 changed |
 | Nov 5, 2026 | The delivery ledger is built in P6 as Comms' contract; the existing store emails (placed, approved, shipped, delivered, invoice finalized) keep `send#OrderStoreEmail` and their senders, and join the ledger when Comms moves them | F24, impl-commerce §4; design-shop §8.3's ledger delivery of those emails is later (§7) |
 | Nov 5, 2026 | The PASS Account hub and email preferences page are built in P6 as the PASS Account foundation's, unless Customer Service P15 built them | F6 |
-| Nov 5, 2026 | No marketing opt-in at checkout until Marketing builds `request#Subscription` | The user's call (impl-commerce §4, answer 5); design-shop §6 changed |
+| Nov 5, 2026 | No marketing opt-in at checkout until Marketing builds `request#Subscription` | The user's call (impl-commerce §4, answer 5); design-shop §6 changed. Refined Nov 6 (impl-commerce §4): checkout offers a few separate unchecked opt-ins, the store's news only when it names its list, recorded through ConsentServices until `request#Subscription` exists |
 | Nov 5, 2026 | The payment page is Authorize.Net Accept Hosted, a redirect as Billing's; PASS's CSP stays as it is | The user's call (impl-commerce §4, answer 2); design-shop §8.1 changed. AcceptUI is later (§7) |
 | Nov 5, 2026 | The store privacy provider waits for Admin's PrivacyServices (§7); the Shop records keep what it will need (owner, source order, dates) | F28 of impl-commerce |
 | Nov 5, 2026 | Shop's order pages link the site's own Support pages for returns, questions and cancel requests rather than mounting them; a Shop site needs a Support mount targeting the store's organization; the `SalesOrder` OrderView capability admits a guest to them (P6) | The user's call in the review of Nov 5 (impl-commerce §4); F35. Design-shop §1, §2 and §9 changed |
