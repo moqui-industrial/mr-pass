@@ -1818,6 +1818,45 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     - **F-SP8-9** The acceptance's withdrawal scenario cancels its order afterwards: POPC_DEFAULT requires inventory and
       the demo's Demo Product Three-One stock ran out for ShopPaymentScenarios after it otherwise.
 
+- **Review Nov 6 (P8)**: read the three repos' diffs from the merge base (mr-mantle 6cd38009, mr-boss f7cbc2fb, mr-pass
+  6d94218) against this section, impl-commerce F108 and §2: resolve#StuckPlacement (permission, store scope, operation key,
+  reason, frozen-order retry, payment services only, concurrency), F74 retirement, the F95 sweep, the F96 backstop (the
+  StoreItemFulfillment unique key and row locks make a concurrent SECA safe), F97 profiles, the remote caches and images,
+  the adoption preview (every path read only: no write, no enable, propose#StorePublication read only, wiki sources read as
+  text and never rendered; COMMERCE_VIEW and StoreAdmin's scope), decimals (no arithmetic or `Number` on amounts). Fixes,
+  mr-mantle 1938cabf:
+  - R1 (high) A refund resolution and a placement could both land: the provider was asked before anything stopped the
+    placement, so a concurrent retry resolution (or the job or the buyer's page on an ORDER_CHANGED checkout under its
+    tries) could place the order while its payment was given back, and the cancel step then returned quietly as resolved.
+    Now the checkout is marked REFUND_PENDING under its lock first; ShopCheckout.js placeStep and a retry (REFUND_PENDING)
+    honour it; a clear refusal (or nothing sent) puts its failure back, an unknown outcome keeps it blocked; a later Refund
+    finishes from a confirmed release/refund of a resolution key without asking the provider again; the cancel step
+    refuses a checkout no longer placementPending (PLACED_AND_REFUNDED, logged). StoreOperations counts a REFUND_PENDING
+    checkout as stuck ("A refund was started and not finished") so CartDetail still offers it.
+  - R2 (high) `retireGuest` could disable a customer staff keep: merge#Parties moves StoreCartAccess.guestPartyId to the
+    party merged into, and the check was only no account, no completed checkout, cancelled orders. Now only a guest is
+    retired: Customer role only; no account, relationship, cart of its own, case (RequestParty, filed requests), consent,
+    agreement, download grant, recurring contract, subscription, financial account or invoice; every cart it is the guest
+    of retired. Spec: a guest party with another role keeps enabled while its cart is cancelled.
+  - R3 (medium) The sweep held again, every run, an order whose second-approval hold Accounting had released (the mark
+    was found, the open hold was not, the lookup answered "flagged"). Now a flagged payment whose order was ever held for
+    it is left; one flagged but never held (the hold step failed) is held without searching again. No spec (the sweep
+    needs an Authorize.Net hosted checkout end to end; the acceptance does not cover it either).
+  - R4 (low) `retireStep` judged a cart's money without the locks a freeze takes; it now locks the cart's checkouts, then
+    its order (the freeze's order), so a submit racing the expiry is seen.
+  - R5 (low) A `component://` image location climbing out with `..` (or encoded separators) is refused.
+  Specs (all `--nobuild`): Mantle StoreAdoption, ShopOperations (3, 1.74 s; the stuck feature 0.94 s with the REFUND_PENDING
+  checks), AuthorizeNetGateway, PaymentGateway, ShopCatalog, ShopCheckout, StoreFulfillment, ShopCustomer, StoreOperations,
+  StoreFeeds, ShopCart, CartRecovery, PaymentAttemptPurpose: 77 of 77; mr-pass ShopOperations, ShopCatalog, ShopCart,
+  ShopCheckout, ShopAccount, ShopAccess, ShopFeeds, ShopSubscriptions, ShopReviews, ShopThemes, ShopPreview, Transport,
+  Forum: 43 of 43; mr-boss CommerceAccess, CommerceOrders: 16 of 16. Acceptance not rerun (unchanged). The Built note is
+  accurate. No upstream fix (all mr-mantle's own code).
+  - For the lead: (a) a REFUND_PENDING left by a crash between the provider's confirmation and the cancel is finished by
+    Refund again (any key); one left by an unknown outcome waits for Accounting's lookup and then Refund again; retry is
+    refused meanwhile. (b) F96's backstop takes StoreCheckout orders only; a renewal order (StoreRenewalOccurrence) whose
+    approval SECA never ran is not found. (c) A sweep candidate still inside its token window counts toward the run's 200
+    searches though nothing is sent. (d) The ShopOperations stuck feature is near a second.
+
 ### P9 — Finish
 
 - The design-shop §18.1 review, each scenario with its spec or walk (§8), and the accessibility and device checks:
