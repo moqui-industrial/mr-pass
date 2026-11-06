@@ -590,7 +590,7 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
     moves it; the head gains the canonical page's hreflang, a product's schema.org data from the view the page shows, and
     noindex on a search; `robots.txt` and `sitemap.xml` of current public pages with absolute URLs), `Shop/Home.xml`,
     `Shop/Categories.xml` with `List` and `CategoryDetail`, `Shop/Products.xml` with `ProductDetail`, `Shop/Search.xml`,
-    `Shop/Page.xml` (in always-actions, F-SP3-1); `Home.html.fancy` removed. `resolve#Route` passes the product, category
+    `Shop/Page.xml` (in always-actions, F60); `Home.html.fancy` removed. `resolve#Route` passes the product, category
     and page ids as `screenParameters` (F47) and routes `robots.txt`, `sitemap.xml`. ShopTheme.js: `shop.productPurchase`
     is a GET form of the variant and quantity showing the quote (no add until P4), `shop.search` a GET search form; a
     release gets only the components its `theme.json` declares, so one published before `shop.search` still renders. The
@@ -643,20 +643,20 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
     fetched signed-in fragment (no script under the shell's CSP); a category is listed by its current publication rows,
     not by resolved products (bounded); F50's checks are in the service, not in `resolve`.
   - Findings (provisional):
-    - **F-SP3-1** The framework opens a screen's output with status 200 (`start_output` in screen render.rs and sri), so a
+    - **F60** The framework opens a screen's output with status 200 (`start_output` in screen render.rs and sri), so a
       status a screen's actions set never reaches the browser (P2's Home 503 did not either). Catalog.js writes a themed
       404, 503 or redirect before the render (a body written first keeps its status); a PASS-shell 404 is the framework's
       Not Found page. For the framework: keep a status set before the output opens.
-    - **F-SP3-2** Product images are ProductContent `component://` or `dbresource://` locations, not public URLs, so P3
+    - **F61** Product images are ProductContent `component://` or `dbresource://` locations, not public URLs, so P3
       shows none; a public image route by content id behind the resolver (or theme media) is needed.
-    - **F-SP3-3** `get#StorePublication`'s public list mode still resolves every published row before paging (F51); Shop
+    - **F62** `get#StorePublication`'s public list mode still resolves every published row before paging (F51); Shop
       no longer calls it, so Commerce may drop the public list mode.
-    - **F-SP3-4** Pass.xml still calls `getSiteInfo` (per user, uncached) on every page, so a remote themed page costs it
+    - **F63** Pass.xml still calls `getSiteInfo` (per user, uncached) on every page, so a remote themed page costs it
       and the generation read; caching an anonymous `getSiteInfo` needs its mounts and brand under the generation.
-    - **F-SP3-5** The authority price does not apply PriceResolver.js `extras` (feature extras of a virtual fallback),
+    - **F64** The authority price does not apply PriceResolver.js `extras` (feature extras of a virtual fallback),
       which only a price reader gets; the stock bands' threshold (5) is fixed, with no store setting.
-    - **F-SP3-6** hreflang names only the page's own locale: Shop URLs carry no locale.
-    - **F-SP3-7** Existing databases keep ZZW_RETAIL's old `publicPageUrl` and `/pcontact` (data loads only on a new
+    - **F65** hreflang names only the page's own locale: Shop URLs carry no locale.
+    - **F66** Existing databases keep ZZW_RETAIL's old `publicPageUrl` and `/pcontact` (data loads only on a new
       database); Knowledge.js prefers the Support mount's article page either way.
 
 - **Review Nov 5 (P3)** (Mantle, mr-pass, mr-boss; branch `shop/p3`). Checked: `get#StoreProductPrice` (allow-remote
@@ -693,7 +693,7 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
     draft, an unsellable product) shows with "No products here yet"; it shows only the category's own name. (4) Search
     hands the visitor's text (100 characters) to the index as a query string, so its syntax (fields, wildcards) is the
     visitor's; hits are filtered, but an escaped or simple query would bound the cost. (5) Prices and stock do not
-    advance the generation, so a public page and the remote cache may be up to 60 s behind (by design). (6) F-SP3-5
+    advance the generation, so a public page and the remote cache may be up to 60 s behind (by design). (6) F64
     stands: anonymous visitors get no feature extras on a virtual fallback, which a price reader gets.
 
 ### P4 — Cart and shopper identity
@@ -1006,6 +1006,14 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F57 | P2: `ec.resource.theme.engines()` reports no renderer version, so Mantle records version 1 | Optional framework work |
 | F58 | P2: F43's Transport.js read-through cache is not built | P3 |
 | F59 | P2: the inventories are mr-boss's; the CLIENT_READS rule is tested in ShopThemes (it needs a published release) | The lead updates the inventories at the finish |
+| F60 | P3: a screen's output always opened with status 200 (`start_output`), so a status its actions set was lost (P2's 503 never reached the browser) | Catalog.js writes themed 404, 503 and redirects before the render; the framework fix is com/fw3 |
+| F61 | P3: product images are `component://` or `dbresource://` locations, so P3 shows none | P4: a public image route behind the publication resolver |
+| F62 | P3: the public list mode of `get#StorePublication` still resolves every row (F51); Shop no longer calls it | Commerce's to drop or bound later |
+| F63 | P3: Pass.xml still calls `getSiteInfo` uncached on every remote page | P8 (remote caches) |
+| F64 | P3: the authority price skips PriceResolver `extras` (feature extras on a virtual's price), and the low-stock threshold of 5 is fixed | P4: extras for the authority price; the threshold a store setting later |
+| F65 | P3: hreflang names only the page's own locale, since Shop URLs carry no locale | Later (localized routes) |
+| F66 | P3: existing databases keep ZZW_RETAIL's old URL and `/pcontact`; the data change reaches only new databases | Noted in mr-mantle docs/Upgrading.md at the finish |
+| F67 | P3 review: ProductDetail's "Ask a question" Forum link is not built; `Knowledge.js` `publicLink` refuses NO_PUBLIC_URL before trying the Support site's article page; search sends the visitor's text to the index as a query string, whose syntax the visitor controls; a category whose members are published but none public shows "No products here yet" | P4: the Ask a question link, and search text escaped (a simple query) to bound its cost; `publicLink` tries the Support site first (Customer Service's owner contract, P6); the category case kept (only its name shows) |
 
 ## 7. Later
 
