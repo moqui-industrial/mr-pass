@@ -823,6 +823,15 @@ function relayPage(context) {
 /* ---- the order confirmation ---- */
 function confirmationHtml(context, view) {
     const o = view.confirmation
+    // the reference alone (another device, F85): the order's state, nothing of the buyer
+    if (o.minimal)
+        return (
+            '<section class="shop-confirmation" id="ShopConfirmation"><h1>Thank you for your order</h1><p role="status">Order <strong>' +
+            esc(o.orderId) +
+            '</strong> · ' +
+            esc(o.statusText) +
+            '</p><p>We emailed the details. Open the order from that email, or sign in, to see it.</p></section>'
+        )
     const qr = (() => {
         try {
             return o.orderUrl
@@ -954,4 +963,11 @@ function act(context, name) {
     checkoutHtml,
     keysKey,
     ordersKey,
+    // Shop P6: the guest's order links kept in this session, and the themed page, for the order and account pages
+    orderLinkOf: (siteId, orderId) =>
+        orderId ? sessionMap(ordersKey(siteId))[orderId] || null : null,
+    keepOrderLink: (siteId, orderId, token) =>
+        keepIn(ordersKey(siteId), orderId, token),
+    orderLinks: (siteId) => sessionMap(ordersKey(siteId)),
+    themed,
 })

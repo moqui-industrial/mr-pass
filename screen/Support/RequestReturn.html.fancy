@@ -1,6 +1,8 @@
 <h1>Request a return</h1>
 <#if flash.error><p role="alert" class="error">${flash.error}</p></#if>
-<#if !siteInfo.authenticated><p>Sign in to return something you bought.</p><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath || '')}">Sign in</a></p>
+<#if flash.notice><p role="status" class="card">${flash.notice}</p></#if>
+<#if received><section class="card" id="ReturnReceipt" aria-live="polite"><h2>Thank you</h2><p>We have your return request and will email you what to do next.</p></section>
+<#elseif !siteInfo.authenticated && !orderToken><p>Sign in to return something you bought.</p><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath || '')}">Sign in</a></p>
 <#elseif failure><p role="alert" class="error">${failure.message}</p>
 <#elseif !view.order><section class="card" aria-label="Your orders"><h2>Which order?</h2><#if !view.orderList.length><p>No orders to return from.</p></#if><ul><#list view.orderList as o><li><a href="${publicPath}?orderId=${encodeURIComponent(o.orderId)}">Order ${o.orderId}</a><#if o.orderName> · ${o.orderName}</#if> · ${o.placedText} · ${o.statusText}</li></#list></ul></section>
 <#else><#assign o = view.order><form method="post" enctype="multipart/form-data" id="ReturnRequest" class="card" action="${publicPath}/submit"><h2>Order ${o.orderId}</h2><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="orderId" value="${o.orderId}"><input type="hidden" name="operationId" value="${submitOperationId}">

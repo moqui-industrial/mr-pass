@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Home, the PASS Account hub (impl-shop P6, F6; design-crosscut §5.1, X6): one card per app the site mounts that registers
+    one (Shop's purchases, Billing's invoices, Support's cases and returns), each asked on its own, and the account's
+    settings and email preferences. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd" require-authentication="false" default-menu-title="My account">
+  <actions>
+    <script><![CDATA[hubHtml=ec.resource.script('component://mr-pass/screen/Account/Hub.js').home(resolvedSiteId,publicPath)]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[<section class="pass-account-hub" id="AccountHub">${raw(hubHtml)}</section>]]></text>
+    </render-mode>
+  </widgets>
+</screen>

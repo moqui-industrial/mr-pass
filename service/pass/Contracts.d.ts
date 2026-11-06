@@ -1148,7 +1148,50 @@ export interface OperationInputs {
     getCheckoutPaymentResult: { siteId: string; token?: string; reference?: string; key?: string; returned?: string }
     getCheckoutPaymentForm: { siteId: string; reference: string; key: string }
     getOrderConfirmation: { siteId: string; token?: string; reference?: string; key?: string; orderToken?: string }
+    /** Shop P6: orders, account and downloads; the signed-in verified buyer (self) or a guest's order link (orderToken),
+     * never a party id; a read that can carry a link is a POST (F75) */
+    getShopAccount: { siteId: string }
+    findShopOrders: { siteId: string; orderToken?: string; query?: string; cursor?: string; limit?: string }
+    getShopOrder: { siteId: string; orderToken?: string; orderId?: string }
+    getShopOrderDocument: { siteId: string; orderToken?: string; orderId: string; invoiceId: string }
+    previewReorder: { siteId: string; orderId: string }
+    reorder: { siteId: string; token?: string; orderId: string; orderItemSeqIds?: string; operationId?: string }
+    getAddresses: { siteId: string }
+    storeAddress: { siteId: string; contactMechId?: string; expectedRevision?: string; purpose?: 'shipping' | 'billing'; toName?: string; address1: string; address2?: string; city: string; stateProvinceGeoId?: string; postalCode: string; countryGeoId?: string }
+    endAddress: { siteId: string; contactMechId: string }
+    getPaymentMethods: { siteId: string }
+    beginPaymentMethodSetup: { siteId: string }
+    finishPaymentMethodSetup: { siteId: string; setupReference?: string }
+    endPaymentMethod: { siteId: string; paymentMethodId: string; confirm?: string }
+    getDownloads: { siteId: string; orderToken?: string }
+    issueDownload: { siteId: string; orderToken?: string; downloadGrantId: string }
+    /** a file: downloadToken is issueDownload's (ten minutes, one grant's order); range a Range header's bytes=start-end */
+    getShopDownload: { siteId: string; downloadGrantId: string; downloadToken: string; range?: string }
+    /** Shop P6 (F6): the PASS Account hub and email preferences; token a list link's (ConsentServices) */
+    getAccountHub: { siteId: string }
+    getEmailPreferences: { siteId: string; token?: string }
+    storeEmailPreferences: { siteId: string; token?: string; choices: string }
+    applyOneClickUnsubscribe: { siteId: string; token: string }
 }
+/** Shop P6: a decimal amount with its display text */
+export type Money = { amount: string; currencyUomId: string; display: string }
+/** Shop P6: an order as its buyer reads it (getShopOrder) */
+export type ShopOrderView = {
+    order: {
+        orderId: string; placedText: string; statusText: string
+        lines: { orderItemSeqId: string; name: string; quantity: string; unitPrice: Money; discount: Money | null; total: Money; digital: boolean }[]
+        totals: { items: Money; discounts: Money; shipping: Money | null; tax: Money; total: Money }
+        delivery: { address: string; method: string } | null
+        shipments: { shipmentId: string; statusText: string; shippedText: string; carrierText: string; tracking: string[] }[]
+        documents: { invoiceId: string; dateText: string; total: Money; statusText: string; billingUrl: string | null }[]
+        actions: { requestReturnUrl: string | null; askQuestionUrl: string | null; requestCancelUrl: string | null; cancellationRequested: boolean; canReorder: boolean; downloadsUrl: string | null }
+    }
+    via: 'self' | 'orderLink'
+}
+/** Shop P6: a download grant as its buyer reads it (getDownloads); never a location */
+export type ShopDownload = { downloadGrantId: string; orderId: string; productName: string; fileName: string; versionText: string; sizeText: string; grantedText: string; untilText: string; available: boolean; stateText: string }
+/** Shop P6 (F6): a card of the PASS Account hub (getAccountHub) */
+export type AccountCard = { app: string; title: string; lines: string[]; url: string | null; links?: { text: string; url: string }[]; failed?: boolean }
 export type Operation = keyof OperationInputs
 export type Request<O extends Operation> = { operation: O; input: OperationInputs[O] }
 export type Result<O extends Operation> = O extends 'getPosts' ? PostWindow : O extends 'publishPost' ? PublishedPost : O extends 'markRead' ? { marker: ReadMarker } : O extends 'getShopContext' ? ShopContext : O extends 'getShopPage' ? ShopPage : O extends 'getSiteGeneration' ? { siteId: string; generation: number; release: { releaseId: string; manifestDigest: string } | null } : Record<string, unknown>

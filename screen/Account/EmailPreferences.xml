@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- EmailPreferences, the one PASS Account email preferences page (impl-shop P6, F6, X15): a list link's unsubscribe (the
+    token of ConsentServices' link, and RFC 8058's one-click POST), the signed-in account's lists, each store's cart
+    reminders (which cart recovery requires) and the Forum opt-out's page. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd" require-authentication="false" default-menu-title="Email preferences">
+  <transition name="save" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Account/Hub.js').save(resolvedSiteId,publicPath)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="oneClick" method="post" require-session-token="false">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Account/Hub.js').oneClick(resolvedSiteId)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[preferencesHtml=ec.resource.script('component://mr-pass/screen/Account/Hub.js').preferences(resolvedSiteId,publicPath)]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[<section class="pass-email-preferences" id="EmailPreferences">${raw(preferencesHtml)}</section>]]></text>
+    </render-mode>
+  </widgets>
+</screen>

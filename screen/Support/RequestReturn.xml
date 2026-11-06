@@ -13,12 +13,14 @@
       <script><![CDATA[
         const support=ec.resource.script('component://mr-pass/screen/Support/Support.js'),p=ec.web.parameters
         const orderId=support.param('orderId')
+        // a guest's order link admits the request for its one order (impl-shop P6, F27); its receipt stays on this page
+        const orderToken=support.orderLink(resolvedSiteId,orderId)
         const lines=Object.keys(p).filter(k=>/^return_[A-Za-z0-9]{1,20}$/.test(k)).map(k=>{const seq=k.slice(7)
             return {orderItemSeqId:seq,quantity:support.param('quantity_'+seq),returnReasonEnumId:support.param('reason_'+seq),
                 returnResponseEnumId:support.param('remedy_'+seq),condition:support.param('condition_'+seq)}})
-        support.post('requestCustomerReturn',{siteId:resolvedSiteId,orderId,lines:JSON.stringify(lines),customerReference:support.param('customerReference'),
+        support.post('requestCustomerReturn',{siteId:resolvedSiteId,orderToken,orderId,lines:JSON.stringify(lines),customerReference:support.param('customerReference'),
             note:support.param('note'),file:support.file(),operationId:support.param('operationId')},{path:support.base(publicPath,'submit'),params:{orderId}},
-            result=>({path:passBases.support+'/CustomerReturn',params:{returnId:result.returnId}}))
+            result=>orderToken?{path:support.base(publicPath,'submit'),params:{orderId,received:'Y'}}:{path:passBases.support+'/CustomerReturn',params:{returnId:result.returnId}})
     ]]></script>
     </actions>
     <default-response type="none"/>
@@ -27,8 +29,10 @@
     <script><![CDATA[
         const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
         orderId=support.param('orderId')
+        received=support.param('received')==='Y'
         flash=support.take()
-        const found=siteInfo.authenticated ? support.portal.attempt('getReturnableOrder',{siteId:resolvedSiteId,orderId}) : {result:null}
+        orderToken=siteInfo.authenticated ? null : support.orderLink(resolvedSiteId,orderId)
+        const found=siteInfo.authenticated || orderToken ? support.portal.attempt('getReturnableOrder',{siteId:resolvedSiteId,orderToken,orderId}) : {result:null}
         view=found.result || null
         failure=found.error || null
         submitOperationId=support.portal.operationId()

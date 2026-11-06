@@ -194,7 +194,12 @@ feature(
             return {
                 processing,
                 job,
-                confirmation: call('getOrderConfirmation', { reference, key }),
+                // Shop P6 (F85): the reference and key read only the order's state; the cart's own session the confirmation
+                confirmation: call('getOrderConfirmation', {
+                    reference,
+                    key,
+                    token,
+                }),
                 responses,
             }
         },

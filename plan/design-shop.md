@@ -240,7 +240,10 @@ signed-in account so renewals and paid resource access have a stable owner.
 Creating an account or completing checkout does not opt a shopper into a public profile,
 community directory or marketing list. Guest email does not prove ownership of an existing
 Party/account. Create or use the guest purchase identity scoped to the cart; merge/link only
-after proof through the existing account verification process. Duplicate parties are merged only
+after proof through the existing account verification process. As built (Nov 6, impl-shop P6): an
+account whose email is verified claims the store's completed guest checkouts made with that email
+whose anonymous guest party has no account of its own (`merge#Parties` of the guest party into the
+account's), when it opens its Shop account; an unverified account claims nothing. Duplicate parties are merged only
 through Commons' `merge#Parties`, whose guards live in Mantle (X15); those guards cover Shop's
 StoreCartAccess, StoreRecurringContract and StoreDownloadGrant rows as well as
 ExternalAccessContact, the PASS UserAccount and PartyConsent, and a merge never transfers
@@ -767,6 +770,13 @@ items with a ProductSubscriptionResource, and the pack SECA needs a shipment. Pr
 3. complete the part with existing `mantle.order.OrderServices.checkComplete#OrderPart`;
 4. issue the download grant (§10).
 
+As built (Nov 6, impl-shop P6): the capture comes first, in a transaction holding only the payment (no provider is asked
+while the invoice or order is held), then the invoice through `create#FulfillmentInvoice` (the split below) of the digital
+lines and their adjustments, which applies the captured payment, then its finalization and a check that it is paid. A
+mixed order's one hosted authorization is captured whole at the digital step (a provider takes one capture of an
+authorization), and the physical part's shipment invoice applies what is left of it, so the physical part keeps its own
+invoice while its money is taken with the digital part's.
+
 Accounting names Shop as a caller of `create#InvoiceFromSource`. That service needs
 `RECEIVABLE_EDIT` for a sales order, which fulfillment's actor does not hold, so the step calls an
 internal Mantle service split from it under fulfillment's own entry point (Nov 5, impl-shop F22). The durable fulfillment marker is
@@ -932,6 +942,13 @@ designs no return or question form of its own.
 | AccountHub | The PASS Account "My account" hub (X6, crosscut §5.1); not built yet, so Shop builds it as the PASS Account foundation's unless Customer Service has (Nov 5, impl-shop F6). Shop registers one card, the AccountOverview summary for each store the customer bought from; Billing, Support, Sales and Marketing register theirs. |
 | EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Today `Account/Unsubscribe` handles only the Forum opt-out and `/u/` is a BOSS route, so Shop builds the page with the hub (Nov 5, impl-shop F6). Among its topics is each store's "cart reminders", which a signed-in customer turns on (`ConsentServices.store#PartyConsent`) and cart recovery requires, there being no checkout opt-in (Nov 5, impl-commerce §4). Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
 
+**Checkout return (Nov 6, impl-shop P6, F85).** The reference and key of a provider's return read
+only the payment's state and the order's reference: no contact, address or line, no order link
+(issued only to the cart's own session) and no new cart capability (a declined checkout resumes
+through the session). Accept Hosted issues no new form token once the reference has a
+transaction, and a second approval under one reference is flagged (`DUPLICATE_APPROVAL`) and
+holds the placed order (OhtPayment) as an amount mismatch does.
+
 ## 10. Digital delivery and subscriptions
 
 ### Downloads
@@ -952,7 +969,9 @@ scoped capability (default ten minutes, configurable downward). The streaming ha
 current grant state; a cached asset URL cannot bypass revocation. Range requests remain
 authorized. Guest delivery requires the order's `SalesOrder` capability with the `Download` scope
 (§4.2), sent to the purchase contact in the download-ready notice, not an order-number/email
-guessing form. Signed-in lists show only linked owned purchases. A refund, return settlement or
+guessing form; the link the buyer's own session gets at the confirmation carries it too for an
+order with a file (Nov 6, impl-shop P6). Each download asks for a new capability of ten minutes
+and streams at once, so a resumed range request is checked again. Signed-in lists show only linked owned purchases. A refund, return settlement or
 chargeback revokes the affected grant through `reconcile#RefundedItem` (§10.2); historical
 orders/documents remain readable. Public previews are separate ProductContent entries.
 **Needs:** SHOP-DIGITAL, SHOP-PAYMENT.

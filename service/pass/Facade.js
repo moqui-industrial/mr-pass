@@ -121,4 +121,66 @@ function downloadFile(siteId, operation, input) {
     }
     transport().downloadOperation(siteId, operation, { siteId, ...input })
 }
-;({ call, download, downloadExport, downloadFile, authorityClient, statusKind })
+/* A granted download (impl-shop P6): the browser's byte range asked of the authority, which rechecks the grant and its
+   capability, and the file streamed with it: in process its range cut from the file (206, or 416 outside it), through a
+   remote frontend the authority's own ranged answer forwarded. */
+function downloadRanged(siteId, operation, input) {
+    const range = String(ec.web.request.getHeader('Range') || '').trim()
+    const asked = {
+        siteId,
+        ...input,
+        ...(/^bytes=\d*-\d*$/.test(range) ? { range } : {}),
+    }
+    if (System.getProperty('pass_backend_url'))
+        return transport().downloadOperation(siteId, operation, asked)
+    const result = call(operation, asked)
+    const response = ec.web.response
+    response.setHeader('Cache-Control', 'no-store')
+    response.setHeader('X-Content-Type-Options', 'nosniff')
+    response.setHeader('Accept-Ranges', 'bytes')
+    response.setHeader(
+        'Content-Disposition',
+        'attachment; filename="' +
+            String(result.file.filename).replace(/["\\\r\n]/g, '_') +
+            '"',
+    )
+    const r = result.range
+    if (r && r.unsatisfiable) {
+        response.setStatus(416)
+        response.setHeader('Content-Range', 'bytes */' + result.file.size)
+        return
+    }
+    const wasDisabled = ec.artifactExecution.disableAuthz()
+    let bytes
+    try {
+        const stream = ec.resource
+            .getLocationReference(result.location)
+            .openStream()
+        try {
+            bytes = stream.readAllBytes()
+        } finally {
+            stream.close()
+        }
+    } finally {
+        if (!wasDisabled) ec.artifactExecution.enableAuthz()
+    }
+    response.setContentType(result.file.mimeType)
+    if (r) {
+        response.setStatus(206)
+        response.setHeader(
+            'Content-Range',
+            'bytes ' + r.start + '-' + r.end + '/' + result.file.size,
+        )
+        bytes = bytes.slice(r.start, r.end + 1)
+    }
+    response.write(bytes)
+}
+;({
+    call,
+    download,
+    downloadExport,
+    downloadFile,
+    downloadRanged,
+    authorityClient,
+    statusKind,
+})

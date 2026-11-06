@@ -70,4 +70,20 @@ const file = (name = 'file') => {
     const f = ec.web.multiPartParameters?.[name]
     return f && Number(f.size) > 0 ? f : null
 }
-;({ portal, param, take, post, download, base, query, file })
+/* A guest's order link for an order (impl-shop P6, F27): the SalesOrder capability Shop keeps in this session for the site
+ * (Shop/ShopCheckout.js ordersKey; from the confirmation or the emailed link), which admits Support's requests for that one
+ * order; null for a signed-in account or an order with none. */
+function orderLink(siteId, orderId) {
+    if (!orderId || ec.user.userId) return null
+    try {
+        const map = JSON.parse(
+            String(
+                ec.web.sessionAttributes['passShopOrders:' + siteId] || '{}',
+            ),
+        )
+        return map?.[orderId] || null
+    } catch (error) {
+        return null
+    }
+}
+;({ portal, param, take, post, download, base, query, file, orderLink })

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Orders (design-shop §9 Orders, OrderDetail; impl-shop P6): the buyer's orders (OrderList), one order (OrderDetail, routed from Orders/{orderId}), an emailed order link (Status, kept in the session and the address cleaned), an invoice (Document), and reorder. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Your orders">
+  <transition name="reorder" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopAccount.js').act(shopContext,'reorder')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <subscreens default-item="OrderList"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>

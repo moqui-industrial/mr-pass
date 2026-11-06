@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Addresses (design-shop §9 Addresses; impl-shop P6): the signed-in verified buyer's addresses (getAddresses), added or changed at their revision (storeAddress, a carrier's suggestion offered) and ended (endAddress). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Your addresses">
+  <transition name="store" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopAccount.js').act(shopContext,'storeAddress')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="end" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopAccount.js').act(shopContext,'endAddress')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- pre-actions: run before the PASS shell renders, so a redirect leaves at once (F78) -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopAccount.js').render(shopContext,'addresses')
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
