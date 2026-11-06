@@ -42,6 +42,14 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- P4 (F61): a public product's image, streamed after the authority's check (getShopProductImage) -->
+  <transition name="media" method="get" read-only="true">
+    <parameter name="productContentId"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/service/pass/Facade.js').downloadFile(shopContext.site.siteId,'getShopProductImage',{productContentId:String(productContentId || '')})</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <subscreens default-item="Home"/>
   <widgets>
     <subscreens-active/>

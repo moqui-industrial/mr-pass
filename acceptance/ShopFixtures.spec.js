@@ -3,7 +3,9 @@
 // with Shop at its root for POPC_DEFAULT, the starter theme published and its returns policy page; ZIZI_DIGITAL on
 // digital.zizi.localhost with Shop at /shop for BOSS_COM_DIGITAL, with no theme (the PASS shell). POPC_DEFAULT publishes
 // the products Commerce's demo does (DEMO_1_1, DEMO_1_2, DEMO_2_1, DEMO_3_1, DEMO_UNIT; DEMO_VAR stays unpublished), and
-// BOSS_COM_DIGITAL a digital field guide. Each record is made once.
+// BOSS_COM_DIGITAL a digital field guide. Shop P4 (ShopCartHttp, ShopCartRemoteHttp): two shopper accounts (password moqui),
+// one for the browser walk and one for the plain-request walk, each with its own open cart on ZIZI_SHOP holding one Demo
+// Product One-Two, made through the cart service as the shopper. Each record is made once.
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const T = 'mantle.public.ThemeServices.'
@@ -219,6 +221,83 @@ feature(
             shop.result.release != null
             digital.result.store.productStoreId === 'BOSS_COM_DIGITAL'
             digital.result.release == null
+        },
+    },
+)
+// Shop P4: the cart walks' shoppers
+const runService = (name, parameters) => {
+    const out =
+        ec.service
+            .sync()
+            .name(name)
+            .parameters(parameters)
+            .disableAuthz()
+            .call() || {}
+    if (ec.message.hasError()) throw new Error(ec.message.getErrorsString())
+    return out
+}
+const shoppers = ['PASS_HTTP_SHOPPER', 'PASS_HTTP_SHOPPER_R']
+feature(
+    'provision the shopper accounts, each with its own cart of one Demo Product One-Two on ZIZI_SHOP',
+    {
+        when() {
+            const carts = {}
+            for (const partyId of shoppers) {
+                const username = partyId.toLowerCase()
+                if (!one('mantle.party.Party', { partyId })) {
+                    runService('create#mantle.party.Party', {
+                        partyId,
+                        partyTypeEnumId: 'PtyPerson',
+                    })
+                    runService('create#mantle.party.Person', {
+                        partyId,
+                        firstName: 'Shopper',
+                        lastName: partyId.endsWith('_R') ? 'Remote' : 'Browser',
+                    })
+                    runService('create#moqui.security.UserAccount', {
+                        userId: partyId,
+                        username,
+                        partyId,
+                        emailAddress: username + '@shop-customer.example.test',
+                        currentPassword:
+                            '16ac58bbfa332c1c55bd98b53e60720bfa90d394',
+                        passwordHashType: 'SHA',
+                    })
+                }
+                login(username)
+                try {
+                    const found = ec.service
+                        .sync()
+                        .name('mantle.order.ShopCartServices.get#Cart')
+                        .parameters({ input: { siteId: 'ZIZI_SHOP' } })
+                        .call().result
+                    carts[partyId] = found.cart.items.length
+                        ? found
+                        : ec.service
+                              .sync()
+                              .name(
+                                  'mantle.order.ShopCartServices.add#CartItem',
+                              )
+                              .parameters({
+                                  input: {
+                                      siteId: 'ZIZI_SHOP',
+                                      productId: 'DEMO_1_2',
+                                      quantity: '1',
+                                  },
+                              })
+                              .call().result
+                } finally {
+                    login('john.doe')
+                }
+            }
+            return { carts }
+        },
+        then({ carts }) {
+            shoppers.every(
+                (partyId) =>
+                    carts[partyId].cart.items.length === 1 &&
+                    carts[partyId].cart.items[0].productId === 'DEMO_1_2',
+            )
         },
     },
 )

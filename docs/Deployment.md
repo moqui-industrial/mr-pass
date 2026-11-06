@@ -243,6 +243,17 @@ product's or category's old slug redirects (301) to its canonical URL, a path th
 else not public is the theme's not-found page (404). A remote frontend keeps anonymous catalog reads for at most a minute,
 keyed by the site's generation and release, and serves nothing cached when it cannot read the generation.
 
+**Cart** (impl-shop P4; design-shop §6, §7.1). A cart is an open order of the store; the frontend keeps only the cart's
+capability, in its own server session under the site (never a cookie or a URL), and sends it with each cart call. The cart
+writes (`addCartItem`, `updateCartItem`, `removeCartItem`, `applyPromoCode`, `removePromoCode`) are `TOKEN_WRITES`, accepted
+from a registered deployment; a visitor's first add has no capability yet and makes the cart. Cart creation, code tries
+and capability lookups are rate limited by the visitor's address (a registered deployment's `x-pass-client-ip`). Sign-in
+attaches the session's cart to the account, or merges it into the account's own cart once; sign-out rotates the account's
+carts' capabilities, so a shared browser keeps none. The Cart page (`/Cart`) and its transitions are `no-store`; a product
+image is served at `media?productContentId=` after the authority checks its product is public. The purchase selection and
+the cart are plain HTML forms; with JavaScript each is a trusted Vue island (`WebrootPublic.qvt.js` island mode loading
+`Purchase.qvue` and `Cart.qvue`) over the same transitions.
+
 **Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
 `mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published
 release Shop's pages are the release's own documents instead of the PASS shell, and its assets are served under the

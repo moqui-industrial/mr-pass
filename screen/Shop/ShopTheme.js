@@ -24,17 +24,23 @@ const ASSET_TYPES = {
 }
 const TEXT_ASSETS = ['css', 'svg', 'json']
 /* The trusted components of the page kinds that place them (the authority's Themes.js requiredComponents): installed
- * PASS code, never theme source, each made from the page's view (escaped). P3's purchase selection is a GET form that
- * shows the price of a variant and quantity (quoteSelection's, in the view's product.quote), with no add until P4; P4 and
- * P5 replace the cart and checkout placeholders. */
+ * PASS code, never theme source, each made from the page's view (escaped). P4: the purchase selection (a form posted to
+ * the cart, its Show price the selection's quote) and the cart (the shopper's lines, codes and totals, given by the cart
+ * page as context.cartComponent), each with its trusted Vue island (Shop/ShopCart.js); P5 replaces the checkout
+ * placeholder. */
+const cart = () =>
+    ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js')
 const COMPONENTS = {
     'shop.productPurchase': {
         kinds: ['product'],
-        html: (context, view) => purchaseForm(view),
+        html: (context, view) => cart().purchaseHtml(context, view),
     },
     'shop.cart': {
         kinds: ['cart'],
-        html: () => '<p class="shop-cart">Your cart is empty.</p>',
+        html: (context) =>
+            context.cartComponent
+                ? context.cartComponent()
+                : '<p class="shop-cart">Your cart is empty.</p>',
     },
     'shop.checkout': {
         kinds: ['checkout'],
@@ -140,46 +146,6 @@ const escapeText = (text) =>
                 "'": '&#39;',
             })[c],
     )
-/* P3's purchase selection: the product's public variants and a quantity, submitted to the product's own URL by GET, and
- * the quote of the selection; nothing is added to a cart until P4. */
-function purchaseForm(view) {
-    const product = view?.product || {}
-    const quote = product.quote || {}
-    const variants = product.variants || []
-    const options = variants
-        .map(
-            (variant) =>
-                '<option value="' +
-                escapeText(variant.id) +
-                '"' +
-                (variant.id === product.selectedVariantId ? ' selected' : '') +
-                '>' +
-                escapeText(variant.options || variant.name) +
-                (variant.price?.display
-                    ? ' (' + escapeText(variant.price.display) + ')'
-                    : '') +
-                (variant.availability?.purchasable === false
-                    ? ' (' + escapeText(variant.availability.label) + ')'
-                    : '') +
-                '</option>',
-        )
-        .join('')
-    return (
-        '<form class="shop-purchase" method="get" action="' +
-        escapeText(product.url || '') +
-        '" aria-label="Choose your purchase">' +
-        (variants.length
-            ? '<label>Option <select name="variantId" required><option value="">Choose an option</option>' +
-              options +
-              '</select></label>'
-            : '') +
-        '<label>Quantity <input type="number" name="quantity" min="1" max="999" step="1" inputmode="numeric" value="' +
-        escapeText(String(product.quantity || 1)) +
-        '"></label><button type="submit">Show price</button><p class="shop-quote" id="ShopQuote" aria-live="polite">' +
-        escapeText(quote.label || '') +
-        '</p><p class="shop-purchase-note">Purchasing opens soon in this store.</p></form>'
-    )
-}
 /* P3's search form: a GET to the store's Search page with the current query. */
 function searchForm(view) {
     return (

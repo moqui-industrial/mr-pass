@@ -158,7 +158,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P1 App and mount | Mantle, mr-pass | the Shop root, the PASS shell on a Shop site | built Nov 5, 2026 |
 | P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | built Nov 6, 2026 |
 | P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | built Nov 6, 2026 |
-| P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | — |
+| P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | built Nov 6, 2026 |
 | P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | — |
 | P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | — |
 | P7 Prepaid and recurring access | Mantle, mr-pass | Subscriptions, SubscriptionDetail | — |
@@ -726,6 +726,174 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
   `<script type="application/json" data-moqui-island="mountId">` mounts its screen's qvue at that element without the
   `q-layout`, several per page, each with its own route; one failing island leaves the others; page mode unchanged;
   `moqui.publicIslandConfigs`, `startPublicIslands`, `publicIslandTemplate`. The config is read only from a JSON script.
+
+- **Built (Mantle and mr-pass), Nov 6, 2026** (branch `shop/p4`):
+  - Records (`entity/ShopCartEntities.xml`): `mantle.order.StoreCartAccess` (order, site, mount, store, currency, the
+    verified customer, the guest's anonymous party `guestPartyId`, the capability's digest (unique), the recovery token's
+    digest and use for Commerce P10, last activity, expiry, rotation, revocation with `StoreCartRevokeReason` (ScrMerged,
+    ScrPlaced, ScrExpired, ScrCancelled) and `mergedToCartAccessId`). ExternalAccess.js exports `tokenDigest` and
+    `throttle(scope, limit)` (F16), `tokenCapability` now uses both (its refusal reads `RATE_LIMITED: ...`).
+  - `mantle.order.ShopCartServices` (`ShopCartServices.xml` over `service/mantle/order/ShopCart.js`, anonymous, input map,
+    the site from the facade through ShopCatalog.js `shopOf`): `get#Cart`, `add#CartItem`, `update#CartItem`,
+    `remove#CartItem`, `apply#PromoCode`, `remove#PromoCode`, `attach#Cart` (sign-in), `release#Cart` (sign-out). A cart is
+    reached by the session's capability (only its digest kept; lookups throttled, 600 per 10 minutes a requester) or the
+    signed-in account's own cart in the site, store and currency; a token of another scope, expired, retired or of another
+    account's cart reaches nothing, and no operation takes an order id. The first add makes the cart: `create#Order` (open,
+    `ScWeb`, the store's organization the vendor) with the account's party, else an anonymous guest Party (Person "Guest",
+    Customer role) as the part's customer (F36/impl-commerce F40), and a new 48-character capability in `result.token`;
+    creation throttled (30 per 10 minutes). Lines: the selection through ShopCatalog.js `selectionOf` (the product or a
+    listed option), `add#OrderProductQuantity` / `update#OrderItem` / `delete#OrderItem` with the line's `unitAmount` the
+    store authority's price at the line's quantity (`offersOf`: `get#StoreProductPrice`; F18, so a visitor's line has the
+    catalog's price), quantities 1 to 999, 50 lines; an item that cannot be bought now `ITEM_UNAVAILABLE`. Codes:
+    the store's code (ignoring case) through `add#OrderPromoCode` / `remove#OrderPromoCode`; every refusal
+    `PROMO_CODE_INVALID[promoCode]` with one text; code tries throttled (20 per 10 minutes). Each change of a cart's
+    contents requires `expectedRevision` (an add checks it when given), the order's `orderRevision`
+    (`STALE_REVISION`, Conflict); `operationId` answers the first result again (PostingOperation `ShopCart`, keyed by the
+    cart and the id, `OPERATION_CONFLICT` for another request); a cart with a payment in progress is `CHECKOUT_PENDING`.
+    Activity and expiry (30 days a guest's, 90 an account's) move on shopper actions only. The CartView (`Contracts.d.ts`):
+    lines (name, options, link to the product, quantity, unit price, adjustments, total, availability band, a changed
+    price named), codes, totals (items, discounts, shipping and tax when the order has them, estimated total), item count,
+    notices (an unavailable line, a changed price, a promotion past its limit by `check#OrderPromotionLimits` with
+    `lock:false`, impl-commerce P7), revision, and the mini-cart `summary`. Sign-in: the session's guest cart is attached
+    (the part's customer becomes the account's party) or merged once into the account's cart of the same scope when
+    neither has a payment in progress (lines re-added at the account's prices, codes tried again, unavailable lines
+    named, the guest access retired `ScrMerged` and its order cancelled), repriced, and its capability rotated. Sign-out
+    rotates every open cart's capability of the account in the site.
+  - merge#Parties (F23): StoreCartAccess's `customerPartyId` and `guestPartyId` move with the party; nothing matches on an
+    email address.
+  - Catalog (ShopCatalog.js): F64, PriceResolver.js `extras` apply for the store's authority (features with no owner or the
+    store organization's), so a variant priced by its virtual gets its feature extras; `get#ProductPrice` unchanged.
+    F67, search text reaches the index as words (`simpleQuery`: the query syntax escaped, `AND`/`OR`/`NOT` lower-cased).
+    F61, `get#ProductImage` (`getShopProductImage`): a `PcntImage*` content of a png, jpeg, gif or webp file in effect for
+    the store, of a product public now; cards and the product view gain `image` and `images` (`{mount}/media?productContentId=`).
+    Exports for the cart: `shopOf`, `selectionOf`, `offersOf`, `quantityOf`, `money`, `unavailablePrice`, `simpleQuery`.
+  - ShopContext gains `capabilities.canUseCart`; ThemeView gains the `cart` page kind (the store's view only, so it stays
+    cacheable; PASS sets `view.cart` from the shopper's `summary`) and `shop.cartUrl`.
+  - PASS operations `getCart`, `addCartItem`, `updateCartItem`, `removeCartItem`, `applyPromoCode`, `removePromoCode`,
+    `attachCart`, `releaseCart` (`shop/cart...`) and `getShopProductImage` (`GET shop/media`, a download in PassAuthority's
+    `DOWNLOADS`), in Schema/Routes and the mirrors (identical) and `Contracts.d.ts` (`CartView`, `CartLine`). The five cart
+    writes are in the three `TOKEN_WRITES` lists (F29: the capability in `input.token`, local and remote), and Transport's
+    `routeOf` lets `addCartItem` go with no capability (F44, as `applyOptOut`); Transport, PassApi and PassAuthority export
+    their lists. REASONS and Portal.js `reasons` gain `itemUnavailable`, `promoCodeInvalid`, `checkoutPending`,
+    `valueInvalid`.
+  - mr-pass pages: `screen/Shop/ShopCart.js` (the session's capability under `passShopCart:{siteId}`, never in a page, a
+    cookie or a URL; `call`, the purchase selection's and the cart's plain forms, the islands' configs, the transitions'
+    answers and the sign-in hooks), `Shop/Cart.xml` (transitions `add`, `quote`, `update`, `remove`, `applyCode`,
+    `removeCode`, `state`; the page through the release's cart page with the `shop.cart` component, or in the PASS shell,
+    `Cart.html.fancy`), `Shop/Cart.qvue` and `Shop/Purchase.xml` with `Purchase.qvue` (F45: islands over the plain forms
+    through `WebrootPublic.qvt.js` island mode; a price updates in place and an add announces the cart's count without
+    leaving the page; their posts carry the session's form token, which `Cart/state` answers). The purchase selection
+    (ShopTheme.js `shop.productPurchase`) posts to `Cart/add`, its Show price to `Cart/quote` (a redirect to the product's
+    page with the selection); a form carries the session's form token only for a visitor with a session (a cookieless post
+    starts one), so a public product page has none. Every write answers with a redirect and a one-time notice, or JSON
+    with its status for an island. Shop.xml's `media` transition streams a product image (`Facade.downloadFile`). The shell
+    header and the starter layout gain a Cart link. Account.js calls ShopCart.js `signedIn` after a sign-in (local, remote
+    and SSO) and `signingOut` before a sign-out; neither can fail them. Portal.js `attempt` takes `{newTransaction: true}`
+    (F-SP4-2), which the cart's writes use. Headers: the Cart routes keep the default no-store. Deployment.md "Cart".
+  - Specs: Mantle `test/order/ShopCart` (5 features, 0.9 s: a guest's first add with a capability, the input's price,
+    customer, store and status ignored (the authority's 12.00, the guest party, the store, open), an order id alone
+    reaching nothing; a stale revision refused, an operation id answered once, another store's and an unknown code refused
+    with one text, a code applied (2.00 off) and removed; another store's and currency's cart apart both ways; sign-in
+    merging the guest cart into the account's once (cancelled, `ScrMerged`, the second attach merging nothing, the old
+    capabilities reaching nothing, a visitor with the account's capability reaching nothing) and sign-out rotating;
+    merge#Parties moving the access). Mantle `test/product/ShopCatalog` (+2 features, 0.13 s: F64's extra (23.00 for the
+    store, 20 for `get#ProductPrice`'s public); F61's image (a png of a public product served, an svg and a draft's not)
+    and F67's escape). mr-pass `test/Shop/ShopCart` (3 features, 0.4 s: the Cart page's one render through the starter
+    with lines, forms, revision, operation id, the island and the Cart link, never the capability; the five writes in all
+    three lists, the first add's route with no capability and a change's refused, the remote cart equal to the local one,
+    a stale revision `staleRevision` and a refused code `promoCodeInvalid[promoCode]` with the same text both ways, no
+    capability no cart; sign-in attaching and rotating, sign-out dropping the session's capability). mr-pass
+    `ShopCatalog`'s product render gains the purchase form's checks. Also run, all pass: Mantle ShopCatalog,
+    PassAuthority, StorePromotions, ProductEffectivePrices, ProductPricePolicy, PartyServices, ThemeReleases,
+    SupportPortal, AccountingPortals, StoreCheckout, Promotions, ProductPriceLists, ProductVariants, ContactBooks,
+    StorePublication, SitePages, StoreAdmin (137 with ShopCart, 25.2 s of 370); mr-pass ShopAccess, ShopCatalog,
+    ShopThemes, Forum, ForumAccess, Portals, Transport, Integrations, SupportAccess, SupplierPages, Operations,
+    SsoHandoff, PublicIdentity (73 with ShopCart, 6.3 s of 17); mr-boss CommerceAccess, CommerceStores,
+    CommercePromotions, CustomerServiceKnowledge (19). Not run: `./moq test-apps`. Schema and Routes mirrors identical.
+  - Acceptance: `acceptance/client/ShopCartHttp` (1 feature: at 390 px on ZIZI_SHOP a guest's quantity priced in place, two
+    adds announced without leaving the page, the product image through the media route, the cart island, TEST2 applied
+    with its discount, then sign-in merging into the shopper's own cart with the notice, no horizontal overflow) and
+    `acceptance/client/ShopCartRemoteHttp` (2 features, plain requests: two adds from the product's form (a public page
+    with no form token), TEST2's discount, another tab's older removal refused with its reason (the notice, and 409
+    `staleRevision` as JSON) and nothing removed; sign-in merging once, sign-out leaving no cart, a second sign-in adding
+    nothing); ShopFixtures gains the two shopper accounts with their carts; ShopHttp's quantity step now uses the island.
+    Run: `./moq accept mr-pass` once: the client suite 40 passed (with ShopCartHttp 1, ShopCartRemoteHttp 2, ShopHttp 4,
+    ShopRemoteHttp 2); the server suite 10 passed, 4 failed, 3 ignored: ShopThemeRelease's two empty-state features
+    (Home shows the demo's featured products since P3) and ShopMount's two when run with ShopFixtures in one server, all
+    four failing the same on master (for the lead). Then Deployment.md's two-runtime check over REST (the authority
+    serving ClientFixtures, PortalFixtures, SupplierPortalFixtures, SupportFixtures and ShopFixtures on 127.0.0.1:18091, a
+    frontend of framework, webroot, tools and PASS only on 18092): ShopRemoteFixtures 1, ShopCartRemoteHttp 2,
+    ShopCartHttp 1 and ShopRemoteHttp 2 passed. gRPC not run.
+  - Lint: `moqui lint --screens` 132 sites as before, none in the Shop screens, Pass.xml or the Shared files.
+  - Inventories: mr-boss's usl-inventory and ss-inventory are not edited here (mr-boss is read only for this phase; F59).
+  - Decisions: the CartView is the cart's own projection, not `get#OrderDisplayInfo` (design-shop §6 and §13.2 changed);
+    each line holds the authority's price as its `unitAmount` (Mantle's add path prices by the public reader for a
+    visitor); a cart's first add is not replayable by operation id (its capability is never stored, so a replay could not
+    return it; a lost first answer leaves a cart to expire); "a pending checkout" is a payment of the order in progress
+    until P5's checkout records join it; the cart page's theme view stays the store's (cacheable) and PASS adds the
+    shopper's summary; the form token goes only to a visitor with a session; `valueInvalid` is a listed reason, so a
+    field's refusal reaches a remote page with its field.
+  - Findings (provisional):
+    - **F-SP4-1** TEST1 (design-shop §18.1's code) is limited to CustJqp (`requireParty`), so a guest cannot use it; the
+      walks use TEST2, whose Buy 1 Get 1 Half Off needs two of one item. PopcNewCustomer's 20% needs a user account for a
+      web order, so a guest gets none.
+    - **F-SP4-2** A refused nested service call marks the calling transition's transaction rollback-only, so a refused
+      cart write answered as a redirect or JSON became a 500 ("transaction marked rollback-only"). The cart's writes run
+      through `Portal.attempt(..., {newTransaction: true})`; Billing's and Support's page writes call without it, and may
+      meet the same on a refusal (for the lead).
+    - **F-SP4-3** `ec.web.sendJsonResponse` answers only 200 or 500 and adds the request's messages (Mantle's promotion
+      notes), so the cart writes its JSON with its own status.
+    - **F-SP4-4** Sign-in's default landing is `passBases.forum` (`/forum`) on any site, a 404 on a Shop site with no Forum
+      mount (the walk passes `returnTo`). For the PASS Account pages: land on the site's root app.
+    - **F-SP4-5** An island's first request (its `.qvue`, or `Cart/state`) starts a session, so after a visitor's first
+      enhanced product page later catalog pages are no-store for them (Headers' anonymous-only rule). For the framework,
+      optional: serve a public screen's `.qvue` without a session, as a cacheable asset.
+    - **F-SP4-6** ProductDetail's "Ask a question" (F67's first item) is not built: it needs the Forum's `publish#Post` to
+      take a product (check it public, link `CommunicationEventProduct`) and a setting naming the site's product category,
+      neither of which exists. For the lead: build it with the Forum's owner (a Forum change) or move it to P6/P9.
+    - **F-SP4-7** No job retires expired open carts (design-shop §7.1's retention): an expired access reaches nothing,
+      but its order stays open. For P8 (operations).
+
+- **Review Nov 6 (P4)** (Mantle and mr-pass; branch `shop/p4`). Checked: StoreCartAccess (only the capability's digest,
+  unique; the token only in the presentation session under `passShopCart:{siteId}`, never in a page, cookie or URL of the
+  browser; 48 random characters; lookups, creation and code tries throttled by `requesterKey`, which is the remote
+  frontend's `passRequester` for a registered client); a cart reached only by a usable row of the facade's site, store and
+  currency (open order, not expired or retired, an account's cart only for that account) or the signed-in account's own;
+  no operation takes an order id; lines only through `lineOf` of the cart's own product lines; the anonymous first
+  `addCartItem` (F44) needs a registered client at the authority (PassAuthority, PassApi) and makes a new cart each time
+  (it cannot write into another), bounded by the creation throttle; inputs allow-listed in Schema.js and each line's
+  `unitAmount` the authority's price, which Mantle then keeps (`isModifiedPrice` Y; `handle#OrderMajorChange` deletes and
+  re-applies promotion items only and `recalc#OrderPartItemAmounts` has no caller, so nothing reprices or double-counts);
+  `extras` under `storeAuthority` only (set only by `get#StoreProductPrice`), `get#ProductPrice` unchanged; revisions
+  required on changes, replays keyed by the cart and checked before the revision; merges of proven same-scope carts
+  only, refused with a payment in progress, the guest access retired and its order cancelled; merge#Parties moving the
+  access by party only; `get#ProductImage` (public product in the routed store, image types and extensions, the row's
+  store, nosniff and attachment, the location staff-entered, never the visitor's); code refusals all
+  `PROMO_CODE_INVALID` (Mantle's own refusals are warnings, so the uniform text holds); `Portal.attempt`'s new
+  transaction (the facade call suspends the transition's and commits or rolls back alone); islands (plain forms without
+  JS, the form token as `X-CSRF-Token` from `Cart/state`, same-origin). Fixes:
+  - R1 (medium) Account.js's sign-in and sign-out hooks called `attachCart`/`releaseCart` in the sign-in's transaction,
+    so a refusal (a throttled lookup, an unexpected error) marked it rollback-only (F-SP4-2) and could fail the sign-in
+    despite the catch; both now run in their own transaction (ShopCart.js `signedIn`, `signingOut`).
+  - R2 (low) `simpleQuery` escaped `<` and `>`, which a query_string cannot escape (a bare `>10` is a range); they
+    become spaces (ShopCatalog spec gains the check).
+  - R3 (low) Attaching a guest cart at sign-in changed the part's customer without re-applying promotions, so the
+    account's promotions (or a guest's that no longer apply) waited for the next change; it now calls
+    `handle#OrderMajorChange`.
+  - R4 (acceptance) ShopMount and ShopThemeRelease now stand in any order with ShopFixtures: ShopMount sets aside the
+    site's theme binding (and keeps the Shop mount's id in its save) and puts it back; ShopThemeRelease retires
+    POPC_DEFAULT's published products for its empty-state features and restores them.
+  - Specs after the fixes: Mantle ShopCart, ShopCatalog, PassAuthority, StorePromotions, Promotions 28 passed; mr-pass
+    ShopCart, ShopAccess, ShopCatalog, Portals, Transport, PublicIdentity, SsoHandoff 22 passed; acceptance
+    ShopFixtures, ShopMount, ShopThemeRelease 8 passed; `./moq accept mr-pass`: server suite 14 passed, 3 ignored, 0 failed; client suite 40 passed.
+  - For the lead: (1) `store#Mounts` (Forum.js) deletes and recreates every mount a save names, so re-saving a site's
+    Shop mount that has a theme binding fails with a raw foreign-key error (Unavailable), and the mount's id changes
+    unless the page sends it (StoreCartAccess.appMountId has no foreign key, so carts survive but name an old id); since
+    P2. (2) F-SP4-2 stands for Billing's and Support's page writes. (3) A remote `getCart` is a GET, so the capability
+    travels as a query parameter on the frontend-to-authority link (as the existing token reads do) and may reach the
+    authority's access logs; consider a POST or a header for capability reads. (4) Product images are no-store and read
+    any location scheme a staff member enters; consider public caching by generation and limiting the schemes.
+    (5) Guest parties and cancelled guest orders accumulate with no retention job (F-SP4-7).
 
 ### P5 — Checkout and payment
 

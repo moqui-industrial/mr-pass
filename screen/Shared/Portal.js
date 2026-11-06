@@ -1,12 +1,16 @@
 /* The Billing, Supplier, Support and Shop apps' calls to the authority: one operation through the facade, answered as its
  * result or as a refusal a page can show without saying more than the kind allows. CC0 plus patent grant. */
-const call = (operation, input) =>
-    ec.service
+const call = (operation, input, newTransaction) => {
+    const caller = ec.service
         .sync()
         .throwOnError(true)
         .name('pass.Facade.call#Operation')
         .parameters({ operation, input })
-        .call().result
+    // Shop P4: a write a page's transition goes on past when it is refused runs in its own transaction, so the refusal
+    // does not roll back the transition's
+    return (newTransaction ? caller.requireNewTransaction(true) : caller).call()
+        .result
+}
 const messages = {
     NotFound:
         'This page is not available. The link may have expired or been replaced.',
@@ -32,6 +36,11 @@ const reasons = {
     mountTaken: null,
     rootNotAllowed: null,
     targetInvalid: null,
+    // Shop P4: the cart's refusals (their own text: which item, which field)
+    itemUnavailable: null,
+    promoCodeInvalid: null,
+    checkoutPending: null,
+    valueInvalid: null,
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */
@@ -63,9 +72,9 @@ const internal = (text) =>
     ) || /\b[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+\.[A-Z]\w*/.test(text)
 /* An operation's result, or {error: {kind, reason, message, fieldErrors}}: a NotFound or a sign-in says nothing of the
  * record; the same refusal reads the same through a remote frontend. */
-function attempt(operation, input) {
+function attempt(operation, input, options) {
     try {
-        return { result: call(operation, input) }
+        return { result: call(operation, input, !!options?.newTransaction) }
     } catch (error) {
         ec.message.clearErrors()
         const kind = error.moquiErrorKind || 'Unavailable'

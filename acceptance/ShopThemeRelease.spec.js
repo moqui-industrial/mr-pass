@@ -3,7 +3,9 @@
 // out; a template naming `ec` fails validation and cannot be published; a remote frontend (the authority's answers as the
 // transport takes them) renders the same release after checking its digests. ZIZI_SHOP is Commerce's demo site (mr-boss
 // Demo.js); without BOSS the spec makes it as the demo does, with Shop at its root for POPC_DEFAULT. The site's state is
-// put back after; the published starter stays, as the demo's mount does.
+// put back after; the published starter stays, as the demo's mount does. The spec stands in any order: the store's
+// published products (ShopFixtures publishes the demo's) are retired for it, so its home shows the empty state, and put
+// back after.
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const theme = () =>
@@ -15,7 +17,8 @@ const SITE = 'ZIZI_SHOP',
     HOST = 'shop.zizi.localhost',
     STORE = 'POPC_DEFAULT',
     ORG = 'ORG_ZIZI_RETAIL'
-const state = {}
+const state = { retired: [] }
+const STORE_PRODUCT = 'mantle.product.store.ProductStoreProduct'
 const revision = () => {
     const binding = ec.entity
         .find('mantle.public.PublicThemeBinding')
@@ -104,6 +107,24 @@ spec({
                 { app: 'shop', pathPrefix: '/', targetId: STORE },
             ])
         state.before = l.siteRow(SITE).state
+        const now = Date.now()
+        const wasDisabled = ec.artifactExecution.disableAuthz()
+        for (const row of Array.from(
+            ec.entity
+                .find(STORE_PRODUCT)
+                .condition({ productStoreId: STORE })
+                .disableAuthz()
+                .list(),
+        ).filter((row) => row.thruDate == null || Number(row.thruDate) > now)) {
+            state.retired.push({
+                productId: row.productId,
+                fromDate: row.fromDate,
+                thruDate: row.thruDate ?? null,
+            })
+            row.set('thruDate', now - 1000)
+            row.update()
+        }
+        if (!wasDisabled) ec.artifactExecution.enableAuthz()
         l.setState(SITE, 'published')
         state.storeName = ec.entity
             .find('mantle.product.store.ProductStore')
@@ -121,6 +142,22 @@ spec({
     cleanupSpec() {
         login('john.doe')
         lib().setState(SITE, state.before)
+        const wasDisabled = ec.artifactExecution.disableAuthz()
+        for (const kept of state.retired) {
+            const row = ec.entity
+                .find(STORE_PRODUCT)
+                .condition({
+                    productStoreId: STORE,
+                    productId: kept.productId,
+                    fromDate: kept.fromDate,
+                })
+                .disableAuthz()
+                .one()
+            if (!row) continue
+            row.set('thruDate', kept.thruDate)
+            row.update()
+        }
+        if (!wasDisabled) ec.artifactExecution.enableAuthz()
     },
 })
 feature(

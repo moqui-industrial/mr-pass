@@ -1,0 +1,3 @@
+<#if shopPage.html>${raw(shopPage.html)}<#else><h1>Your cart</h1>
+<section class="card" aria-label="Cart">${raw(shopPage.cartHtml)}</section>
+</#if>

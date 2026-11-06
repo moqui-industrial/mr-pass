@@ -1,0 +1,152 @@
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md.
+    The cart's trusted Vue island over the plain page (impl-shop P4, F45; Shop/ShopCart.js): it reads Cart/state and posts
+    each change (a quantity, a removal, a code) to the same transition the plain forms use, for JSON, with the revision it
+    shows and an operation id, and shows the answer in place; a change another window made first is refused with its
+    reason and the cart read again. -->
+<template>
+    <div class="shop-cart" id="ShopCart">
+        <p v-if="message" :class="error ? 'shop-notice shop-notice-error' : 'shop-notice shop-notice-ok'" aria-live="polite">
+            {{ message }}
+        </p>
+        <template v-if="cart && cart.items.length">
+            <ul class="shop-cart-items" id="ShopCartItems">
+                <li v-for="item in cart.items" :key="item.orderItemSeqId" class="shop-cart-item" :data-item="item.orderItemSeqId">
+                    <p class="shop-cart-name">
+                        <a v-if="item.url" :href="item.url">{{ item.name }}</a><span v-else>{{ item.name }}</span>
+                        <small v-if="item.options"> {{ item.options }}</small>
+                    </p>
+                    <p>{{ item.unitPrice.display }} each<span v-if="item.available && item.availability"> · {{ item.availability.label }}</span></p>
+                    <p v-if="!item.available" class="shop-cart-unavailable" role="alert">
+                        This item cannot be bought now. Remove it to check out.
+                    </p>
+                    <p v-for="(adjustment, index) in item.adjustments" :key="index" class="shop-cart-adjustment">
+                        {{ adjustment.label }} {{ adjustment.amount.display }}
+                    </p>
+                    <form class="shop-cart-quantity" @submit.prevent="change('update', { orderItemSeqId: item.orderItemSeqId, quantity: quantities[item.orderItemSeqId] })">
+                        <label
+                            >Quantity
+                            <input v-model="quantities[item.orderItemSeqId]" type="number" min="0" max="999" step="1" inputmode="numeric" />
+                        </label>
+                        <button type="submit" :disabled="busy">Update</button>
+                    </form>
+                    <button type="button" :disabled="busy" @click="change('remove', { orderItemSeqId: item.orderItemSeqId })">Remove {{ item.name }}</button>
+                    <p class="shop-cart-line-total">{{ item.total.display }}</p>
+                </li>
+            </ul>
+            <section class="shop-cart-codes" aria-label="Promotion codes">
+                <p v-for="code in cart.promoCodes" :key="code.code">
+                    {{ code.code }}<span v-if="code.label">: {{ code.label }}</span>
+                    <button type="button" :disabled="busy" @click="change('removeCode', { promoCode: code.code })">Remove code {{ code.code }}</button>
+                </p>
+                <form @submit.prevent="applyCode">
+                    <label>Promotion code <input v-model="promoCode" type="text" maxlength="40" autocomplete="off" /></label>
+                    <button type="submit" :disabled="busy">Apply</button>
+                </form>
+            </section>
+            <dl class="shop-cart-totals" id="ShopCartTotals">
+                <dt>Items</dt>
+                <dd>{{ cart.totals.items.display }}</dd>
+                <template v-if="Number(cart.totals.discounts.amount) !== 0">
+                    <dt>Discounts</dt>
+                    <dd>{{ cart.totals.discounts.display }}</dd>
+                </template>
+                <dt>Shipping</dt>
+                <dd>{{ cart.totals.shipping ? cart.totals.shipping.display : 'Calculated at checkout' }}</dd>
+                <dt>Tax</dt>
+                <dd>{{ cart.totals.tax ? cart.totals.tax.display : 'Calculated at checkout' }}</dd>
+                <dt>Estimated total</dt>
+                <dd id="ShopCartTotal">{{ cart.totals.total.display }}</dd>
+            </dl>
+            <p v-for="(notice, index) in cart.notices" :key="'n' + index" class="shop-cart-notice">{{ notice.text }}</p>
+            <p class="shop-checkout-note">Checkout is not open in this store yet.</p>
+        </template>
+        <template v-else-if="cart">
+            <p class="shop-cart-empty" id="ShopCartEmpty">Your cart is empty.</p>
+            <p><a :href="context.shopUrl">Continue shopping</a></p>
+        </template>
+    </div>
+</template>
+<script>
+module.exports = {
+    name: 'ShopCartIsland',
+    data() {
+        return { context: {}, cart: null, quantities: {}, promoCode: '', busy: false, message: '', error: false, token: '' }
+    },
+    created() {
+        this.context = this.$root.config.context || {}
+        this.token = this.$root.config.sessionToken || ''
+        if (this.context.notice) {
+            this.error = this.context.notice.kind === 'error'
+            this.message = this.context.notice.text
+        }
+    },
+    async mounted() {
+        await this.load()
+    },
+    methods: {
+        show(cart) {
+            this.cart = cart
+            const quantities = {}
+            for (const item of cart.items) quantities[item.orderItemSeqId] = item.quantity
+            this.quantities = quantities
+        },
+        async load() {
+            try {
+                const response = await fetch(this.context.stateUrl, {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                })
+                const data = await response.json()
+                this.token = data.formToken || this.token || response.headers.get('moquiSessionToken') || ''
+                if (data.ok) this.show(data.cart)
+                else {
+                    this.error = true
+                    this.message = data.error.message
+                }
+            } catch (error) {
+                this.error = true
+                this.message = 'Your cart could not be read. Reload the page.'
+            }
+        },
+        operationId() {
+            let id = ''
+            while (id.length < 24) id += Math.random().toString(36).slice(2)
+            return id.slice(0, 24)
+        },
+        applyCode() {
+            if (this.promoCode) this.change('applyCode', { promoCode: this.promoCode })
+        },
+        async change(action, fields) {
+            this.busy = true
+            this.message = ''
+            try {
+                const body = new URLSearchParams(
+                    Object.assign({ expectedRevision: this.cart.revision, operationId: this.operationId() }, fields),
+                )
+                const response = await fetch(this.context.actionBase + action, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': this.token,
+                    },
+                    body,
+                })
+                const data = await response.json()
+                this.error = !data.ok
+                this.message = data.ok ? data.message : data.error.message
+                if (data.ok) {
+                    this.show(data.cart)
+                    if (action === 'applyCode') this.promoCode = ''
+                } else if (data.error.reason === 'staleRevision') await this.load()
+            } catch (error) {
+                this.error = true
+                this.message = 'Your cart was not changed. Try again.'
+            } finally {
+                this.busy = false
+            }
+        },
+    },
+}
+</script>

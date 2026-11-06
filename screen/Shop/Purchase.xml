@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Purchase (impl-shop P4, F45): the trusted Vue island of a product page's purchase selection (Purchase.qvue, mounted by
+    WebrootPublic.qvt.js over the plain form ShopCart.js makes): the quote transition answers the price of a variant and
+    quantity as JSON (quoteSelection; nothing is added); adding goes to Cart/add. The screen itself shows nothing. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Purchase">
+  <transition name="quote" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'quoteJson')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/Purchase.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

@@ -43,7 +43,47 @@ export interface ShopContext {
     locale: string
     currency: string | null
     release: ShopRelease | null
-    capabilities: { canBrowse: boolean; canPurchase: boolean; signedIn: boolean }
+    capabilities: { canBrowse: boolean; canUseCart: boolean; canPurchase: boolean; signedIn: boolean }
+}
+/** Shop P4: a cart line (design-shop §6 Cart): the purchasable product (a variant's options), its link, quantity, the unit
+ * price set when it was added or changed, its adjustments and total, and whether it can still be bought (a changed price
+ * named with the current one). */
+export interface CartLine {
+    orderItemSeqId: string
+    productId: string
+    name: string
+    options: string | null
+    url: string | null
+    sku: string | null
+    quantity: string
+    unitPrice: ShopPrice
+    adjustments: { label: string; amount: ShopPrice }[]
+    total: ShopPrice
+    available: boolean
+    availability: { code: string; label: string } | null
+    priceChanged: boolean
+    currentPrice: ShopPrice | null
+}
+/** Shop P4: getCart and every cart write's answer; token only when a capability is issued (the first add, sign-in). */
+export interface CartView {
+    cart: {
+        revision: string | null
+        currencyUomId: string
+        items: CartLine[]
+        promoCodes: { code: string; label: string | null }[]
+        totals: { items: ShopPrice; discounts: ShopPrice; shipping: ShopPrice | null; tax: ShopPrice | null; total: ShopPrice }
+        itemCount: number
+        notices: { code: string; text: string }[]
+        empty: boolean
+        checkoutPending?: boolean
+    }
+    /** the mini-cart projection */
+    summary: { itemCount: number; subtotal: ShopPrice }
+    token?: string
+    alreadyApplied?: boolean
+    attached?: boolean
+    merged?: boolean
+    unavailableItems?: string[]
 }
 /** The view contract v1 (design-shop §12.3): plain approved data only, never ec, an entity, a session or a secret. */
 export interface ShopView {
@@ -1024,6 +1064,16 @@ export interface OperationInputs {
     /** Commerce P4's live menu and redirects of the site's Shop mount */
     getSiteNavigation: { siteId: string; menuKey?: string; locale?: string }
     resolveSiteRedirect: { siteId: string; path: string }
+    /** Shop P4: the cart; token is the presentation session's cart capability (never an order id) */
+    getCart: { siteId: string; token?: string }
+    addCartItem: { siteId: string; token?: string; productId: string; variantId?: string; quantity?: string; expectedRevision?: string; operationId?: string }
+    updateCartItem: { siteId: string; token: string; orderItemSeqId: string; quantity: string; expectedRevision: string; operationId?: string }
+    removeCartItem: { siteId: string; token: string; orderItemSeqId: string; expectedRevision: string; operationId?: string }
+    applyPromoCode: { siteId: string; token: string; promoCode: string; expectedRevision: string; operationId?: string }
+    removePromoCode: { siteId: string; token: string; promoCode: string; expectedRevision: string; operationId?: string }
+    /** signed in: attach (sign-in) and release (sign-out) the session's cart */
+    attachCart: { siteId: string; token?: string }
+    releaseCart: { siteId: string; token?: string }
 }
 export type Operation = keyof OperationInputs
 export type Request<O extends Operation> = { operation: O; input: OperationInputs[O] }

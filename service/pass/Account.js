@@ -86,6 +86,12 @@ function finishSso(parameters, siteId) {
     attrs.passSubject = JSON.stringify(result.subject)
     for (const key of ['passSsoState', 'passSsoVerifier', 'passSsoHandoffId'])
         attrs.remove(key)
+    // Shop P4: the session's cart attached to the account
+    shopCart().signedIn(
+        siteId,
+        shopCart().tokenOf(siteId),
+        ec.context.get('siteInfo'),
+    )
     return { authenticated: true }
 }
 /* A local path only: one leading slash, no backslash, whitespace or control character
@@ -107,7 +113,22 @@ function clearRemoteSession() {
     ])
         ec.web.sessionAttributes.remove(key)
 }
+/* Shop P4: the session's Shop cart at sign-in and sign-out (Shop/ShopCart.js; never fails either). */
+const shopCart = () =>
+    ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js')
+const signedIn = () =>
+    !!ec.user.userId || !!ec.web.sessionAttributes.passDelegation
 function call(op, parameters, siteId) {
+    if (op === 'endSession')
+        shopCart().signingOut(siteId, ec.context.get('siteInfo'))
+    if (['startSession', 'completeSession'].includes(op)) {
+        const token = siteId ? shopCart().tokenOf(siteId) : null
+        const result = callAuthority(op, parameters, siteId)
+        rememberReturn(parameters)
+        if (result?.authenticated && signedIn())
+            shopCart().signedIn(siteId, token, ec.context.get('siteInfo'))
+        return result
+    }
     if (op === 'startSso') {
         const result = startSso(parameters, siteId)
         rememberReturn(parameters)

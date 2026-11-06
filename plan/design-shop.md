@@ -452,6 +452,14 @@ only when its attempt is resolved; an unknown outcome cannot. Mini-cart updates 
 without forcing focus or full-page reload. Cart access is not granted by knowing an order ID.
 **Needs:** SHOP-CART, SHOP-CHECKOUT.
 
+As built (impl-shop P4): CartView is the cart's own bounded projection of the order's lines, codes and adjustments
+(`get#OrderDisplayInfo` answers audit logs, payments and internal fields, so it is not used); each line carries the unit
+price the store's authority gave when it was added or changed (`get#StoreProductPrice`, set as the line's `unitAmount`),
+and the view names a line whose current price differs and one that can no longer be bought. Every form is plain HTML posted
+to a Cart transition and answered with a redirect and a notice; the trusted Vue islands (`Purchase.qvue`, `Cart.qvue`) post
+the same transitions for JSON. The mini-cart projection is CartView's `summary` (count and subtotal), which the cart
+page's view gives a theme as `cart` and the purchase island announces after an add.
+
 ### Checkout
 
 **Layout:** responsive single workspace with contact, delivery, payment and review groups, a
@@ -1469,7 +1477,9 @@ These wrappers add public ownership/projection/orchestration, not merely alterna
 | Public operations | Proposed service operations | Principal input/result | Existing primary path or required extension |
 | --- | --- | --- | --- |
 | `getShopHome`, `getStoreCategories`, `getStoreCategory`, `findProducts`, `searchShop`, `getProduct`, `quoteSelection`, `getProductReviews`, `getShopPage` | K.get#Home, get#Categories, get#Category, find#Products, search#Shop, get#Product, quote#Selection, get#Reviews, get#Page | public resource/filter/locale → published bounded view | ProductStore/category/content/price records; get#ProductPrice; current-publication/search guard is new |
-| `getCart`, `addCartItem`, `updateCartItem`, `removeCartItem` | C.get#Cart, add#CartItem, update#CartItem, remove#CartItem | capability + selected product/quantity/revision → CartView | OrderServices.add#OrderProductQuantity, update#OrderProductQuantity, delete#OrderItem; OrderInfoServices.get#OrderDisplayInfo |
+| `getCart`, `addCartItem`, `updateCartItem`, `removeCartItem` | C.get#Cart, add#CartItem, update#CartItem, remove#CartItem | capability + selected product/quantity/revision → CartView | OrderServices.create#Order, add#OrderProductQuantity, update#OrderItem, delete#OrderItem; PriceServices.get#StoreProductPrice for each line (P4: the CartView is the cart's own projection, not get#OrderDisplayInfo) |
+| `attachCart`, `releaseCart` (P4) | C.attach#Cart, release#Cart | signed-in account + the session's capability → CartView with a rotated capability / rotation | PASS calls them at sign-in and sign-out; DuplicateServices.merge#Parties moves StoreCartAccess with its party |
+| `getShopProductImage` (P4, F61) | K.get#ProductImage | product content id → a streamed image of a public product | ProductContent `PcntImage*` of a png, jpeg, gif or webp file; the publication resolver |
 | `applyPromoCode`, `removePromoCode` | C.apply#PromoCode, remove#PromoCode | cart + code/revision → repriced CartView | PromotionServices.add#OrderPromoCode, remove#OrderPromoCode, apply#OrderPromotions |
 | `beginCheckout`, `getCheckout`, `resumeCheckout` | X.begin#Checkout, get#Checkout, resume#Checkout | cart/checkout revision → CheckoutView | new coordination over the existing open order |
 | `setCheckoutContact`, `setCheckoutAddresses` | X.set#CheckoutContact, set#CheckoutAddresses | verified account or permitted guest contact/address → revised checkout | ContactServices.store#PartyContactInfo; OrderServices.set#OrderBillingShippingInfo |
@@ -1536,7 +1546,7 @@ and stored only as digests, separately from record IDs.
 | Record / extension | Essential fields and invariant |
 | --- | --- |
 | `ProductStoreProduct` as a dated association, `mantle.product.store` (Nov 5) | `fromDate` joins the product/store key, with `thruDate`, the publication kind (published, or a variant's exclusion), template key, badge text and featured rank, key fields audit-logged; a change is a new row. Store-specific text is the store's existing `ProductContent` rows. No current row means not publicly published; legacy data is not automatically visible. |
-| `StoreCartAccess`, `mantle.order` | access ID, order/site/mount/store/currency, optional verified customer, capability digest (same digest and throttle as ExternalAccess), one-time recovery token digest, last shopper activity, expiry/revocation. Its revision is the order's `orderRevision`. One authoritative order; capability cannot switch scope. |
+| `StoreCartAccess`, `mantle.order` | access ID, order/site/mount/store/currency, optional verified customer, capability digest (same digest and throttle as ExternalAccess), one-time recovery token digest, last shopper activity, expiry/revocation. Its revision is the order's `orderRevision`. One authoritative order; capability cannot switch scope. As built (P4): also the guest's anonymous customer party (`guestPartyId`, the order part's customer until an account attaches the cart), the revocation's reason (`StoreCartRevokeReason`: merged, placed, expired, cancelled), the cart a merge moved it into, and the rotation date. |
 | `StoreCheckout`, `mantle.order` | checkout ID, order/cart access, state, frozen `orderRevision`, accepted policy/terms versions, quote references/expiry, frozen summary/hash, current submission operation, expiry, completion result. Unique active coordination per order. |
 | `PortalPaymentAttempt` extension, `mantle.account.payment` (Accounting-owned, X9) | existing Payment key; typed purpose (invoice, shopCheckout, shopRenewal, eventRegistration), order/checkout/occurrence, store/site, monetary snapshot hash, phase and safe outcome. The provider key is `PaymentGatewayResponse.operationKey`; no second idempotency field. Preserve invoice fields/semantics; purpose-specific workers. Provider secrets stay configuration. |
 | `SalesOrder` record kind in ExternalAccess.js (Mantle, X6) | customer-direction sales order: resolves organization (internal vendor) and customer party; scopes `OrderView`, `Download`, `RenewalAction` for Shop and `QuoteView`, `QuoteRespond` for Sales; plus the self relationship in `check` and `support`/`sales` in `appKinds`. |

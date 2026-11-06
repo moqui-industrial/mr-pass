@@ -19,6 +19,7 @@ ${styles}</head>
 </#if>
 <#if shop.categoriesUrl><li><a href="${shop.categoriesUrl}">Categories</a></li></#if>
 <#if shop.searchUrl><li><a href="${shop.searchUrl}">Search</a></li></#if>
+<#if shop.cartUrl><li><a href="${shop.cartUrl}">Cart</a></li></#if>
 </ul></nav>
 </header>
 <main id="main">
