@@ -236,7 +236,7 @@ Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
     `manifest.webmanifest` and `WebPush` (the framework's list). PASS `resolve#Route` routes `products/<id>/<slug>`,
     `categories/<id>/<slug>` and `pages/<path>` under the Shop mount to `/Shop/Products/ProductDetail`,
     `/Shop/Categories/CategoryDetail` and `/Shop/Page` (ids `[A-Za-z0-9_-]{1,40}`, anything else Not Found); the page
-    reads the id from `publicPath` (F-SP1-2). Account, Billing and Support under a root Shop keep their paths (longest
+    reads the id from `publicPath` (F47). Account, Billing and Support under a root Shop keep their paths (longest
     mount wins).
   - The Shop root: `screen/Shop.xml` reads `getShopContext` first (Not Found for every failure of concealment) and
     `screen/Shop/Home.xml` shows the store's name and an empty state in the PASS shell until P2's theme. `getSiteInfo`
@@ -275,24 +275,24 @@ Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
     is checked through the authority's answer.
   - Lint: `moqui lint --screens` flags none of the Shop screens, Pass.xml or the Shared files.
   - Demo (F33): ZIZI_SHOP's and ZIZI_DIGITAL's Shop mounts belong in mr-boss `service/ironstone/commerce/Demo.js` (it makes
-    the sites); not made here (F-SP1-3).
+    the sites); not made here (F48).
   - Decisions: concealment is strict (a published site and an enabled mount for everyone, operators too; preview is
     Commerce P5's); the context's service is Shop's catalog package (K) with the shared `shopOf` module; a reason is a
     Mantle code in the message (it survives service calls, which a property does not), allow-listed in one list per side;
     `onePerSite` is the registry's flag, set only on Shop.
   - Findings (provisional):
-    - **F-SP1-1** A refusal's message reaches a page as `Error: Error: CODE: text` after crossing service calls, so
+    - **F46** A refusal's message reaches a page as `Error: Error: CODE: text` after crossing service calls, so
       Portal.js's old code strip (`^[A-Z_]+: `) never matched and a local Unprocessable showed the prefixes. Both
       readers now drop them.
-    - **F-SP1-2** The framework's public-site routing passes only the Forum's ids from a resolver (`rootCommEventId`,
+    - **F47** The framework's public-site routing passes only the Forum's ids from a resolver (`rootCommEventId`,
       `requestedTopicSlug`, `postId`; public_site.rs `parameters`), so Shop's product and category ids are read from
       `publicPath`. For the framework, optional: let a resolver return named route parameters.
-    - **F-SP1-3** For the lead (mr-boss, not edited here): Demo.js `ensureSite`'s mount list gains
+    - **F48** For the lead (mr-boss, not edited here): Demo.js `ensureSite`'s mount list gains
       `["shop", <store>]` with the site's path, the store and path as fields of `sites`: ZIZI_SHOP `{productStoreId:
       "POPC_DEFAULT", shopPath: "/"}`, ZIZI_DIGITAL `{productStoreId: "BOSS_COM_DIGITAL", shopPath: "/shop"}`, written
       as `createOnce("mantle.public.PublicSiteApp", {siteId, appMountId: "shop"}, {app: "shop", pathPrefix: shopPath,
       enabled: "Y", targetId: productStoreId})`; the sites stay disabled until published.
-    - **F-SP1-4** The framework marks a request a public-site path when any `<public-site>`'s mount matches it, before
+    - **F49** The framework marks a request a public-site path when any `<public-site>`'s mount matches it, before
       the host check (public_site.rs `resolve_conf`), so a `/` mount on one host turns every non-framework path of every
       other host into "Public hostname not found". The test runtime therefore has no root mount; ShopAccess and ShopMount
       check the root through `resolve#Route`. For the framework: match mounts only on the route's own host.
@@ -317,7 +317,7 @@ Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
     reaches the policy) to `img-src`; ShopAccess checks the origin and a forged one. Deployment.md says so.
   - Specs after the fixes: ShopAccess, Forum, ForumAccess, Integrations, Portals, SupplierPages, SupportAccess,
     Transport (47 passed); PassAuthority, AccountingPortals, SupportPortal, StoreAdmin (38 passed).
-  - For the lead: F-SP1-3 (the demo Shop mounts in mr-boss Demo.js) and F-SP1-4 (the framework's host check) stay open as
+  - For the lead: F48 (the demo Shop mounts in mr-boss Demo.js) and F49 (the framework's host check) stay open as
     the Built note says. The `internal` guard is a deny-list; a stricter rule (pass only coded refusals' text) would need
     the uncoded Conflict/Unprocessable sentences in Mantle coded first.
 
@@ -715,6 +715,10 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F43 | P0: a remote frontend calls `getSiteInfo` (per user, uncacheable) on every page, the authority answers `no-store` (PassApi.js:133), and Transport.js has no cache | P2/P3: an anonymous `getSiteGeneration` read; catalog results carry their generation and release; Transport.js gets a bounded read-through cache for anonymous GETs keyed by site, operation, input, locale, currency, generation and release |
 | F44 | P0: a cart's first write has no token, and `routeOf` refuses a non-GET with neither delegation nor token (Transport.js:133-139) | P4: cart creation is an anonymous write in all three `TOKEN_WRITES` lists, as `applyOptOut` is, throttled by `passRequester`; it returns the capability, kept in the presentation's server session and sent as `input.token` |
 | F45 | P0: the Forum's Vue enhancement is an html.fancy page with a JSON config, a hidden root and WebrootPublic.qvt.js loading the screen's `.qvue`, under PASS's `'self' 'unsafe-eval'` CSP; it mounts one component per page in a full `q-layout`, embeds the session token, and cannot be emitted by a locked theme template | P4/P5: purchase selection, cart and checkout are one qvue per page over the plain forms, emitted by an adapter-made required-component fragment; framework (the framework worker): WebrootPublic.qvt.js gains an island mode |
+| F46 | P1: refusals reached pages as "Error: Error: CODE: text"; Portal's code-stripping never matched | P1 (built): Transport and Portal strip the prefixes and map the reason |
+| F47 | P1: the framework's route resolver passes only the Forum's three IDs, so Shop pages read their IDs from `publicPath` | Optional framework change (named parameters from a resolver), tried with F49's |
+| F48 | P1: the demo Shop mounts belong to Commerce's demo service in mr-boss, which a PASS worker may not edit | Done by the lead: mr-boss `Demo.js` makes ZIZI_SHOP's Shop mount at `/` for POPC_DEFAULT and ZIZI_DIGITAL's at `/shop` for BOSS_COM_DIGITAL; CommerceAccess, CommerceStores and CommerceFoundationWalk expect them |
+| F49 | P1: `public_site.rs` `resolve_conf` decides a request is for a public site before checking the host, so a `/` mount on one host makes every non-framework path on every other host answer "Public hostname not found" | Framework fix (com/fw2): mounts match only their own host |
 
 ## 7. Later
 
