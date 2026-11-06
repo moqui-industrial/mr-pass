@@ -130,7 +130,9 @@ const accountLinks = (context, links) =>
     esc(base(context) + '/Addresses') +
     '">Addresses</a> · <a href="' +
     esc(base(context) + '/PaymentMethods') +
-    '">Payment methods</a>' +
+    '">Payment methods</a> · <a href="' +
+    esc(base(context) + '/Subscriptions') +
+    '">Subscriptions</a>' +
     (links?.hub ? ' · <a href="' + esc(links.hub) + '">My account</a>' : '') +
     '</nav>'
 

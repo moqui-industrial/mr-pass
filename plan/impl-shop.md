@@ -161,7 +161,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | built Nov 6, 2026 |
 | P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | built Nov 6, 2026 |
 | P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | built Nov 6, 2026 |
-| P7 Prepaid and recurring access | Mantle, mr-pass | Subscriptions, SubscriptionDetail | — |
+| P7 Prepaid and recurring access | Mantle, mr-pass, BOSS (demo) | Subscriptions, SubscriptionDetail | built Nov 6, 2026 |
 | P8 Adoption and operations | Mantle, mr-pass | — | — |
 | P9 Finish | mr-pass | — | — |
 
@@ -1496,6 +1496,182 @@ P12; gated on the adapter's off-session charges (design-shop §8.1).
   sources"): a verified buyer subscribes to the Forum's paid category of ZIZI_DIGITAL, and its "Manage your
   subscription" link opens Shop; the renewal charges once under a retried job; a declined renewal sends one notice and
   no Dunning letter; cancelling keeps access to the paid term; refunding the term leaves a manual grant.
+
+- **Built (Mantle, mr-pass and BOSS demo), Nov 6, 2026** (branch `shop/p7`):
+  - Records (`entity/ShopSubscriptionEntities.xml`): Sales' `OrderHeader.orderPurposeEnumId` (OrderPurpose, seeded value
+    `OrpRecurringTemplate` only; Sales seeds its own later); `StoreRecurringOffer`, `StoreRecurringContract` (the offer as
+    accepted, origin order line, base order, card, off-session consent: time, method, terms version, evidence, the original
+    customer-initiated payment, the reason a consent was cleared; paid-through, next renewal, cancel-at, state
+    StoreContractState, revision; its id is the resource instance of every Subscription it pays) and
+    `StoreRenewalOccurrence` (unique contract + period start; order, payment, attempt count, first failure, next retry, state
+    StoreRenewalState, the activated Subscription) in `mantle.product.subscription`; StoreCheckout gains the offer, the
+    prepaid contract it renews and the recurring consent fields; StoreItemFulfillment gains `subscriptionId`.
+    `data/ShopSubscriptionSetupData.xml`: the ledger source `MdsrcShopRenewals` and the hourly job `run_StoreRenewals`.
+  - `mantle.product.ShopSubscriptionServices` (R, `ShopSubscriptions.js`): `get#Subscriptions`, `get#Subscription`,
+    `begin#SubscriptionPurchase`, `change#SubscriptionMethod`, `cancel#Subscription`, `resume#Renewal` (verified self only);
+    `store#RecurringOffer` (COMMERCE_STORE_EDIT and the store's scope; an automatic offer refused without an off-session
+    gateway, OFF_SESSION_UNAVAILABLE; a change ends the old row and starts a new one; keeps each Shop site's
+    `subscriptionUrl`, never over an outside address); `dispatch#Renewal` (from `create#RecurringOrders`), `run#Renewals`
+    (the job), `run#RenewalStep`, `check#ShopAccessOrder`. The coordinator: claim under the contract's lock (unique period),
+    prepare (`clone#Order` of the base with `copyPayment=false`, the purpose cleared), pay (no consent: `SrsActionRequired`
+    CONSENT_REQUIRED and no payment; else a promised payment of the kept card and its PapShopRenewal attempt with the
+    occurrence), authorize (`authorize#SinglePayment`, operation key `shop-renew-{paymentId}`, `storedCredential`), apply
+    (approved: `place#Order` once; declined: retry at the offer's days from the first failure, 1/3/7 by default, else
+    `SrsFailed`; contract past due; pending/unknown: looked up by the job, never a new key); notices `PsetPaymentRetry` (once
+    per attempt, and once when waiting for the customer) and `PsetSubscriptionRenewal` (once per occurrence) through the
+    delivery ledger, each queued in its own transaction. Cancel: refused while a renewal payment is in flight
+    (RENEWAL_IN_PROGRESS), waiting occurrences closed, cancel-at the paid-through date, the base unscheduled; access kept.
+  - Mantle conditions (each acting only on bases or Shop's orders, defaults unchanged): `reserve#AssetsForOrder`,
+    `checkReserve#AssetForOrderItem`, `send#OrderStoreEmail`, `create#EntireOrderPartInvoice` and Payables' invoice from source
+    (RECURRING_TEMPLATE) skip or refuse a base; `CreditOpenOrderSum` gains the alias and Credit.js leaves bases out of open
+    exposure; `fulfill#OrderSubscriptions` skips a base and Shop's orders (a checkout being placed or completed, a renewal
+    order); `create#RecurringOrders` hands a contract's base to `dispatch#Renewal` and `create#RecurringOrder` refuses one;
+    `fulfill#ProductSubscriptionResource` takes `resourceInstanceId` (F20: the upstream TODO); F112 StoreOperations.js
+    `withoutRecurringBases` filled and also applied to Home's counts, recent orders and a customer's orders; F139 the sales
+    index's `MantleSalesOrderItem` gains `orderPurposeEnumId` and `get#SalesOrderSummary` and `get#SalesTopProduct` leave bases
+    out (`none`; invoices are unaffected, a base is never invoiced); Dunning `preview#Dunning` leaves out the invoice of a
+    renewal in retry (RENEWAL_RETRY, by the occurrence's invoice or its order's billing; back to Dunning once failed);
+    `merge#Parties` moves contracts and clears their consent (PARTY_MERGED); ShopCustomer's card end names the contracts
+    renewing with it and clears their consent (METHOD_ENDED) (F94's replacement half; the card is then replaced through
+    ChangeMethod after the hosted setup).
+  - Fulfillment (F20, ShopFulfillment.js): paid-access lines (PtDigital with a subscription resource) get rows as downloads
+    do, are captured, invoiced, finalized and completed, then activated once on the contract (first purchase: the contract
+    made from the checkout's consent and kept card, and for an automatic offer the base cloned from the order: OrderApproved,
+    RecurringTemplate, one line at the accepted price, promotions off, not a new customer, scheduled nightly); a renewal
+    order is a Shop source; `reconcile#RefundedItem` revokes the refunded line's terms through the resource's revoke service
+    (the Forum's grant of that term only) and recomputes paid-through. The approved email is skipped for all-digital and
+    paid-access Shop orders, renewals included.
+  - Checkout: a checkout marked with an offer needs a verified account and, for an automatic offer, `recurringConsent`
+    (VALUE_INVALID otherwise); the freeze checks the offer still at the line's price and one of it, needs an off-session way to
+    pay, forces keeping the card and records the consent with its evidence; CheckoutView's `recurring`.
+  - The adapter (F14, F41): `authorize#SinglePayment` and the `authorize#Payment` interface take `storedCredential`;
+    Authorize.Net's profile charge then sends `processingOptions` (isSubsequentAuth, isStoredCredentials),
+    `subsequentAuthInformation` (original network transaction id and amount) and `authorizationIndicatorType`, after
+    `transactionSettings` in schema order; `authorizeHosted#Payment` with `storedCredential` is that profile charge.
+    `gatewayCapabilities`: Authorize.Net `offSession: true`, the test gateway's `hostedPendingOrApprove` off-session. The
+    sandbox was not called (no credentials here); the `reason` field is not sent for a scheduled recurring charge, so its
+    casing is moot. Built against the test gateway for the specs, with the JSON request checked in AuthorizeNetGateway.
+  - Readiness: StoreAdmin.js `subscriptions` (a store with offers: an off-session gateway, each Shop site's address Shop's).
+  - PASS: operations `getSubscriptions`, `getSubscription`, `beginSubscriptionPurchase`, `changeSubscriptionMethod`,
+    `cancelSubscription`, `resumeRenewal` in Schema/Routes and the mirrors (identical; signed-in, not token writes),
+    `submitCheckout` takes `recurringConsent`, `Contracts.d.ts` (SubscriptionView). Pages `Shop/Subscriptions.xml`
+    (SubscriptionList; transitions purchase, method, cancel, resume) and `Subscriptions/SubscriptionDetail.xml` (routed from
+    `Subscriptions/{contractId}`, RouteServices.xml) over `screen/Shop/ShopSubscriptions.js`; Checkout's ReviewPurchase shows
+    the subscription and its unchecked consent; the account links name Subscriptions.
+  - BOSS demo: BOSS_COM_DIGITAL's Monthly membership (BOSS_COM_PAID_MONTH, PSR of BOSS_COM_PAID_ACCESS with the Forum
+    handlers), BOSS_COM_HOSTED bound to the store, the renewal notices, digital checkout settings (BossCommerceDemoData.xml);
+    Demo.js step `subscriptions`: the site binding and the offer through `store#RecurringOffer`.
+  - Specs (all `--nobuild`): Mantle `test/product/ShopSubscriptions` (6 features, 2.0 s: subscribe with consent, the base's
+    rules; two concurrent jobs one occurrence/order/charge, continuous term; a decline retried at one day with one notice and
+    no extension, no consent no charge; cancel keeps the term, in flight refused; a refund revokes only its term, a manual
+    grant kept; another recurring order as today, a merge clears consent), `test/account/DunningRenewalExclusion` (2
+    features, 0.07 s), AuthorizeNetGateway +1 (20 features), SalesReportStoreScope (a base indexed and left out; verified
+    to fail without the filter). mr-pass `test/Shop/ShopSubscriptions` (2 features, 0.26 s). Also run, all pass: Mantle
+    ShopCheckout, StoreFulfillment, ShopCustomer, PaymentAttemptPurpose, Subscriptions, OrderLifecycle, OrderToCashBasicFlow,
+    AccountingCollections, AccountingCredit, StoreOperations, StoreReports, StoreAdmin, StoreCheckout, ShopCart,
+    AssetReservationMisc, ReturnToResponseBasicFlow, AccountingPayables, CrmMiscServices, ContactBooks, Contacts, Consent,
+    PassAuthority, GatewayContracts, PaymentGateway, AccountingPaymentGateway, SupportPortal, DeliveryLedger, MantleSearch;
+    mr-pass ShopCheckout, ShopAccount, ShopAccess, Forum, Portals, Transport, Integrations, Entitlements, SupplierPages,
+    ShopCart, ShopReviews, Operations; mr-boss CommerceStores, CommerceAccess, CommerceCheckoutSettings, CommerceOrders,
+    CommerceReports, CommerceRecovery, AccountingAccess. Whole suites (`test-apps`) not run (the brief).
+  - Acceptance: `acceptance/ShopSubscriptionScenarios` (4 features on ZIZI_DIGITAL's demo offer): subscribe with consent and
+    the site's address Shop's; one charge under a retried job; a decline's one notice, no extension, nothing for Dunning;
+    cancel keeps access, refunding the first term leaves a manual grant. With ShopFixtures: 7 of 7. `./moq accept mr-pass` once: server suite 33 passed, 3 ignored, 0 failed; client suite 41 passed.
+  - Lint: `moqui lint --screens` 132 sites as before, none in the new files.
+  - Decisions: one subscription offer per checkout, bought one at a time; the first term at the catalog price, refused at
+    begin when the offer's price differs (OFFER_CHANGED, never a silent substitution) and reviewed at the freeze; a paid-access
+    line bought without an offer is a prepaid contract of its own (its own resource instance); renewals are due by the
+    contract's date, the base scheduled nightly so the native job hands it over; the occurrence's steps each in a
+    transaction of its own, the provider asked holding the payment only; the subscription writes check the revision
+    (cancel, change) and are idempotent otherwise, with no PostingOperation replay; cancellation refused while a renewal
+    payment is in flight; a merge or an ended card clears the consent rather than moving or keeping it; a card set up outside
+    a purchase renews without an original network transaction id.
+  - Upstream fix (for the lead's mr-mantle docs/Upstream-Fixes.md, not in this branch): `fulfill#ProductSubscriptionResource`'s
+    resource-instance TODO (mantle-usl renews the latest subscription of a person and resource, so two independent
+    subscriptions of one person to one resource share terms); here it takes `resourceInstanceId` and Shop passes its contract.
+  - Findings (provisional):
+    - **F-SP7-1** A card kept from a hosted page carries no name, so the store's `PsstOrdApprovePayMethNameDiff` check holds
+      every order paid with it (a signed-in buyer's kept card at checkout, and every renewal) for approval. The specs and
+      BOSS_COM_DIGITAL's demo turn the check off; a kept card should take the account's name (or the check skip hosted cards).
+    - **F-SP7-2** `check#OrderPreApprove`'s similar-order check (24 hours) holds a renewal or a prepaid term bought within a day
+      of the last; harmless a month later, but a resumed renewal soon after a failed one is held. For Sales.
+    - **F-SP7-3** `OrderApprovedFulfillSubscriptions` runs inside the placement, before the checkout is completed, so Mantle's
+      own subscription fulfillment invoiced a Shop line first (NOTHING_TO_BILL for Shop's); fixed: `check#ShopAccessOrder`
+      counts a checkout being placed.
+    - **F-SP7-4** `clone#Order` copies `isNewCustomer` and the part's promotions flag; the base clears the first and turns
+      promotions off, so renewals are neither held as new customers nor discounted.
+    - **F-SP7-5** A card added through the hosted setup has no customer-initiated transaction, so its renewals carry the
+      stored-credential indicators without `originalNetworkTransId`; providers may want the first charge with it to be a
+      customer-initiated one.
+    - **F-SP7-6** ZIZI_DIGITAL has no Forum mount, so the demo's paid access is bound to the site, not a paid category;
+      adding a Forum mount changes CommerceFoundationWalk's expected mounts (another agent's acceptance work).
+    - **F-SP7-7** The renewal email's RenewalAction link (a SalesOrder capability opening ResolveRenewal) is not built: notices
+      link the signed-in SubscriptionDetail page.
+    - **F-SP7-8** `queue#Delivery` checks then creates, so two concurrent sends of one event throw on the unique key and mark
+      the caller's transaction rollback-only; the renewal notices are queued as probes; P6's download notice has the same
+      exposure (for Comms).
+    - **F-SP7-9** Two runs of one order's fulfillment (the approval SECA and a job) race on StoreItemFulfillment's unique
+      key; the loser's prepare fails and is logged, the rows are the winner's (tolerated).
+    - **F-SP7-10** Not built here: ProductDetail's subscribe action (the Subscriptions page offers the store's offers), the
+      design's trusted Vue enhancement of ChangeMethod and ResolveRenewal (plain forms), Insights' query exclusions (not
+      built), Commerce P12's editors; F94's reorder half stays as P6 left it (subscription lines are not reordered and not
+      named in the preview).
+- **Review Nov 6 (P7)** (mr-mantle `fd5d16d4`; the Built note is accurate but for R1–R4). Checked: the coordinator's claim
+  (contract lock, unique period), one order, payment and authorization per attempt with `shop-renew-{paymentId}`, an
+  unknown outcome looked up and never sent again, retries at 1/3/7 from the first failure with one notice per payment, no
+  extension on a failure, cancellation refused while a payment is in flight and keeping the paid term; the base's
+  exclusions (reservation, store email, both invoice paths, credit exposure, the sales summaries, StoreOperations' lists,
+  Home) and `create#RecurringOrders`' default (a native base still cloned); consent unchecked by default, required at
+  submit, recorded at the freeze with its evidence, cleared by a merge and an ended card, recorded again by ChangeMethod;
+  every operation the verified buyer's own contract (store and customer; a forged or another's contractId NOT_AVAILABLE,
+  also through `Subscriptions/{contractId}`); a refund revoking only its line's terms; `fulfill#ProductSubscriptionResource`
+  unchanged without `resourceInstanceId` (`ignore-if-empty`); the Authorize.Net indicators only with `storedCredential`
+  and only on a profile charge, after `transactionSettings` (nothing after them in the request), the first checkout charge
+  and other callers unchanged; no amount arithmetic, comparison or join in the new PASS JS (display text only).
+  - R1 (critical) A renewal whose payment was declined and then succeeded on a retry re-charged every earlier declined
+    payment: `place#Order`'s `authorize#OrderPayments` authorizes `PmntDeclined` payments again (they name the kept card),
+    and Shop's fulfillment then captured them. `authorize#OrderPayments` now skips a declined payment whose payment attempt
+    is settled (its coordinator decided it); one with no attempt is authorized as before (PaymentAttemptPurpose, both).
+  - R2 (high) Retry exhaustion left no recovery: the period's occurrence `SrsFailed`, the contract `ScsPastDue` for good
+    (each nightly claim answers the failed occurrence), and resume#Renewal and ChangeMethod looked only at waiting ones.
+    Both now reopen the current period's exhausted renewal (design-shop §10.2's recovery action); SubscriptionDetail shows
+    ResolveRenewal for it.
+  - R3 (high) ChangeMethod and resume#Renewal ran the occurrence's steps (each `requireNewTransaction`) behind their own
+    transaction's lock on the contract and their uncommitted occurrence write: a lock wait, and the steps read the old
+    consent. The consent and each reopening are now steps of their own, committed before the charge's steps (neither
+    operation had a spec; ShopSubscriptions' review feature covers both).
+  - R4 (medium) A cancellation and a renewal step could interleave (cancel read an occurrence `SrsClaimed` while pay made
+    its payment, then marked it cancelled with the authorization going on). prepare, pay and apply now lock the contract
+    before the occurrence, as claim and cancel do; a cancelled contract's unstarted renewal is closed and its open order
+    cancelled; cancel locks its occurrences.
+  - R5 (low) Another prepaid term's checkout extended its contract for every paid-access line of the checkout; now only
+    for that contract's product (another line is a contract of its own).
+  - Specs (`--nobuild`): Mantle ShopSubscriptions 7 (the review feature 1.1 s: a full checkout and a three-attempt renewal),
+    PaymentAttemptPurpose 5, and DunningRenewalExclusion, AuthorizeNetGateway, SalesReportStoreScope, ShopCheckout,
+    StoreFulfillment, ShopCustomer, StoreOperations, StoreReports, AccountingCollections, AccountingCredit, Subscriptions,
+    OrderToCashBasicFlow, PaymentGateway, AccountingPaymentGateway, OrderLifecycle: 147 passed; mr-pass ShopSubscriptions,
+    ShopAccess, ShopCheckout, Forum 21 passed; mr-boss CommerceAccess, CommerceOrders, CommerceReports, CommerceStores 19
+    passed. Acceptance not run (unchanged).
+  - For the lead:
+    - Upstream-Fixes.md is not on this branch (it came to master after the branch); add on merge, newest first:
+      `fulfill#ProductSubscriptionResource` renews the latest subscription of a person and resource whatever its instance
+      (the resource-instance TODO), so two independent subscriptions of one person to one resource share terms; here it
+      takes `resourceInstanceId` and the renewal looks up only that instance's subscriptions (Shop P7, mr-mantle
+      `33c9df55`); upstream could take the instance from the order item or its own contract record.
+    - A refund of the latest term of an automatic contract drops paid-through to the previous term's end but keeps the
+      next renewal date, and the next claim's period then starts where an existing (activated) occurrence did, so that
+      contract never renews again. Decide whether such a refund cancels the renewal or re-dates it.
+    - New periods are claimed only by the nightly `create#RecurringOrders` (the base's 2 a.m. cron); the hourly
+      run_StoreRenewals advances occurrences but claims none, so access can lapse up to a day at each paid boundary.
+    - ShopCustomer's card end clears the contracts' consent without a revision bump; `dispatch#Renewal` and
+      `run#Renewals` are `anonymous-all` (internal only, allow-remote false).
+    - Authorize.Net: the first customer-initiated charge that keeps the card sends no stored-credential indicator
+      (`isFirstRecurringPayment`/stored credentials), and renewals no `recurringBilling` setting; check with the sandbox
+      (F-SP7-5).
+    - F-SP7-6 left: binding the demo's access to a Forum paid category needs a Forum mount on ZIZI_DIGITAL, a category
+      made through the Forum's staff services on a site with no owner, `qualifyingSources` for subscriptions, the buyer's
+      site membership to read it, and changes to two acceptance walks (CommerceFoundationWalk's mounts,
+      ShopSubscriptionScenarios' grant): not contained.
 
 ### P8 — Adoption and operations
 
