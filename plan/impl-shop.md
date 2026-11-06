@@ -854,6 +854,47 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
     - **F-SP4-7** No job retires expired open carts (design-shop §7.1's retention): an expired access reaches nothing,
       but its order stays open. For P8 (operations).
 
+- **Review Nov 6 (P4)** (Mantle and mr-pass; branch `shop/p4`). Checked: StoreCartAccess (only the capability's digest,
+  unique; the token only in the presentation session under `passShopCart:{siteId}`, never in a page, cookie or URL of the
+  browser; 48 random characters; lookups, creation and code tries throttled by `requesterKey`, which is the remote
+  frontend's `passRequester` for a registered client); a cart reached only by a usable row of the facade's site, store and
+  currency (open order, not expired or retired, an account's cart only for that account) or the signed-in account's own;
+  no operation takes an order id; lines only through `lineOf` of the cart's own product lines; the anonymous first
+  `addCartItem` (F44) needs a registered client at the authority (PassAuthority, PassApi) and makes a new cart each time
+  (it cannot write into another), bounded by the creation throttle; inputs allow-listed in Schema.js and each line's
+  `unitAmount` the authority's price, which Mantle then keeps (`isModifiedPrice` Y; `handle#OrderMajorChange` deletes and
+  re-applies promotion items only and `recalc#OrderPartItemAmounts` has no caller, so nothing reprices or double-counts);
+  `extras` under `storeAuthority` only (set only by `get#StoreProductPrice`), `get#ProductPrice` unchanged; revisions
+  required on changes, replays keyed by the cart and checked before the revision; merges of proven same-scope carts
+  only, refused with a payment in progress, the guest access retired and its order cancelled; merge#Parties moving the
+  access by party only; `get#ProductImage` (public product in the routed store, image types and extensions, the row's
+  store, nosniff and attachment, the location staff-entered, never the visitor's); code refusals all
+  `PROMO_CODE_INVALID` (Mantle's own refusals are warnings, so the uniform text holds); `Portal.attempt`'s new
+  transaction (the facade call suspends the transition's and commits or rolls back alone); islands (plain forms without
+  JS, the form token as `X-CSRF-Token` from `Cart/state`, same-origin). Fixes:
+  - R1 (medium) Account.js's sign-in and sign-out hooks called `attachCart`/`releaseCart` in the sign-in's transaction,
+    so a refusal (a throttled lookup, an unexpected error) marked it rollback-only (F-SP4-2) and could fail the sign-in
+    despite the catch; both now run in their own transaction (ShopCart.js `signedIn`, `signingOut`).
+  - R2 (low) `simpleQuery` escaped `<` and `>`, which a query_string cannot escape (a bare `>10` is a range); they
+    become spaces (ShopCatalog spec gains the check).
+  - R3 (low) Attaching a guest cart at sign-in changed the part's customer without re-applying promotions, so the
+    account's promotions (or a guest's that no longer apply) waited for the next change; it now calls
+    `handle#OrderMajorChange`.
+  - R4 (acceptance) ShopMount and ShopThemeRelease now stand in any order with ShopFixtures: ShopMount sets aside the
+    site's theme binding (and keeps the Shop mount's id in its save) and puts it back; ShopThemeRelease retires
+    POPC_DEFAULT's published products for its empty-state features and restores them.
+  - Specs after the fixes: Mantle ShopCart, ShopCatalog, PassAuthority, StorePromotions, Promotions 28 passed; mr-pass
+    ShopCart, ShopAccess, ShopCatalog, Portals, Transport, PublicIdentity, SsoHandoff 22 passed; acceptance
+    ShopFixtures, ShopMount, ShopThemeRelease 8 passed; `./moq accept mr-pass`: server suite 14 passed, 3 ignored, 0 failed; client suite 40 passed.
+  - For the lead: (1) `store#Mounts` (Forum.js) deletes and recreates every mount a save names, so re-saving a site's
+    Shop mount that has a theme binding fails with a raw foreign-key error (Unavailable), and the mount's id changes
+    unless the page sends it (StoreCartAccess.appMountId has no foreign key, so carts survive but name an old id); since
+    P2. (2) F-SP4-2 stands for Billing's and Support's page writes. (3) A remote `getCart` is a GET, so the capability
+    travels as a query parameter on the frontend-to-authority link (as the existing token reads do) and may reach the
+    authority's access logs; consider a POST or a header for capability reads. (4) Product images are no-store and read
+    any location scheme a staff member enters; consider public caching by generation and limiting the schemes.
+    (5) Guest parties and cancelled guest orders accumulate with no retention job (F-SP4-7).
+
 ### P5 — Checkout and payment
 
 Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §8; SHOP-CHECKOUT, SHOP-PAYMENT.

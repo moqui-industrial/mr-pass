@@ -703,6 +703,8 @@ function signedIn(siteId, token, siteInfo) {
                 operation: 'attachCart',
                 input: { siteId, ...(token ? { token } : {}) },
             })
+            // its own transaction: a refusal here must not mark the sign-in's rollback-only (F-SP4-2)
+            .requireNewTransaction(true)
             .call().result
         if (result?.token) keep(siteId, result)
         if (result?.merged)
@@ -741,6 +743,8 @@ function signingOut(siteId, siteInfo) {
                 operation: 'releaseCart',
                 input: { siteId, ...(token ? { token } : {}) },
             })
+            // its own transaction: a refusal here must not mark the sign-out's rollback-only (F-SP4-2)
+            .requireNewTransaction(true)
             .call()
     } catch (error) {
         ec.message.clearErrors()
