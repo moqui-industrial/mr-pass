@@ -719,6 +719,8 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F47 | P1: the framework's route resolver passes only the Forum's three IDs, so Shop pages read their IDs from `publicPath` | Framework (mr-moqui 885a273d): a resolver service may return `screenParameters`, bound before the site and Forum IDs, which it cannot override |
 | F48 | P1: the demo Shop mounts belong to Commerce's demo service in mr-boss, which a PASS worker may not edit | Done by the lead: mr-boss `Demo.js` makes ZIZI_SHOP's Shop mount at `/` for POPC_DEFAULT and ZIZI_DIGITAL's at `/shop` for BOSS_COM_DIGITAL; CommerceAccess, CommerceStores and CommerceFoundationWalk expect them |
 | F49 | P1: `public_site.rs` `resolve_conf` decides a request is for a public site before checking the host, so a `/` mount on one host makes every non-framework path on every other host answer "Public hostname not found" | Framework (mr-moqui 885a273d): a root mount claims only its own host; a named mount on a host no site names is still concealed; framework paths stay reserved |
+| F50 | Commerce P3 review: `get#StorePublication` without a `siteId` skips the site check, and "site access" does not yet read the site's own access rule | P3: Shop's catalog reads always pass the site; the resolver requires it from a non-staff caller and reads the site's access |
+| F51 | Commerce P3 review: the resolver's public list mode resolves every published product before paging (one `check#ProductUsable` each) | P3: Shop's catalog uses the in-process `resolve` with its own paging and the index's candidates (F32) |
 
 ## 7. Later
 
