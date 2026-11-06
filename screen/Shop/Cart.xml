@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Cart (design-shop §6 Cart; impl-shop P4): the shopper's cart (getCart with the session's capability, Shop/ShopCart.js):
+    its lines with quantity and removal forms, the promotion code form, the estimated totals and notices, rendered through
+    the active release's cart page with the trusted shop.cart component, or in the PASS shell. Every form posts to a
+    transition here, answered with a redirect and a notice, or JSON for the cart's island (Cart.qvue). No-store
+    (Shared/Headers.js's default). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Cart">
+  <transition name="add">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'add')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="quote">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'quote')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="update">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'update')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="remove">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'remove')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="applyCode">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'applyCode')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="removeCode">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'removeCode')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="state" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'state')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script>shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').page(shopContext)</script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/Cart.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

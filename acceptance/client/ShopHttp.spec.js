@@ -1,7 +1,8 @@
 // Shop P3's "usable when" over HTTP (impl-shop P3; design-shop §18.1 "Two sites" and "Anonymous browse"), on ShopFixtures'
 // demo sites: an anonymous visitor browses POPC_DEFAULT's published categories and products on ZIZI_SHOP (its root, the
 // starter theme), searches, chooses a quantity and reads its returns policy page, at 390 px and on the desktop with the
-// browser, and without JavaScript with plain requests (every page and the purchase selection are GET forms and links);
+// browser (P4: the purchase island prices the quantity), and without JavaScript with plain requests (every page is a link
+// and the quote a GET of the product's page);
 // ZIZI_DIGITAL (Shop at /shop, the PASS shell) shows only BOSS_COM_DIGITAL's product, and neither site another's;
 // nothing unpublished shows anywhere (DEMO_VAR, a draft); the catalog pages are public for a minute to a cookieless
 // visitor, with no cookie or session token, answer 304 to a revalidation, and are no-store for one with a session.
@@ -47,14 +48,18 @@ feature(
                 { timeout: 15 },
             )
             const product = { text: page.text(), overflow: overflow(page) }
+            // P4: the purchase island prices a changed quantity in place (the plain form's Show price is the no-script way)
+            page.waitFor(
+                () =>
+                    !!document.querySelector('#ShopPurchase .m-public-island'),
+                { timeout: 20 },
+            )
             page.getByLabel('Quantity').fill('3')
-            page.getByRole('button', {
-                name: 'Show price',
-                exact: true,
-            }).click()
-            page.waitFor(() => location.search.includes('quantity=3'), {
-                timeout: 15,
-            })
+            page.getByLabel('Quantity').press('Tab')
+            page.waitFor(
+                () => document.body.innerText.includes('3 × $16.99 = $50.97'),
+                { timeout: 15 },
+            )
             const quoted = page.text()
             page.goto(SHOP + '/Search')
             page.getByLabel('Search the store').fill('One-Two')

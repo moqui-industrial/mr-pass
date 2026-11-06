@@ -237,6 +237,11 @@ feature(
             product.html.includes('$24.00')
             product.html.includes('name="quantity"')
             product.html.includes('2 × $24.00 = $48.00')
+            // P4: the purchase selection posts to the cart, its Show price to the quote, in its island
+            product.html.includes('action="/shop/Cart/add"')
+            product.html.includes('formaction="/shop/Cart/quote"')
+            product.html.includes('>Add to cart</button>')
+            product.html.includes('data-moqui-island="ShopPurchase"')
             product.html.includes('<script type="application/ld+json">')
             product.html.includes('"price":"24.00"')
             product.html.includes('hreflang="en-US"')

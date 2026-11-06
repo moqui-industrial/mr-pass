@@ -73,6 +73,14 @@ const TOKEN_WRITES = [
     'addReturnEvidence',
     'withdrawCustomerReturn',
     // Shop P1: none yet; P4 adds the cart writes
+    // Shop P4: a cart's writes, authorized by the session's cart capability (input.token); the first add makes the cart
+    // with no capability yet (impl-shop F44: an anonymous write, as applyOptOut is), its creations rate limited by the
+    // requester
+    'addCartItem',
+    'updateCartItem',
+    'removeCartItem',
+    'applyPromoCode',
+    'removePromoCode',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -167,6 +175,8 @@ function routeOf(operation, input) {
         !token &&
         route[0] !== 'GET' &&
         operation !== 'applyOptOut' &&
+        // Shop P4 (F44): a visitor's first add makes the cart, so it has no capability yet
+        operation !== 'addCartItem' &&
         !(TOKEN_WRITES.includes(operation) && input.token)
     )
         fail('AuthenticationRequired', 'Sign in to continue')
@@ -598,4 +608,7 @@ const account = (action, input, siteId) =>
     refused,
     readThrough,
     CACHED_READS,
+    // Shop P4: the anonymous-write rule and its list, which ShopCart checks equal to the authority's
+    routeOf,
+    TOKEN_WRITES,
 })

@@ -1,0 +1,120 @@
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md.
+    A product page's purchase selection, the trusted Vue island over the plain form (impl-shop P4, F45; Shop/ShopCart.js):
+    a change of option or quantity asks Purchase/quote for the selection's price, and Add to cart posts to Cart/add for
+    JSON, announcing the cart's count without a reload or moving focus. The island's context is the page's selection. -->
+<template>
+    <form class="shop-purchase" aria-label="Choose your purchase" @submit.prevent="add">
+        <label v-if="variants.length"
+            >Option
+            <select v-model="variantId" required @change="quote">
+                <option value="">Choose an option</option>
+                <option v-for="variant in variants" :key="variant.id" :value="variant.id">
+                    {{ variant.label }}{{ variant.purchasable ? '' : ' (not available)' }}
+                </option>
+            </select>
+        </label>
+        <label
+            >Quantity
+            <input v-model="quantity" type="number" min="1" max="999" step="1" inputmode="numeric" @change="quote" />
+        </label>
+        <button v-if="purchasable" type="submit" class="shop-add" :disabled="busy">Add to cart</button>
+        <p class="shop-quote" aria-live="polite">{{ quoteLabel }}</p>
+        <p v-if="message" :class="error ? 'shop-notice shop-notice-error' : 'shop-notice shop-notice-ok'" aria-live="polite">
+            {{ message }}
+        </p>
+        <p class="shop-cart-link">
+            <a :href="context.cartUrl">View cart<span v-if="count != null"> ({{ count }})</span></a>
+        </p>
+    </form>
+</template>
+<script>
+module.exports = {
+    name: 'ShopPurchase',
+    data() {
+        return {
+            context: {},
+            variants: [],
+            variantId: '',
+            quantity: '1',
+            quoteLabel: '',
+            purchasable: true,
+            busy: false,
+            message: '',
+            error: false,
+            count: null,
+            token: '',
+        }
+    },
+    created() {
+        const context = this.$root.config.context || {}
+        this.context = context
+        this.variants = context.variants || []
+        this.variantId = context.selectedVariantId || ''
+        this.quantity = context.quantity || '1'
+        this.quoteLabel = context.quoteLabel || ''
+        this.purchasable = context.purchasable !== false
+        this.token = this.$root.config.sessionToken || ''
+    },
+    methods: {
+        selection() {
+            const fields = { productId: this.context.productId, quantity: String(this.quantity || '1') }
+            if (this.variantId) fields.variantId = this.variantId
+            return fields
+        },
+        async quote() {
+            if (this.variants.length && !this.variantId) {
+                this.quoteLabel = 'Choose an option to see its price'
+                return
+            }
+            try {
+                const response = await fetch(this.context.quoteUrl + '?' + new URLSearchParams(this.selection()), {
+                    headers: { Accept: 'application/json' },
+                    credentials: 'same-origin',
+                })
+                const data = await response.json()
+                this.quoteLabel = data.ok ? data.label : data.error.message
+            } catch (error) {
+                this.quoteLabel = ''
+            }
+        },
+        // the session's form token: the page's, else the cart state's answer (which starts a session for a visitor)
+        async formToken() {
+            if (this.token) return this.token
+            const response = await fetch(this.context.stateUrl, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            })
+            const data = await response.json()
+            this.token = data.formToken || response.headers.get('moquiSessionToken') || ''
+            if (data.ok) this.count = data.summary.itemCount
+            return this.token
+        },
+        async add() {
+            this.busy = true
+            this.message = ''
+            try {
+                const token = await this.formToken()
+                const response = await fetch(this.context.addUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRF-Token': token,
+                    },
+                    body: new URLSearchParams(this.selection()),
+                })
+                const data = await response.json()
+                this.error = !data.ok
+                this.message = data.ok ? data.message : data.error.message
+                if (data.ok) this.count = data.summary.itemCount
+            } catch (error) {
+                this.error = true
+                this.message = 'The item was not added. Try again.'
+            } finally {
+                this.busy = false
+            }
+        },
+    },
+}
+</script>
