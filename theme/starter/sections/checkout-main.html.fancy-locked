@@ -1,0 +1,4 @@
+<section class="store-section">
+  <h1>${section.settings.heading || page.title}</h1>
+  <div class="component">${components["shop.checkout"]}</div>
+</section>

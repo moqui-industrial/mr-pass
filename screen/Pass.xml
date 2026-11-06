@@ -33,12 +33,21 @@
     <subscreens-item name="Shop" location="component://mr-pass/screen/Shop.xml"/>
   </subscreens>
   <widgets>
-    <render-mode>
-      <text type="html" location="component://mr-pass/screen/Shared/Header.html.fancy"/>
-    </render-mode>
+    <!-- a themed Shop page (shopThemed, set by Shop.xml, Shop P2) is a whole document in the release's own layout -->
+    <section name="PassShellHeader" condition="!shopThemed">
+      <widgets>
+        <render-mode>
+          <text type="html" location="component://mr-pass/screen/Shared/Header.html.fancy"/>
+        </render-mode>
+      </widgets>
+    </section>
     <subscreens-active/>
-    <render-mode>
-      <text type="html" location="component://mr-pass/screen/Shared/Footer.html.fancy"/>
-    </render-mode>
+    <section name="PassShellFooter" condition="!shopThemed">
+      <widgets>
+        <render-mode>
+          <text type="html" location="component://mr-pass/screen/Shared/Footer.html.fancy"/>
+        </render-mode>
+      </widgets>
+    </section>
   </widgets>
 </screen>

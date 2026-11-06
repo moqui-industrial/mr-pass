@@ -156,7 +156,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | --- | --- | --- | --- |
 | P0 Checks | all (read) | — | done Nov 5 (§6 F1–F45) |
 | P1 App and mount | Mantle, mr-pass | the Shop root, the PASS shell on a Shop site | built Nov 5, 2026 |
-| P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | — |
+| P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | built Nov 6, 2026 |
 | P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | — |
 | P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | — |
 | P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | — |
@@ -377,6 +377,92 @@ Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME,
     only the SVG and XLink namespaces, template-literal property names caught. Left: names built at run time still reach
     `Function` inside the frozen sandbox (not an escape; removing `Function`, `eval` and the generator constructors from
     the locked sandbox is optional hardening).
+
+- **Built (Mantle and mr-pass), Nov 6, 2026** (mr-mantle and mr-pass, branch `shop/p2`):
+  - Records (`entity/PublicThemeEntities.xml`, `mantle.public`): `PublicTheme` (a store's theme: `productStoreId` for
+    scope, `packageRoot` `dbresource://mantle/public/theme/{themeId}`, `draftRevision`, the last validation's digest,
+    revision and outcome, `starterKey`, `sourceReleaseId`); `PublicThemeRelease` (immutable: `releaseSeq`, engine,
+    `rendererVersion`, `viewApiVersion`, `validationDigest`, `manifestText` and its SHA-256 `manifestDigest`; the manifest
+    holds the files with versions, digests and sizes, the schemas, `config/settings.json`, `defaultTemplates` and the
+    composition: per template its layout, order and each section's type and named sources); `PublicThemeReleaseFile`
+    (path, dbresource version, digest, size, type); `PublicThemeBinding` (site and app mount to the release, `revision`,
+    `siteGeneration`, `activation`; `releaseId` and `activation` audit-logged, which is the activation history).
+  - `mantle.public.ThemeServices` (`service/mantle/public/Themes.js`, core in its own sections; `ThemeView.js`, the
+    page view): `create#ThemeDraft` (a starter `component/name`, read from the component's `theme/{name}`, or one of the
+    store's releases; `COMMERCE_THEME_EDIT`), `get#ThemeDraft` (`COMMERCE_VIEW`), `validate#Theme` (the adapter's
+    checks with every page kind required, the three required components declared, a bounded render of each of the 13
+    page kinds with a synthetic view, which fails a page that does not place its component; the digest of the files'
+    digests, engine, renderer and view API kept on the theme; `COMMERCE_THEME_EDIT` or `_PUBLISH`), `publish#Theme`
+    (revalidates, `VALIDATION_STALE`, `THEME_INVALID`, the locked binding's `expectedActiveRevision` or
+    `REVISION_STALE`, `THEME_STORE_MISMATCH`, then the release, its files, the binding and the site's generation in one
+    transaction; `COMMERCE_THEME_PUBLISH`), `restore#ThemeRelease` (the pinned files rechecked by digest,
+    `RELEASE_DAMAGED`, revalidated, `RELEASE_INVALID`, the same revision gate), `export#ThemeRelease` (the manifest, the
+    files with `includeFiles`). Scope by StoreAdmin.js: the theme's store and the store the site's Shop mount targets.
+    For P5 the module exports `pageKinds`, `requiredComponents`, `componentsOf`, `renderers`, `scopeWith`, `themeOf`,
+    `draftFiles`, `putDraftFiles` (writes, bumps `draftRevision`; the caller checks it), `releaseFiles`,
+    `validatePackage`, `packageDigest`, `activeRelease`.
+  - The live path: PASS operations `getShopPage` (ThemeView.js: `shopOf`, the page kind's projection, the active release,
+    the generation, the view contract v1 and the sources the release's composition names, each loaded once;
+    `contract()` keeps only the contract's keys as plain JSON and drops `ec`, `sri`, `context`, `entity`, `session`,
+    `user`, `password`, `secret`, `token`, `apiKey`, `credential` and names ending in secret, token, password, partyId or
+    userId at any depth; P2's live kinds `home` and `not-found`, P3 on append to `pages` and `sources`),
+    `getShopThemeRelease` and `getShopThemeFiles` (the active release only, `RELEASE_NOT_ACTIVE`; 50 files a call; a
+    registered frontend only: PassAuthority's `CLIENT_READS`), `getSiteGeneration` (F43, in SiteServices: the
+    generation and the active release, nothing personal), all in Schema/Routes and the mirrors and `Contracts.d.ts`.
+    `getShopContext.release` is the binding's. Readiness gains a `theme` warning (an enabled Shop site with no
+    published release on a supported engine and view API).
+  - mr-pass: `screen/Shop/ShopTheme.js` (`packageOf`: the manifest's digest and each file's checked, engine and view API
+    checked, kept in the `pass.shop.themeReleases` cache by release and digest; `renderPage` with PASS's trusted
+    components of the page kind; `unavailablePage`, the built-in safe page, 503; `sendAsset`: an `assets/` file of the
+    active release by its manifest digest, immutable, nosniff, an SVG cleaned again, `default-src 'none'`). `Shop.xml`
+    sets `shopThemed` from the context's release, and `Pass.xml` leaves its header and footer out then; `Home` renders the
+    release's home (the P1 shell page without a release); the `themeAsset` transition and `resolve#Route`'s
+    `theme/{64 hex}/{path}` with `screenParameters` (F47's). The starter `theme/starter/` ("IronStone Starter"): a layout,
+    13 page templates, 12 sections (hero, product grid, rich text, product, category, search results, page, cart,
+    checkout, the account pages' component section, not found), a text block, two snippets, settings, CSS and a logo.
+  - Specs: Mantle `test/public/ThemeReleases` (5 features, 2.2 s: the digest follows the draft, a template naming `ec`
+    fails with its file and line 2, a missing required component; publish pins the files, revision 1 and the generation
+    +1, publish again and restore with an audit row each and the generation +3, the export; a stale revision, a stale
+    validation digest and a stale restore refused with nothing changed; a designer cannot publish, another
+    organization's publisher sees nothing, another store's theme refused; the live reads only of the active release, the
+    page view and the contract's drops). mr-pass `test/Shop/ShopThemes` (4 features, 1.2 s: the starter validates and
+    renders each page kind with its components placed, PASS's components equal Mantle's; published, Home is the release's
+    whole document with the store's name, `ShopEmpty` and its stylesheet under `/shop/theme/{digest}`, no PASS shell or
+    session token, the CSS and SVG assets served and a wrong digest or path refused, the route; a failing optional section
+    replaced by its placeholder and listed in `omitted`, the rest rendered; the remote render equal to the local one, a
+    forged file the unavailable page, the manifest and files refused to an unregistered caller). Also run, all pass:
+    ShopAccess, Transport, Portals, Forum, ForumAccess, Integrations, SupportAccess, SupplierPages; Mantle PassAuthority,
+    StoreAdmin, StorePublication, AccountingPortals, SupportPortal; mr-boss CommerceStores, CommerceAccess (11). mr-pass
+    2.5 s of 15 s. Schema and Routes mirrors identical.
+  - Acceptance: `acceptance/ShopThemeRelease.spec.js` (4 features: the starter published to ZIZI_SHOP at its root for
+    POPC_DEFAULT shows the store's name and the empty state in its own layout; a section that loops forever is left out
+    at the time budget, the page in under 3 s, then the starter restored; a template naming `ec` fails at its file and
+    line and publish is refused `THEME_INVALID`; the remote frontend's render equals the local one, a forged file shows
+    the unavailable page). Run: 4 passed.
+  - Lint: `moqui lint --screens` flags none of the Shop screens or Pass.xml.
+  - Decisions: Mantle keeps the records and assembles the view; PASS verifies and renders, the same code locally and
+    remotely; a theme belongs to a store (the publisher's scope is the store the site sells); the binding's audit log is
+    the activation history (no event table); the release asset path is keyed by the manifest digest so a stylesheet's
+    relative `url()` works; the theme source of the active release goes only to registered frontends.
+  - Findings (provisional):
+    - **F-SP2-1** The adapter checks `locales/<name>.json` but no template function reads it (`localize` is the locked
+      renderer's own), so the starter's texts are in its templates and settings. For the framework, optional: a package
+      text lookup for the view's locale.
+    - **F-SP2-2** The framework reserves `/assets` at the root, so a root Shop cannot use design-shop's
+      `/shop/assets/sha256-…`; release assets are `{mount}/theme/{manifestDigest}/{path}` (design §12.3 and §12.7 changed).
+    - **F-SP2-3** A screen's `actions` variables do not reach its parent's widgets (only `always-actions`' do), so Shop.xml
+      decides `shopThemed` in always-actions and Home renders in its actions. P3's themed pages do the same.
+    - **F-SP2-4** The adapter's package is text only (`{files: {path: text}}`); images and fonts are named only. Binary
+      theme assets (P5's upload) need bytes through the release reads, `getShopThemeFiles` and `sendAsset`; for P5 and
+      the framework.
+    - **F-SP2-5** After a switch only the active release's assets are served, so a page rendered before it loses its
+      stylesheet until reloaded; P3's caching by generation and release keeps that short.
+    - **F-SP2-6** `ec.resource.theme.engines()` gives no renderer version; Mantle's `renderers` table records version 1.
+      For the framework, optional: the engine's version.
+    - **F-SP2-7** F43's Transport.js read-through cache by generation and release is not built here (`getSiteGeneration`
+      is); P3 builds it with the catalog reads.
+    - **F-SP2-8** For the lead: the inventories' Implemented-in columns (mr-boss ss-inventory, usl-inventory) are mr-boss's
+      and not edited here; the CLIENT_READS rule is checked in ShopThemes (it needs a published release), not ShopAccess.
 
 ### P3 — Catalog pages
 

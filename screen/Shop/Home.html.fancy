@@ -1,2 +1,2 @@
-<h1>${shopContext.store.name}</h1>
-<section class="card" id="ShopEmpty" aria-live="polite"><h2>Coming soon</h2><p>This store is getting ready. Check back soon to browse its products.</p></section>
+<#if shopPage>${raw(shopPage.html)}<#else><h1>${shopContext.store.name}</h1>
+<section class="card" id="ShopEmpty" aria-live="polite"><h2>Coming soon</h2><p>This store is getting ready. Check back soon to browse its products.</p></section></#if>

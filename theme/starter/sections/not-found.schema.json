@@ -1,0 +1,5 @@
+{
+  "name": "Not found",
+  "settings": [{"id": "heading", "type": "text", "label": "Heading", "maxLength": 160, "localized": true}],
+  "allowedPageKinds": ["not-found"]
+}

@@ -33,6 +33,8 @@ export interface PublishedPost { postId: string; rootCommEventId: string; ordina
 export interface SafeError { code: string; reason: string | null; message: string; fieldErrors: { field: string; reason?: string | null; message?: string }[]; correlationId: string }
 export interface HostInput { hostname: string; canonical?: boolean }
 export interface MountInput { app: 'forum' | 'account' | 'members' | 'sites' | 'billing' | 'supplier' | 'support' | 'shop'; pathPrefix: string; enabled?: boolean; appMountId?: string; targetId?: string }
+/** A site's active Shop theme release (impl-shop P2): the manifest digest pins every file. */
+export interface ShopRelease { releaseId: string; manifestDigest: string; engine: string; viewApiVersion: number }
 /** getShopContext (impl-shop P1): the trusted Shop context of the routed site; release is P2's active theme release. */
 export interface ShopContext {
     site: { siteId: string; name: string; locale: string; timeZone: string; generation: number }
@@ -40,8 +42,32 @@ export interface ShopContext {
     store: { productStoreId: string; name: string }
     locale: string
     currency: string | null
-    release: { releaseId: string; revision: number } | null
+    release: ShopRelease | null
     capabilities: { canBrowse: boolean; canPurchase: boolean; signedIn: boolean }
+}
+/** The view contract v1 (design-shop §12.3): plain approved data only, never ec, an entity, a session or a secret. */
+export interface ShopView {
+    site: { displayName: string; locale: string }
+    shop: { name: string; baseUrl: string; currencyUomId: string | null }
+    locale: string
+    page: { kind: string; canonicalUrl?: string; title?: string }
+    navigation: { label: string; url: string }[]
+    product?: Record<string, unknown>
+    category?: Record<string, unknown>
+    productList?: Record<string, unknown>[]
+    cart?: Record<string, unknown>
+    checkout?: Record<string, unknown>
+    account?: Record<string, unknown>
+}
+/** getShopPage (impl-shop P2): a Shop page's view and active release (null: no theme is published). */
+export interface ShopPage {
+    status: number
+    generation: number
+    release: ShopRelease | null
+    view: ShopView
+    references: Record<string, { url: string; label?: string }>
+    media: Record<string, { url: string; alt?: string }>
+    sources: Record<string, unknown[]>
 }
 /** Server-owned uploaded file handle. It is never a browser-supplied resource location. */
 export interface UploadedFile { readonly name: string; readonly size: number; readonly contentType: string }
@@ -937,7 +963,25 @@ export interface OperationInputs {
     getShopContext: {
         siteId: string
     }
+    getShopPage: {
+        siteId: string
+        pageKind: string
+    }
+    /** registered frontends only */
+    getShopThemeRelease: {
+        siteId: string
+        releaseId: string
+    }
+    /** registered frontends only; at most 50 comma-separated paths */
+    getShopThemeFiles: {
+        siteId: string
+        releaseId: string
+        paths: string
+    }
+    getSiteGeneration: {
+        siteId: string
+    }
 }
 export type Operation = keyof OperationInputs
 export type Request<O extends Operation> = { operation: O; input: OperationInputs[O] }
-export type Result<O extends Operation> = O extends 'getPosts' ? PostWindow : O extends 'publishPost' ? PublishedPost : O extends 'markRead' ? { marker: ReadMarker } : O extends 'getShopContext' ? ShopContext : Record<string, unknown>
+export type Result<O extends Operation> = O extends 'getPosts' ? PostWindow : O extends 'publishPost' ? PublishedPost : O extends 'markRead' ? { marker: ReadMarker } : O extends 'getShopContext' ? ShopContext : O extends 'getShopPage' ? ShopPage : O extends 'getSiteGeneration' ? { siteId: string; generation: number; release: { releaseId: string; manifestDigest: string } | null } : Record<string, unknown>

@@ -1,0 +1,9 @@
+[
+  {
+    "name": "Colors",
+    "settings": [
+      {"id": "accent", "type": "color", "label": "Accent", "default": "#1f5c7a"},
+      {"id": "surface", "type": "color", "label": "Surface", "default": "#ffffff"}
+    ]
+  }
+]

@@ -1,0 +1,24 @@
+:root { --accent: #1f5c7a; --surface: #ffffff; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 1rem/1.6 system-ui, sans-serif; color: #1d2733; background: #f4f6f8; }
+a { color: var(--accent); }
+.skip { position: absolute; top: -100px; left: 0; }
+.skip:focus { top: 0; }
+.store-header, .store-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; padding: .75rem 1rem; background: var(--surface); }
+.store-header .brand { display: inline-flex; align-items: center; gap: .5rem; font-weight: 600; text-decoration: none; }
+.store-header nav ul { display: flex; flex-wrap: wrap; gap: 1rem; list-style: none; margin: 0; padding: 0; }
+main { max-width: 72rem; margin: 0 auto; padding: 1rem; }
+.store-hero, .store-section { background: var(--surface); border-radius: .5rem; padding: 1.25rem; margin-bottom: 1rem; }
+.store-hero h1 { margin-top: 0; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1rem; list-style: none; padding: 0; }
+.card { background: var(--surface); border-radius: .5rem; padding: 1rem; }
+.card img { max-width: 100%; height: auto; }
+.price { font-weight: 600; }
+.empty { color: #4a5868; }
+.component { margin: 1rem 0; }
+img { max-width: 100%; }
+@media (prefers-color-scheme: dark) {
+  body { background: #151c25; color: #e9eef4; }
+  .store-header, .store-footer, .store-hero, .store-section, .card { background: #212b37; }
+  a { color: #8cc4e6; }
+}

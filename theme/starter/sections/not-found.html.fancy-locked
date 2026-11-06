@@ -1,0 +1,4 @@
+<section class="store-section">
+  <h1>${section.settings.heading || 'This page is not available.'}</h1>
+  <p><a href="${shop.baseUrl}">Back to the store</a></p>
+</section>

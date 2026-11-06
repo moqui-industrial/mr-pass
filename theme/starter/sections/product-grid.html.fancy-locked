@@ -1,0 +1,13 @@
+<section class="store-section" aria-label="${section.settings.heading || 'Coming soon'}">
+  <#if productList && productList.length>
+  <#if section.settings.heading><h2>${section.settings.heading}</h2></#if>
+  <ul class="grid">
+    <#list productList as product>
+    <li class="card"><#include "product-card"></li>
+    </#list>
+  </ul>
+  <#else>
+  <h2>${section.settings.emptyHeading || 'Coming soon'}</h2>
+  <p class="empty" id="ShopEmpty">${section.settings.emptyText || 'This store is getting ready. Check back soon to browse its products.'}</p>
+  </#if>
+</section>

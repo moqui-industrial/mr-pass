@@ -1,0 +1,12 @@
+{
+  "name": "Hero",
+  "settings": [
+    {"id": "heading", "type": "text", "label": "Heading", "maxLength": 160, "localized": true},
+    {"id": "text", "type": "multilineText", "label": "Text", "maxLength": 600, "localized": true},
+    {"id": "image", "type": "image", "label": "Image"},
+    {"id": "destination", "type": "resourceLink", "label": "Link"}
+  ],
+  "blocks": [{"type": "text", "limit": 4}],
+  "allowedPageKinds": ["home", "category", "page"],
+  "placeholder": "<section class=\"store-hero\"></section>"
+}

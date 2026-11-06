@@ -1,0 +1,12 @@
+<section class="store-section">
+  <h1>${page.title || page.query}</h1>
+  <#if productList && productList.length>
+  <ul class="grid">
+    <#list productList as product>
+    <li class="card"><#include "product-card"></li>
+    </#list>
+  </ul>
+  <#else>
+  <p class="empty">No products match your search.</p>
+  </#if>
+</section>
