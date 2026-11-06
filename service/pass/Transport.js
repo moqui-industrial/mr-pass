@@ -112,6 +112,8 @@ const TOKEN_WRITES = [
     'getReturnableOrder',
     'requestCustomerReturn',
     'requestOrderCancel',
+    // Commerce P10: a cart recovery link's one-time token (input.token); the authority asks a visitor to sign in first
+    'recoverCart',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']

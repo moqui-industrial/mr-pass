@@ -1566,6 +1566,15 @@ whose route under the Shop mount spends a cart's one-time recovery token (a toke
 the cart capability into a fresh session and reprices; and the store's Shop-site feed
 destination, a reserved feed path under the Shop mount that serves the active feed build after
 checking the current publication generation.
+**As built (Nov 6, 2026; impl-commerce P10).** `recoverCart` (route `POST shop/cart/recovery`,
+`ShopCartServices.recover#Cart`, in the three `TOKEN_WRITES` lists) takes the link's token only. The
+emailed link is the Shop mount's `Recover?r={token}`: the page keeps the token in the server session
+and opens without it in the address; since a recovered cart is always a signed-in account's, a
+visitor is asked to sign in (the token is kept, nothing is spent), and the signed-in shopper's Open
+my cart posts to spend it, so a mail scanner's fetch spends nothing. The authority checks that the
+cart is that account's, rotates its capability into the session, reprices its lines and names the
+unavailable ones (the cart page's notice). A spent, expired, replaced or revoked token, or another
+account's, is NotFound and the page says the link is no longer available.
 Commerce calls scoped staff methods of the same business modules, not public operations with
 forged shopper context. Media uploads use existing staging/scanner handling; only server-owned
 scanned handles cross into intake services.

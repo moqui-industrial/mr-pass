@@ -84,6 +84,8 @@ export interface CartView {
     attached?: boolean
     merged?: boolean
     unavailableItems?: string[]
+    /** Commerce P10: answered by recoverCart (the recovery link spent, the cart's new capability in token) */
+    recovered?: boolean
 }
 /** Shop P5: a postal address as a checkout shows it. */
 export interface CheckoutAddress {
@@ -1179,6 +1181,9 @@ export interface OperationInputs {
     getProductReviews: { siteId: string; productId: string; cursor?: string; limit?: string }
     submitProductReview: { siteId: string; productId: string; productReviewId?: string; expectedRevision?: string; rating: string; body: string; displayChoice?: 'name' | 'anonymous'; removeImageSeqIds?: string; file?: unknown }
     getShopReviewImage: { siteId: string; reviewImage: string }
+    /** Commerce P10: a cart recovery link's one-time token, spent by the signed-in account whose cart it is (a CartView with
+     * the cart's new capability); a visitor is asked to sign in, a spent, expired or another account's link is NotFound */
+    recoverCart: { siteId: string; token: string }
 }
 /** Shop P6: a decimal amount with its display text */
 export type Money = { amount: string; currencyUomId: string; display: string }

@@ -2,7 +2,9 @@
 // published starter theme (the shop.cart component's lines, forms and totals with its island, never the capability); the
 // cart writes as token writes, with the first add an anonymous one, the three TOKEN_WRITES lists equal, and a remote
 // frontend's answers and refusals (a stale revision, a refused code) the same as a local page's; sign-in attaching the
-// session's cart and sign-out dropping it. The cart's rules are Mantle's (mr-mantle test/order/ShopCart).
+// session's cart and sign-out dropping it; (Commerce P10) the recovery link's page, which offers the signed-in shopper Open
+// my cart for the token it keeps, and recoverCart a POST token write in all three lists, an unknown link not available. The
+// cart's rules are Mantle's (mr-mantle test/order/ShopCart, CartRecovery).
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const shopCart = () =>
@@ -303,6 +305,53 @@ feature(
             attachedToken.length == 48
             afterSignOut == null
             oldToken.result.cart.empty == true
+        },
+    },
+)
+feature(
+    'a recovery link: its page offers the signed-in shopper Open my cart; recoverCart is a POST token write',
+    {
+        when() {
+            const key = 'passShopRecovery:' + SITE
+            ec.web.sessionAttributes[key] = 'x'.repeat(48)
+            try {
+                const page = lib().render(
+                    SITE,
+                    HOST,
+                    '/shop/Recover',
+                    'Shop/Recover',
+                )
+                const unknown = lib().facade('recoverCart', {
+                    siteId: SITE,
+                    token: 'x'.repeat(48),
+                })
+                const lists = [
+                    ec.resource.script(
+                        'component://mr-pass/service/pass/Transport.js',
+                    ).TOKEN_WRITES,
+                    ec.resource.script(
+                        'component://mr-mantle/script/PassApi.js',
+                    ).TOKEN_WRITES,
+                    ec.resource.script(
+                        'component://mr-mantle/script/PassAuthority.js',
+                    ).TOKEN_WRITES,
+                ]
+                const route = ec.resource
+                    .script('component://mr-pass/service/pass/Routes.js')
+                    .find((row) => row[2] === 'recoverCart')
+                return { page, unknown, lists, route }
+            } finally {
+                ec.web.sessionAttributes.remove(key)
+            }
+        },
+        then({ page, unknown, lists, route }) {
+            page.errors.length == 0
+            page.html.includes('id="RecoverCart"')
+            page.html.includes('action="/shop/Recover/restore"')
+            !page.html.includes('x'.repeat(48))
+            unknown.kind == 'NotFound'
+            lists.every((list) => list.includes('recoverCart'))
+            route[0] == 'POST'
         },
     },
 )
