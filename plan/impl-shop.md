@@ -1021,7 +1021,7 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
     The Cart's BeginCheckout (Check out, or the checkout in progress) in the plain page and Cart.qvue.
   - BOSS: `PAYMENT_HOLD_RELEASE` granted to `BOSS_ACCOUNTING_TREASURY` (BossAccountingSetupData.xml); AccountingAccess +1
     feature (treasury holds it, AR does not); CommerceStores' readiness expectation now two findings (the demo store's card
-    gateway has no hosted page, F-SP5-4).
+    gateway has no hosted page, F79).
   - Specs: Mantle `test/order/ShopCheckout` (5 features, 2.6 s: a guest's physical checkout through the hosted page, frozen
     with one promised payment and its PapShopCheckout attempt, a replay and a second submit answering the first, the
     return's lookup placing once, a wrong key reaching nothing, the cart's access retired, the confirmation with the order
@@ -1048,7 +1048,7 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
     `./moq test-apps`: the server suites 3201 of 3202 passed (mr-mantle 368.4 s of 370, mr-boss 251.8 of 264, mr-pass 18.7
     of 17, over but under 1.5 times), the one failure MantleSearch's limited universal search (both totals at the query's
     100 limit), which passes alone and with P5's Mantle specs (for the lead: likely the full run's data volume); the client
-    suites 17 passed (mr-pass 8.2 s of 6, F-SP5-9).
+    suites 17 passed (mr-pass 8.2 s of 6, F84).
   - Acceptance: `acceptance/ShopPaymentScenarios` (5 features, local and remote: a price changed during checkout asks for
     review and a second submit answers the first order; an unknown outcome stays processing for a refreshed frontend (the
     reference and key only) and the job finishes it once the provider answers; a capture failing after placement holds the
@@ -1070,26 +1070,26 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
     the authorization and the provider's return (`returned`) looks up at once; a declined attempt reopens the checkout with
     a new payment next time; reads are POSTs listed with the token writes; OhtPayment is placed by the reconciliation alone.
   - Findings (provisional):
-    - **F-SP5-1** Mantle's `check#AvailableInventory` checks stock of every product in a store that requires inventory,
+    - **F76** Mantle's `check#AvailableInventory` checks stock of every product in a store that requires inventory,
       digital ones too, so POPC_DEFAULT cannot cart a digital item (the acceptance scenarios use Demo Product Three-One). For
       P6 (digital delivery): a product-type condition, with its spec.
-    - **F-SP5-2** The test gateway's `alwaysApprove#PaymentDetails` approves on any lookup, before the payer has visited the
+    - **F77** The test gateway's `alwaysApprove#PaymentDetails` approves on any lookup, before the payer has visited the
       page; hence the result's one-second pause after the authorization, and the specs' clearing of `lastCheckDate`.
-    - **F-SP5-3** A screen's `actions` run after the PASS shell's header is written, so a redirect from them is lost (the
+    - **F78** A screen's `actions` run after the PASS shell's header is written, so a redirect from them is lost (the
       page stops after the header); the checkout pages redirect in `pre-actions`.
-    - **F-SP5-4** Commerce's demo binds POPC_DEFAULT's card payments to TEST_APPROVE, which has no hosted page, so the BOSS
+    - **F79** Commerce's demo binds POPC_DEFAULT's card payments to TEST_APPROVE, which has no hosted page, so the BOSS
       demo cannot check out and the store's readiness names it. For Commerce's demo (mr-boss Demo.js): a hosted gateway
       (the test gateway's `hostedPending`, as ZIZI_PORTAL_HOSTED, or the Authorize.Net sandbox with `authorizeHosted#Payment`).
-    - **F-SP5-5** Billing with Accept Hosted would need Billing's own relay (its `redirectUrl` is a GET link); Billing keeps
+    - **F80** Billing with Accept Hosted would need Billing's own relay (its `redirectUrl` is a GET link); Billing keeps
       the test gateway's hosted redirect.
-    - **F-SP5-6** The checkout steps are plain forms: design-shop §6's trusted Vue enhancement of them is not built, and
+    - **F81** The checkout steps are plain forms: design-shop §6's trusted Vue enhancement of them is not built, and
       PaymentResult polls with a small same-origin script, not a Vue component (design-shop §6 changed).
-    - **F-SP5-7** The confirmation's QR names `{mount}/Orders/{orderId}`, P6's signed-in order page, and the SalesOrder kind's
+    - **F82** The confirmation's QR names `{mount}/Orders/{orderId}`, P6's signed-in order page, and the SalesOrder kind's
       link page `/Orders/Status?token=` is P6's; ExternalAccess `create` finds no site for the `shop` kind (its mount's target
       is a store, not an organization), so the capability's url is null until P6 gives Shop its link.
-    - **F-SP5-8** No spec covers address validation's offered correction (no validating gateway in the tests), the saved card
+    - **F83** No spec covers address validation's offered correction (no validating gateway in the tests), the saved card
       (`store#HostedPaymentProfile`), or an amount mismatch (the test gateway reports the payment's amount).
-    - **F-SP5-9** The golden-path walk puts mr-pass's client suite at 8.5 s of its 6 s budget (under 1.5 times); raise it by
+    - **F84** The golden-path walk puts mr-pass's client suite at 8.5 s of its 6 s budget (under 1.5 times); raise it by
       the measured share with the user's agreement (impl-commerce §4).
 
 - **Review Nov 6 (P5)** (Mantle, mr-pass, mr-boss; branch `shop/p5`). Checked: the submit path end to end (the quote
@@ -1131,7 +1131,7 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
     with no key.
   - R4 (low) Two first confirmations of a guest's order (two tabs) could each issue an order link; the issue now takes the
     checkout's lock.
-  - R5 (F-SP5-4, resolved) The Commerce demo binds POPC_DEFAULT's card payments to `BOSS_COM_HOSTED` (BossCommerceDemoData.xml),
+  - R5 (F79, resolved) The Commerce demo binds POPC_DEFAULT's card payments to `BOSS_COM_HOSTED` (BossCommerceDemoData.xml),
     a test gateway with Mantle's new `hostedPendingOrApprove#PaymentAuthorization` (a payment with a payment method approved
     as TEST_APPROVE, one without waiting at the hosted page) and `hostedOnlyApprove#PaymentDetails` (approves only a hosted
     payment, answers nothing for another), so the BOSS demo checks out and Mantle's POPC_DEFAULT specs are unchanged
@@ -1417,6 +1417,16 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F73 | P4: "Ask a question" is not built: Forum `publish#Post` takes no product to link by `CommunicationEventProduct`, and no setting names the site's product category | Later (the Forum's owner) |
 | F74 | P4: no job retires expired open carts, guest parties or cancelled guest orders | P8 |
 | F75 | P4 review: `store#Mounts` deletes and recreates every mount a save names, so re-saving a Shop mount with a theme binding fails on its foreign key and the mount's id changes; a remote `getCart` is a GET with the capability as a query parameter; product images are no-store and read any location scheme staff enter; Mantle's promo-code warnings stay in `ec.message` | `store#Mounts` keeps an existing mount's row (P5 follow-up); capability reads as POST (P5); images cached by generation and limited to `dbresource://`/`component://` (P8); pages never show raw request messages |
+| F76 | P5: `check#AvailableInventory` checks stock even for digital products in a store that requires inventory, so POPC_DEFAULT cannot cart a digital item | P6: digital items (no physical stock) pass the store's inventory requirement, with a test of the physical default |
+| F77 | P5: the test gateway's details lookup approves before the payer has visited the hosted page | The result page waits a second after authorizing; the return looks up at once |
+| F78 | P5: a redirect from a screen's actions is lost once the PASS shell header is written | Checkout's redirects are in pre-actions |
+| F79 | P5: the Commerce demo bound POPC_DEFAULT's card payments to TEST_APPROVE, which has no hosted page | Fixed in the review: `BOSS_COM_HOSTED` with Mantle test services that approve a payment with a method and send one without to the hosted page; Mantle's POPC_DEFAULT specs unchanged |
+| F80 | P5: Billing with Accept Hosted would need its own relay | Accounting's (later) |
+| F81 | P5: the checkout steps are plain forms; the Vue enhancement is not built, polling is a script | Design-shop updated; enhancement later |
+| F82 | P5: the confirmation QR and the SalesOrder link point at P6's order pages | P6 |
+| F83 | P5: no spec covers the address correction, the saved card or an amount mismatch | P6 adds the amount mismatch and saved card cases |
+| F84 | P5: ShopCheckoutWalk's client time puts mr-pass's client budget over | Raised at the next quiet suite run by the measured share (the user's agreement) |
+| F85 | P5 review: two hosted pages open at once (two tabs' relays) can each take a payment under one reference and the lookup finds one; the return URL's reference and key (known to the provider, kept in history) read the checkout for a day, issue the guest's order link to whoever reads the confirmation first, and after a decline hand over a new cart capability; a declined hosted payment shows pending for the 15-minute window; a placement refused ORDER_CHANGED or past its tries stays placementPending with an approved payment; an amount mismatch is placed and held (OhtPayment) | P6: refuse a new form token once the reference has a transaction and flag a reference with more than one approval; issue the order link only to the cart's session; drop the cart hand-over from the reference path. The held mismatch is design-shop §8.2's exception (accepted); the pending window is accepted; Commerce P8 lists stuck placements |
 
 ## 7. Later
 
