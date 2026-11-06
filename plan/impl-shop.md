@@ -254,6 +254,29 @@ Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME,
   section that loops forever stops at its budget and is left out; a template naming `ec` fails validation; a remote
   frontend renders the same release after checking its digests.
 
+- **Built (framework), Nov 5, 2026** (mr-moqui, merged from com/fw, b502417e): the js-fancy composition adapter in
+  `crates/moqui-core/src/script/theme/` (guide `docs/ui/Themes.md`), on the locked renderer (`render_locked_bounded`,
+  token offsets for file and line). It resolves a package's layout (`${content}`, `${styles}`), JSON templates (an
+  `order` when more than one section, `blockOrder` likewise), sections (`section`, `blocks`, `${block.html}`), blocks and
+  static `<#include>` snippets; checks design-shop §12.3's settings by schema; checks markup, URL, CSS and attribute
+  contexts in the source with file and line and again on each render's output; sanitizes rich text (`{"$richText"}`)
+  and SVG; places unescaped only adapter-made fragments. Budgets 100 sections, 100 blocks, depth 8, include depth 8,
+  2 MiB, 1 s a render, 5 s a page, 32 MiB, lowered (never raised) by conf `<resource-facade><theme-limits>` or a call.
+  An optional section that fails is left out, logged and listed in `omitted`; a required section or component sets
+  `ok` false with `failedRequired`. Services call `ec.resource.theme.validate(pkg, opts)` (`{ok, engine, diagnostics}`)
+  and `ec.resource.theme.render(pkg, {pageKind or template, view, components, references, media, sources, assetBase,
+  allowedOrigins, releaseId, limits})` (`{ok, html, diagnostics, omitted, failedRequired, dependencies}`), with
+  `engines()`, `limits()`, `sanitizeSvg` and `sanitizeRichText`. Rust tests and goldens in `script/theme/tests.rs`.
+  - **Review (framework):** R1 (high) the output check's tokenizer and the browser's tree builder disagreed inside
+    foreign content (`<svg><desc><div></svg>…<style><img onerror>` validated); now `<` in `<style>`, tags in `<title>`
+    and `<textarea>`, animation elements and foreignObject anywhere, fragments inside `<svg>` and output leaving an
+    `<svg>` open are refused. R2 (medium) backslash URLs mapped to `/` before the origin check. R3 (medium) a memory
+    limit of 0 meant none in QuickJS; clamped. R4 (medium) expressions built across an include: the assembled template
+    is checked too. R5 (low) `form*` attributes refused, SVG presentation `url()` values checked as CSS, SVG assets keep
+    only the SVG and XLink namespaces, template-literal property names caught. Left: names built at run time still reach
+    `Function` inside the frozen sandbox (not an escape; removing `Function`, `eval` and the generator constructors from
+    the locked sandbox is optional hardening).
+
 ### P3 — Catalog pages
 
 Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-RENDER. Ends stage C1/S1 with Commerce P5.
@@ -288,6 +311,13 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
   site another's; nothing unpublished shows anywhere; the same through a remote
   frontend (`acceptance/client/ShopRemoteHttp` with its fixture).
 
+- **Built (framework), Nov 5, 2026** (b502417e; F42): a response whose `Cache-Control` has `public`, to a request with
+  no verified session cookie and no signed-in user, sends no `Set-Cookie`, `moquiSessionToken` or `X-CSRF-Token`, and
+  its session is discarded unwritten (`user::session::discard_bound_session`); an `ETag` with a matching
+  `If-None-Match` on a GET or HEAD answers 304. The conf's public server-static templates and long-cached files no
+  longer give a cookieless request a session. Left for the framework: a visitor with a session who gets a `public`
+  response can still get a rotated cookie or token, which Shop avoids by sending `public` only with no session.
+
 ### P4 — Cart and shopper identity
 
 Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
@@ -313,6 +343,11 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
 - **Usable when** (design-shop §18.1 "Guest checkout and later account login", its cart half): a guest adds two items,
   applies TEST1 and sees the discount; signing in merges a proven cart once; another tab's stale change is refused with
   its reason; the same through a remote frontend.
+
+- **Built (framework), Nov 5, 2026** (b502417e; F45): `WebrootPublic.qvt.js` island mode: each
+  `<script type="application/json" data-moqui-island="mountId">` mounts its screen's qvue at that element without the
+  `q-layout`, several per page, each with its own route; one failing island leaves the others; page mode unchanged;
+  `moqui.publicIslandConfigs`, `startPublicIslands`, `publicIslandTemplate`. The config is read only from a JSON script.
 
 ### P5 — Checkout and payment
 
