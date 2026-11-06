@@ -1937,19 +1937,19 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     acceptance's hosted test gateway a release service for the feature only (its fixture gateway has none); no-JS is
     checked by the plain-request walks, as the browser cannot turn script off.
   - Findings (provisional):
-    - **F-SP9-1** The client browser API has no `prefers-reduced-motion` emulation and no way to turn JavaScript off; the
+    - **F128** The client browser API has no `prefers-reduced-motion` emulation and no way to turn JavaScript off; the
       motion check reads the CSS rules and no-JS is plain requests (framework: `reducedMotion` and `javaScriptEnabled` on
       `newPage`).
-    - **F-SP9-2** ShopFixtures' `ZIZI_SHOP_HOSTED` test gateway has no release or refund service, so a resolver's refund on
+    - **F129** ShopFixtures' `ZIZI_SHOP_HOSTED` test gateway has no release or refund service, so a resolver's refund on
       an acceptance checkout answers REFUND_NOT_DONE; ShopPaymentScenarios lends one for its feature (the fixture is
       create-once, so a fixture change reaches only new databases).
-    - **F-SP9-3** Demo stock: the server scenarios use up Demo Product Three-One on a reused acceptance database (F124's
+    - **F130** Demo stock: the server scenarios use up Demo Product Three-One on a reused acceptance database (F124's
       kind); the new feature buys Demo Product One-One. A fixture that tops up the demo stock would end it.
-    - **F-SP9-4** Theme CSS refuses any `behavior` text, so a theme cannot write `scroll-behavior` (the validator's legacy
+    - **F131** Theme CSS refuses any `behavior` text, so a theme cannot write `scroll-behavior` (the validator's legacy
       `behavior:` check matches the substring).
-    - **F-SP9-5** Only Checkout marks a refused field; the cart's and account forms' refusals (Addresses, PaymentMethods,
+    - **F132** Only Checkout marks a refused field; the cart's and account forms' refusals (Addresses, PaymentMethods,
       review form) show the alert without naming the field. The cart islands' quantity has no field error to mark.
-    - **F-SP9-6** The error notice takes the focus by `autofocus` after a redirect; a screen reader announces the alert
+    - **F133** The error notice takes the focus by `autofocus` after a redirect; a screen reader announces the alert
       and lands on the field, but the theme's skip link and heading order were not audited beyond the walk.
 
 - **Review Nov 6 (P9).** Checked: F126's backstop against the coordinator and SECA paths (StoreItemFulfillment's
@@ -2142,6 +2142,13 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F125 | P8 review: a REFUND_PENDING left by a crash after the provider confirmed is finished by Refund again; one left by an unknown outcome waits for Accounting's lookup | Accepted (retry refused in both) |
 | F126 | P8 review: the fulfillment backstop (F96) finds only orders with a StoreCheckout, not a renewal order whose approval SECA never ran | P9. Done in P9 (renewal occurrences' orders too, with a spec) |
 | F127 | P8 review: a sweep candidate still inside its form-token window counts toward the run's 200-search limit | Accepted |
+| F128 | P9: the client browser API cannot emulate `prefers-reduced-motion` or turn JavaScript off; the motion check reads the stylesheets' rules | Framework (later) |
+| F129 | P9: ShopFixtures' `ZIZI_SHOP_HOSTED` gateway has no release or refund service, so a resolver's refund there fails (REFUND_NOT_DONE); the fixture is create-once | Accepted (the feature sets them for itself) |
+| F130 | P9: the server scenarios use up Demo Product Three-One's stock on a reused acceptance database | Accepted (as F124) |
+| F131 | P9: theme CSS refuses any text containing `behavior`, so a theme cannot use `scroll-behavior` | Framework (the theme validator) |
+| F132 | P9: only Checkout marks the refused field; Addresses, PaymentMethods and the review form show the alert without naming it | Later |
+| F133 | P9: skip links and heading order not audited beyond what the keyboard walk touches | Later |
+| F134 | P9 review: the renewal backstop selected occurrences by their creation, so a period reopened more than seven days later was missed | Fixed at the merge: by the occurrence's last change |
 
 ## 7. Later
 
