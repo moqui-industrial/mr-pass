@@ -659,6 +659,43 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
     - **F-SP3-7** Existing databases keep ZZW_RETAIL's old `publicPageUrl` and `/pcontact` (data loads only on a new
       database); Knowledge.js prefers the Support mount's article page either way.
 
+- **Review Nov 5 (P3)** (Mantle, mr-pass, mr-boss; branch `shop/p3`). Checked: `get#StoreProductPrice` (allow-remote
+  false; `storeAuthority` is set only in its script, and `get#ProductPrice` declares no such parameter, so the
+  framework's validation drops one a caller passes; `traceAllowed` false under it; `readable` admits only public rows,
+  the store organization's and the signed-in account's party's own, and `typed` already requires an exact vendor,
+  customer and agreement match; the customer comes from `ec.user.userAccount`, never the input; `get#ProductPrice`'s
+  path unchanged with the flag false); ShopCatalog.js (every read through `shopOf` of the facade's site, published,
+  enabled Shop mount, internal store; the resolver with the site on every candidate list, index hits filtered by the
+  published rows and then resolved; candidates bounded at 2000, page size 1 to 48, the cursor an offset into the
+  site's own candidate list, so it reaches neither another store nor an unbounded read; bands never quantities; no
+  price id, trace or cost in an answer); F50 in `get#StorePublication`; F28's `productPublic`; ThemeView's new shapes
+  (allow-listed) and the schema.org data built from the same view; Headers.js's anonymous-only public routes (the
+  framework's session cookie name), the shell header with no token on a public page, Catalog.js's no-store on every
+  answer but 200 and an ETag of the content (the framework answers 304 only for a matching tag on GET/HEAD); the old
+  slug's 301 only after the view was read, redirects only through `resolveSiteRedirect` (staff-configured
+  destinations checked by `checkDestination`); Transport.js `readThrough` (bounded, keyed as the note says, never for a
+  user, delegation or token, nothing kept on a refusal, a fetch when the generation cannot be read); Schema/Routes
+  mirrors identical; no `ironstone` or BOSS reference. Fixes:
+  - R1 (low) A PASS-shell page's ETag was the digest of the view only, so a change to the shell's own header (the site's
+    name, brand or mounts, which do not advance the generation) still answered a revalidation 304 with the old page;
+    the shell's tag now covers `siteInfo` as well.
+  - R2 (low, spec) The authority price's customer rule had no spec: ShopCatalog (Mantle) gains a feature (0.08 s) where
+    the signed-in customer gets its own row (6.00) over the store's (7.00) and never another party's (2.00), and
+    `get#ProductPrice` called with `storeAuthority: true` still gives the public no store row. ShopHttp's caching
+    feature also checks the PASS shell's Not Found (ZIZI_DIGITAL) is not public (the framework's page is no-store).
+  - Specs after the fixes: Mantle ShopCatalog 3, with StorePublication, ProductEffectivePrices, ProductPricePolicy 18
+    passed; mr-pass ShopCatalog, ShopAccess, ShopThemes, Transport 12 passed; acceptance ShopHttp 4 passed. The worker's
+    lists before the fixes: mr-pass 62, Mantle 65 (the Built note says 60), mr-boss 44, all passed.
+  - For the lead: (1) ProductDetail's "Ask a question" Forum link (this section's Links) is not built and the Built
+    note does not say so. (2) Knowledge.js still refuses `NO_PUBLIC_URL` before trying the Support site's article page,
+    so an organization with a Support site but a space with no `publicPageUrl` cannot send a link; decide the order.
+    (3) A category is listed by current publication rows, so one whose only members are published but not public (a
+    draft, an unsellable product) shows with "No products here yet"; it shows only the category's own name. (4) Search
+    hands the visitor's text (100 characters) to the index as a query string, so its syntax (fields, wildcards) is the
+    visitor's; hits are filtered, but an escaped or simple query would bound the cost. (5) Prices and stock do not
+    advance the generation, so a public page and the remote cache may be up to 60 s behind (by design). (6) F-SP3-5
+    stands: anonymous visitors get no feature extras on a virtual fallback, which a price reader gets.
+
 ### P4 — Cart and shopper identity
 
 Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
