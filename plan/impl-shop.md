@@ -297,6 +297,30 @@ Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
       other host into "Public hostname not found". The test runtime therefore has no root mount; ShopAccess and ShopMount
       check the root through `resolve#Route`. For the framework: match mounts only on the route's own host.
 
+- **Review Nov 5 (P1)** (mr-mantle, mr-pass; branch `shop/p1`): checked the diff in both repos against this section,
+  design-shop §1, §4.1, §4.3 and §7.3, and §2: the `shop` registration (target `productStore` of an `OrgInternal`
+  organization, `root`, `onePerSite`, readiness unchanged); `storeMounts`' one root and one Shop a site, the coded target
+  refusal, the reserved paths; `shopOf` and `get#ShopContext` (Not Found unless a published site and an enabled mount,
+  the site from the facade only); the brand values (hex colors only reach `<style>`, the logo cannot leave its quoted
+  attribute or take a scheme other than https); Transport's and Portal.js' mapping; Headers.js (the default CSP equals the
+  old one); Shop.xml's concealment; the Schema/Routes mirrors identical; the three `TOKEN_WRITES` lists; nothing in either
+  diff references ironstone or mr-boss code (only docs and comments name them). The Built note is accurate.
+  - **R1 (medium)** A refusal's own text went to a remote frontend for every Unprocessable and Conflict, and a service
+    whose nested call fails without throwing ends as an Unprocessable whose text is the message facade's errors: a
+    database error with entity and constraint names, a script's TypeError, a service name (`Transaction marked for
+    rollback, not running service ...`). `PassAuthority.envelope` now keeps the fixed message when the text reads as a
+    framework failure (`internal`: a database or script error word, a `://`, a `name#verb`, a package-qualified name);
+    `Shared/Portal.js` does the same for a local page, which showed such text before P1. PassAuthority's P1 feature
+    gains the two cases. Account's and the other operations' refusals (plain sentences) still pass.
+  - **R2 (low)** The brand allows an https `logoUrl`, but the shell's CSP `img-src` is `'self' data:`, so such a logo never
+    showed. `Headers.apply` takes the site's logo and adds its origin (a plain host and port only, so nothing else
+    reaches the policy) to `img-src`; ShopAccess checks the origin and a forged one. Deployment.md says so.
+  - Specs after the fixes: ShopAccess, Forum, ForumAccess, Integrations, Portals, SupplierPages, SupportAccess,
+    Transport (47 passed); PassAuthority, AccountingPortals, SupportPortal, StoreAdmin (38 passed).
+  - For the lead: F-SP1-3 (the demo Shop mounts in mr-boss Demo.js) and F-SP1-4 (the framework's host check) stay open as
+    the Built note says. The `internal` guard is a deny-list; a stricter rule (pass only coded refusals' text) would need
+    the uncoded Conflict/Unprocessable sentences in Mantle coded first.
+
 ### P2 — Theme engine and releases
 
 Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME, SHOP-RENDER's adapter.

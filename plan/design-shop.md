@@ -612,7 +612,8 @@ error envelope today answers a fixed message per status and no field errors, so 
 cannot see a reason; it gains an allow-listed `reason` and the field errors (Nov 5, impl-shop F4). Built in P1: a
 Mantle refusal names its reason as its message's code, `CODE: text` or `CODE[field]: text`; the envelope answers the
 code's camelCase form when PassAuthority's `REASONS` lists it, with the field error, and for Unprocessable and Conflict
-the refusal's own text; Transport.js puts them back so `Shared/Portal.js` reads a remote refusal as a local one.
+the refusal's own text unless it reads as a framework failure's (a database or script error, a qualified entity or service
+name), which keeps the fixed message; Transport.js puts them back so `Shared/Portal.js` reads a remote refusal as a local one.
 
 Scope an operation ID to site, principal/capability and operation; persist its normalized input
 digest and result. Matching replay returns the result; changed input with the same key conflicts.

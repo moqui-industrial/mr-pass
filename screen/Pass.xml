@@ -19,7 +19,7 @@
             .filter(m=>requestPath===m.pathPrefix || requestPath.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/'))
             .sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]?.app || null
         const appBase=passApp ? passBases[passApp] : ''
-        headers.apply(passApp,requestPath.slice(appBase.length) || '/')
+        headers.apply(passApp,requestPath.slice(appBase.length) || '/',siteInfo.brand?.logoUrl)
     ]]></script>
   </always-actions>
   <subscreens default-item="Forum">

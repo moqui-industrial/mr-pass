@@ -28,12 +28,21 @@ const csp = (policy) =>
                 name,
                 ...sources,
                 ...(name === 'form-action' ? policy.formAction || [] : []),
+                ...(name === 'img-src' ? policy.imgSrc || [] : []),
             ].join(' '),
         )
         .join('; ')
-/* Set the headers of a request's route on the response, and answer the policy. */
-function apply(app, path) {
-    const policy = policyOf(app, path)
+/* The https origin of a site's brand logo (getSiteInfo's brand.logoUrl), which the shell's img-src allows; a local logo is
+ * 'self' already. Only a plain host and port, so nothing else reaches the policy. */
+const logoOrigin = (logoUrl) =>
+    /^https:\/\/[A-Za-z0-9.-]+(?::\d{1,5})?(?=[/?#]|$)/.exec(String(logoUrl || ''))?.[0]
+/* Set the headers of a request's route on the response, and answer the policy; logoUrl the site's brand logo. */
+function apply(app, path, logoUrl) {
+    const origin = logoOrigin(logoUrl)
+    const policy = {
+        ...policyOf(app, path),
+        ...(origin ? { imgSrc: [origin.toLowerCase()] } : {}),
+    }
     const response = ec.web?.response
     if (response) {
         response.setHeader('Cache-Control', policy.cacheControl)
@@ -42,4 +51,4 @@ function apply(app, path) {
     }
     return policy
 }
-;({ ROUTES, policyOf, csp, apply })
+;({ ROUTES, policyOf, csp, logoOrigin, apply })

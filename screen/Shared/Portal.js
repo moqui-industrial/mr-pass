@@ -55,6 +55,12 @@ function refusal(message) {
             : { reason: null, field: null, text: m[3] }
     return { reason, field: m[2] || null, text: m[3] }
 }
+/* Text a framework failure carries rather than a refusal a service wrote (Mantle's PassAuthority keeps the same back from a
+ * remote frontend): a page shows the kind's text for it. */
+const internal = (text) =>
+    /:\/\/|\w#\w|\b(?:sql|database|constraint|exception|TypeError|ReferenceError|SyntaxError|RangeError|InternalError)\b|is not a function|is not defined|cannot read propert/i.test(
+        text,
+    ) || /\b[a-z][a-z0-9]*(?:\.[a-z][a-z0-9]*)+\.[A-Z]\w*/.test(text)
 /* An operation's result, or {error: {kind, reason, message, fieldErrors}}: a NotFound or a sign-in says nothing of the
  * record; the same refusal reads the same through a remote frontend. */
 function attempt(operation, input) {
@@ -64,7 +70,10 @@ function attempt(operation, input) {
         ec.message.clearErrors()
         const kind = error.moquiErrorKind || 'Unavailable'
         const { reason, field, text } = refusal(error.message)
-        const own = ['Unprocessable', 'Conflict'].includes(kind) && text
+        const own =
+            ['Unprocessable', 'Conflict'].includes(kind) &&
+            text &&
+            !internal(text)
         return {
             error: {
                 kind,

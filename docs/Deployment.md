@@ -229,7 +229,7 @@ routes (`/rest`, `/static`, `/assets`, `/s`, `/u`, `/r` and the rest) are never 
 Found) until the site is published and its Shop mount enabled. The site's readiness (`checkReadiness`) adds Commerce's
 store readiness (`mantle.product.StoreAdminServices.check#StoreReadiness`) under `shop`. On a Shop site the Account,
 Billing and Support pages keep the PASS shell with the site's brand values from `PublicSite.theme` (a small JSON object:
-`primaryColor`, `backgroundColor`, `textColor`, `surfaceColor` as six-digit hex colors, `logoUrl` a local path or https).
+`primaryColor`, `backgroundColor`, `textColor`, `surfaceColor` as six-digit hex colors, `logoUrl` a local path or https; an https logo's origin joins the shell's `img-src`).
 
 Responses are `no-store` with the shell's CSP unless a route in `screen/Shared/Headers.js` says otherwise.
 

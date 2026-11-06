@@ -193,9 +193,12 @@ feature(
                 home,
                 policy: headers.policyOf('shop', '/'),
                 csp: headers.csp(headers.policyOf('shop', '/')),
+                // an https logo's origin joins img-src; nothing past a plain host and port does
+                logo: headers.logoOrigin('https://cdn.example.test/logo.png'),
+                forged: headers.logoOrigin("https://x.test;script-src/a"),
             }
         },
-        then({ unpublished, published, disabled, info, home, policy, csp }) {
+        then({ unpublished, published, disabled, info, home, policy, csp, logo, forged }) {
             unpublished.kind === 'NotFound'
             unpublished.reason === 'notAvailable'
             disabled.kind === 'NotFound'
@@ -216,6 +219,8 @@ feature(
             policy.cacheControl === 'no-store'
             csp ===
                 "script-src 'self' 'unsafe-eval'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+            logo === 'https://cdn.example.test'
+            forged === undefined
         },
     },
 )
