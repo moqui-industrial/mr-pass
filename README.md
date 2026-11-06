@@ -41,11 +41,11 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ThemeReleases,ThemeAuthoring --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,ThemeReleases,ThemeAuthoring --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopOperationsScenarios, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -57,7 +57,9 @@ Support app's isolation between customers (`SupportIsolation`), Shop's mount at 
 sites (`ShopHttp` and `ShopRemoteHttp`, with `ShopFixtures`, and `ShopRemoteFixtures` for the remote frontend), its cart walks
 (`ShopCartHttp` in the browser, `ShopCartRemoteHttp` with plain requests, locally or through a remote frontend), Commerce's
 store operations over the Shop orders (`ShopOrdersInCommerce`, after `ShopOrderScenarios`; it needs mr-boss) and its
-subscription operations over a Shop subscription (`ShopSubscriptionsInCommerce`; it needs mr-boss), the large
+subscription operations over a Shop subscription (`ShopSubscriptionsInCommerce`; it needs mr-boss), Shop's adoption and
+operations (`ShopOperationsScenarios`: a legacy store's adoption preview and approved proposal, a withdrawn mount with an
+attempt reconciled, a remote frontend's outage), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.

@@ -162,7 +162,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | built Nov 6, 2026 |
 | P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | built Nov 6, 2026 |
 | P7 Prepaid and recurring access | Mantle, mr-pass, BOSS (demo) | Subscriptions, SubscriptionDetail | built Nov 6, 2026 |
-| P8 Adoption and operations | Mantle, mr-pass | — | — |
+| P8 Adoption and operations | Mantle, mr-pass, BOSS (CartDetail, grant) | — (Commerce CartDetail's ResolvePlacement) | built Nov 6, 2026 |
 | P9 Finish | mr-pass | — | — |
 
 ### P0 — Checks
@@ -1690,6 +1690,133 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
 - **Usable when** (design-shop §18.1 "Rollback and withdrawal", "Partial failures"): adopting POPC_DEFAULT's categories
   proposes publication rows a publisher approves; withdrawing the mount leaves orders intact and an open attempt is
   reconciled; a remote frontend refuses cached personal pages while the authority is down.
+
+- **Built (Mantle, mr-pass and BOSS), Nov 6, 2026** (branch `shop/p8`):
+  - Adoption preview (design-shop §17.1): `mantle.product.StoreAdoptionServices.preview#StoreAdoption` over
+    `service/mantle/product/StoreAdoption.js` (COMMERCE_VIEW and StoreAdmin.js' store scope; read only, `enabled: false`):
+    the store's category roles with member counts (a missing view or purchase role a warning), settings (each type mapped
+    to StoreAdmin's `settingTypes` and Shop's topic lists, or SETTING_UNMAPPED; the legacy `storeDomain` kept for emails,
+    `profileUrlPath` unused), the template roles (ProductStoreWikiContent) mapped to the starter package's layout,
+    templates and snippets and the wiki spaces (ProductStoreWikiSpace: template spaces to the package by hand, content
+    spaces to version-pinned site pages, snippets to blocks), each source read from its wiki space (published version)
+    and searched for what the locked renderer does not run (FreeMarker directives, FreeMarker or Groovy expressions,
+    server context `ec.*`, Vue 2, scripts: UNSUPPORTED_SYNTAX errors naming the line; never rendered or evaluated); the
+    sign-in templates are PASS Account's (TEMPLATE_NOT_THEMED); Shop's category paths (SLUG_EMPTY, ROUTES_CHANGE), gateways
+    without a hosted page (GATEWAY_NOT_HOSTED), facilities, email templates (kept; a missing PsetDownloadReady named), the
+    sites mounting the store (MOUNT_REQUIRED), and Commerce P3's `propose#StorePublication` rows for a publisher to approve
+    through `publish#StoreProducts` (PUBLICATION_EXISTS for a store that publishes). Findings sorted error, warning, info.
+    No Commerce screen yet (F-SP8-4).
+  - Operations: `mantle.order.ShopOperationsServices` over `service/mantle/order/ShopOperations.js` and the hourly
+    `run_ShopOperations` job (`data/ShopOperationsSetupData.xml`, with COMMERCE_PLACEMENT_RESOLVE and its ADMIN grant):
+    - F74 `retire#ExpiredCarts`: each open cart whose access expired, in its own transaction under the access's lock,
+      cancelled through `cancel#Order` (as a merged guest cart) once nothing of its money is unresolved (no checkout in
+      paymentPending or placementPending, no unsettled PortalPaymentAttempt, no payment that took money; else counted
+      `waiting`), its unsubmitted checkout expired and its access retired ScrExpired; a retired, merged or cancelled cart's
+      guest party is retired (Party.disabled, never deleted) when it has no account, no completed checkout and no order but
+      cancelled ones. Placed and paid records are never touched; one cart failing is logged and the rest go on.
+    - F95 `sweep#HostedReferences`: each Shop checkout completed in the last three days whose gateway names a
+      `duplicateCheckService` (StoreCheckout.js `gatewayCapabilities`: Authorize.Net's new `check#HostedDuplicates`) is
+      searched once after its last form token can no longer be used (15 minutes and the grace): a second approval is flagged
+      as the lookup flags it (DUPLICATE_APPROVAL) and holds the placed order (OhtPayment, the attempt's outcome
+      `exception`); none found records DUPLICATES_CHECKED, so it is not searched again; a search that cannot tell is tried
+      next run.
+    - F108 (impl-commerce) `resolve#StuckPlacement`: COMMERCE_ORDER_VIEW, COMMERCE_PLACEMENT_RESOLVE and the store's scope
+      (StoreOperations.js' `scope`/`storeOrder`), an operation key (PostingOperation ShopPlacementResolve; a retry answers
+      the first result, also once the cart is placed or cancelled) and a reason: `retry` resets the tries and runs the
+      placement again (ShopCheckout.js now exports `refreshAttempt` and `holdPayment`); `refund` releases an authorized
+      payment or refunds a captured one (`release#SinglePayment` / `refund#SinglePayment` with the resolution's key, in a
+      transaction of their own), and only once the provider confirms cancels the checkout (new flow ScoPlacementPending →
+      ScoCancelled) naming who and why, retires the cart's access ScrCancelled and cancels the open order. BOSS CartDetail's
+      ResolvePlacement dialog (place again, or refund and cancel; a reason; an operation key) for a holder, the
+      `placementResolve` capability in Commerce.js, and BOSS_COMMERCE_ADMIN's grant (BossSetupData.xml).
+    - F96: `fulfill#StoreItems` also takes the Shop orders completed in the last seven days that are approved, have a line
+      Shop fulfills and no StoreItemFulfillment row (the approval SECA never ran).
+    - Monitor marks: `operation` on the jobs and their step services (`shop.checkout.reconcile`, `.expire`, `.step`;
+      `shop.fulfillment.run`, `.order`, `.step`; `shop.renewal.run`, `.dispatch`; `message.delivery.run`, `.attempt`;
+      `commerce.recovery.run`; `shop.operations.step`; `shop.placement.resolve` with its order as the reference).
+    - Commerce's alert templates for checkout failures and long-unresolved attempts are P11's
+      (`boss-commerce-checkout-failures`, `boss-commerce-payment-unresolved`); nothing added (F-SP8-6).
+    - Withdrawal and rollback: nothing in the checkout's reconciliation depends on the mount; ShopOperations' spec and the
+      acceptance withdraw the mount and the job places an open attempt's order, the placed orders unchanged.
+  - F97: a customer profile at Authorize.Net is the party's only when a method keeps it or this instance made it
+    (AuthorizeNet.js `makeCustomerProfile` records it, `CUSTOMER_PROFILE_MADE`, with the party and merchantCustomerId);
+    `sync#CustomerProfile` never looks one up by merchantCustomerId (a party with none here imports nothing); on E00039
+    for a profile not the party's here a new one is made under a merchantCustomerId of its own (the party id and a random
+    suffix). Profiles kept on methods work as before. docs/AuthorizeNet.md "Whose profile". Not an upstream fix (the
+    adapter and its E00039 adoption are mr-mantle's own, not mantle-udm/usl), so no Upstream-Fixes entry.
+  - F99: the notice's wording: the guest confirmation says the order moves to the account once the address is verified
+    and its emailed links then open after signing in; a refused order link says to sign in when an account was made with
+    the order's email; the download notice's parameters gain `linkNote` for a store's template. The links are not kept
+    valid after the claim (design-shop §4.2's one account).
+  - F100: index STORE_CHECKOUT_EMAIL (contactEmail, productStoreId).
+  - F63: Transport.js keeps `getSiteInfo` in the anonymous read-through cache under the site's generation (an answer whose
+    `site.generation` is another, or that says its visitor is signed in, is never kept; never for a signed-in visitor or a
+    delegation); every site, host and mount save advances the generation. An authority that cannot answer its generation
+    serves nothing kept.
+  - F75 (its remaining part; `store#Mounts` and the capability POSTs were P5's): product images only from `dbresource://`
+    and `component://` locations; the image link carries the site's generation (`&v=`, a new `v` field of
+    `getShopProductImage` in Schema.js and its mirror, identical) and `get#ProductImage` answers `public, max-age=60` only
+    for the current generation (else no-store), which the local facade, PassAuthority's download and PassApi pass on
+    (REST forwards the authority's header).
+  - Specs (all `--nobuild`): Mantle `test/product/StoreAdoption` (2 features, 0.25 s: ZZWR_TMP's server footer with three
+    UNSUPPORTED_SYNTAX errors and the client footer convertible, the sign-in template not themed and its page missing, the
+    unmapped setting, the missing purchase role, the gateway with no hosted page, the domain kept, the mount to make, the
+    path, the proposal and nothing written; another organization's store refused, a publishing store no proposal);
+    `test/order/ShopOperations` (3 features, 1.8 s: an expired cart cancelled and its guest disabled, one waiting for its
+    payment left, a second run retiring nothing; a stuck placement past its tries retried and placed, an ORDER_CHANGED one
+    refunded and its cart cancelled, the operator PERMISSION_DENIED, another organization's resolver RECORD_UNAVAILABLE, no
+    reason REASON_REQUIRED, a replay alreadyApplied; with the mount withdrawn the job places an open attempt, and an
+    approved order with no fulfillment row is found by `fulfill#StoreItems`); AuthorizeNetGateway +2 features (22, 0.05 s:
+    E00039 not adopted and the sync reading only this instance's profile; the sweep's search flagging a later second
+    approval, a clean one searched once); ShopCatalog's image feature (the generation in the link, public only for the
+    current one, a `file://` location refused). mr-pass `test/Shop/ShopOperations` (1 feature, 0.03 s: getSiteInfo kept by
+    generation for a visitor, read again when it moves, never kept for a signed-in visitor or a signed-in answer, nothing
+    served when the authority cannot answer). BOSS CommerceAccess +1 feature (0.06 s: the operator refused, the
+    administrator passing the permission). Also run, all pass: Mantle ShopCheckout, StoreFulfillment, ShopCustomer,
+    ShopCart, PassAuthority, StoreOperations, CartRecovery, ShopSubscriptions, PaymentAttemptPurpose, DeliveryLedger,
+    StorePublication, StoreFeeds, StoreCheckout, Subscriptions, StoreReports, ShopCatalog, AuthorizeNetGateway (107 with
+    the new ones); mr-pass ShopCatalog, ShopCart, ShopCheckout, ShopAccount, ShopAccess, ShopFeeds, Transport, Portals,
+    Forum, ShopSubscriptions, ShopReviews, ShopThemes, ShopPreview, SupportAccess (49 with ShopOperations); mr-boss
+    CommerceAccess, CommerceOrders (CartDetail's one qvt render), CommerceFeeds, CommerceStores, CommerceRecovery. Not run:
+    `./moq test-apps` and the budget measure. Feature time added: Mantle about 2.1 s, mr-pass 0.03 s, BOSS 0.06 s.
+  - Acceptance: `acceptance/ShopOperationsScenarios` (3 features, after ShopFixtures by name, F106): POPC_DEFAULT's
+    publication rows set aside, the preview (ZZWR_TMP's footers, the conversion findings, the categories) proposing rows
+    with nothing written, a publisher approving five through `publish#StoreProducts`, the rows put back; a ZIZI_SHOP
+    checkout whose answer is lost, the Shop mount withdrawn (the Shop context NotFound), the job placing it, the placed
+    orders unchanged, the mount restored; a remote frontend's kept site information, then with `pass_backend_url` naming a
+    dead authority `getSiteInfo`, `getShopAccount` and `getCart` all refused. Run: `--spec ShopOperationsScenarios` 6 of 6
+    (with ShopFixtures); then `./moq accept mr-pass` once: the first run failed ShopPaymentScenarios' capture feature (Demo Product Three-One's stock used up by this spec's order, F-SP8-9), fixed by cancelling it; the rerun's server suite 40 passed, 3 ignored, 0 failed, client suite 41 of 41.
+  - Lint: `moqui lint --screens` 132 flagged sites as before, none in CartDetail, Shop.xml or the Shop files.
+  - Docs: mr-pass Deployment.md "Operations", README's spec and acceptance lists; design-shop §12.7 and §17.1 as-built;
+    design-commerce §6 CartDetail's ResolvePlacement; mr-mantle docs/AuthorizeNet.md; usl-inventory's `release#`,
+    `refund#SinglePayment` and `cancel#Order` rows name CartDetail's ResolvePlacement.
+  - Decisions: the adoption preview is a Mantle service only (its Commerce page later); a guest party is retired by
+    disabling it and a cancelled guest order is kept (design-shop §7.1: never delete; record IDs preserved); the stuck
+    placement's resolution is the Commerce administrator's (COMMERCE_PLACEMENT_RESOLVE, BOSS_COMMERCE_ADMIN), not the
+    operator's, as it moves money; a retry places only the frozen order, so an ORDER_CHANGED placement is refunded, not
+    placed changed; a refund changes nothing unless the provider confirms it; the second-approval search runs once per
+    checkout after its tokens expire (each search is several list requests); F97 by recording the profiles this instance
+    makes rather than a configured namespace; F99 by wording; images public a minute under the current generation only.
+  - Findings (provisional):
+    - **F-SP8-1** The cart-creation throttle (30 in ten minutes per requester) is shared by every cart-making spec of one
+      run, so ShopOperations resets the bucket before and after its carts as mr-pass ShopCheckout does (Commerce F128);
+      without it StoreFulfillment failed after it in one run. A test-run setting for the throttle would end the pattern.
+    - **F-SP8-2** `dependsOn` still does not order a run (F106): the acceptance is named ShopOperationsScenarios to run
+      after ShopFixtures.
+    - **F-SP8-3** Over gRPC, whether the download path forwards the authority's Cache-Control for an image was not checked
+      (REST forwards it); the frontend keeps no image bytes of its own, so a shared cache in front of it does the keeping.
+    - **F-SP8-4** No Commerce screen shows the adoption preview (a StoreDetail tab or a Stores action); for Commerce P15 or
+      later.
+    - **F-SP8-5** The sweep covers Authorize.Net only (the gateway naming a `duplicateCheckService`); a webhook naming a
+      second transaction of a known reference would find it sooner.
+    - **F-SP8-6** No alert on stuck placements: Home counts them (Commerce P8); an alert template over StoreCheckout
+      placementPending past its tries would page someone (for the lead).
+    - **F-SP8-7** Transport.js is not Prettier-clean on master (left as it was).
+    - **F-SP8-8** An expired cart whose money is unresolved is read again each run (oldest expiry first, 200 a run); many
+      such carts could hold the window. They are few (a stuck placement or an unknown outcome); a view joining the
+      checkout's state would leave them out of the query.
+    - **F-SP8-9** The acceptance's withdrawal scenario cancels its order afterwards: POPC_DEFAULT requires inventory and
+      the demo's Demo Product Three-One stock ran out for ShopPaymentScenarios after it otherwise.
 
 ### P9 — Finish
 

@@ -57,9 +57,11 @@
   <transition name="media" method="get" read-only="true">
     <parameter name="productContentId"/>
     <parameter name="reviewImage"/>
+    <!-- Shop P8 (F75): the generation the image's link was made at; the authority lets a shared cache keep the current one's -->
+    <parameter name="v"/>
     <actions>
       <script>if(reviewImage)ec.resource.script('component://mr-pass/service/pass/Facade.js').downloadFile(shopContext.site.siteId,'getShopReviewImage',{reviewImage:String(reviewImage)})
-        else ec.resource.script('component://mr-pass/service/pass/Facade.js').downloadFile(shopContext.site.siteId,'getShopProductImage',{productContentId:String(productContentId || '')})</script>
+        else ec.resource.script('component://mr-pass/service/pass/Facade.js').downloadFile(shopContext.site.siteId,'getShopProductImage',{productContentId:String(productContentId || ''),v:String(v || '')})</script>
     </actions>
     <default-response type="none"/>
   </transition>

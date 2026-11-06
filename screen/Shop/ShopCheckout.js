@@ -966,7 +966,7 @@ function confirmationHtml(context, view) {
               esc(accountBase + '/Register') +
               '">Create an account with ' +
               esc(o.contactEmail) +
-              '</a> to see this order later.</p>'
+              '</a> to see this order later. Once you verify that address, this order moves to your account, and the links we email open it after you sign in.</p>'
             : '') +
         '</nav></section>'
     )
