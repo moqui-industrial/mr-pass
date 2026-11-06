@@ -345,6 +345,13 @@ feature(
             preferences.html.includes(
                 'name="topic_cartReminders:' + ids.store + '"',
             )
+            // and its review requests (Commerce P9 follow-up)
+            preferences.html.includes(
+                'Review requests from Shop Spec Account Store',
+            )
+            preferences.html.includes(
+                'name="topic_reviewRequests:' + ids.store + '"',
+            )
         },
     },
 )

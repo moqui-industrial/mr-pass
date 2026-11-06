@@ -2,8 +2,10 @@
  * X6, X15), the PASS Account foundation's: Home shows one card per app the site mounts that registers one (getAccountHub:
  * Shop's AccountOverview summary, Billing's invoices, Support's cases and returns); EmailPreferences combines a list link's
  * unsubscribe (its token from ConsentServices' link, /EmailPreferences?token=, with RFC 8058's one-click POST), the
- * signed-in account's lists and each store's cart reminders topic (getEmailPreferences, storeEmailPreferences), and the
- * Forum opt-out's page. Plain forms; no-store. CC0 plus patent grant. */
+ * signed-in account's lists and each store's topics, cart reminders and review requests (getEmailPreferences,
+ * storeEmailPreferences), and the Forum opt-out's page. A receipt's confirmation link (?confirm=, Commerce P9 follow-up)
+ * shows the checkout's optional emails waiting for it, read only, and its one button confirms them. Plain forms; no-store.
+ * CC0 plus patent grant. */
 const portal = () =>
     ec.resource.script('component://mr-pass/screen/Shared/Portal.js')
 const esc = (text) =>
@@ -29,6 +31,10 @@ const tokenParam = () =>
     String(param('token') || '')
         .replace(/[^A-Za-z0-9_-]/g, '')
         .slice(0, 128)
+const confirmParam = () =>
+    String(param('confirm') || '')
+        .replace(/[^A-Za-z0-9_.-]/g, '')
+        .slice(0, 180)
 const hidden = (name, value) =>
     '<input type="hidden" name="' + name + '" value="' + esc(value ?? '') + '">'
 const formToken = () =>
@@ -115,9 +121,10 @@ function home(siteId, publicPath) {
 /* EmailPreferences: the lists and topics, each a checkbox, saved together. */
 function preferences(siteId, publicPath) {
     const token = tokenParam()
+    const confirm = confirmParam()
     const found = portal().attempt('getEmailPreferences', {
         siteId,
-        ...(token ? { token } : {}),
+        ...(confirm ? { confirm } : token ? { token } : {}),
     })
     if (found.error)
         return (
@@ -129,6 +136,8 @@ function preferences(siteId, publicPath) {
                 : '')
         )
     const v = found.result
+    if (v.mode === 'confirm') return confirmation(v, confirm, publicPath)
+    const waiting = ' (waiting for you to confirm it from your order receipt)'
     const box = (name, checked, label, description) =>
         '<label><input type="checkbox" name="' +
         name +
@@ -144,7 +153,7 @@ function preferences(siteId, publicPath) {
             box(
                 'list_' + list.contactListId,
                 list.subscribed,
-                list.name,
+                list.name + (list.confirmPending ? waiting : ''),
                 list.description,
             ),
         )
@@ -154,7 +163,7 @@ function preferences(siteId, publicPath) {
             box(
                 'topic_' + topic.topicId,
                 topic.on,
-                topic.name,
+                topic.name + (topic.confirmPending ? waiting : ''),
                 topic.description,
             ),
         )
@@ -192,8 +201,59 @@ function preferences(siteId, publicPath) {
             : '')
     )
 }
-/* EmailPreferences/save: the checked lists and topics (an unchecked one shown on the page is off). */
+/* A receipt's confirmation: the optional emails chosen at checkout, and one button that confirms them. */
+function confirmation(v, confirm, publicPath) {
+    const choices = (v.choices || [])
+        .map(
+            (choice) =>
+                '<li>' +
+                esc(choice.label) +
+                ' <small>' +
+                esc(choice.statement) +
+                '</small></li>',
+        )
+        .join('')
+    return (
+        '<h1>Email preferences</h1>' +
+        flash() +
+        '<p>Optional emails from ' +
+        esc(v.storeName) +
+        ' to ' +
+        esc(v.maskedAddress) +
+        ', chosen at checkout:</p><ul id="ConfirmChoices">' +
+        choices +
+        '</ul>' +
+        (v.confirmed
+            ? '<p role="status">These are confirmed. You can change them on your email preferences page, or from any of these emails.</p>'
+            : '<form method="post" class="card" id="ConfirmOptInsForm" action="' +
+              esc(publicPath + '/save') +
+              '">' +
+              formToken() +
+              hidden('confirm', confirm) +
+              hidden('confirmNow', 'true') +
+              '<p><button type="submit">Confirm these emails</button></p><p><small>Nothing is sent until you confirm. Your receipt and order updates come either way.</small></p></form>')
+    )
+}
+/* EmailPreferences/save: the checked lists and topics (an unchecked one shown on the page is off); or a receipt link's
+ * confirmation. */
 function save(siteId, publicPath) {
+    const back = publicPath.replace(/\/save$/, '')
+    const confirm = confirmParam()
+    if (confirm) {
+        const confirmed = portal().attempt('storeEmailPreferences', {
+            siteId,
+            confirm,
+            choices: JSON.stringify({
+                confirm: param('confirmNow') === 'true',
+            }),
+        })
+        ec.web.sessionAttributes.passAccountNotice = confirmed.error
+            ? confirmed.error.message
+            : 'Your choices are confirmed.'
+        return ec.web.response.sendRedirect(
+            back + '?confirm=' + encodeURIComponent(confirm),
+        )
+    }
     const parameters = ec.web.parameters
     const lists = {}
     const topics = {}
@@ -217,7 +277,6 @@ function save(siteId, publicPath) {
     ec.web.sessionAttributes.passAccountNotice = found.error
         ? found.error.message
         : 'Your preferences are saved.'
-    const back = publicPath.replace(/\/save$/, '')
     ec.web.response.sendRedirect(
         back + (token ? '?token=' + encodeURIComponent(token) : ''),
     )

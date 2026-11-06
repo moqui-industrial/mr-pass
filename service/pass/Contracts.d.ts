@@ -113,6 +113,8 @@ export interface CheckoutView {
         delivery: { needed: boolean; done: boolean; selected: { carrierPartyId: string; shipmentMethodEnumId: string; label: string; amount: ShopPrice; current: boolean } | null }
         payment: { needed: boolean; done: boolean; options: { paymentOptionId: string; label: string; provider: string; hosted: boolean; canSave: boolean }[]; selected: { paymentOptionId: string; label: string } | null; savePaymentMethod: boolean }
         terms: { required: boolean; version?: string; title?: string; url?: string | null }
+        /** Commerce P9 follow-up: the store's optional emails, none checked but by the buyer (chosen) */
+        optIns?: { optInId: 'reviewRequests' | 'cartReminders' | 'news'; label: string; statement: string; chosen: boolean; alreadyOn: boolean }[]
         lines: CartLine[]
         promoCodes: { code: string; label: string | null }[]
         totals: { items: ShopPrice; discounts: ShopPrice; shipping: ShopPrice | null; tax: ShopPrice; total: ShopPrice; dueNow: ShopPrice }
@@ -1144,7 +1146,7 @@ export interface OperationInputs {
     selectDelivery: { siteId: string; token?: string; carrierPartyId: string; shipmentMethodEnumId: string; expectedRevision: string; operationId?: string }
     getPaymentOptions: { siteId: string; token?: string }
     selectPayment: { siteId: string; token?: string; paymentOptionId: string; savePaymentMethod?: string; operationId?: string }
-    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string }
+    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string; optIns?: string }
     getCheckoutPaymentResult: { siteId: string; token?: string; reference?: string; key?: string; returned?: string }
     getCheckoutPaymentForm: { siteId: string; reference: string; key: string }
     getOrderConfirmation: { siteId: string; token?: string; reference?: string; key?: string; orderToken?: string }
@@ -1169,8 +1171,8 @@ export interface OperationInputs {
     getShopDownload: { siteId: string; downloadGrantId: string; downloadToken: string; range?: string }
     /** Shop P6 (F6): the PASS Account hub and email preferences; token a list link's (ConsentServices) */
     getAccountHub: { siteId: string }
-    getEmailPreferences: { siteId: string; token?: string }
-    storeEmailPreferences: { siteId: string; token?: string; choices: string }
+    getEmailPreferences: { siteId: string; token?: string; confirm?: string }
+    storeEmailPreferences: { siteId: string; token?: string; confirm?: string; choices: string }
     applyOneClickUnsubscribe: { siteId: string; token: string }
     /** Commerce P9: a product's approved reviews (and the signed-in author's own); a signed-in verified buyer's review or
      * edit (its proof found by the authority, never sent), one photo a call; an approved review's image by its digest */

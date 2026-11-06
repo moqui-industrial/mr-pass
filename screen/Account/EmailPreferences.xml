@@ -2,7 +2,9 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- EmailPreferences, the one PASS Account email preferences page (impl-shop P6, F6, X15): a list link's unsubscribe (the
     token of ConsentServices' link, and RFC 8058's one-click POST), the signed-in account's lists, each store's cart
-    reminders (which cart recovery requires) and the Forum opt-out's page. -->
+    reminders (which cart recovery requires) and review requests (which the review request requires; Commerce P9
+    follow-up), a receipt's link confirming the checkout's optional emails (?confirm=, its button posts to save), and the
+    Forum opt-out's page. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd" require-authentication="false" default-menu-title="Email preferences">
   <transition name="save" method="post">
     <actions>

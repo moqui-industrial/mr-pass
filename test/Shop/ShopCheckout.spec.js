@@ -1,6 +1,6 @@
 // Shop's checkout on PASS (impl-shop P5; design-shop §6 Checkout, PaymentResult, OrderConfirmation, §7.3, §13.1; F37, F71,
 // F75): the checkout page's one render through the published starter theme (its steps as plain forms with the revision
-// and operation id, the review's submit, never a capability); only the payment relay's route allows the provider's
+// and operation id, the review's submit with the store's optional emails unchecked, never a capability); only the payment relay's route allows the provider's
 // form-action; the checkout's writes and capability reads (POSTs) in all three TOKEN_WRITES lists, with getCart a POST;
 // a remote frontend's checkout, its refusal of a stale submit, its submit and a provider's return read by the reference
 // and key alone, the same as a local page's; a sign-in on a Shop site landing on its root app. The checkout's rules are
@@ -195,6 +195,13 @@ feature(
             html.includes('Spec hosted page')
             html.includes('action="/shop/Checkout/submit"')
             html.includes('Place order and pay $10.00')
+            // the store's optional emails (Commerce P9 follow-up): a guest is offered review requests, unchecked, with what
+            // it is and is not; no cart reminders without an account
+            html.includes('name="optIn" value="reviewRequests">')
+            html.includes(
+                'One email per item after it arrives; no offers or newsletters.',
+            )
+            !html.includes('value="cartReminders"')
             html.includes('name="expectedRevision"')
             html.includes('name="operationId"')
             !html.includes('Delivery address')
