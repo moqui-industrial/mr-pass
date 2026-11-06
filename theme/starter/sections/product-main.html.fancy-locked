@@ -7,4 +7,17 @@
   <#if section.settings.showSku && product.sku><p class="sku">SKU ${product.sku}</p></#if>
   <#if product.description><div class="description">${product.description}</div></#if>
   <div class="component">${components["shop.productPurchase"]}</div>
+  <#if product.reviews><section class="reviews" aria-label="Reviews">
+    <h2>Reviews</h2>
+    <#if product.reviews.summary.count><p class="review-summary"><strong>${product.reviews.summary.average} of 5</strong> · ${product.reviews.summary.count} reviews</p><#else><p class="review-summary">No reviews yet.</p></#if>
+    <#if product.reviews.own><p class="review-own">Your review: ${product.reviews.own.statusText}</p></#if>
+    <#list product.reviews.reviews as review><div class="review">
+      <p><strong>${review.rating} of 5</strong> · ${review.authorLabel} <small>${review.dateText}<#if review.verifiedPurchase> · Verified purchase</#if></small></p>
+      <p>${review.body}</p>
+      <#list review.images as photo><img src="${photo.url}" alt="${photo.alt}" loading="lazy" width="160"></#list>
+      <#if review.reply><blockquote class="review-reply"><p><strong>Reply from ${shop.name}</strong> <small>${review.reply.dateText}</small></p><p>${review.reply.text}</p></blockquote></#if>
+    </div></#list>
+    <#if product.reviews.moreUrl><p><a href="${product.reviews.moreUrl}">All reviews</a></p></#if>
+    <#if product.reviews.writeUrl><p><a href="${product.reviews.writeUrl}">Write or change your review</a></p></#if>
+  </section></#if>
 </article>

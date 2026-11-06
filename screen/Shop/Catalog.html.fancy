@@ -15,6 +15,11 @@
 <p>${p.availability ? p.availability.label : ''}</p>
 <#if shopPage.richDescription><div>${raw(shopPage.richDescription)}</div></#if>
 ${raw(shopPage.purchaseHtml)}</article>
+<#if p.reviews><#assign rv = p.reviews><section class="card" id="ProductReviews" aria-labelledby="ProductReviewsTitle"><h2 id="ProductReviewsTitle">Reviews</h2>
+<#if rv.summary.count><p id="ReviewSummary"><strong>${rv.summary.average} of 5</strong> · ${rv.summary.count} <#if rv.summary.count == 1>review<#else>reviews</#if></p><#else><p id="ReviewSummary">No reviews yet.</p></#if>
+<#if rv.own><p class="shop-review-own">Your review: ${rv.own.statusText}</p></#if>
+<#if rv.reviews.length><ul class="shop-reviews"><#list rv.reviews as r><li class="shop-review"><p><strong>${r.rating} of 5</strong> · ${r.authorLabel} <small>${r.dateText}<#if r.verifiedPurchase> · Verified purchase</#if></small></p><p>${r.body}</p><#list r.images as i><img src="${i.url}" alt="${i.alt}" loading="lazy" width="160"> </#list><#if r.reply><blockquote class="shop-review-reply"><p><strong>Reply from ${shopContext.store.name}</strong> <small>${r.reply.dateText}</small></p><p>${r.reply.text}</p></blockquote></#if></li></#list></ul></#if>
+<#if rv.moreUrl><p><a href="${rv.moreUrl}">All reviews</a></p></#if><#if rv.writeUrl><p><a href="${rv.writeUrl}"><#if rv.own>Change your review<#else>Write a review</#if></a></p></#if></section></#if>
 <#elseif shopPage.kind == 'search'><h1>${v.page.title}</h1>
 ${raw(shopPage.searchHtml)}
 <#if v.page.resultState == 'invalid'><p class="card" role="alert">Enter up to 100 characters to search.</p></#if>

@@ -410,7 +410,9 @@ states. Derived from Frappe routing and PASS search projection. **Needs:** SHOP-
 inside it. The submit-review form fields above are complete; authority derives product/store/party and
 validates the claimed purchase proof. Images are PNG or JPEG, staged and scanned through Mantle's
 `PortalMedia.js`, and shown only with an approved review (Nov 5, impl-commerce P9). Editing requires
-ownership and the expected review revision.
+ownership and the expected review revision. Built (Nov 6, impl-commerce P9): SubmitReview is the PASS-shell page
+`Review?productId=` (a theme has no form), with the product's approved reviews a page at a time; ProductDetail shows the
+first ones from the view's `product.reviews`; photos go one an operation call (`submitProductReview`'s `file`), up to three.
 No direct ProductReview CRUD endpoint. Pending reviews are visible only to their author/staff,
 and only approved reviews affect public aggregates. Add an approved-to-pending transition for
 author edits; the current ProductReview status flow does not provide it. An approved review shows
