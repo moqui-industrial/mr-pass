@@ -84,6 +84,8 @@ export interface ShopPage {
     generation: number
     release: ShopRelease | null
     view: ShopView
+    /** Commerce P5 (F77): the page's alternate template when the active release has it, else absent (the kind's default). */
+    template?: string | null
     references: Record<string, { url: string; label?: string }>
     media: Record<string, { url: string; alt?: string }>
     sources: Record<string, unknown[]>

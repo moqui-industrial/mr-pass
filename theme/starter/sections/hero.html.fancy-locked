@@ -1,4 +1,4 @@
-<section class="store-hero">
+<section class="store-hero" data-section-id="${section.id}">
   <h1>${section.settings.heading || shop.name}</h1>
   <#if section.settings.text><p>${section.settings.text}</p></#if>
   <#if section.settings.image>

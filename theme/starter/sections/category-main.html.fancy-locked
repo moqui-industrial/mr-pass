@@ -1,4 +1,4 @@
-<section class="store-section">
+<section class="store-section" data-section-id="${section.id}">
   <h1>${category.name}</h1>
   <#if category.description><p>${category.description}</p></#if>
   <#if category.children && category.children.length>

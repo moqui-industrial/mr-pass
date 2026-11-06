@@ -14,7 +14,15 @@ const ASSET_TYPES = {
     css: 'text/css',
     svg: 'image/svg+xml',
     json: 'application/json',
+    // Commerce P5 (F55): images and fonts, which a release keeps as the base64 of their bytes
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    woff2: 'font/woff2',
 }
+const TEXT_ASSETS = ['css', 'svg', 'json']
 /* The trusted components of the page kinds that place them (the authority's Themes.js requiredComponents): installed
  * PASS code, never theme source, each made from the page's view (escaped). P3's purchase selection is a GET form that
  * shows the price of a variant and quantity (quoteSelection's, in the view's product.quote), with no add until P4; P4 and
@@ -260,6 +268,8 @@ function renderView(context, pageKind, page, call) {
         { files: verified.files },
         {
             pageKind,
+            // Commerce P5 (F77): the page's alternate template when the release has it
+            ...(page.template ? { template: page.template } : {}),
             view: page.view,
             components,
             references: page.references || {},
@@ -329,14 +339,20 @@ function sendAsset(context, manifestDigest, assetPath, call) {
     if (extension === 'svg') text = ec.resource.theme.sanitizeSvg(text)
     const response = ec.web?.response
     if (!response) return { contentType: type, text }
-    response.setContentType(type + '; charset=utf-8')
+    response.setContentType(
+        TEXT_ASSETS.includes(extension) ? type + '; charset=utf-8' : type,
+    )
     response.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     response.setHeader('X-Content-Type-Options', 'nosniff')
     response.setHeader(
         'Content-Security-Policy',
         "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:",
     )
-    response.write(text)
+    response.write(
+        TEXT_ASSETS.includes(extension)
+            ? text
+            : StringUtilities.base64Decode(text),
+    )
     return { contentType: type, text }
 }
 ;({

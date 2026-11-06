@@ -250,6 +250,25 @@ mount at `theme/{manifest digest}/{path}`, immutable. A remote frontend fetches 
 over its authority connection (registered clients only), checks every digest and keeps the release; one it cannot
 verify, or an engine or view API it does not have, shows a safe "not available" page. The renderer's budgets are
 lowered in conf with `<resource-facade><theme-limits .../>` (mr-moqui `docs/ui/Themes.md`).
+A release's images and fonts (`assets/*.png`, `.jpg`, `.gif`, `.webp`, `.woff2`) travel as the base64 of their bytes,
+digest-checked like the text files, and are served as bytes.
+
+**Theme preview host** (impl-commerce P5, F54; design-shop §12.6). Commerce's ThemeEditor frames a draft from a site's
+preview host, which serves only `/preview/{token}` and its assets `/preview/{token}/asset/{path}` and answers Not Found for
+every other path. To give a site one:
+- bind the host to the site as a preview host (`store#Mounts` with `{hostname, preview: true}`; a PublicSiteHost row of
+  kind `PshkPreview`, never canonical, which page links, `sitesFor` and readiness ignore);
+- give the authority's runtime a `<public-site>` for it with one mount at the root, so it claims every path of the host:
+  `<public-site host="preview.shop.example.com" site-id="SHOP_SITE" screen-location="component://mr-pass/screen/Pass.xml"
+  resolver-service="pass.RouteServices.resolve#Route"><mount path="/" screen="Shop"/></public-site>`;
+- set `pass_preview_frame_origins` to the BOSS origins that may frame it (`https://boss.example.com`; `http://localhost:*`
+  in development). Unset, the preview is not framed at all.
+
+Previews are served only by the authority's runtime (a remote frontend has no Mantle in process and treats every host as
+live). A preview page is `no-store`, `noindex`, sends no referrer and has its own CSP (a script only by nonce, no form
+action, `frame-ancestors` the origins above); its capability is the token in its path, valid for twenty minutes for one
+site, theme draft and staff user. The framework's own routes (`/apps`, `/qapps`, `/rest`, `/Login` and the rest) still
+answer on any host, the preview host too, so keep the preview host's name apart from the BOSS host's.
 
 ## Adding an app
 

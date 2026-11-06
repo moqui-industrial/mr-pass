@@ -1,4 +1,4 @@
-<section class="store-section">
+<section class="store-section" data-section-id="${section.id}">
   <h1>${page.title || page.query || 'Search'}</h1>
   <div class="component">${components["shop.search"]}</div>
   <#if page.resultState == 'invalid'><p class="empty" role="alert">Enter up to 100 characters to search.</p></#if>
