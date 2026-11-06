@@ -1081,6 +1081,13 @@ the accepted contract requires renewed explicit consent; otherwise pause renewal
 Do not silently substitute the latest catalog price for a promised fixed plan. Complex usage
 metering, proration, plan switching and physical subscription-box orchestration are later.
 
+**Built in Shop P7 (Nov 6, 2026; impl-shop P7).** A checkout buys one subscription offer, one at a time, at the catalog
+price, which must equal the offer's (a differing offer is refused, never substituted); the contract, its first term and
+the base are made at the settled fulfillment of that line. The base is the first order cloned with `copyPayment=false`,
+holding only the contract's line, promotions off, scheduled nightly: the contract's own date decides when a period is due,
+and `create_RecurringOrders` hands the base to the coordinator. A paid-access line bought without an offer is a prepaid
+contract of its own. A merge or an ended card clears the off-session consent; the next renewal waits for the customer.
+
 ### 10.2 Renewal, cancellation and access
 
 Use an approved saved provider token with explicit recurring/off-session consent, charged as a

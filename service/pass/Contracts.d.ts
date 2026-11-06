@@ -1148,7 +1148,7 @@ export interface OperationInputs {
     selectDelivery: { siteId: string; token?: string; carrierPartyId: string; shipmentMethodEnumId: string; expectedRevision: string; operationId?: string }
     getPaymentOptions: { siteId: string; token?: string }
     selectPayment: { siteId: string; token?: string; paymentOptionId: string; savePaymentMethod?: string; operationId?: string }
-    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string; optIns?: string }
+    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string; optIns?: string; recurringConsent?: string }
     getCheckoutPaymentResult: { siteId: string; token?: string; reference?: string; key?: string; returned?: string }
     getCheckoutPaymentForm: { siteId: string; reference: string; key: string }
     getOrderConfirmation: { siteId: string; token?: string; reference?: string; key?: string; orderToken?: string }
@@ -1184,6 +1184,14 @@ export interface OperationInputs {
     /** Commerce P10: a cart recovery link's one-time token, spent by the signed-in account whose cart it is (a CartView with
      * the cart's new capability); a visitor is asked to sign in, a spent, expired or another account's link is NotFound */
     recoverCart: { siteId: string; token: string }
+    /** Shop P7: the signed-in verified account's subscriptions in the site's store; a purchase goes on to the checkout,
+     * which asks for the renewal consent of an automatic offer (submitCheckout's recurringConsent) */
+    getSubscriptions: { siteId: string }
+    getSubscription: { siteId: string; contractId: string }
+    beginSubscriptionPurchase: { siteId: string; offerId?: string; contractId?: string; operationId?: string }
+    changeSubscriptionMethod: { siteId: string; contractId: string; paymentMethodId: string; consent: string; expectedRevision: string; operationId?: string }
+    cancelSubscription: { siteId: string; contractId: string; reason?: string; expectedRevision: string; operationId?: string }
+    resumeRenewal: { siteId: string; contractId: string; operationId?: string }
 }
 /** Shop P6: a decimal amount with its display text */
 export type Money = { amount: string; currencyUomId: string; display: string }
@@ -1202,6 +1210,13 @@ export type ShopOrderView = {
 }
 /** Shop P6: a download grant as its buyer reads it (getDownloads); never a location */
 export type ShopDownload = { downloadGrantId: string; orderId: string; productName: string; fileName: string; versionText: string; sizeText: string; grantedText: string; untilText: string; available: boolean; stateText: string }
+/** Shop P7: a subscription as its owner reads it (getSubscriptions, getSubscription): billing and access apart */
+export type SubscriptionView = {
+    contractId: string; revision: string; name: string; productName: string; price: Money; termText: string; autoRenew: boolean
+    billingState: string; billingText: string; accessText: string; hasAccess: boolean; paidThroughText: string
+    nextRenewalText: string; nextAmount: Money | null; cancelAtText: string; actionNeeded: boolean; canCancel: boolean
+    canRenewPrepaid: boolean
+}
 /** Shop P6 (F6): a card of the PASS Account hub (getAccountHub) */
 export type AccountCard = { app: string; title: string; lines: string[]; url: string | null; links?: { text: string; url: string }[]; failed?: boolean }
 export type Operation = keyof OperationInputs

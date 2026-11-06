@@ -393,6 +393,7 @@ function checkoutHtml(context, view, deliveryOptions, notice) {
                   action('submit') +
                   '" id="CheckoutSubmit">' +
                   changeFields(c) +
+                  recurringFields(c) +
                   optInFields(c) +
                   (c.terms.required
                       ? hidden('termsVersion', c.terms.version) +
@@ -600,12 +601,37 @@ function payment(context) {
     })
     back(context, found, 'Chose how to pay.')
 }
+/* Shop P7: a subscription's renewal terms (CheckoutView's recurring): the price and term, and for an automatic offer the
+   consent to renewal charges of the card kept now, unchecked until the buyer checks it and required to subscribe. */
+function recurringFields(c) {
+    const r = c.recurring
+    if (!r) return ''
+    return (
+        '<fieldset class="shop-recurring"><legend>' +
+        esc(r.name) +
+        ': ' +
+        money(r.price) +
+        ' every ' +
+        esc(r.termText) +
+        '</legend>' +
+        (r.consentRequired
+            ? '<label><input type="checkbox" name="recurringConsent" value="true" required> ' +
+              esc(r.statement) +
+              '</label>'
+            : '<p>' + esc(r.statement) + '</p>') +
+        '</fieldset>'
+    )
+}
 /* Checkout/submit: frozen and paid; the result page links the provider's page (a change found is shown on the checkout). */
 function submit(context) {
     const found = call(context, 'submitCheckout', {
         ...changeInput(),
         termsVersion: param('termsVersion'),
         acceptTerms: param('acceptTerms') === 'true' ? 'true' : 'false',
+        // Shop P7: a subscription's renewal consent, sent only when the buyer checked it
+        ...(param('recurringConsent') === 'true'
+            ? { recurringConsent: 'true' }
+            : {}),
         optIns: params('optIn')
             .filter((id) => /^[A-Za-z]{1,30}$/.test(id))
             .join(','),
