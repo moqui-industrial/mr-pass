@@ -1873,7 +1873,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
   Remaining-Work is the lead's (from both reports).
   - **Design-shop §18.1 review.** Each scenario with the acceptance tests that walk it and the regression specs of its
     rules; acceptance was added only for the two with none (Failed placement after provider success; Accessibility and
-    devices). Specs are mr-pass's unless named; "Mantle" is mr-mantle `test/`, "BOSS" mr-boss `acceptance/Commerce/`.
+    devices). Specs are mr-pass's unless named; "Mantle" is mr-mantle `test/`, "BOSS" mr-boss `acceptance/` (ThemeEditorWalk is its client walk).
 
     | Scenario | Acceptance | Rules (regression) |
     | --- | --- | --- |
@@ -1951,6 +1951,28 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
       review form) show the alert without naming the field. The cart islands' quantity has no field error to mark.
     - **F-SP9-6** The error notice takes the focus by `autofocus` after a redirect; a screen reader announces the alert
       and lands on the field, but the theme's skip link and heading order were not audited beyond the walk.
+
+- **Review Nov 6 (P9).** Checked: F126's backstop against the coordinator and SECA paths (StoreItemFulfillment's
+  STORE_FULFILL_ITEM unique key on order and line, `prepare` creating only missing rows, each later step under
+  `lockRows`, the capture by its operation key; a renewal occurrence's order is always Shop's, and `sourceOf` still
+  refuses an order with no checkout or occurrence); `markInvalid` (the field name is checked against
+  `^[A-Za-z][A-Za-z0-9_]{0,63}$` before it reaches the pattern or the markup, so it cannot inject; one `autofocus` a
+  page); the live regions and alert/status roles; the reduced-motion rules (the starter's has no `behavior`, so it passes
+  the theme validator; the shell is not theme CSS); the failed-placement feature's gateway services, set and restored in
+  its own `try`/`finally` (no fixture or demo change); Deployment's Shop section against the ServiceJob data (the nine
+  jobs and their crons match), Shared/Headers.js (only PaymentRelay and MethodRelay add the provider's form-action), the
+  catalog caching and the named services and screens; every spec and walk the §18.1 table and the README name exists;
+  F66's Upgrading note against ZcaProductDemoData.xml and Knowledge.js. Built note accurate.
+  - R1 (minor) The payment result page's error notice got `id="ShopNotice" tabindex="-1"` but no focus when it named a
+    field (a checkout refusal taken there): `resultHtml` now runs `markInvalid` too, so the notice takes the focus.
+  - R2 (minor, docs) Deployment's Media item pointed "above" to "Mail, accounts, and media", which is below; Upgrading's
+    ZZW_RETAIL statements now say to stop the server first (ScreenPathAlias is cached); the §18.1 table's "BOSS" names
+    mr-boss `acceptance/` (ThemeEditorWalk is a client walk).
+  - Specs (`--nobuild`): Mantle ShopSubscriptions, StoreFulfillment, ShopOperations 21 of 21 (F126's feature 0.07 s);
+    mr-pass ShopCheckout, ShopCart, ShopThemes, ShopCatalog, ShopAccess 18 of 18; client ShopCheckoutWalk 1 of 1 (4.6 s).
+  - For the lead: F126's window is the occurrence's `createdDate`, so an occurrence reopened for a retry more than seven
+    days after it was made (its order placed late) is outside the backstop; the order's own entry date would bound it
+    better. ShopCheckout.js was not Prettier-clean before P9 (unchanged here).
 
 ## 4. Decisions
 

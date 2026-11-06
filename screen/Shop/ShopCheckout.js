@@ -837,7 +837,7 @@ function resultHtml(context, view, notice) {
               '"'
             : '') +
         '><h1>Payment</h1>' +
-        parts.join('') +
+        markInvalid(parts.join(''), notice) +
         '</section>' +
         (poll ? enhanceScript(context) : '')
     )

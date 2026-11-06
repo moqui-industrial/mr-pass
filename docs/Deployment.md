@@ -330,7 +330,7 @@ one. A published product feed is served at `{mount}/feeds/{key}.xml` (or `.csv`)
 - **Email.** The store's emails (`ProductStoreEmail`): order placed and approved, `PsetInvoiceFinalized` (the receipt),
   `PsetDownloadReady`, `PsetSubscriptionRenewal`, `PsetPaymentRetry` and the cart reminder; an email server the
   authority reaches.
-- **Media.** `pass_media_root` on private storage and `pass_scanner_service` (above, "Mail, accounts, and media") for review
+- **Media.** `pass_media_root` on private storage and `pass_scanner_service` (below, "Mail, accounts, and media") for review
   photos; product images are read only from `dbresource://` and `component://` locations.
 - **Caches.** Anonymous catalog pages are `public, max-age=60` with an ETag under the site's generation; everything with a
   session or a user is `no-store`. A CDN may keep catalog pages for that minute; it must keep nothing marked `no-store` and
