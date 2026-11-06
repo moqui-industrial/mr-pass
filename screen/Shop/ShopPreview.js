@@ -4,8 +4,8 @@
  * (mantle.public.ThemeServices.create#ThemePreview): it is in the URL, never a cookie, and its page sends no-store,
  * noindex, no referrer and a CSP whose frame-ancestors are the BOSS origins of pass_preview_frame_origins (none: not
  * framed). The page is the draft rendered by the same composition adapter and trusted components as the live page,
- * with the view the authority answers (synthetic private state); it sends no mail, records no visit and makes no cart or
- * payment call. Previews are served by the authority's runtime only: a remote frontend (pass_backend_url) has no preview
+ * with the view the authority answers (synthetic private state); it sends no mail and makes no cart or payment call
+ * (the framework's session cookie on its answer still starts a Visit on the frame's next request: impl-commerce F-P5-7). Previews are served by the authority's runtime only: a remote frontend (pass_backend_url) has no preview
  * host. The selection script talks to the editor only through the MessageChannel port the editor transfers with the
  * nonce of the preview's URL, from an allowed origin, and carries section ids only. CC0 plus patent grant. */
 const PREVIEW_SERVICE = 'mantle.public.ThemeServices.get#ThemePreviewPage'
