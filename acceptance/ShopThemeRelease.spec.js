@@ -24,10 +24,14 @@ const revision = () => {
         .one()
     return binding ? Number(binding.revision) : 0
 }
+/* An operation key of its own for each publish or restore (PostingOperation). */
+const opKey = () =>
+    'SHOPTHM-' + Date.now() + '-' + Math.floor(Math.random() * 1e6)
 function publish(themeId) {
     const l = lib()
     const validated = l.run(T + 'validate#Theme', { themeId })
     const published = l.run(T + 'publish#Theme', {
+        operationKey: opKey(),
         themeId,
         siteId: SITE,
         validationDigest: validated.validationDigest,
@@ -160,6 +164,7 @@ feature('a section that loops forever stops at its budget and is left out', {
         const page = theme().renderPage(context(), 'home')
         const took = Date.now() - started
         const back = lib().run(T + 'restore#ThemeRelease', {
+            operationKey: opKey(),
             siteId: SITE,
             releaseId: state.starter.releaseId,
             expectedActiveRevision: revision(),
@@ -193,6 +198,7 @@ feature(
             let refused = ''
             try {
                 lib().run(T + 'publish#Theme', {
+                    operationKey: opKey(),
                     themeId,
                     siteId: SITE,
                     validationDigest: validated.validationDigest,

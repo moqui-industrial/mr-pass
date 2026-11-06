@@ -464,6 +464,43 @@ Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME,
     - **F-SP2-8** For the lead: the inventories' Implemented-in columns (mr-boss ss-inventory, usl-inventory) are mr-boss's
       and not edited here; the CLIENT_READS rule is checked in ShopThemes (it needs a published release), not ShopAccess.
 
+- **Review Nov 5 (P2)** (Mantle and mr-pass; the framework adapter was reviewed with com/fw). Checked: the records
+  (the release written once, its manifest digest, the binding's audit-logged releaseId and activation as the history);
+  each core service's permission and store scope (the theme's store and the store the site's Shop mount targets, another
+  organization's theme and another store's theme or release refused); publish's gates and the one transaction of
+  release, binding and generation; restore's digest recheck; the live reads (only the active release, `CLIENT_READS` in
+  PassAuthority's one `run`, which the REST, gRPC and edge paths all reach, so a browser or an unregistered client gets
+  Not Found); `ShopTheme.js`'s manifest and per-file digest checks, engine and view API checks and the 503 page;
+  `sendAsset`'s path (the route's and the asset pattern both refuse `..`, and only a file in the verified release's
+  manifest is served); `shopThemed` leaving out the PASS header and footer only under Shop (Account, Billing and Support
+  are other apps and keep the shell); the starter; Schema and Routes mirrors identical; the trusted-component tables
+  equal (ShopThemes checks them); no `ironstone` or BOSS reference. Fixes:
+  - R1 (medium) The view contract was a deny-list below its top-level keys: a projection handing `contract()` a whole
+    record would have passed costs, internal names, draft text and any field not named in the list to theme source.
+    ThemeView.js now projects through an allow-list, `shapes` (design-shop §12.3's v1 fields: site, shop, page,
+    navigation, product and product cards with price, availability and image, category, cart, account), with the
+    forbidden names still dropped; sources are projected through their descriptor's `shape` (product cards by default).
+    Later phases append fields to `shapes` for their page kinds. ThemeReleases' contract case adds a record with
+    `standardCost`, `internalName`, `ownerPartyId`, a price `cost` and a stock count, all left out.
+  - R2 (medium) `publish#Theme` and `restore#ThemeRelease` had no operation identity (impl-commerce §2): a retry after a
+    lost answer was `REVISION_STALE`. Both now take a required `operationKey` (PostingOperation `ThemePublish`,
+    `ThemeRestore`), answered with the first result and `alreadyApplied` before any gate; ThemeReleases retries the
+    first publish (same release, generation unchanged).
+  - R3 (low) Two first publishes of a site (no binding row to lock) could both pass the revision gate and the second
+    fail on the binding's key; the site's row is now locked before the binding, so the second is `REVISION_STALE`.
+    Restore also refuses (`RELEASE_INVALID`) a release whose view API this authority no longer supports.
+  - R4 (low) `pass.shop.themeReleases` had no bound (the framework's default cache has none), so every release a site
+    ever activated stayed in a frontend's memory; it now keeps one verified release per site, replaced on a switch.
+  - R5 (low) `sendAsset` served any file type under `assets/` by its extension's type; it now serves only `css`, `svg`
+    and `json` and answers anything else Not Found.
+  - Specs after the fixes: ThemeReleases 5, ShopThemes 4, ShopAccess, PassAuthority, StoreAdmin (26 passed; mr-mantle
+    5.0 s, mr-pass 1.6 s of 15 s); mr-boss CommerceAccess and CommerceStores 11 passed; acceptance ShopThemeRelease 4
+    passed. The Built note's "`contract()` keeps only the contract's keys ... drops" and "cached by release and digest"
+    are superseded by R1 and R4.
+  - For the lead: Commerce P5's editors must pass an `operationKey` to publish and restore; `COMMERCE_THEME_CODE`
+    (template source edits) is not checked yet, since `putDraftFiles` has no caller until P5; P3's catalog projections
+    must add their fields to `shapes` or they never reach a theme.
+
 ### P3 — Catalog pages
 
 Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-RENDER. Ends stage C1/S1 with Commerce P5.

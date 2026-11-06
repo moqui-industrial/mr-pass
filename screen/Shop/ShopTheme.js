@@ -9,6 +9,12 @@
 const CACHE = 'pass.shop.themeReleases'
 const VIEW_API_VERSIONS = [1]
 const FILES_PER_CALL = 50
+/* The content type of each asset type a release serves (by extension); anything else under assets/ is Not Found. */
+const ASSET_TYPES = {
+    css: 'text/css',
+    svg: 'image/svg+xml',
+    json: 'application/json',
+}
 /* The trusted components of the page kinds that place them (the authority's Themes.js requiredComponents): installed
  * PASS code, never theme source. P4 and P5 replace these with the purchase, cart and checkout forms. */
 const COMPONENTS = {
@@ -41,14 +47,15 @@ const facade = (operation, input) =>
         .call().result
 const digestOf = (text) => ec.resource.digestText(String(text), 'sha256')
 /* A release's package, verified: {manifest, files}. The manifest's text must have the digest the page named, and each
- * file the digest the manifest pins; the engine and view API must be this frontend's. Kept by release and digest, so
- * a release is fetched once. `call` is the authority call (the facade by default). */
+ * file the digest the manifest pins; the engine and view API must be this frontend's. Kept per site with its release and
+ * digest, so a release is fetched once and a site's earlier releases do not stay in memory. `call` is the authority
+ * call (the facade by default). */
 function packageOf(siteId, release, call) {
     const ask = call || facade
     const key = release.releaseId + ':' + release.manifestDigest
     const cache = ec.cache.getCache(CACHE)
-    const kept = cache.get(key)
-    if (kept) return kept
+    const kept = cache.get(siteId)
+    if (kept && kept.key === key) return kept.verified
     const found = ask('getShopThemeRelease', {
         siteId,
         releaseId: release.releaseId,
@@ -104,7 +111,7 @@ function packageOf(siteId, release, call) {
             'Release ' + release.releaseId + ' is missing ' + missing[0],
         )
     const verified = { manifest, files }
-    cache.put(key, verified)
+    cache.put(siteId, { key, verified })
     return verified
 }
 const escapeText = (text) =>
@@ -236,15 +243,11 @@ function sendAsset(context, manifestDigest, assetPath, call) {
         fail('NotFound', 'Not found')
     }
     let text = verified.files[path]
-    if (text == null) fail('NotFound', 'Not found')
-    const svg = path.endsWith('.svg')
-    if (svg) text = ec.resource.theme.sanitizeSvg(text)
-    const type = svg
-        ? 'image/svg+xml'
-        : path.endsWith('.css')
-          ? 'text/css'
-          : ec.resource.contentTypeOf(path.split('/').pop()) ||
-            'application/octet-stream'
+    const extension = path.slice(path.lastIndexOf('.') + 1)
+    const type = ASSET_TYPES[extension]
+    // only the asset types a theme serves: never its template source (.html.fancy-locked) or another file under assets/
+    if (text == null || !type) fail('NotFound', 'Not found')
+    if (extension === 'svg') text = ec.resource.theme.sanitizeSvg(text)
     const response = ec.web?.response
     if (!response) return { contentType: type, text }
     response.setContentType(type + '; charset=utf-8')

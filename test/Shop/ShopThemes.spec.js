@@ -30,6 +30,8 @@ function publish(themeId) {
         .disableAuthz()
         .one()
     const out = l.run(T + 'publish#Theme', {
+        operationKey:
+            'SHOPTHM-' + Date.now() + '-' + Math.floor(Math.random() * 1e6),
         themeId,
         siteId: SITE,
         validationDigest,
