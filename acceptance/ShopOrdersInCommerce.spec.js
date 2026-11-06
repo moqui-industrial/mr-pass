@@ -472,7 +472,10 @@ feature(
             const posted = post(
                 users.operator,
                 'Orders/OrderDetail/commerceReorder',
-                { orderId: walk.physical },
+                {
+                    orderId: walk.physical,
+                    operationKey: 'reorder-' + walk.physical + '-' + Date.now(),
+                },
             )
             const made = list('mantle.order.OrderHeader', {
                 parentOrderId: walk.physical,
