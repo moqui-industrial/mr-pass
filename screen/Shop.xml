@@ -42,6 +42,16 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- Commerce P14: a store feed's active build at the reserved feed path (resolve#Route), checked by the authority against
+      the site's current generation (getShopFeed); Shop/ShopFeeds.js -->
+  <transition name="feed" method="get" read-only="true">
+    <parameter name="feedKey"/>
+    <parameter name="feedExtension"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopFeeds.js').serve(shopContext,String(feedKey || ''),String(feedExtension || ''))</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <!-- P4 (F61): a public product's image, streamed after the authority's check (getShopProductImage); Commerce P9: an approved
       review's image by its digest (getShopReviewImage) -->
   <transition name="media" method="get" read-only="true">

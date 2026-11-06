@@ -1192,7 +1192,11 @@ export interface OperationInputs {
     changeSubscriptionMethod: { siteId: string; contractId: string; paymentMethodId: string; consent: string; expectedRevision: string; operationId?: string }
     cancelSubscription: { siteId: string; contractId: string; reason?: string; expectedRevision: string; operationId?: string }
     resumeRenewal: { siteId: string; contractId: string; operationId?: string }
+    /** Commerce P14: a store feed's active build at the Shop mount's feed path */
+    getShopFeed: { siteId: string; feedKey: string; extension: string }
 }
+/** Commerce P14: a served feed (getShopFeed): the active build's artifact while every product in it is public */
+export type ShopFeed = { content: string; contentType: string; digest: string; generation: number; builtGeneration: number; builtDate: number }
 /** Shop P6: a decimal amount with its display text */
 export type Money = { amount: string; currencyUomId: string; display: string }
 /** Shop P6: an order as its buyer reads it (getShopOrder) */
