@@ -81,6 +81,23 @@ const TOKEN_WRITES = [
     'removeCartItem',
     'applyPromoCode',
     'removePromoCode',
+    // Shop P5: the checkout's writes and its capability reads (POSTs, F75), authorized by the session's cart capability
+    // (input.token), the checkout's reference and key (a provider's return, a refreshed frontend) or a guest's order link;
+    // getCart with them
+    'getCart',
+    'beginCheckout',
+    'getCheckout',
+    'resumeCheckout',
+    'setCheckoutContact',
+    'setCheckoutAddresses',
+    'getDeliveryOptions',
+    'selectDelivery',
+    'getPaymentOptions',
+    'selectPayment',
+    'submitCheckout',
+    'getCheckoutPaymentResult',
+    'getCheckoutPaymentForm',
+    'getOrderConfirmation',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -175,9 +192,15 @@ function routeOf(operation, input) {
         !token &&
         route[0] !== 'GET' &&
         operation !== 'applyOptOut' &&
-        // Shop P4 (F44): a visitor's first add makes the cart, so it has no capability yet
+        // Shop P4 (F44): a visitor's first add makes the cart, so it has no capability yet; P5 (F75): the cart's read is a
+        // POST, answered empty for a visitor with no cart
         operation !== 'addCartItem' &&
-        !(TOKEN_WRITES.includes(operation) && input.token)
+        operation !== 'getCart' &&
+        // a link's or cart's token, or (Shop P5) a checkout's return key or a guest's order link
+        !(
+            TOKEN_WRITES.includes(operation) &&
+            (input.token || input.key || input.orderToken)
+        )
     )
         fail('AuthenticationRequired', 'Sign in to continue')
     return { method: route[0], pattern: route[1], token }

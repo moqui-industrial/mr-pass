@@ -231,4 +231,12 @@ function callAuthority(op, parameters, siteId) {
     if (op === 'endSession') clearRemoteSession()
     return result
 }
-;({ call, finishSso, safeReturnPath })
+/* Where a sign-in lands with no return path (Shop P5, F71): the site's root app (Forum or Shop at '/'), else its Forum
+   mount, else the site's root. */
+function landing(siteInfo) {
+    const mounts = siteInfo?.mounts || []
+    if (mounts.some((m) => m.pathPrefix === '/')) return '/'
+    const forum = mounts.find((m) => m.app === 'forum')
+    return forum ? forum.pathPrefix : '/'
+}
+;({ call, finishSso, safeReturnPath, landing })

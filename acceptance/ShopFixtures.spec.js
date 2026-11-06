@@ -301,3 +301,166 @@ feature(
         },
     },
 )
+// Shop P5: checkout on ZIZI_SHOP (ShopCheckoutHttp, ShopPaymentScenarios): POPC_DEFAULT takes cards through a hosted test
+// gateway (its page returns the payer, its lookup approves), as Commerce's demo would bind Authorize.Net Accept Hosted; a
+// lost-answer gateway and an authorize-only one whose capture declines, for the exception scenarios; the site's published
+// terms page (Commerce's demo publishes one); and a digital guide of its own for the price scenario.
+feature(
+    'provision checkout on ZIZI_SHOP: the hosted test gateway, the exception gateways, the terms page and a guide',
+    {
+        when() {
+            const l = lib()
+            const once = (entity, key, values) => {
+                if (!one(entity, key))
+                    l.run('create#' + entity, { ...key, ...(values || {}) })
+            }
+            const T = 'mantle.account.PaymentTestServices.'
+            for (const [id, authorize, capture, details] of [
+                [
+                    'ZIZI_SHOP_HOSTED',
+                    'hostedPending',
+                    'alwaysApprove',
+                    'alwaysApprove',
+                ],
+                [
+                    'ZIZI_SHOP_UNKNOWN',
+                    'alwaysUnknown',
+                    'alwaysApprove',
+                    'alwaysPending',
+                ],
+                [
+                    'ZIZI_SHOP_CAPFAIL',
+                    'alwaysApprove',
+                    'alwaysDecline',
+                    'alwaysApprove',
+                ],
+            ]) {
+                once(
+                    'mantle.account.method.PaymentGatewayConfig',
+                    { paymentGatewayConfigId: id },
+                    {
+                        paymentGatewayTypeEnumId: 'PgtTest',
+                        description: 'Shop acceptance ' + id,
+                        authorizeServiceName:
+                            T + authorize + '#PaymentAuthorization',
+                        captureServiceName: T + capture + '#PaymentCapture',
+                        detailsServiceName: T + details + '#PaymentDetails',
+                    },
+                )
+                once(
+                    'mantle.account.method.PaymentGatewayOrganization',
+                    {
+                        organizationPartyId: 'ORG_ZIZI_RETAIL',
+                        paymentGatewayConfigId: id,
+                    },
+                    { fromDate: ec.user.nowTimestamp, isEnabled: 'Y' },
+                )
+            }
+            const binding = one(
+                'mantle.product.store.ProductStorePaymentGateway',
+                {
+                    productStoreId: 'POPC_DEFAULT',
+                    paymentInstrumentEnumId: 'PiCreditCard',
+                },
+            )
+            if (!binding)
+                l.run(
+                    'create#mantle.product.store.ProductStorePaymentGateway',
+                    {
+                        productStoreId: 'POPC_DEFAULT',
+                        paymentInstrumentEnumId: 'PiCreditCard',
+                        paymentGatewayConfigId: 'ZIZI_SHOP_HOSTED',
+                    },
+                )
+            else if (binding.paymentGatewayConfigId !== 'ZIZI_SHOP_HOSTED')
+                l.run(
+                    'update#mantle.product.store.ProductStorePaymentGateway',
+                    {
+                        productStoreId: 'POPC_DEFAULT',
+                        paymentInstrumentEnumId: 'PiCreditCard',
+                        paymentGatewayConfigId: 'ZIZI_SHOP_HOSTED',
+                    },
+                )
+            // the terms page, published as the returns page is
+            if (
+                !one('mantle.public.PublicSitePage', {
+                    siteId: 'ZIZI_SHOP',
+                    pageRole: 'terms',
+                })
+            ) {
+                const wiki = (verb, parameters) =>
+                    l.run('org.moqui.impl.WikiServices.' + verb, parameters)
+                const wikiPageId = wiki('update#WikiPage', {
+                    wikiSpaceId: 'PASSHPG',
+                    pageName: 'Terms of sale',
+                    pageText:
+                        'Orders are accepted when the payment is approved.\n',
+                }).wikiPageId
+                const versionName = wiki('get#WikiPageHistory', { wikiPageId })
+                    .versionList[0].versionName
+                wiki('set#PublishedVersion', {
+                    wikiPageId,
+                    publishedVersionName: versionName,
+                })
+                l.run('create#mantle.public.PublicSitePage', {
+                    siteId: 'ZIZI_SHOP',
+                    appMountId: 'shop',
+                    routePath: 'terms',
+                    pageRole: 'terms',
+                    title: 'Terms of sale',
+                    wikiPageId,
+                    versionName,
+                    fromDate: 0,
+                })
+            }
+            once(
+                'mantle.product.Product',
+                { productId: 'PASS_HTTP_PDF' },
+                {
+                    productName: 'Shop acceptance guide',
+                    productTypeEnumId: 'PtDigital',
+                    ownerPartyId: 'ORG_ZIZI_RETAIL',
+                },
+            )
+            once(
+                'mantle.product.ProductPrice',
+                {
+                    productId: 'PASS_HTTP_PDF',
+                    pricePurposeEnumId: 'PppPurchase',
+                    priceTypeEnumId: 'PptCurrent',
+                    priceUomId: 'USD',
+                },
+                { fromDate: 0, minQuantity: 1, price: '9.00' },
+            )
+            // in the store's view and purchase category, as the demo's products are
+            once('mantle.product.category.ProductCategoryMember', {
+                productCategoryId: 'PopcAllProducts',
+                productId: 'PASS_HTTP_PDF',
+                fromDate: new Date(0),
+            })
+            if (
+                !one('mantle.product.store.ProductStoreProduct', {
+                    productStoreId: 'POPC_DEFAULT',
+                    productId: 'PASS_HTTP_PDF',
+                })
+            )
+                l.run('create#mantle.product.store.ProductStoreProduct', {
+                    productStoreId: 'POPC_DEFAULT',
+                    productId: 'PASS_HTTP_PDF',
+                    fromDate: 0,
+                    publicationKindEnumId: 'PspkPublished',
+                })
+            return {}
+        },
+        then() {
+            one('mantle.product.store.ProductStorePaymentGateway', {
+                productStoreId: 'POPC_DEFAULT',
+                paymentInstrumentEnumId: 'PiCreditCard',
+            }).paymentGatewayConfigId === 'ZIZI_SHOP_HOSTED'
+            !!one('mantle.public.PublicSitePage', {
+                siteId: 'ZIZI_SHOP',
+                pageRole: 'terms',
+            })
+        },
+    },
+)

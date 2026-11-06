@@ -26,8 +26,8 @@ const TEXT_ASSETS = ['css', 'svg', 'json']
 /* The trusted components of the page kinds that place them (the authority's Themes.js requiredComponents): installed
  * PASS code, never theme source, each made from the page's view (escaped). P4: the purchase selection (a form posted to
  * the cart, its Show price the selection's quote) and the cart (the shopper's lines, codes and totals, given by the cart
- * page as context.cartComponent), each with its trusted Vue island (Shop/ShopCart.js); P5 replaces the checkout
- * placeholder. */
+ * page as context.cartComponent), each with its trusted Vue island (Shop/ShopCart.js); P5 the checkout's pages
+ * (context.checkoutComponent, Shop/ShopCheckout.js). */
 const cart = () =>
     ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js')
 const COMPONENTS = {
@@ -42,9 +42,14 @@ const COMPONENTS = {
                 ? context.cartComponent()
                 : '<p class="shop-cart">Your cart is empty.</p>',
     },
+    // P5: the checkout's steps, the payment's result, its relay and the order confirmation (Shop/ShopCheckout.js), given by
+    // the page as context.checkoutComponent
     'shop.checkout': {
         kinds: ['checkout'],
-        html: () => '<p class="shop-checkout">Checkout opens soon.</p>',
+        html: (context) =>
+            context.checkoutComponent
+                ? context.checkoutComponent()
+                : '<p class="shop-checkout">Your cart is empty.</p>',
     },
     // P3: the search form, which a theme cannot make (no <form> in theme source)
     'shop.search': {

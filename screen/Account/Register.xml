@@ -6,7 +6,7 @@
       <script><![CDATA[
         const saved=ec.resource.script('component://mr-pass/screen/Shared/View.js').save('Register',resolvedSiteId,ec.web.parameters)
         if(saved.secondFactorRequired){ec.web.response.sendRedirect(passBases.account+'/SecondFactor');return}
-        if(saved.authenticated || saved.state==='active'){ec.web.response.sendRedirect(passBases.forum || '/');return}
+        if(saved.authenticated || saved.state==='active'){ec.web.response.sendRedirect(ec.resource.script('component://mr-pass/service/pass/Account.js').landing(siteInfo));return}
         if(ec.web.parameters.formAction?.startsWith('preview') && ec.web.response){ec.web.response.setContentType('text/html');ec.web.response.write(ec.resource.script('component://mr-pass/screen/Shared/View.js').preview(saved,publicPath.replace(/\/save$/, '')));return}
         if (ec.web.request.getHeader('accept')?.includes('application/json')) ec.web.sendJsonResponse(saved)
         else ec.web.response.sendRedirect(publicPath.replace(/\/save$/, '') + '?saved=true')

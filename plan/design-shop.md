@@ -489,7 +489,8 @@ Marketing builds `request#Subscription` (Nov 5, the user's call, impl-commerce �
 Shop receives only provider references/tokens. Required address fields derive from destination
 and tax rules, not a hard-coded US form. Digital-only carts omit delivery. Totals remain
 authoritative while each invalid/expired quote or changed price returns a clear re-review state
-with the entered non-sensitive data intact. **Needs:** SHOP-CHECKOUT, SHOP-PAYMENT, SHOP-ACCOUNT.
+with the entered non-sensitive data intact. In the first build (P5) the steps are plain forms; their trusted Vue enhancement is later (impl-shop F-SP5-6).
+**Needs:** SHOP-CHECKOUT, SHOP-PAYMENT, SHOP-ACCOUNT.
 
 ### PaymentResult
 
@@ -499,7 +500,10 @@ with the entered non-sensitive data intact. **Needs:** SHOP-CHECKOUT, SHOP-PAYME
 | ProviderAction | component | Complete a required provider step | approved hosted URL or supported SDK action | registered provider component/link | `getCheckoutPaymentResult` | Odoo/Frappe payment outcomes |
 | ResumeCheckout | single | Resume a resolved attempt | attempt reference, revision | resume action | `resumeCheckout` | proposed checkout coordination |
 
-**Layout:** task; a trusted Vue component polls the attempt and mounts the provider action.
+**Layout:** task; the page polls the attempt (bounded, with backoff) and links the provider action. Built in P5 with a
+small same-origin script rather than a Vue component, and the provider action a link: the provider's page, or for
+Authorize.Net Accept Hosted a relay page that asks for a fresh form token on each visit and posts it (impl-shop F37,
+F-SP5-6).
 These fields are the full new public result contract.
 Derived from PASS Billing/InvoicePay and Odoo/Frappe payment outcomes. The page reads Accounting's
 typed attempt (purpose shopCheckout, X9), not a Shop attempt record.
@@ -687,7 +691,10 @@ merchant-initiated fields; Billing's hosted redirect is answered only by the tes
 adds Accept Hosted (with its profile save) to the adapter for S2 and the merchant-initiated
 indicators for S3. Accept Hosted, a redirect as Billing's hosted flow, is the S2 payment page, so
 PASS's CSP stays as it is; AcceptUI on Shop's page is later (Nov 5, the user's call,
-impl-commerce §4).
+impl-commerce §4). Built in Shop P5: `authorizeHosted#Payment` waits at the hosted page with nothing sent, the
+frontend's relay posts a fresh `getHostedPaymentPageRequest` token on each visit (only the relay's CSP allows the
+provider's form-action, F37), and the return, webhook and job look the transaction up by the attempt's reference
+(F38-F41).
 
 Payment forms use provider-hosted redirects or operator-installed tokenization components.
 Raw card numbers/security codes never enter Shop templates, logs, records or frontend caches.

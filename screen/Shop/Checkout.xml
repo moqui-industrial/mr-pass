@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Checkout (design-shop §6 Checkout; impl-shop P5): the cart's checkout (getCheckout with the session's cart capability, Shop/ShopCheckout.js): Contact, Addresses, Delivery, Payment and ReviewPurchase, each a plain form posting to a transition here, answered with a redirect and a notice; rendered through the active release's checkout page with the trusted shop.checkout component, or in the PASS shell. The return transition is the canonical address a payment provider sends the payer back to (only its reference and key are read); enhance is the pages' same-origin script. No-store (Shared/Headers.js's default). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Checkout">
+  <transition name="begin">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'begin')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="contact">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'contact')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="addresses">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'addresses')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="delivery">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'delivery')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="payment">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'payment')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="submit">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'submit')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="resume">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'resume')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="return" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'returned')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="enhance" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'enhance')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- pre-actions: run before the PASS shell renders, so a redirect (an empty cart, a placed order) leaves at once -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').page(shopContext)
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

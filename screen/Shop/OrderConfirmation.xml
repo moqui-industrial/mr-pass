@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- OrderConfirmation (design-shop §6 OrderConfirmation; impl-shop P5): the placed order of the checkout's reference, with its lines, totals, payment and delivery, the QR of the signed-in order page (never a bearer token) and the next steps; a guest's order link is kept in the session. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Order confirmation">
+  <!-- pre-actions: run before the PASS shell renders, so a redirect (an empty cart, a placed order) leaves at once -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').confirmationPage(shopContext)
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

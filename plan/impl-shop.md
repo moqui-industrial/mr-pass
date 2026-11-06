@@ -159,7 +159,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | built Nov 6, 2026 |
 | P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | built Nov 6, 2026 |
 | P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | built Nov 6, 2026 |
-| P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | — |
+| P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | built Nov 6, 2026 |
 | P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | — |
 | P7 Prepaid and recurring access | Mantle, mr-pass | Subscriptions, SubscriptionDetail | — |
 | P8 Adoption and operations | Mantle, mr-pass | — | — |
@@ -940,6 +940,233 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
   through the hosted page and returns to the confirmation; a price changed during checkout asks for review; a second
   submit answers the first order; an unknown outcome stays processing across a refreshed frontend and is reconciled by
   the lookup; a capture failure after placement holds the order, which Commerce shows and Accounting releases.
+
+- **Built (Mantle, mr-pass and BOSS), Nov 6, 2026** (branch `shop/p5`):
+  - Records: `mantle.order.StoreCheckout` (`entity/ShopCheckoutEntities.xml`: the cart access, order, site, mount, store and
+    currency, the StoreCheckout status (ScoEditing, ScoReady, ScoReviewRequired, ScoPaymentPending, ScoPlacementPending,
+    ScoCompleted, ScoExpired, ScoCancelled, with their flow), the policy it began under, the contact, the delivery and
+    billing addresses with a carrier's offered correction, the chosen quote (carrier, method, amount, the revision it holds
+    for and its expiry), the payment option and the save-card ask, the terms version accepted, the frozen revision, snapshot
+    and hash, the due amount, the current attempt's payment, the return reference with its key's digest, what changed at the
+    last freeze (`reviewJson`), the placement intent, tries, date and failure, and the guest's order capability).
+    Accounting's coordinator (AC-02, X9, F13): `PortalPaymentAttempt` gains `purposeEnumId` (PaymentAttemptPurpose:
+    PapInvoice, also for an empty one; PapShopCheckout, PapShopRenewal, PapEventRegistration), the order, checkout,
+    occurrence and store, the snapshot hash, phase, safe outcome and the lookup's count, last and next check;
+    `PaymentGatewayResponse` gains `hostedFormDate` and `networkTransId` (F41). `OhtPayment` (enumCode
+    `PAYMENT_HOLD_RELEASE`, F15) in OrderHoldEntities; `data/ShopCheckoutSetupData.xml`: the permission with its ADMIN grant
+    and the jobs `reconcile_StoreCheckouts` (every five minutes) and `expire_StoreCheckouts` (hourly).
+  - `service/mantle/account/PaymentAttempts.js`: the typed coordinator (create, the due attempts of a purpose with bounded
+    backoff, the state of an attempt's payment, the provider action, a lookup in its own transaction named to the posting
+    guard as Billing's are). Portal.js (Billing): its attempts are PapInvoice, and its job, refresh, result and pending
+    attempts select that purpose only; its URLs unchanged.
+  - `mantle.order.ShopCheckoutServices` over `service/mantle/order/ShopCheckout.js`: `begin#`, `get#`, `resume#Checkout`,
+    `set#CheckoutContact`, `set#CheckoutAddresses` (fields, an own saved address, or the offered correction through the
+    store's validating shipping gateway, `validate#PostalAddress`, never applied unasked; the store's destinations),
+    `get#DeliveryOptions` and `select#Delivery` (`get#StoreShippingOptions` with rates; a method with no quote is not offered,
+    impl-commerce F79; the part's carrier and method, `calculate#OrderShipping`, then `calculate#OrderSalesTax`),
+    `get#PaymentOptions` and `select#Payment` (the store's gateways with a hosted page, `gatewayCapabilities`),
+    `submit#Checkout`, `get#CheckoutPaymentResult`, `get#CheckoutPaymentForm` and `get#OrderConfirmation`; the jobs
+    `reconcile#Checkouts` and `expire#Checkouts`; `check#CaptureOutcome` (SECA `ShopCheckoutCaptureHold` on
+    `capture#SinglePayment`); the internal `run#Step`, each step in a transaction of its own. Submit: the delivery re-quoted
+    outside any lock, then the freeze under the order's and checkout's locks (lines public and purchasable at the authority's
+    price, a changed price repriced on its line; Commerce P7's promotion limits with `lock: true`; the fresh quote; the tax;
+    the terms version), a change committed as reviewRequired with what changed (REVIEW_REQUIRED, Conflict), else the
+    snapshot and hash bound to the frozen `orderRevision` committed with the promised payment (`add#OrderPartPayment`) and
+    its PapShopCheckout attempt; then `authorize#SinglePayment` with `operationKey` `shop-auth-{paymentId}` and the canonical
+    return address `{mount}/Checkout/return?ref=&key=` in a transaction holding the payment only. The result is looked up by
+    the reference and key (a page's reads at most every second; the provider's return, `returned`, at once); an approved
+    payment commits the placement intent, then `place#Order` once in its own transaction (a crash after it is read back
+    from the order's status); a failure keeps the payment and attempt (placementPending with its failure, five tries, the
+    job retrying); a declined, cancelled or failed attempt opens the checkout again (a new attempt is a new payment, the
+    outcome being known); an unknown or pending one stays, and a second submit answers it. Nothing due: no payment, placed
+    by the submit. A guest's first confirmation issues the `SalesOrder` OrderView capability once (`orderToken`); the QR is
+    of the signed-in order page. A signed-in buyer's kept card is saved after the approval through the gateway's hosted
+    profile service. Each write takes an `operationId` (PostingOperation `ShopCheckout`; the return key and tokens are never
+    kept in it); contact, delivery, address and submit check the revision.
+  - Mantle conditions (each acting only on what Shop makes): `authorize#OrderPayments` skips a promised payment with an
+    unsettled PortalPaymentAttempt (F32); `get#SinglePaymentGatewayDetails` looks up a promised payment with no reference
+    whose latest authorization answer is `HostedPending` (Accept Hosted; F38), as before otherwise; `hold#Order` takes an
+    OhtPayment reason from the reconciliation without a user's permission, as OhtCredit from the credit policy (released only
+    with `PAYMENT_HOLD_RELEASE`).
+  - The adapter (F14, F37-F41): `AuthorizeNetServices.authorizeHosted#Payment` and `authorizeAndCaptureHosted#Payment`
+    (nothing sent; the payment waits at the hosted page), `get#HostedPaymentForm` (a fresh `getHostedPaymentPageRequest` token
+    per visit with the reference in `refId` and `order.invoiceNumber`, the canonical return and cancel addresses, the receipt
+    and the merchant's name; never stored), `store#HostedPaymentProfile` (the transaction's profile, else
+    `createCustomerProfileFromTransactionRequest`); the details lookup finds a waiting payment's transaction by its reference
+    and keeps its amount and `networkTransId`, and cancels it once nothing is found and no token can still be used; a webhook
+    of a transaction with no reference match is matched to a waiting payment by `merchantReferenceId` or, from
+    `getTransactionDetails`, its invoice number (F39). `gatewayCapabilities` (StoreCheckout.js): PgtAuthorizeNet hosted with
+    an `*Hosted#Payment` service, its form and profile services; readiness gains `hostedPayment` and `checkoutJobs`
+    (StoreAdmin.js's table). ExternalAccess.js: the `SalesOrder` kind (OrderView, Download, RenewalAction; a placed order of an
+    internal vendor to an outside customer; self). ShopCart.js: a submitted checkout holds the cart (CHECKOUT_PENDING), and
+    its helpers are exported for the checkout. ThemeView.js: the `checkout` page kind's store view.
+  - F75 follow-ups: `store#Mounts` (Forum.js) keeps an existing mount's row (by its id, else the same app and path, else the
+    app) instead of deleting and recreating it; `getCart` and every checkout read are POSTs (Routes.js and its mirror), in
+    the three `TOKEN_WRITES` lists, and Transport's `routeOf` takes a checkout's key or an order link as the capability (and
+    an anonymous `getCart`). F71: a sign-in with no return path lands on the site's root app (Account.js `landing`, in Login,
+    SecondFactor, Sso and Register).
+  - PASS operations `beginCheckout`, `getCheckout`, `resumeCheckout`, `setCheckoutContact`, `setCheckoutAddresses`,
+    `getDeliveryOptions`, `selectDelivery`, `getPaymentOptions`, `selectPayment`, `submitCheckout`,
+    `getCheckoutPaymentResult`, `getCheckoutPaymentForm`, `getOrderConfirmation` (`shop/checkout...`, `shop/orders/confirmation`)
+    in Schema/Routes and the mirrors (identical) and `Contracts.d.ts` (CheckoutView, CheckoutAttempt, OrderConfirmation).
+  - mr-pass pages: `screen/Shop/ShopCheckout.js` (the return keys and a guest's order links kept in the server session under
+    the site, never in a page or URL it makes); `Shop/Checkout.xml` (transitions `begin`, `contact`, `addresses`, `delivery`,
+    `payment`, `submit`, `resume`, `return`, `enhance`), `Shop/PaymentResult.xml` (`state` for the polling),
+    `Shop/OrderConfirmation.xml`, `Shop/PaymentRelay.xml` and `Shop/CheckoutPage.html.fancy`; each renders through the active
+    release's `checkout` page kind with the `shop.checkout` component, or in the PASS shell, and redirects in `pre-actions`.
+    The steps are plain forms with the revision and an operation id; PaymentResult links the provider's page (the relay for
+    Accept Hosted) and polls with backoff (about two minutes) through the same-origin `Checkout/enhance` script, which also
+    posts the relay's form; OrderConfirmation shows the order, its payment and delivery, the QR (`ec.resource.barcodeSvg`) and
+    the next steps. Headers.js: `PaymentRelay` alone adds `form-action https://accept.authorize.net https://test.authorize.net`.
+    The Cart's BeginCheckout (Check out, or the checkout in progress) in the plain page and Cart.qvue.
+  - BOSS: `PAYMENT_HOLD_RELEASE` granted to `BOSS_ACCOUNTING_TREASURY` (BossAccountingSetupData.xml); AccountingAccess +1
+    feature (treasury holds it, AR does not); CommerceStores' readiness expectation now two findings (the demo store's card
+    gateway has no hosted page, F-SP5-4).
+  - Specs: Mantle `test/order/ShopCheckout` (5 features, 2.6 s: a guest's physical checkout through the hosted page, frozen
+    with one promised payment and its PapShopCheckout attempt, a replay and a second submit answering the first, the
+    return's lookup placing once, a wrong key reaching nothing, the cart's access retired, the confirmation with the order
+    link once and by it; a changed price reviewRequired and the resubmit at the new revision; an unknown outcome staying
+    unknown across lookups with one authorization and one idempotency key; a placement failing after the provider's success
+    keeping the payment and attempt, placed later by the job; a promotion limit at the freeze, and nothing due skipping the
+    gateway); `test/account/PaymentAttemptPurpose` (4 features, 0.3 s: Billing's job, refresh and result never touch a Shop
+    attempt and Shop's job never an invoice one; authorize#OrderPayments' skip and its unchanged default; the hosted-pending
+    lookup and its unchanged default; the Payment hold placed without a permission, released only with it, and a failed
+    capture holding only a Shop payment's order); `test/ext/AuthorizeNetGateway` +1 (Accept Hosted: nothing sent at
+    authorization, the form request, the webhook matched by invoice number and the lookup by reference keeping the amount and
+    network transaction id; 0.03 s). mr-pass `test/Shop/ShopCheckout` (3 features, 0.6 s: the checkout page's one render
+    through the starter; the relay's CSP alone allowing the provider; the checkout operations in the three lists and POSTs,
+    `getCart` too; a remote frontend's checkout, stale refusal, submit and a return read by reference and key equal a local
+    page's; F71's landing). The golden-path client walk `test/client/Shop/ShopCheckoutWalk` (1 feature, 4.1 s, at 390 px on
+    `test/Shop/ShopWalkFixtures`' Shop of PASS_HTTP: product, cart, checkout, the hosted test page, the confirmation with
+    its QR), in the client suite after PortalHttp. Also run, all pass: Mantle AccountingPortals, ShopCart, StoreCheckout,
+    StoreAdmin, OrderToCashBasicFlow, PassAuthority, ThemeAuthoring, SupplierPortal, ShopCatalog, PaymentGateway,
+    AccountingPaymentGateway, PurchaseHoldPermission, OrderChanges, StorePromotions, GatewayContracts, SitePages,
+    SupportPortal (153 features); mr-pass ShopCart, ShopAccess, ShopCatalog, ShopThemes, ShopPreview, Portals, Transport,
+    PublicIdentity, SsoHandoff, Forum, ForumAccess, SupportAccess, SupplierPages, Integrations, Operations (79 with
+    ShopCheckout); mr-boss AccountingAccess, CommerceAccess, CommerceStores, CommerceCheckoutSettings, CommerceSitePages,
+    AccountingPayables, CustomerServiceKnowledge, CommercePromotions.
+    `./moq test-apps`: the server suites 3201 of 3202 passed (mr-mantle 368.4 s of 370, mr-boss 251.8 of 264, mr-pass 18.7
+    of 17, over but under 1.5 times), the one failure MantleSearch's limited universal search (both totals at the query's
+    100 limit), which passes alone and with P5's Mantle specs (for the lead: likely the full run's data volume); the client
+    suites 17 passed (mr-pass 8.2 s of 6, F-SP5-9).
+  - Acceptance: `acceptance/ShopPaymentScenarios` (5 features, local and remote: a price changed during checkout asks for
+    review and a second submit answers the first order; an unknown outcome stays processing for a refreshed frontend (the
+    reference and key only) and the job finishes it once the provider answers; a capture failing after placement holds the
+    order and the payment operator releases it) and `acceptance/client/ShopCheckoutHttp` (1 feature: at 390 px on ZIZI_SHOP a
+    guest checks out Demo Product One-One with an address, a delivery option, the hosted test page and the terms, back to the
+    confirmation, no overflow); ShopFixtures gains ZIZI_SHOP's hosted, lost-answer and capture-declining test gateways
+    (POPC_DEFAULT's card gateway the hosted one), the terms page and a guide. `./moq accept mr-pass` once: server suite 20
+    passed, 3 ignored, 0 failed; client suite 41 passed. The remote half runs through PassAuthority (the authority side of
+    both transports); Deployment.md's two-runtime check and gRPC not run.
+  - Lint: `moqui lint --screens` 132 sites as before, none in the Shop, Account or Shared files.
+  - Docs: mr-pass Deployment.md "Checkout and payment"; mr-mantle docs/AuthorizeNet.md's Accept Hosted.
+  - Inventories: not edited here (F59: the lead updates them at the finish).
+  - Decisions: the provider is asked only in a short transaction that holds the payment alone (Mantle's gateway path, as
+    poll#PaymentGatewayDetails), never while the checkout, cart or order is locked; placement follows an approved payment (an
+    authorization or a sale), and an amount the provider reports that differs places and holds the order (OhtPayment) rather
+    than refusing it, so the money and the order stay together for Accounting; the checkout's reference with its key is the
+    narrow capability (in the return address, as Billing's, readable for a day after completion); a guest's order link is
+    the SalesOrder capability issued at the first confirmation (P6 mails it); a page's first result read waits a second after
+    the authorization and the provider's return (`returned`) looks up at once; a declined attempt reopens the checkout with
+    a new payment next time; reads are POSTs listed with the token writes; OhtPayment is placed by the reconciliation alone.
+  - Findings (provisional):
+    - **F-SP5-1** Mantle's `check#AvailableInventory` checks stock of every product in a store that requires inventory,
+      digital ones too, so POPC_DEFAULT cannot cart a digital item (the acceptance scenarios use Demo Product Three-One). For
+      P6 (digital delivery): a product-type condition, with its spec.
+    - **F-SP5-2** The test gateway's `alwaysApprove#PaymentDetails` approves on any lookup, before the payer has visited the
+      page; hence the result's one-second pause after the authorization, and the specs' clearing of `lastCheckDate`.
+    - **F-SP5-3** A screen's `actions` run after the PASS shell's header is written, so a redirect from them is lost (the
+      page stops after the header); the checkout pages redirect in `pre-actions`.
+    - **F-SP5-4** Commerce's demo binds POPC_DEFAULT's card payments to TEST_APPROVE, which has no hosted page, so the BOSS
+      demo cannot check out and the store's readiness names it. For Commerce's demo (mr-boss Demo.js): a hosted gateway
+      (the test gateway's `hostedPending`, as ZIZI_PORTAL_HOSTED, or the Authorize.Net sandbox with `authorizeHosted#Payment`).
+    - **F-SP5-5** Billing with Accept Hosted would need Billing's own relay (its `redirectUrl` is a GET link); Billing keeps
+      the test gateway's hosted redirect.
+    - **F-SP5-6** The checkout steps are plain forms: design-shop §6's trusted Vue enhancement of them is not built, and
+      PaymentResult polls with a small same-origin script, not a Vue component (design-shop §6 changed).
+    - **F-SP5-7** The confirmation's QR names `{mount}/Orders/{orderId}`, P6's signed-in order page, and the SalesOrder kind's
+      link page `/Orders/Status?token=` is P6's; ExternalAccess `create` finds no site for the `shop` kind (its mount's target
+      is a store, not an organization), so the capability's url is null until P6 gives Shop its link.
+    - **F-SP5-8** No spec covers address validation's offered correction (no validating gateway in the tests), the saved card
+      (`store#HostedPaymentProfile`), or an amount mismatch (the test gateway reports the payment's amount).
+    - **F-SP5-9** The golden-path walk puts mr-pass's client suite at 8.5 s of its 6 s budget (under 1.5 times); raise it by
+      the measured share with the user's agreement (impl-commerce §4).
+
+- **Review Nov 6 (P5)** (Mantle, mr-pass, mr-boss; branch `shop/p5`). Checked: the submit path end to end (the quote
+  outside any lock; the freeze under the checkout's and order's locks committed with the snapshot, the promised payment
+  and its PapShopCheckout attempt before any provider call; `authorize#SinglePayment` with `shop-auth-{paymentId}`, which
+  for a hosted gateway sends nothing; the lookups, the form token and the profile save each through `requireNewTransaction`
+  with nothing of the checkout, cart or order locked, as Billing's resolve job and `poll#PaymentGatewayDetails` do: the
+  worker's interpretation of "no gateway call inside an open transaction" holds, the caller's suspended transaction holding
+  no lock); placement intent then `place#Order` once under the checkout's lock, a crash read back from the order's status;
+  double submit and two tabs (the second freeze waits on the lock and answers the first attempt); a replay by operation id;
+  an unknown outcome (no new key; `authorize#OrderPayments`' F32 skip, its default specced); a placement failing after
+  approval (the payment and attempt kept, the job's bounded retries); the capture SECA holding only a Shop payment's placed
+  order; `hold#Order`'s OhtPayment exemption (as OhtCredit's: every in-process caller names its own hold type, none takes
+  one from a request; `allow-remote` false) and its release only with `PAYMENT_HOLD_RELEASE` (ADMIN, BOSS treasury);
+  `get#SinglePaymentGatewayDetails`' HostedPending lookup (only Authorize.Net writes that status; the default specced);
+  Billing (Portal.js selects invoice attempts, or those with no purpose, in its job, refresh, result and list; URLs
+  unchanged; AccountingPortals and Portals pass); Accept Hosted (the token never stored, the relay a GET with no-store and
+  the only route whose CSP adds the provider's form-action, the webhook through the framework's signature check and matched
+  by `merchantReferenceId` or the invoice number, the amount and `networkTransId` kept, the profile saved only for a
+  signed-in buyer who asked); the freeze checks and reviewRequired; a zero total skipping the gateway; the jobs (bounded,
+  backoff, one transaction per step, failures named); the return reference with its key's digest (the key never kept);
+  the SalesOrder kind (a placed order of an internal vendor to an outside customer); F75 `store#Mounts` (Forum,
+  ForumAccess, Portals pass). Fixes:
+  - R1 (high) Accept Hosted lets a payer try again on the page after a decline, but the first lookup that found the
+    declined transaction made the payment Declined and reopened the checkout, so a later approval with the same reference
+    was never looked at (no Promised payment to match) and the shopper's next submit charged a new payment. A declined
+    transaction is now final only once no form token can be used (15 minutes and the grace after the last form); after
+    that the reference's newest transaction (the lists, newest first) decides (AuthorizeNet.js `hostedDetails`,
+    `findByReference(..., newest)`; AuthorizeNetGateway +1 feature).
+  - R2 (high) Placement did not check that the order was the one frozen and paid for: a cart write that raced the submit
+    (its `editable` check before the freeze, its change after) or a staff edit changed the order after the snapshot, and
+    `handle#OrderPartChange` moves a single promised payment's amount with the part's total, so the hosted page would
+    charge the new amount and the changed order be placed. Now ShopCart's `editable` takes the order's lock, the freeze
+    checks the shopper's revision again under its lock (STALE_REVISION), `getCheckoutPaymentForm` refuses a payment whose
+    amount is no longer the frozen one (ORDER_CHANGED), and placement refuses an order whose revision or total is not the
+    frozen one (ORDER_CHANGED, kept placementPending with the payment for staff; ShopCheckout +1 feature).
+  - R3 (low) A submit that lost the freeze race answered a new `returnKey` whose digest was never kept; the PASS session
+    kept it over the first submit's key under the same reference. It now answers the first attempt (`alreadySubmitted`)
+    with no key.
+  - R4 (low) Two first confirmations of a guest's order (two tabs) could each issue an order link; the issue now takes the
+    checkout's lock.
+  - R5 (F-SP5-4, resolved) The Commerce demo binds POPC_DEFAULT's card payments to `BOSS_COM_HOSTED` (BossCommerceDemoData.xml),
+    a test gateway with Mantle's new `hostedPendingOrApprove#PaymentAuthorization` (a payment with a payment method approved
+    as TEST_APPROVE, one without waiting at the hosted page) and `hostedOnlyApprove#PaymentDetails` (approves only a hosted
+    payment, answers nothing for another), so the BOSS demo checks out and Mantle's POPC_DEFAULT specs are unchanged
+    (OrderToCashBasicFlow, ReturnToResponseBasicFlow, RestApiTests, AssetReservationMultipleThreads pass);
+    PaymentAttemptPurpose +1 feature; CommerceStores' readiness back to one finding, CommerceCheckoutSettings and the
+    acceptance CommerceCheckoutWalk name the new binding.
+  - Specs after the fixes: Mantle ShopCheckout (6), PaymentAttemptPurpose (5), AuthorizeNetGateway (17) and OrderToCashBasicFlow,
+    ReturnToResponseBasicFlow, RestApiTests, AssetReservationMultipleThreads, StoreCheckout, StoreAdmin, AccountingPortals,
+    PaymentGateway, GatewayContracts, AccountingControls, ShopCart, PurchaseHoldPermission, OrderChanges, StorePromotions,
+    PassAuthority, SitePages, SupportPortal, AccountingPaymentGateway, ShopCatalog, ThemeAuthoring, SupplierPortal: 250
+    passed; mr-boss CommerceStores, CommerceCheckoutSettings, CommerceAccess, AccountingAccess, CommerceSitePages,
+    AccountingPayables, CustomerServiceKnowledge, CommercePromotions 43 passed; mr-pass ShopCheckout, ShopCart, ShopAccess,
+    ShopCatalog, ShopThemes, ShopPreview, Portals, Transport, PublicIdentity, SsoHandoff, Forum, ForumAccess,
+    SupportAccess, SupplierPages, Integrations, Operations 79 passed; client suite (PortalHttp, ShopCheckoutWalk) 4 passed;
+    acceptance ShopPaymentScenarios (with ShopFixtures) 8 passed, CommerceCheckoutWalk 4 passed.
+  - R6 (low; the worker's test-apps failure) MantleSearch's limited universal search: a full mr-mantle run on master
+    passes (1825 features) and on this branch failed (1837 of 1838), so the branch's records cause it, not the run's
+    volume in general: a one-sided finance reader's total is the authorized page (F439, F446), and the branch's added
+    Ziziwork Retail payments fill the page of 100, so the limited total equals the administrator's (both 100). The spec
+    now asks for a page of 500 (MantleSearch.spec.js); full mr-mantle run after it: MantleSearch passes, 1837 of 1838 (the one failure an assertion of
+    this review's new ShopCheckout feature, fixed; ShopCheckout and MantleSearch then 14 passed).
+  - For the lead: (1) Two hosted pages open at once (two tabs' relays before either payment is looked up) can each take a
+    payment under one reference; the lookup finds one, and Authorize.Net's duplicate window covers only the same card and
+    amount within it. Consider refusing a new form token once the reference has a transaction, and flagging a reference
+    with more than one approved transaction. (2) The return address carries the reference and key, so the provider and
+    the browser's history hold the key: for a day after completion it reads the checkout (the guest's own contact,
+    address and lines), the first confirmation read by it issues the guest's order link (issued once, so a reader before
+    the guest gets it; P6 mails a link), and `resume#Checkout` by it after a decline hands over a new cart capability.
+    Consider issuing the order link only to the cart's session and dropping the cart hand-over from the reference.
+    (3) Design-shop §8.2 says an amount mismatch "remains an exception, not a successful payment"; the worker places and
+    holds (OhtPayment), which keeps it an exception while the money and order stay together; currency and merchant account
+    are not compared (the token request sets both). Confirm. (4) A declined Accept Hosted payment now shows as pending for
+    up to the token's 15 minutes (the payer can pay again through the relay meanwhile); a shopper who wants another way to
+    pay waits that long. (5) A placement refused as ORDER_CHANGED, or past its five tries, stays placementPending with an
+    approved payment and nothing shows it to staff yet (Commerce's P8 exceptions list).
 
 ### P6 — Orders, account and digital delivery
 
