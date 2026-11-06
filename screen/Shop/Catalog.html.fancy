@@ -1,0 +1,26 @@
+<#if shopPage.written><#elseif shopPage.html>${raw(shopPage.html)}<#else><#assign v = shopPage.view || {}><#assign base = shopContext.mount.base || ''>
+<#if shopPage.kind == 'not-found'><h1>Page not found</h1>
+<section class="card" id="ShopNotFound"><p>This page is not available. <a href="${base}/">Return to the store</a></p></section>
+<#elseif shopPage.kind == 'home'><h1>${shopContext.store.name}</h1>
+<p><a href="${base}/Categories">Categories</a> · <a href="${base}/Search">Search</a></p>
+<#if v.productList && v.productList.length><section class="card" aria-labelledby="ShopFeatured"><h2 id="ShopFeatured">Featured products</h2><ul id="ShopProducts"><#list v.productList as p><li><a href="${p.url}">${p.name}</a> ${p.price ? p.price.display : ''} <small>${p.availability ? p.availability.label : ''}</small></li></#list></ul></section>
+<#else><section class="card" id="ShopEmpty" aria-live="polite"><h2>Coming soon</h2><p>This store is getting ready. Check back soon to browse its products.</p></section></#if>
+<#elseif shopPage.kind == 'category'><h1>${v.category.name}</h1>
+<#if v.category.description><p>${v.category.description}</p></#if>
+<#if v.category.children && v.category.children.length><nav aria-label="${v.category.name}" class="card"><ul id="ShopCategories"><#list v.category.children as c><li><a href="${c.url}">${c.name}</a><#if c.children && c.children.length><ul><#list c.children as g><li><a href="${g.url}">${g.name}</a></li></#list></ul></#if></li></#list></ul></nav></#if>
+<#if v.productList && v.productList.length><section class="card"><ul id="ShopProducts"><#list v.productList as p><li><a href="${p.url}">${p.name}</a> ${p.price ? p.price.display : ''} <small>${p.availability ? p.availability.label : ''}</small></li></#list></ul></section><#elseif !(v.category.children && v.category.children.length)><p class="card">No products here yet.</p></#if>
+<#if v.page && v.page.nextUrl><p><a rel="next" href="${v.page.nextUrl}">More products</a></p></#if>
+<#elseif shopPage.kind == 'product'><#assign p = v.product><article class="card" id="ShopProduct"><h1>${p.name}</h1>
+<p class="price">${p.price ? p.price.display : ''}<#if p.compareAtPrice> <s>${p.compareAtPrice.display}</s></#if></p>
+<p>${p.availability ? p.availability.label : ''}</p>
+<#if shopPage.richDescription><div>${raw(shopPage.richDescription)}</div></#if>
+${raw(shopPage.purchaseHtml)}</article>
+<#elseif shopPage.kind == 'search'><h1>${v.page.title}</h1>
+${raw(shopPage.searchHtml)}
+<#if v.page.resultState == 'invalid'><p class="card" role="alert">Enter up to 100 characters to search.</p></#if>
+<#if v.page.resultState == 'unavailable'><p class="card" role="alert">Search is not available right now. Please try again soon.</p></#if>
+<#if v.productList && v.productList.length><section class="card"><ul id="ShopProducts"><#list v.productList as p><li><a href="${p.url}">${p.name}</a> ${p.price ? p.price.display : ''}</li></#list></ul></section><#elseif v.page.resultState == 'noMatch'><p class="card">No products match your search.</p></#if>
+<#if v.page.contentResults && v.page.contentResults.length><section class="card"><h2>Pages</h2><ul><#list v.page.contentResults as r><li><a href="${r.url}">${r.label}</a></li></#list></ul></section></#if>
+<#if v.page.nextUrl><p><a rel="next" href="${v.page.nextUrl}">More results</a></p></#if>
+<#elseif shopPage.kind == 'page'><article class="card" id="ShopPage"><h1>${v.page.title}</h1>${raw(shopPage.richBody || '')}</article>
+</#if></#if>

@@ -157,7 +157,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P0 Checks | all (read) | — | done Nov 5 (§6 F1–F45) |
 | P1 App and mount | Mantle, mr-pass | the Shop root, the PASS shell on a Shop site | built Nov 5, 2026 |
 | P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | built Nov 6, 2026 |
-| P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | — |
+| P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | built Nov 6, 2026 |
 | P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | — |
 | P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | — |
 | P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | — |
@@ -541,6 +541,123 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
   `If-None-Match` on a GET or HEAD answers 304. The conf's public server-static templates and long-cached files no
   longer give a cookieless request a session. Left for the framework: a visitor with a session who gets a `public`
   response can still get a rotated cookie or token, which Shop avoids by sending `public` only with no session.
+
+- **Built (Mantle, mr-pass, mr-boss), Nov 6, 2026** (branch `shop/p3`):
+  - Mantle `service/mantle/product/ShopCatalog.js` (new) and `ShopCatalogServices.xml`'s `get#Home`, `get#Categories`,
+    `get#Category`, `find#Products`, `search#Shop`, `get#Product`, `quote#Selection`, `get#Page`, `get#Sitemap`
+    (anonymous, input map, the site from the facade through `shopOf`). Candidates are cheap (the store's current
+    published rows, a category's members, the `MantleProduct` index hits, F32, and a name match over the published rows),
+    sorted by a registered key (`featured`, `name`, `newest`), paged by an opaque cursor, and only a page's candidates are
+    resolved by StoreMerchandising.js `resolve`, in chunks until the page is full (F51). Cards: name (the store's
+    `PcntProductName` content first), canonical URL with SitePages' slug, SKU, price (`available` false told apart from a
+    zero price; a virtual's lowest public variant price "From"), list price as compare-at, an availability band (in stock,
+    low stock at 5 or less, backorder when the store does not require inventory, out of stock, available for unstocked
+    types) from one `get#AvailableInventoryMulti`, badge text. The category tree: the browse roots' children (four levels,
+    300 nodes), a category kept when it or one below has a current published member. A product: its store description
+    (`PcntDescriptionLong`, `PcntDescription`, sanitized rich text), its public variants with their distinguishing
+    features, the quote of a variant and quantity (1 to 999; an option not listed is `VALUE_INVALID`). A page: Commerce
+    P4's `get#SitePage` by mount, route and locale (the exact published version) with its policy role and version. Every
+    answer carries `generation` and `releaseId` (F43). Search answers `results`, `noMatch` or `unavailable` (neither the
+    index nor the database could be searched) and the site's live Shop pages by title.
+  - Prices (F18): `mantle.product.PriceServices.get#StoreProductPrice` (new, in process only): `get#ProductPrice`'s
+    resolver and modifiers with `storeAuthority`, set only in that service's script, under which PriceResolver.js
+    `readable` admits the public rows, the store organization's and the signed-in customer's own, never an agreement's,
+    an average cost or another party's, and no trace. `get#ProductPrice` is unchanged (ShopCatalog checks it still gives
+    the public no store-organization row).
+  - ThemeView.js: the page kinds `home` (featured products), `category` (with no category the Categories page: a
+    category "Categories" whose children are the tree), `product`, `search` and `page` from ShopCatalog.js `views`; the
+    sources `featuredProducts`, `newProducts`; `shapes` gain `price.available`, the card's `availability.code` and
+    `badge`, `shop.searchUrl` and `categoriesUrl`, `page.nextUrl`, `sort`, `resultState`, `contentResults`, `locale`, the
+    product's `slug`, `variants`, `selectedVariantId`, `quantity` and `quote`, the category's `children` (two levels).
+    Themes.js requiredComponents gain `shop.search` on `search` (a theme has no `<form>`); ThemeReleases' package places it.
+  - F50: `get#StorePublication` refuses a caller without `COMMERCE_VIEW` in the store's scope and no `siteId`
+    (`SITE_REQUIRED`) and answers nothing public on a site that is not published; `resolve` is unchanged (Commerce P4's
+    navigation checks an unpublished site's menu with it). StorePublication's anonymous calls pass the site.
+  - F28: ForumIntegration.js `productPublic` reads the site's enabled `shop` mount's store and the resolver (was a `store`
+    app and the publication row); PASS Integrations mounts `shop`.
+  - F56, F17: Knowledge.js `get#ArticlePublicLink` links the source organization's Support mount on its first published
+    site (`PublicApps.sitesFor`, `pageUrl`: `/support/CustomerArticle?wikiPageId=`), else the space's `publicPageUrl`;
+    ZZW_RETAIL's `publicPageUrl` is the demo Shop site's article page (absolute), its `publicAttachmentUrl` empty (PASS
+    serves no wiki file), and `/pcontact` is dropped (ZcaProductDemoData.xml). ZZW_RETAIL's pages stay knowledge articles
+    (F76's second choice). mr-boss CustomerServiceKnowledge expects the article page.
+  - F75: PASS operations `getSiteNavigation`, `resolveSiteRedirect` and the catalog's `getShopHome`, `getStoreCategories`,
+    `getStoreCategory`, `findProducts`, `searchShop`, `getProduct`, `quoteSelection`, `getStorePage`, `getShopSitemap`
+    (routes under `shop/` and `site/`); `getShopPage` gains the catalog kinds' inputs; Schema/Routes mirrors identical;
+    `Contracts.d.ts`; design-shop's §14.1 PublicSitePage row and §13.1, §5.1, §12.7 as built.
+  - mr-pass pages: `Shop/Catalog.js` (one `getShopPage` call a page, rendered by ShopTheme.js `renderView`, or with no
+    release the view in the PASS shell, `Shop/Catalog.html.fancy`; an old slug 301 to the canonical URL after the access
+    check; a product, category or page that is not public the theme's not-found page (404) unless `resolveSiteRedirect`
+    moves it; the head gains the canonical page's hreflang, a product's schema.org data from the view the page shows, and
+    noindex on a search; `robots.txt` and `sitemap.xml` of current public pages with absolute URLs), `Shop/Home.xml`,
+    `Shop/Categories.xml` with `List` and `CategoryDetail`, `Shop/Products.xml` with `ProductDetail`, `Shop/Search.xml`,
+    `Shop/Page.xml` (in always-actions, F-SP3-1); `Home.html.fancy` removed. `resolve#Route` passes the product, category
+    and page ids as `screenParameters` (F47) and routes `robots.txt`, `sitemap.xml`. ShopTheme.js: `shop.productPurchase`
+    is a GET form of the variant and quantity showing the quote (no add until P4), `shop.search` a GET search form; a
+    release gets only the components its `theme.json` declares, so one published before `shop.search` still renders. The
+    starter: the category tree and subcategories, the search states and form, compare-at price, badge, availability on
+    cards, Categories and Search links, an icon link, 44 px form controls.
+  - Caching (F42 mr-pass part, F3): Headers.js `ROUTES` gives Shop's catalog routes `public, max-age=60` with
+    `anonymousOnly` (no signed-in user and no session cookie), else `no-store`; Catalog.js keeps it only for a 200 and adds
+    an ETag of the content; the shell's header on a public page has no session token and a neutral Account link (a themed
+    page has neither). F43/F58: Transport.js `readThrough`, a bounded (512 slots by key digest) read-through cache of
+    anonymous catalog GETs (no user, delegation or token) keyed by site, operation, input, locale, currency, generation
+    and release; the generation (`getSiteGeneration`) read at most every 2 s, entries kept at most 60 s, an answer naming
+    another generation and every refusal not kept, nothing served when the generation cannot be read.
+  - Test conf: `test/MoquiConf.xml` names `shop.zizi.localhost` (ZIZI_SHOP, Shop at `/`) and `digital.zizi.localhost`
+    (ZIZI_DIGITAL, `/shop`) public sites, and `pass_client_test_sites` adds both, for the walks.
+  - Specs: Mantle `test/product/ShopCatalog` (2 features, 0.41 s: an unpublished product, a draft, an excluded variant and
+    another store's product absent from the list, a category, search and the sitemap, and Not Found as a product; another
+    store's category refused; a page's published version shown and its later draft not, a page with no published version
+    absent; an unlisted sort refused; zero against unavailable prices, a store organization's row priced for Shop and not
+    by `get#ProductPrice` for the public, a quote of 3, an option not listed refused, no trace, price id or cost). mr-pass
+    `test/Shop/ShopCatalog` (2 features, 0.25 s: one render through the published starter of Home, Categories, a category,
+    Search, a product with its quote and structured data, a draft's not-found page and a page, none with a session token;
+    each catalog route public for an anonymous request only, cart, theme asset and Account no-store; Transport's cache
+    kept by generation and input, never for a write or a signed-in user; the remote product view equal to the local one,
+    a draft Not Found remotely). Also run, all pass: mr-pass ShopAccess (its Home now expects the public page's neutral
+    Account link and no token), ShopThemes, Forum, ForumAccess, Integrations, Portals, Transport, SupportAccess,
+    SupplierPages, Operations (62, 6.5 s); Mantle StorePublication (+1 assertion, `SITE_REQUIRED`), ThemeReleases,
+    SitePages, PassAuthority, StoreAdmin, ProductEffectivePrices, ProductPricePolicy, ProductPriceLists, Promotions,
+    SupportPortal (60 with ShopCatalog); mr-boss CustomerServiceKnowledge, CommerceSitePages, CommerceAccess,
+    CommerceAssortment, CommerceStores, Knowledge (44). Not run: `./moq test-apps` and the budget measure.
+  - Acceptance: `acceptance/ShopFixtures` (the demo Shop sites as Commerce's demo makes them, published; POPC_DEFAULT's
+    demo publication, BOSS_COM_DIGITAL's digital guide, ZIZI_SHOP's starter release and returns page; ZIZI_DIGITAL
+    unthemed), `acceptance/client/ShopHttp` (4 features: at 390 px Home, Categories, Demo Category One, Demo Product
+    One-One at $16.99, a quantity of 3 ($50.97), a search and the returns page, no horizontal overflow; on the desktop
+    ZIZI_DIGITAL shows only its guide in the PASS shell and Not Found for POPC_DEFAULT's product, ZIZI_SHOP Not Found for
+    the guide; without JavaScript (plain requests) the links, the old slug's 301, the quote and structured data, DEMO_VAR
+    Not Found and absent from search and the sitemap, robots naming the sitemap; a cookieless request public with no
+    cookie or token and an ETag, a 304 to revalidate, no-store with a session and for a 404),
+    `acceptance/client/ShopRemoteHttp` (2 features: the same sites and pages, the public headers and 304) with `acceptance/ShopRemoteFixtures`
+    (the frontend: no Mantle catalog, both contexts from the authority). Run: ShopHttp 4 passed and ShopRemoteHttp 2
+    passed under `./moq accept mr-pass --spec` (local authority); then Deployment.md's two-runtime check over REST (the
+    authority serving ClientFixtures, PortalFixtures and ShopFixtures on 127.0.0.1:18091, a frontend runtime of framework,
+    webroot, tools and PASS only on 18092): ShopRemoteFixtures 1, ShopRemoteHttp 2 and ShopHttp 4 passed. gRPC not run.
+  - Lint: `moqui lint --screens` 132 sites as before, none in the Shop screens, Pass.xml or the Shared files.
+  - Inventories (mr-boss usl-inventory): Implemented in of `get#SitePage`, `get#ProductPrice`,
+    `get#AvailableInventoryMulti` and `get#AvailableInventory` for the Shop pages.
+  - Decisions: `getShopPage` stays the themed view (P2's name), so the Page's JSON read is `getStorePage`; the Categories
+    page is the `category` kind with no category (no new page kind, so P2's releases stay valid); `shop.search` is a
+    required component of `search`, and PASS gives a release only the components it declares; with no release the
+    catalog pages show the same view in the PASS shell; a public page's header shows a neutral Account link instead of a
+    fetched signed-in fragment (no script under the shell's CSP); a category is listed by its current publication rows,
+    not by resolved products (bounded); F50's checks are in the service, not in `resolve`.
+  - Findings (provisional):
+    - **F-SP3-1** The framework opens a screen's output with status 200 (`start_output` in screen render.rs and sri), so a
+      status a screen's actions set never reaches the browser (P2's Home 503 did not either). Catalog.js writes a themed
+      404, 503 or redirect before the render (a body written first keeps its status); a PASS-shell 404 is the framework's
+      Not Found page. For the framework: keep a status set before the output opens.
+    - **F-SP3-2** Product images are ProductContent `component://` or `dbresource://` locations, not public URLs, so P3
+      shows none; a public image route by content id behind the resolver (or theme media) is needed.
+    - **F-SP3-3** `get#StorePublication`'s public list mode still resolves every published row before paging (F51); Shop
+      no longer calls it, so Commerce may drop the public list mode.
+    - **F-SP3-4** Pass.xml still calls `getSiteInfo` (per user, uncached) on every page, so a remote themed page costs it
+      and the generation read; caching an anonymous `getSiteInfo` needs its mounts and brand under the generation.
+    - **F-SP3-5** The authority price does not apply PriceResolver.js `extras` (feature extras of a virtual fallback),
+      which only a price reader gets; the stock bands' threshold (5) is fixed, with no store setting.
+    - **F-SP3-6** hreflang names only the page's own locale: Shop URLs carry no locale.
+    - **F-SP3-7** Existing databases keep ZZW_RETAIL's old `publicPageUrl` and `/pcontact` (data loads only on a new
+      database); Knowledge.js prefers the Support mount's article page either way.
 
 ### P4 — Cart and shopper identity
 

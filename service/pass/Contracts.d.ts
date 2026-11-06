@@ -59,6 +59,25 @@ export interface ShopView {
     checkout?: Record<string, unknown>
     account?: Record<string, unknown>
 }
+/** Shop P3: the registered sort keys of the catalog lists. */
+export type ShopSort = 'featured' | 'name' | 'newest'
+/** Shop P3: what every catalog answer carries, which a frontend keys its caches by (F43). */
+export interface ShopPublication { generation: number; releaseId: string | null }
+/** Shop P3: a price as decimal text with its display; available false is a price that is not set (never a zero one). */
+export interface ShopPrice { amount: string | null; currencyUomId: string; display: string; available: boolean }
+/** Shop P3: a product card; availability is a band (inStock, lowStock, backorder, outOfStock, available, unknown). */
+export interface ShopProductCard {
+    id: string
+    name: string
+    url: string
+    sku: string
+    price: ShopPrice
+    compareAtPrice: ShopPrice | null
+    availability: { code: string; label: string; purchasable: boolean }
+    badge: string | null
+}
+/** Shop P3: a page of products; nextCursor null on the last page. */
+export interface ShopProductPage extends ShopPublication { products: ShopProductCard[]; nextCursor: string | null; sort: ShopSort }
 /** getShopPage (impl-shop P2): a Shop page's view and active release (null: no theme is published). */
 export interface ShopPage {
     status: number
@@ -966,6 +985,15 @@ export interface OperationInputs {
     getShopPage: {
         siteId: string
         pageKind: string
+        /** P3: the catalog kinds' inputs */
+        productId?: string
+        variantId?: string
+        quantity?: string
+        productCategoryId?: string
+        query?: string
+        sort?: ShopSort
+        cursor?: string
+        routePath?: string
     }
     /** registered frontends only */
     getShopThemeRelease: {
@@ -981,6 +1009,19 @@ export interface OperationInputs {
     getSiteGeneration: {
         siteId: string
     }
+    /** Shop P3: the catalog reads; each answers ShopPublication's fields */
+    getShopHome: { siteId: string }
+    getStoreCategories: { siteId: string }
+    getStoreCategory: { siteId: string; productCategoryId: string; sort?: ShopSort; cursor?: string; limit?: string }
+    findProducts: { siteId: string; productCategoryId?: string; query?: string; sort?: ShopSort; cursor?: string; limit?: string }
+    searchShop: { siteId: string; query: string; sort?: ShopSort; cursor?: string; limit?: string }
+    getProduct: { siteId: string; productId: string; variantId?: string; quantity?: string }
+    quoteSelection: { siteId: string; productId: string; variantId?: string; quantity?: string }
+    getStorePage: { siteId: string; routePath: string }
+    getShopSitemap: { siteId: string }
+    /** Commerce P4's live menu and redirects of the site's Shop mount */
+    getSiteNavigation: { siteId: string; menuKey?: string; locale?: string }
+    resolveSiteRedirect: { siteId: string; path: string }
 }
 export type Operation = keyof OperationInputs
 export type Request<O extends Operation> = { operation: O; input: OperationInputs[O] }

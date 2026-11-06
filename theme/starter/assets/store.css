@@ -22,3 +22,9 @@ img { max-width: 100%; }
   .store-header, .store-footer, .store-hero, .store-section, .card { background: #212b37; }
   a { color: #8cc4e6; }
 }
+.shop-search, .shop-purchase { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .75rem; }
+.shop-search label, .shop-purchase label { display: flex; flex-direction: column; gap: .25rem; }
+.shop-search input, .shop-purchase input, .shop-purchase select, .shop-search button, .shop-purchase button { font: inherit; min-height: 44px; padding: .4rem .6rem; max-width: 100%; }
+.shop-quote { flex-basis: 100%; font-weight: 600; margin: 0; }
+.categories ul { margin: .25rem 0 0; }
+.badge { display: inline-block; padding: 0 .5rem; border-radius: 1rem; background: var(--accent); color: #fff; }

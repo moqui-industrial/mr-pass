@@ -16,12 +16,13 @@ const ASSET_TYPES = {
     json: 'application/json',
 }
 /* The trusted components of the page kinds that place them (the authority's Themes.js requiredComponents): installed
- * PASS code, never theme source. P4 and P5 replace these with the purchase, cart and checkout forms. */
+ * PASS code, never theme source, each made from the page's view (escaped). P3's purchase selection is a GET form that
+ * shows the price of a variant and quantity (quoteSelection's, in the view's product.quote), with no add until P4; P4 and
+ * P5 replace the cart and checkout placeholders. */
 const COMPONENTS = {
     'shop.productPurchase': {
         kinds: ['product'],
-        html: () =>
-            '<p class="shop-purchase">Purchasing opens soon in this store.</p>',
+        html: (context, view) => purchaseForm(view),
     },
     'shop.cart': {
         kinds: ['cart'],
@@ -30,6 +31,11 @@ const COMPONENTS = {
     'shop.checkout': {
         kinds: ['checkout'],
         html: () => '<p class="shop-checkout">Checkout opens soon.</p>',
+    },
+    // P3: the search form, which a theme cannot make (no <form> in theme source)
+    'shop.search': {
+        kinds: ['search'],
+        html: (context, view) => searchForm(view),
     },
 }
 const fail = (kind, message) => {
@@ -126,6 +132,56 @@ const escapeText = (text) =>
                 "'": '&#39;',
             })[c],
     )
+/* P3's purchase selection: the product's public variants and a quantity, submitted to the product's own URL by GET, and
+ * the quote of the selection; nothing is added to a cart until P4. */
+function purchaseForm(view) {
+    const product = view?.product || {}
+    const quote = product.quote || {}
+    const variants = product.variants || []
+    const options = variants
+        .map(
+            (variant) =>
+                '<option value="' +
+                escapeText(variant.id) +
+                '"' +
+                (variant.id === product.selectedVariantId ? ' selected' : '') +
+                '>' +
+                escapeText(variant.options || variant.name) +
+                (variant.price?.display
+                    ? ' (' + escapeText(variant.price.display) + ')'
+                    : '') +
+                (variant.availability?.purchasable === false
+                    ? ' (' + escapeText(variant.availability.label) + ')'
+                    : '') +
+                '</option>',
+        )
+        .join('')
+    return (
+        '<form class="shop-purchase" method="get" action="' +
+        escapeText(product.url || '') +
+        '" aria-label="Choose your purchase">' +
+        (variants.length
+            ? '<label>Option <select name="variantId" required><option value="">Choose an option</option>' +
+              options +
+              '</select></label>'
+            : '') +
+        '<label>Quantity <input type="number" name="quantity" min="1" max="999" step="1" inputmode="numeric" value="' +
+        escapeText(String(product.quantity || 1)) +
+        '"></label><button type="submit">Show price</button><p class="shop-quote" id="ShopQuote" aria-live="polite">' +
+        escapeText(quote.label || '') +
+        '</p><p class="shop-purchase-note">Purchasing opens soon in this store.</p></form>'
+    )
+}
+/* P3's search form: a GET to the store's Search page with the current query. */
+function searchForm(view) {
+    return (
+        '<form class="shop-search" method="get" role="search" action="' +
+        escapeText(view?.shop?.searchUrl || 'Search') +
+        '"><label>Search the store <input type="search" name="q" maxlength="100" value="' +
+        escapeText(view?.page?.query || '') +
+        '"></label><button type="submit">Search</button></form>'
+    )
+}
 /* The built-in safe page for a release or page that cannot be shown: no draft, source or diagnostic text. */
 function unavailablePage(context) {
     const name = escapeText(context?.store?.name || 'This store')
@@ -143,9 +199,20 @@ const assetBase = (context, release) =>
 /* Render a Shop page through the active theme: {status, html, ok, omitted, failedRequired, releaseId}, or null when
  * the site has no published theme (the page keeps the PASS shell). `call` is the authority call (the facade by
  * default). */
-function renderPage(context, pageKind, call) {
+function renderPage(context, pageKind, call, input) {
     const ask = call || facade
-    const page = ask('getShopPage', { siteId: context.site.siteId, pageKind })
+    const page = ask('getShopPage', {
+        ...(input || {}),
+        siteId: context.site.siteId,
+        pageKind,
+    })
+    return renderView(context, pageKind, page, ask)
+}
+/* Render a getShopPage answer through its release (the same result as renderPage), or null when it has none. The
+ * components given are the page kind's that the release declares (a release published before a component was added
+ * does not place it, and the adapter refuses one given and not placed). */
+function renderView(context, pageKind, page, call) {
+    const ask = call || facade
     const release = page.release
     if (!release) return null
     let verified
@@ -169,12 +236,24 @@ function renderPage(context, pageKind, call) {
             releaseId: release.releaseId,
         }
     }
+    let declared = null
+    try {
+        declared = JSON.parse(
+            verified.files['theme.json'] || '{}',
+        ).requiredComponents
+    } catch (error) {
+        declared = null
+    }
     const components = Object.fromEntries(
         Object.entries(COMPONENTS)
-            .filter(([, component]) => component.kinds.includes(pageKind))
+            .filter(
+                ([name, component]) =>
+                    component.kinds.includes(pageKind) &&
+                    (!Array.isArray(declared) || declared.includes(name)),
+            )
             .map(([name, component]) => [
                 name,
-                { html: component.html(context) },
+                { html: component.html(context, page.view) },
             ]),
     )
     const rendered = ec.resource.theme.render(
@@ -260,4 +339,12 @@ function sendAsset(context, manifestDigest, assetPath, call) {
     response.write(text)
     return { contentType: type, text }
 }
-;({ COMPONENTS, packageOf, renderPage, unavailablePage, sendAsset })
+;({
+    COMPONENTS,
+    packageOf,
+    renderPage,
+    renderView,
+    unavailablePage,
+    sendAsset,
+    escapeText,
+})

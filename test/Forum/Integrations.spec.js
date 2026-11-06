@@ -386,9 +386,10 @@ feature('a linked product shows publicly only while a site store carries it', {
         sys(() => {
             call('create#mantle.public.PublicSiteApp', {
                 siteId,
-                appMountId: 'store',
-                app: 'store',
-                pathPrefix: '/store',
+                // the site's Shop mount and the store it sells (impl-shop P3, F28)
+                appMountId: 'shop',
+                app: 'shop',
+                pathPrefix: '/shop',
                 enabled: 'Y',
                 targetId: 'PASS_STORE',
             })

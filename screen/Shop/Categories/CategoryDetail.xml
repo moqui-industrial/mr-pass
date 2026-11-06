@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CategoryDetail (design-shop §5 CategoryDetail; impl-shop P3): a category of the store's tree, its subcategories and a page
+    of its public products in a registered sort (getShopPage's category kind; Shop/Catalog.js). Routed from
+    categories/{productCategoryId}/{slug}; an old slug is redirected to the canonical URL after the access check, a category
+    that is not the store's is the not-found page. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Category">
+  <parameter name="productCategoryId"/>
+  <parameter name="categorySlug"/>
+  <always-actions>
+    <script><![CDATA[
+        const catalog=ec.resource.script('component://mr-pass/screen/Shop/Catalog.js')
+        shopPage=catalog.show(shopContext,'category',{productCategoryId:String(productCategoryId || ''),sort:catalog.param('sort'),cursor:catalog.param('cursor')},{path:String(publicPath || '')})
+    ]]></script>
+  </always-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/Catalog.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

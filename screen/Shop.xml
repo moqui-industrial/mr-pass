@@ -6,7 +6,8 @@
     available answers Not Found, as an unknown page does. With a published theme (P2) Shop's own pages render the active
     release through ShopTheme.js, in its own layout instead of the PASS shell (Pass.xml leaves its header and footer out when
     shopThemed); without one Home keeps the PASS shell. Account, Billing and Support keep the PASS shell with the
-    site's brand. The release's assets are under the mount at theme/{manifest digest}/{path} (resolve#Route). -->
+    site's brand. The release's assets are under the mount at theme/{manifest digest}/{path} (resolve#Route). P3's catalog
+    pages (Home, Categories, CategoryDetail, Search, ProductDetail, Page) render through Shop/Catalog.js. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Shop">
@@ -25,6 +26,19 @@
     <parameter name="assetPath"/>
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopTheme.js').sendAsset(shopContext,themeDigest,assetPath)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- P3: the Shop mount's robots.txt and sitemap.xml (resolve#Route; design-shop §11: only current public pages) -->
+  <transition name="robots" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/Catalog.js').robots(shopContext)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="sitemap" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/Catalog.js').sitemap(shopContext)</script>
     </actions>
     <default-response type="none"/>
   </transition>

@@ -323,7 +323,10 @@ Use existing `mantle.product.PriceServices.get#ProductPrice` and its store/buyer
 effective-date context, with the existing named price services as extended by Products. For an
 anonymous user it reads only rows with no vendor, customer or agreement, while a store makes its
 organization the vendor, so the catalog service prices as the authority for the routed store and
-the signed-in customer, its own checks done (Nov 5, impl-shop F18). Expose
+the signed-in customer, its own checks done (Nov 5, impl-shop F18): as built (P3) it calls
+`mantle.product.PriceServices.get#StoreProductPrice`, an in-process service over the same resolver and modifiers where
+the store organization's rows and the customer's own are eligible beside the public ones, never an agreement's row, an
+average cost or another party's, and no trace. Expose
 unavailable price separately from valid zero price. Keep quantity breaks and promotional
 adjustments explainable, but never return the internal price-rule trace, cost or margin publicly.
 Final price, promotions, shipping and tax are recalculated by checkout.
@@ -1365,7 +1368,13 @@ none of this HTTP caching exists yet. Shop adds a route-level cache policy: publ
 for anonymous catalog and content routes (Home, Categories, CategoryDetail, Search without
 personal facets, ProductDetail, Page) and `no-store` for everything else, including any request
 with a session cart or signed-in user (R-SHP-15, §14.3). The policy is per route in mr-pass
-`screen/Shared/Headers.js`, `no-store` by default (impl-shop P1); P3 adds the catalog routes.
+`screen/Shared/Headers.js`, `no-store` by default (impl-shop P1); P3 adds the catalog routes: `public, max-age=60` only
+for a request with no session cookie and no signed-in user, every answer but 200 `no-store`, a public page with an ETag
+of its content (a revalidation is a 304) and no session token or signed-in state in it (a themed page has neither; the
+PASS shell's header leaves out its token and shows a neutral Account link). A remote frontend keeps anonymous catalog
+reads in a bounded read-through cache (Transport.js) keyed by site, operation, input, locale, currency, generation and
+release, the generation read at most every 2 s; an entry lives at most a minute, so a price change, which does not
+advance the generation, shows within it.
 
 Authority-issued publication generations invalidate affected catalog, content, feeds and public
 HTML. Request authorization checks current generation before using cached projections; cluster
@@ -1409,6 +1418,13 @@ registered sort/facet keys. Responses return declared fields only, safe error co
 next actions and relevant revision/generation. Money and quantities cross the boundary as
 decimal strings with currency/UOM and separate localized display text. Instants have an explicit
 zone-independent representation plus localized display text where needed.
+
+As built (P3): `getShopPage` is the themed page's view of a page kind (`home`, `category` with or without a category,
+`product`, `search`, `page`, `not-found`; one call a page), and the K reads answer the same projections as JSON:
+`getShopHome`, `getStoreCategories`, `getStoreCategory`, `findProducts`, `searchShop`, `getProduct`, `quoteSelection`,
+`getStorePage` (K.get#Page: a Shop page by route, the name `getShopPage` being the view's) and `getShopSitemap`;
+`getSiteNavigation` and `resolveSiteRedirect` are Commerce P4's live menu and redirects. Each catalog answer carries the
+site's `generation` and the active `releaseId`.
 
 `getShopContext` (route `shop/context`; built in P1, `mantle.product.ShopCatalogServices.get#ShopContext`) answers the
 site, the Shop mount, the store, locale, currency, the active release and capabilities, NotFound (`notAvailable`) for a
@@ -1491,7 +1507,7 @@ scanned handles cross into intake services.
 | `mantle.account.InvoiceServices.create#InvoiceFromSource` | Ordered-basis invoice of an approved order part's unbilled lines, idempotent by `operationKey` |
 | ProductSubscriptionResource, SubscriptionResource, Subscription; recurring OrderHeader fields | Existing resource lifecycle and recurring-order jobs; source-instance-safe paid activation, accepted terms and per-period charge recovery are incomplete |
 | PublicSite/Host/App/Party/Profile/Page, PublicAccessGrant, PublicSubscriptionBinding | Shared sites/accounts/access, targeted mounts and entitlement sources; Shop target/operations/theme bindings are new |
-| PublicSitePage with `get#SitePage`/`publish#SitePage` | Keyed by site + page role → exact WikiPage version and publication revision; `get#SitePage` serves the guidelines and about roles only; no mount, route, locale or window yet (X14) |
+| PublicSitePage with `get#SitePage`/`publish#SitePage` | Keyed by a sequenced `sitePageId` (the role unique within a site when set) → exact WikiPage version and publication revision, with the app mount, route, locale, window and SEO fields (Commerce P4, X14); `get#SitePage` serves the Forum's guidelines and about by role and a Shop page by mount, route and locale; `get#SiteNavigation` and `resolve#SiteRedirect` are the live menu and redirects (impl-shop P3, impl-commerce F75) |
 | framework WikiPage/resources/revisions, media, jobs, search, mail, SystemMessage | Reuse content versions and infrastructure; not a pre-existing theme publisher |
 
 ### 14.2 Proposed extensions and coordination records

@@ -1,13 +1,29 @@
 <section class="store-section">
   <h1>${category.name}</h1>
   <#if category.description><p>${category.description}</p></#if>
+  <#if category.children && category.children.length>
+  <nav aria-label="${category.name}"><ul class="categories">
+    <#list category.children as child>
+    <li><a href="${child.url}">${child.name}</a>
+      <#if child.children && child.children.length>
+      <ul>
+        <#list child.children as grandchild>
+        <li><a href="${grandchild.url}">${grandchild.name}</a></li>
+        </#list>
+      </ul>
+      </#if>
+    </li>
+    </#list>
+  </ul></nav>
+  </#if>
   <#if productList && productList.length>
   <ul class="grid">
     <#list productList as product>
     <li class="card"><#include "product-card"></li>
     </#list>
   </ul>
-  <#else>
+  <#elseif !(category.children && category.children.length)>
   <p class="empty">No products here yet.</p>
   </#if>
+  <#if page.nextUrl><p><a rel="next" href="${page.nextUrl}">More products</a></p></#if>
 </section>
