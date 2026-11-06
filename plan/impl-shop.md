@@ -789,7 +789,7 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
     with its status for an island. Shop.xml's `media` transition streams a product image (`Facade.downloadFile`). The shell
     header and the starter layout gain a Cart link. Account.js calls ShopCart.js `signedIn` after a sign-in (local, remote
     and SSO) and `signingOut` before a sign-out; neither can fail them. Portal.js `attempt` takes `{newTransaction: true}`
-    (F-SP4-2), which the cart's writes use. Headers: the Cart routes keep the default no-store. Deployment.md "Cart".
+    (F69), which the cart's writes use. Headers: the Cart routes keep the default no-store. Deployment.md "Cart".
   - Specs: Mantle `test/order/ShopCart` (5 features, 0.9 s: a guest's first add with a capability, the input's price,
     customer, store and status ignored (the authority's 12.00, the guest party, the store, open), an order id alone
     reaching nothing; a stale revision refused, an operation id answered once, another store's and an unknown code refused
@@ -834,24 +834,24 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
     shopper's summary; the form token goes only to a visitor with a session; `valueInvalid` is a listed reason, so a
     field's refusal reaches a remote page with its field.
   - Findings (provisional):
-    - **F-SP4-1** TEST1 (design-shop §18.1's code) is limited to CustJqp (`requireParty`), so a guest cannot use it; the
+    - **F68** TEST1 (design-shop §18.1's code) is limited to CustJqp (`requireParty`), so a guest cannot use it; the
       walks use TEST2, whose Buy 1 Get 1 Half Off needs two of one item. PopcNewCustomer's 20% needs a user account for a
       web order, so a guest gets none.
-    - **F-SP4-2** A refused nested service call marks the calling transition's transaction rollback-only, so a refused
+    - **F69** A refused nested service call marks the calling transition's transaction rollback-only, so a refused
       cart write answered as a redirect or JSON became a 500 ("transaction marked rollback-only"). The cart's writes run
       through `Portal.attempt(..., {newTransaction: true})`; Billing's and Support's page writes call without it, and may
       meet the same on a refusal (for the lead).
-    - **F-SP4-3** `ec.web.sendJsonResponse` answers only 200 or 500 and adds the request's messages (Mantle's promotion
+    - **F70** `ec.web.sendJsonResponse` answers only 200 or 500 and adds the request's messages (Mantle's promotion
       notes), so the cart writes its JSON with its own status.
-    - **F-SP4-4** Sign-in's default landing is `passBases.forum` (`/forum`) on any site, a 404 on a Shop site with no Forum
+    - **F71** Sign-in's default landing is `passBases.forum` (`/forum`) on any site, a 404 on a Shop site with no Forum
       mount (the walk passes `returnTo`). For the PASS Account pages: land on the site's root app.
-    - **F-SP4-5** An island's first request (its `.qvue`, or `Cart/state`) starts a session, so after a visitor's first
+    - **F72** An island's first request (its `.qvue`, or `Cart/state`) starts a session, so after a visitor's first
       enhanced product page later catalog pages are no-store for them (Headers' anonymous-only rule). For the framework,
       optional: serve a public screen's `.qvue` without a session, as a cacheable asset.
-    - **F-SP4-6** ProductDetail's "Ask a question" (F67's first item) is not built: it needs the Forum's `publish#Post` to
+    - **F73** ProductDetail's "Ask a question" (F67's first item) is not built: it needs the Forum's `publish#Post` to
       take a product (check it public, link `CommunicationEventProduct`) and a setting naming the site's product category,
       neither of which exists. For the lead: build it with the Forum's owner (a Forum change) or move it to P6/P9.
-    - **F-SP4-7** No job retires expired open carts (design-shop §7.1's retention): an expired access reaches nothing,
+    - **F74** No job retires expired open carts (design-shop §7.1's retention): an expired access reaches nothing,
       but its order stays open. For P8 (operations).
 
 - **Review Nov 6 (P4)** (Mantle and mr-pass; branch `shop/p4`). Checked: StoreCartAccess (only the capability's digest,
@@ -873,7 +873,7 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
   transaction (the facade call suspends the transition's and commits or rolls back alone); islands (plain forms without
   JS, the form token as `X-CSRF-Token` from `Cart/state`, same-origin). Fixes:
   - R1 (medium) Account.js's sign-in and sign-out hooks called `attachCart`/`releaseCart` in the sign-in's transaction,
-    so a refusal (a throttled lookup, an unexpected error) marked it rollback-only (F-SP4-2) and could fail the sign-in
+    so a refusal (a throttled lookup, an unexpected error) marked it rollback-only (F69) and could fail the sign-in
     despite the catch; both now run in their own transaction (ShopCart.js `signedIn`, `signingOut`).
   - R2 (low) `simpleQuery` escaped `<` and `>`, which a query_string cannot escape (a bare `>10` is a range); they
     become spaces (ShopCatalog spec gains the check).
@@ -889,11 +889,11 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
   - For the lead: (1) `store#Mounts` (Forum.js) deletes and recreates every mount a save names, so re-saving a site's
     Shop mount that has a theme binding fails with a raw foreign-key error (Unavailable), and the mount's id changes
     unless the page sends it (StoreCartAccess.appMountId has no foreign key, so carts survive but name an old id); since
-    P2. (2) F-SP4-2 stands for Billing's and Support's page writes. (3) A remote `getCart` is a GET, so the capability
+    P2. (2) F69 stands for Billing's and Support's page writes. (3) A remote `getCart` is a GET, so the capability
     travels as a query parameter on the frontend-to-authority link (as the existing token reads do) and may reach the
     authority's access logs; consider a POST or a header for capability reads. (4) Product images are no-store and read
     any location scheme a staff member enters; consider public caching by generation and limiting the schemes.
-    (5) Guest parties and cancelled guest orders accumulate with no retention job (F-SP4-7).
+    (5) Guest parties and cancelled guest orders accumulate with no retention job (F74).
 
 ### P5 — Checkout and payment
 
@@ -1182,6 +1182,14 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F65 | P3: hreflang names only the page's own locale, since Shop URLs carry no locale | Later (localized routes) |
 | F66 | P3: existing databases keep ZZW_RETAIL's old URL and `/pcontact`; the data change reaches only new databases | Noted in mr-mantle docs/Upgrading.md at the finish |
 | F67 | P3 review: ProductDetail's "Ask a question" Forum link is not built; `Knowledge.js` `publicLink` refuses NO_PUBLIC_URL before trying the Support site's article page; search sends the visitor's text to the index as a query string, whose syntax the visitor controls; a category whose members are published but none public shows "No products here yet" | P4: the Ask a question link, and search text escaped (a simple query) to bound its cost; `publicLink` tries the Support site first (Customer Service's owner contract, P6); the category case kept (only its name shows) |
+| F68 | P4: TEST1 is limited to the customer CustJqp, so a guest cannot use it | The walks use TEST2 (Buy 1 Get 1 Half Off) |
+| F69 | P4: a refused nested service call marks the transition's transaction rollback-only, so the refusal came back as a 500 | `Portal.attempt({newTransaction: true})` for the cart; Billing's and Support's page writes may need it (later) |
+| F70 | P4: `ec.web.sendJsonResponse` answers only 200 or 500 and adds the request's messages | The cart writes its JSON with its own status |
+| F71 | P4: sign-in lands on `/forum` by default even on a Shop site without a Forum mount | P6: the Account return goes to the site's root app |
+| F72 | P4: an island's first request starts a session, so the visitor's later catalog pages are no-store | Optional framework work: serve a public `.qvue` without a session |
+| F73 | P4: "Ask a question" is not built: Forum `publish#Post` takes no product to link by `CommunicationEventProduct`, and no setting names the site's product category | Later (the Forum's owner) |
+| F74 | P4: no job retires expired open carts, guest parties or cancelled guest orders | P8 |
+| F75 | P4 review: `store#Mounts` deletes and recreates every mount a save names, so re-saving a Shop mount with a theme binding fails on its foreign key and the mount's id changes; a remote `getCart` is a GET with the capability as a query parameter; product images are no-store and read any location scheme staff enter; Mantle's promo-code warnings stay in `ec.message` | `store#Mounts` keeps an existing mount's row (P5 follow-up); capability reads as POST (P5); images cached by generation and limited to `dbresource://`/`component://` (P8); pages never show raw request messages |
 
 ## 7. Later
 
