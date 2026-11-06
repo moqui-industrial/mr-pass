@@ -2,5 +2,8 @@
 # the measured ./moq test-all of Nov 4, 2026 (on 4 workers). Raise it only with the user's agreement.
 # Nov 6, 2026: raised by Shop P1 and P2's measured share (the user's agreement, impl-commerce §4: raised at each wave end by
 # the measured share): ShopAccess and ShopThemes, 1.8 s of feature time in Wave 4's ./moq test-apps, rounded up.
-server = 17
-client = 6
+# Nov 6, 2026: raised by Shop P3–P5's measured share in Wave 9's ./moq test-apps (the user's agreement): the Shop specs'
+# server feature time grew to 13.9 s (from 1.8 s at Wave 4), mr-pass 18.2 s of 17; the client by ShopCheckoutWalk, 3.9 s,
+# mr-pass 8.2 s of 6; each rounded up.
+server = 20
+client = 9
