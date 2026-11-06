@@ -9,6 +9,11 @@
         headers.apply(null,'')
         publicHost=String(publicHost || "").toLowerCase()
         siteId=resolvedSiteId
+        // a site's theme preview host (Commerce P5, F54) serves only the preview render (ShopPreview.xml, with its own
+        // headers), whatever the site's state: no site info, no shell
+        passPreview=ec.resource.script('component://mr-pass/screen/Shop/ShopPreview.js').isPreviewHost(siteId,publicHost)
+        if(passPreview){siteInfo={mounts:[]};passBases={};passApp=null;shopThemed=true;passPublicPage=false}
+        else{
         siteInfo=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getSiteInfo',input:{siteId,hostname:publicHost}}).call().result
         const passApps=ec.resource.script('component://mr-pass/service/pass/Apps.js')
         passBases=Object.fromEntries(Object.entries(passApps).map(([app,v])=>[app,v.base]))
@@ -22,6 +27,7 @@
         passHeaderPolicy=headers.apply(passApp,requestPath.slice(appBase.length) || '/',siteInfo.brand?.logoUrl)
         // a page a shared cache may keep (Shop P3, F42): no session token and no signed-in state in it
         passPublicPage=String(passHeaderPolicy.cacheControl).startsWith('public')
+        }
     ]]></script>
   </always-actions>
   <subscreens default-item="Forum">
@@ -33,6 +39,8 @@
     <subscreens-item name="Supplier" location="component://mr-pass/screen/Supplier.xml"/>
     <subscreens-item name="Support" location="component://mr-pass/screen/Support.xml"/>
     <subscreens-item name="Shop" location="component://mr-pass/screen/Shop.xml"/>
+    <!-- Commerce P5 (F54): the theme preview host's render, reached only through resolve#Route on a preview host -->
+    <subscreens-item name="ShopPreview" location="component://mr-pass/screen/ShopPreview.xml" menu-include="false"/>
   </subscreens>
   <widgets>
     <!-- a themed Shop page (shopThemed, set by Shop.xml, Shop P2) is a whole document in the release's own layout -->

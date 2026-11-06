@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- The theme preview host's only routes (impl-commerce P5, F54; design-shop §12.6): resolve#Route maps /preview/{token}
+    to the page transition and /preview/{token}/asset/{path} to the asset transition on a site's preview host, and nothing
+    else; on any other host this screen is Not Found (Pass.xml sets passPreview). Shop/ShopPreview.js renders the draft with
+    the preview's own headers (no-store, noindex, frame-ancestors the BOSS origins). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-include="false">
+  <always-actions>
+    <script><![CDATA[
+        if (!passPreview) { const e=new Error('Page not found');e.moquiErrorKind='NotFound';throw e }
+    ]]></script>
+  </always-actions>
+  <transition name="page" method="get" read-only="true">
+    <parameter name="previewToken"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopPreview.js').page(resolvedSiteId,publicHost,previewToken)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="asset" method="get" read-only="true">
+    <parameter name="previewToken"/>
+    <parameter name="assetPath"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopPreview.js').asset(resolvedSiteId,publicHost,previewToken,assetPath)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <widgets/>
+</screen>

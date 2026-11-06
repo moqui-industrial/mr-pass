@@ -1,4 +1,4 @@
-<article class="store-section product">
+<article class="store-section product" data-section-id="${section.id}">
   <h1>${product.name}</h1>
   <#if product.image><img src="${product.image.url}" alt="${product.image.alt || product.name}"></#if>
   <#if product.price><p class="price">${product.price.display}<#if product.compareAtPrice> <s>${product.compareAtPrice.display}</s></#if></p></#if>

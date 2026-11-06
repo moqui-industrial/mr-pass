@@ -13,6 +13,8 @@
   <default-property name="pass_test_scanner" value="true"/>
   <default-property name="pass_route_domains" value="lists.example.test"/>
   <default-property name="pass_classifier_service" value="pass.test.ClassifierServices.classify#Post"/>
+  <!-- Commerce P5 (F54): the BOSS origins that may frame a theme preview (any local port, for the walks) -->
+  <default-property name="pass_preview_frame_origins" value="http://localhost:* http://127.0.0.1:*"/>
   <webapp-list>
     <webapp name="webroot">
       <public-site host="127.0.0.1" site-id="PASS_HTTP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
@@ -38,6 +40,11 @@
         <mount path="/account" screen="Account"/>
         <mount path="/billing" screen="Billing"/>
         <mount path="/support" screen="Support"/>
+      </public-site>
+      <!-- Commerce P5 (F54): ZIZI_SHOP's theme preview host, which serves only the preview render (Commerce's ThemeEditor
+          frames it; its PublicSiteHost row is PshkPreview) -->
+      <public-site host="preview.shop.zizi.localhost" site-id="ZIZI_SHOP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Shop"/>
       </public-site>
     </webapp>
   </webapp-list>

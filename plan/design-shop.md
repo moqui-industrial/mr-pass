@@ -1352,6 +1352,19 @@ BOSS parent origin, minimal cookies and narrowly checked postMessage events. Liv
 unframeable unless an explicitly supported deployment policy requires otherwise. Preview tokens
 are not general public API credentials and must not appear in third-party referrers/logs.
 
+**As built (Nov 6, impl-commerce P5, F54).** A site's preview host is a `PublicSiteHost` of kind `PshkPreview` (never
+canonical; page links, `sitesFor` and readiness skip it) with its own `<public-site>` mount at `/` on the authority's
+runtime; `resolve#Route` and Pass.xml give it only `/preview/{token}` and `/preview/{token}/asset/{path}`
+(`ShopPreview.xml`, `Shop/ShopPreview.js`), every other path Not Found, with no site info read, so an unpublished site
+previews too. The capability is `mantle.public.ThemeServices.create#ThemePreview`'s `PublicThemePreview` (one site,
+mount, theme and user, twenty minutes, the token's digest only); `get#ThemePreviewPage` answers the draft's files and the
+view: the store's public data through ThemeView when the site is published, else the sample view, a cart, checkout or
+account always synthetic. The page is `no-store`, `X-Robots-Tag: noindex`, `Referrer-Policy: no-referrer`, a CSP with a
+nonce'd script, `form-action 'none'`, `connect-src 'none'` and `frame-ancestors` the origins of
+`pass_preview_frame_origins` (none: `'none'`); its script accepts one MessageChannel port from an allowed parent origin
+with the URL's nonce and sends `{type: "select", sectionId}` only; links and forms do nothing. A remote frontend serves
+no previews.
+
 Source preview and editor selection render the actual draft through the same theme adapter.
 Device width, locale, product/category/page and empty/error states are selectable. Save changes
 only the draft; publish is an explicit separate confirmation with affected pages and findings.
@@ -1387,7 +1400,9 @@ Remote PASS obtains theme bundles through its fixed authenticated authority conn
 verifies manifest digests/API compatibility: `getShopThemeRelease` (the active release's manifest and its digest) and
 `getShopThemeFiles` (its files, each checked against the manifest's digest), which the authority answers only to a
 registered frontend, never to a browser; a verified release is kept by release and digest, and one that does not verify
-is the built-in unavailable page (impl-shop P2). Themes cannot name arbitrary origins or initiate
+is the built-in unavailable page (impl-shop P2). A release's images and fonts (`assets/*.png`, `.jpg`, `.gif`, `.webp`, `.woff2`) travel in the
+package as the base64 of their bytes, their digest of that text, and the asset route serves the bytes (impl-commerce P5,
+F55). Themes cannot name arbitrary origins or initiate
 network fetches. Readiness blocks unsupported renderer versions before activation. Operator
 assets/components have their own approved CSP entries; theme settings cannot broaden CSP.
 

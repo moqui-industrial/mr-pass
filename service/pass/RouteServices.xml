@@ -15,6 +15,10 @@
     </out-parameters>
     <actions>
       <script><![CDATA[
+            // a site's theme preview host (Commerce P5, F54): only the preview render and its assets, every other path Not Found
+            const previewer=ec.resource.script('component://mr-pass/screen/Shop/ShopPreview.js')
+            if(previewer.isPreviewHost(siteId,hostname)){const previewRoute=previewer.route(path);screenPath=previewRoute.screenPath;screenParameters=previewRoute.screenParameters}
+            else{
             const info=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getSiteInfo',input:{siteId,hostname}}).call().result
             const mounted=info.mounts.filter(m=>path===m.pathPrefix || path.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/')).sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]
             const fail=()=>{const error=new Error('Page not found');error.moquiErrorKind='NotFound';throw error}
@@ -47,6 +51,7 @@
                 if(!/^[0-9a-f]{64}$/.test(parts[1] || '') || parts.length<3 || parts.length>8 || !parts.slice(2).every(p=>name.test(p)))fail()
                 screenPath='/Shop/themeAsset';screenParameters={themeDigest:parts[1],assetPath:parts.slice(2).join('/')}
             }else screenPath='/'+root+suffix
+            }
         ]]></script>
     </actions>
   </service>

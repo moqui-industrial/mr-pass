@@ -1,4 +1,4 @@
-<section class="store-section" aria-label="${section.settings.heading || 'Coming soon'}">
+<section class="store-section" data-section-id="${section.id}" aria-label="${section.settings.heading || 'Coming soon'}">
   <#if productList && productList.length>
   <#if section.settings.heading><h2>${section.settings.heading}</h2></#if>
   <ul class="grid">

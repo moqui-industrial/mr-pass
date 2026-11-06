@@ -1,4 +1,4 @@
-<section class="store-section">
+<section class="store-section" data-section-id="${section.id}">
   <h1>${section.settings.heading || page.title}</h1>
   <div class="component">${components["shop.cart"]}</div>
 </section>
