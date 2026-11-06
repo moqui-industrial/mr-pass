@@ -1,4 +1,6 @@
 # The regression budget in seconds of feature time (docs/Build-Test.md, "The regression budget"), set from
 # the measured ./moq test-all of Nov 4, 2026 (on 4 workers). Raise it only with the user's agreement.
-server = 15
+# Nov 6, 2026: raised by Shop P1 and P2's measured share (the user's agreement, impl-commerce §4: raised at each wave end by
+# the measured share): ShopAccess and ShopThemes, 1.8 s of feature time in Wave 4's ./moq test-apps, rounded up.
+server = 17
 client = 6
