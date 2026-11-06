@@ -1590,29 +1590,29 @@ P12; gated on the adapter's off-session charges (design-shop §8.1).
     resource-instance TODO (mantle-usl renews the latest subscription of a person and resource, so two independent
     subscriptions of one person to one resource share terms); here it takes `resourceInstanceId` and Shop passes its contract.
   - Findings (provisional):
-    - **F-SP7-1** A card kept from a hosted page carries no name, so the store's `PsstOrdApprovePayMethNameDiff` check holds
+    - **F102** A card kept from a hosted page carries no name, so the store's `PsstOrdApprovePayMethNameDiff` check holds
       every order paid with it (a signed-in buyer's kept card at checkout, and every renewal) for approval. The specs and
       BOSS_COM_DIGITAL's demo turn the check off; a kept card should take the account's name (or the check skip hosted cards).
-    - **F-SP7-2** `check#OrderPreApprove`'s similar-order check (24 hours) holds a renewal or a prepaid term bought within a day
+    - **F103** `check#OrderPreApprove`'s similar-order check (24 hours) holds a renewal or a prepaid term bought within a day
       of the last; harmless a month later, but a resumed renewal soon after a failed one is held. For Sales.
-    - **F-SP7-3** `OrderApprovedFulfillSubscriptions` runs inside the placement, before the checkout is completed, so Mantle's
+    - **F104** `OrderApprovedFulfillSubscriptions` runs inside the placement, before the checkout is completed, so Mantle's
       own subscription fulfillment invoiced a Shop line first (NOTHING_TO_BILL for Shop's); fixed: `check#ShopAccessOrder`
       counts a checkout being placed.
-    - **F-SP7-4** `clone#Order` copies `isNewCustomer` and the part's promotions flag; the base clears the first and turns
+    - **F105** `clone#Order` copies `isNewCustomer` and the part's promotions flag; the base clears the first and turns
       promotions off, so renewals are neither held as new customers nor discounted.
-    - **F-SP7-5** A card added through the hosted setup has no customer-initiated transaction, so its renewals carry the
+    - **F106** A card added through the hosted setup has no customer-initiated transaction, so its renewals carry the
       stored-credential indicators without `originalNetworkTransId`; providers may want the first charge with it to be a
       customer-initiated one.
-    - **F-SP7-6** ZIZI_DIGITAL has no Forum mount, so the demo's paid access is bound to the site, not a paid category;
+    - **F107** ZIZI_DIGITAL has no Forum mount, so the demo's paid access is bound to the site, not a paid category;
       adding a Forum mount changes CommerceFoundationWalk's expected mounts (another agent's acceptance work).
-    - **F-SP7-7** The renewal email's RenewalAction link (a SalesOrder capability opening ResolveRenewal) is not built: notices
+    - **F108** The renewal email's RenewalAction link (a SalesOrder capability opening ResolveRenewal) is not built: notices
       link the signed-in SubscriptionDetail page.
-    - **F-SP7-8** `queue#Delivery` checks then creates, so two concurrent sends of one event throw on the unique key and mark
+    - **F109** `queue#Delivery` checks then creates, so two concurrent sends of one event throw on the unique key and mark
       the caller's transaction rollback-only; the renewal notices are queued as probes; P6's download notice has the same
       exposure (for Comms).
-    - **F-SP7-9** Two runs of one order's fulfillment (the approval SECA and a job) race on StoreItemFulfillment's unique
+    - **F110** Two runs of one order's fulfillment (the approval SECA and a job) race on StoreItemFulfillment's unique
       key; the loser's prepare fails and is logged, the rows are the winner's (tolerated).
-    - **F-SP7-10** Not built here: ProductDetail's subscribe action (the Subscriptions page offers the store's offers), the
+    - **F111** Not built here: ProductDetail's subscribe action (the Subscriptions page offers the store's offers), the
       design's trusted Vue enhancement of ChangeMethod and ResolveRenewal (plain forms), Insights' query exclusions (not
       built), Commerce P12's editors; F94's reorder half stays as P6 left it (subscription lines are not reordered and not
       named in the preview).
@@ -1667,8 +1667,8 @@ P12; gated on the adapter's off-session charges (design-shop §8.1).
       `run#Renewals` are `anonymous-all` (internal only, allow-remote false).
     - Authorize.Net: the first customer-initiated charge that keeps the card sends no stored-credential indicator
       (`isFirstRecurringPayment`/stored credentials), and renewals no `recurringBilling` setting; check with the sandbox
-      (F-SP7-5).
-    - F-SP7-6 left: binding the demo's access to a Forum paid category needs a Forum mount on ZIZI_DIGITAL, a category
+      (F106).
+    - F107 left: binding the demo's access to a Forum paid category needs a Forum mount on ZIZI_DIGITAL, a category
       made through the Forum's staff services on a site with no owner, `qualifyingSources` for subscriptions, the buyer's
       site membership to read it, and changes to two acceptance walks (CommerceFoundationWalk's mounts,
       ShopSubscriptionScenarios' grant): not contained.
@@ -1842,6 +1842,20 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F99 | P6 review: the emailed guest order and download links stop working once the guest is claimed into an account | P8: the notice's wording, or the claim keeps the links |
 | F100 | P6 review: no index on `StoreCheckout.contactEmail` for the claim's query | P8 |
 | F101 | P6 review: an attempt that hands a message to the mail server and then fails to commit sends it again (ForumDelivery has the same window) | Accepted |
+| F102 | P7: a card kept from a hosted page carries no name, so `PsstOrdApprovePayMethNameDiff` holds every order paid with one, renewals included | The specs and demo turn the check off; for Sales |
+| F103 | P7: the 24-hour similar-order check holds a renewal or prepaid term bought within a day of the last | Sales |
+| F104 | P7: `OrderApprovedFulfillSubscriptions` ran inside the placement and invoiced Shop lines first | Fixed in P7 |
+| F105 | P7: `clone#Order` copies `isNewCustomer` and the part's promotions flag | The base clears the first and turns promotions off |
+| F106 | P7: a card added through the hosted setup has no customer-initiated transaction id for its renewals | With the Authorize.Net sandbox check (F115) |
+| F107 | P7: ZIZI_DIGITAL has no Forum mount, so the demo's paid access is bound to the site, not a Forum paid category | Commerce P12 or P15 (a Forum mount, a category, qualifying sources, membership; CommerceFoundationWalk and ShopSubscriptionScenarios) |
+| F108 | P7: the renewal email's RenewalAction link is not built; notices link the signed-in SubscriptionDetail | Later |
+| F109 | P7: `queue#Delivery` checks then creates, so two concurrent sends race on the unique key and mark the caller rollback-only; renewal notices queue in their own transaction, P6's download notice still does not | Comms |
+| F110 | P7: two fulfillment runs of one order race on StoreItemFulfillment's unique key | Accepted: the loser logs, the winner's rows stand |
+| F111 | P7: not built: ProductDetail's subscribe action, the Vue enhancement of ChangeMethod and ResolveRenewal, Insights exclusions, F94's reorder preview naming | Commerce P12 and later |
+| F112 | P7 review: refunding an automatic contract's latest term leaves it stuck (paid-through drops back, the next renewal date stays, the next claim finds an activated occurrence) | Commerce P12: such a refund ends automatic renewal at the new paid-through (never re-charges a refunded buyer), with a spec |
+| F113 | P7 review: new periods are claimed only by the base's nightly cron, so access can lapse up to a day at each renewal | Commerce P12: the hourly job starts due renewals |
+| F114 | P7 review: ending a card clears consent without bumping the contract's revision; `dispatch#Renewal` and `run#Renewals` are anonymous-all (internal, allow-remote false) | Commerce P12 (the revision) |
+| F115 | P7 review: the first customer-initiated charge that keeps the card sends no stored-credential indicator, and renewals send no `recurringBilling`; never tried against the Authorize.Net sandbox | Before production: a sandbox check |
 
 ## 7. Later
 
