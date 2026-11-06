@@ -1006,7 +1006,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F57 | P2: `ec.resource.theme.engines()` reports no renderer version, so Mantle records version 1 | Optional framework work |
 | F58 | P2: F43's Transport.js read-through cache is not built | P3 |
 | F59 | P2: the inventories are mr-boss's; the CLIENT_READS rule is tested in ShopThemes (it needs a published release) | The lead updates the inventories at the finish |
-| F60 | P3: a screen's output always opened with status 200 (`start_output`), so a status its actions set was lost (P2's 503 never reached the browser) | Catalog.js writes themed 404, 503 and redirects before the render; the framework fix is com/fw3 |
+| F60 | P3: a screen's output always opened with status 200 (`start_output`), so a status its actions set was lost (P2's 503 never reached the browser) | Framework (mr-moqui 56f9aa35): a status a screen's actions set before output is the response's, also with no body written, for xlsx and server-static `/actions`; a qvt render at a set 4xx or 5xx is `private, no-store`. Catalog.js's own writes of 404, 503 and redirects stay correct |
 | F61 | P3: product images are `component://` or `dbresource://` locations, so P3 shows none | P4: a public image route behind the publication resolver |
 | F62 | P3: the public list mode of `get#StorePublication` still resolves every row (F51); Shop no longer calls it | Commerce's to drop or bound later |
 | F63 | P3: Pass.xml still calls `getSiteInfo` uncached on every remote page | P8 (remote caches) |
