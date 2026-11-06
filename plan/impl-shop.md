@@ -1705,7 +1705,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     without a hosted page (GATEWAY_NOT_HOSTED), facilities, email templates (kept; a missing PsetDownloadReady named), the
     sites mounting the store (MOUNT_REQUIRED), and Commerce P3's `propose#StorePublication` rows for a publisher to approve
     through `publish#StoreProducts` (PUBLICATION_EXISTS for a store that publishes). Findings sorted error, warning, info.
-    No Commerce screen yet (F-SP8-4).
+    No Commerce screen yet (F119).
   - Operations: `mantle.order.ShopOperationsServices` over `service/mantle/order/ShopOperations.js` and the hourly
     `run_ShopOperations` job (`data/ShopOperationsSetupData.xml`, with COMMERCE_PLACEMENT_RESOLVE and its ADMIN grant):
     - F74 `retire#ExpiredCarts`: each open cart whose access expired, in its own transaction under the access's lock,
@@ -1735,7 +1735,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
       `shop.fulfillment.run`, `.order`, `.step`; `shop.renewal.run`, `.dispatch`; `message.delivery.run`, `.attempt`;
       `commerce.recovery.run`; `shop.operations.step`; `shop.placement.resolve` with its order as the reference).
     - Commerce's alert templates for checkout failures and long-unresolved attempts are P11's
-      (`boss-commerce-checkout-failures`, `boss-commerce-payment-unresolved`); nothing added (F-SP8-6).
+      (`boss-commerce-checkout-failures`, `boss-commerce-payment-unresolved`); nothing added (F121).
     - Withdrawal and rollback: nothing in the checkout's reconciliation depends on the mount; ShopOperations' spec and the
       acceptance withdraw the mount and the job places an open attempt's order, the placed orders unchanged.
   - F97: a customer profile at Authorize.Net is the party's only when a method keeps it or this instance made it
@@ -1785,7 +1785,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     checkout whose answer is lost, the Shop mount withdrawn (the Shop context NotFound), the job placing it, the placed
     orders unchanged, the mount restored; a remote frontend's kept site information, then with `pass_backend_url` naming a
     dead authority `getSiteInfo`, `getShopAccount` and `getCart` all refused. Run: `--spec ShopOperationsScenarios` 6 of 6
-    (with ShopFixtures); then `./moq accept mr-pass` once: the first run failed ShopPaymentScenarios' capture feature (Demo Product Three-One's stock used up by this spec's order, F-SP8-9), fixed by cancelling it; the rerun's server suite 40 passed, 3 ignored, 0 failed, client suite 41 of 41.
+    (with ShopFixtures); then `./moq accept mr-pass` once: the first run failed ShopPaymentScenarios' capture feature (Demo Product Three-One's stock used up by this spec's order, F124), fixed by cancelling it; the rerun's server suite 40 passed, 3 ignored, 0 failed, client suite 41 of 41.
   - Lint: `moqui lint --screens` 132 flagged sites as before, none in CartDetail, Shop.xml or the Shop files.
   - Docs: mr-pass Deployment.md "Operations", README's spec and acceptance lists; design-shop §12.7 and §17.1 as-built;
     design-commerce §6 CartDetail's ResolvePlacement; mr-mantle docs/AuthorizeNet.md; usl-inventory's `release#`,
@@ -1798,24 +1798,24 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     checkout after its tokens expire (each search is several list requests); F97 by recording the profiles this instance
     makes rather than a configured namespace; F99 by wording; images public a minute under the current generation only.
   - Findings (provisional):
-    - **F-SP8-1** The cart-creation throttle (30 in ten minutes per requester) is shared by every cart-making spec of one
+    - **F116** The cart-creation throttle (30 in ten minutes per requester) is shared by every cart-making spec of one
       run, so ShopOperations resets the bucket before and after its carts as mr-pass ShopCheckout does (Commerce F128);
       without it StoreFulfillment failed after it in one run. A test-run setting for the throttle would end the pattern.
-    - **F-SP8-2** `dependsOn` still does not order a run (F106): the acceptance is named ShopOperationsScenarios to run
+    - **F117** `dependsOn` still does not order a run (F106): the acceptance is named ShopOperationsScenarios to run
       after ShopFixtures.
-    - **F-SP8-3** Over gRPC, whether the download path forwards the authority's Cache-Control for an image was not checked
+    - **F118** Over gRPC, whether the download path forwards the authority's Cache-Control for an image was not checked
       (REST forwards it); the frontend keeps no image bytes of its own, so a shared cache in front of it does the keeping.
-    - **F-SP8-4** No Commerce screen shows the adoption preview (a StoreDetail tab or a Stores action); for Commerce P15 or
+    - **F119** No Commerce screen shows the adoption preview (a StoreDetail tab or a Stores action); for Commerce P15 or
       later.
-    - **F-SP8-5** The sweep covers Authorize.Net only (the gateway naming a `duplicateCheckService`); a webhook naming a
+    - **F120** The sweep covers Authorize.Net only (the gateway naming a `duplicateCheckService`); a webhook naming a
       second transaction of a known reference would find it sooner.
-    - **F-SP8-6** No alert on stuck placements: Home counts them (Commerce P8); an alert template over StoreCheckout
+    - **F121** No alert on stuck placements: Home counts them (Commerce P8); an alert template over StoreCheckout
       placementPending past its tries would page someone (for the lead).
-    - **F-SP8-7** Transport.js is not Prettier-clean on master (left as it was).
-    - **F-SP8-8** An expired cart whose money is unresolved is read again each run (oldest expiry first, 200 a run); many
+    - **F122** Transport.js is not Prettier-clean on master (left as it was).
+    - **F123** An expired cart whose money is unresolved is read again each run (oldest expiry first, 200 a run); many
       such carts could hold the window. They are few (a stuck placement or an unknown outcome); a view joining the
       checkout's state would leave them out of the query.
-    - **F-SP8-9** The acceptance's withdrawal scenario cancels its order afterwards: POPC_DEFAULT requires inventory and
+    - **F124** The acceptance's withdrawal scenario cancels its order afterwards: POPC_DEFAULT requires inventory and
       the demo's Demo Product Three-One stock ran out for ShopPaymentScenarios after it otherwise.
 
 - **Review Nov 6 (P8)**: read the three repos' diffs from the merge base (mr-mantle 6cd38009, mr-boss f7cbc2fb, mr-pass
@@ -1969,7 +1969,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F60 | P3: a screen's output always opened with status 200 (`start_output`), so a status its actions set was lost (P2's 503 never reached the browser) | Framework (mr-moqui 56f9aa35): a status a screen's actions set before output is the response's, also with no body written, for xlsx and server-static `/actions`; a qvt render at a set 4xx or 5xx is `private, no-store`. Catalog.js's own writes of 404, 503 and redirects stay correct |
 | F61 | P3: product images are `component://` or `dbresource://` locations, so P3 shows none | P4: a public image route behind the publication resolver |
 | F62 | P3: the public list mode of `get#StorePublication` still resolves every row (F51); Shop no longer calls it | Commerce's to drop or bound later |
-| F63 | P3: Pass.xml still calls `getSiteInfo` uncached on every remote page | P8 (remote caches) |
+| F63 | P3: Pass.xml still calls `getSiteInfo` uncached on every remote page | P8 (remote caches). Done in P8 |
 | F64 | P3: the authority price skips PriceResolver `extras` (feature extras on a virtual's price), and the low-stock threshold of 5 is fixed | P4: extras for the authority price; the threshold a store setting later |
 | F65 | P3: hreflang names only the page's own locale, since Shop URLs carry no locale | Later (localized routes) |
 | F66 | P3: existing databases keep ZZW_RETAIL's old URL and `/pcontact`; the data change reaches only new databases | Noted in mr-mantle docs/Upgrading.md at the finish |
@@ -1980,8 +1980,8 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F71 | P4: sign-in lands on `/forum` by default even on a Shop site without a Forum mount | P6: the Account return goes to the site's root app |
 | F72 | P4: an island's first request starts a session, so the visitor's later catalog pages are no-store | Optional framework work: serve a public `.qvue` without a session |
 | F73 | P4: "Ask a question" is not built: Forum `publish#Post` takes no product to link by `CommunicationEventProduct`, and no setting names the site's product category | Later (the Forum's owner) |
-| F74 | P4: no job retires expired open carts, guest parties or cancelled guest orders | P8 |
-| F75 | P4 review: `store#Mounts` deletes and recreates every mount a save names, so re-saving a Shop mount with a theme binding fails on its foreign key and the mount's id changes; a remote `getCart` is a GET with the capability as a query parameter; product images are no-store and read any location scheme staff enter; Mantle's promo-code warnings stay in `ec.message` | `store#Mounts` keeps an existing mount's row (P5 follow-up); capability reads as POST (P5); images cached by generation and limited to `dbresource://`/`component://` (P8); pages never show raw request messages |
+| F74 | P4: no job retires expired open carts, guest parties or cancelled guest orders | P8. Done in P8 |
+| F75 | P4 review: `store#Mounts` deletes and recreates every mount a save names, so re-saving a Shop mount with a theme binding fails on its foreign key and the mount's id changes; a remote `getCart` is a GET with the capability as a query parameter; product images are no-store and read any location scheme staff enter; Mantle's promo-code warnings stay in `ec.message` | `store#Mounts` keeps an existing mount's row (P5 follow-up); capability reads as POST (P5); images cached by generation and limited to `dbresource://`/`component://` (P8); pages never show raw request messages. Done in P8 |
 | F76 | P5: `check#AvailableInventory` checks stock even for digital products in a store that requires inventory, so POPC_DEFAULT cannot cart a digital item | P6: digital items (no physical stock) pass the store's inventory requirement, with a test of the physical default |
 | F77 | P5: the test gateway's details lookup approves before the payer has visited the hosted page | The result page waits a second after authorizing; the return looks up at once |
 | F78 | P5: a redirect from a screen's actions is lost once the PASS shell header is written | Checkout's redirects are in pre-actions |
@@ -2001,12 +2001,12 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F92 | P6: `getShopDownload` is a GET, so the ten-minute capability is in the frontend-to-authority query, never a browser URL | Accepted |
 | F93 | P6: a guest's case or return filed by the order link reads nothing until the guest signs in verified | Accepted; the receipt stays on the page |
 | F94 | P6: subscription reorder and the card replacement before switching | P7 |
-| F95 | P6 review: a second approval landing after the first was confirmed is never flagged (`flagDuplicates` runs only on the lookup that finds the approval) | P8 (operations): a sweep of recent hosted references or the webhook |
-| F96 | P6 review: fulfillment starts only from the approval SECA, so a crash between the commit and it leaves no StoreItemFulfillment row | P8 (operations): the job also finds approved Shop orders with digital lines and no rows |
-| F97 | P6 review: Authorize.Net's customer profile is found by `merchantCustomerId` = partyId and adopted on E00039; `sync#CustomerProfile` imports every card of such a profile, another person's on a shared gateway account or a reloaded database | P8: a namespaced customer id, or import only from profiles this instance created |
+| F95 | P6 review: a second approval landing after the first was confirmed is never flagged (`flagDuplicates` runs only on the lookup that finds the approval) | P8 (operations): a sweep of recent hosted references or the webhook. Done in P8 |
+| F96 | P6 review: fulfillment starts only from the approval SECA, so a crash between the commit and it leaves no StoreItemFulfillment row | P8 (operations): the job also finds approved Shop orders with digital lines and no rows. Done in P8 |
+| F97 | P6 review: Authorize.Net's customer profile is found by `merchantCustomerId` = partyId and adopted on E00039; `sync#CustomerProfile` imports every card of such a profile, another person's on a shared gateway account or a reloaded database | P8: a namespaced customer id, or import only from profiles this instance created. Done in P8 |
 | F98 | P6 review: the ten-minute download capability covers the order, so it can mint the next one | Accepted (never reaches a browser); a scope of its own later |
-| F99 | P6 review: the emailed guest order and download links stop working once the guest is claimed into an account | P8: the notice's wording, or the claim keeps the links |
-| F100 | P6 review: no index on `StoreCheckout.contactEmail` for the claim's query | P8 |
+| F99 | P6 review: the emailed guest order and download links stop working once the guest is claimed into an account | P8: the notice's wording, or the claim keeps the links. Done in P8 |
+| F100 | P6 review: no index on `StoreCheckout.contactEmail` for the claim's query | P8. Done in P8 |
 | F101 | P6 review: an attempt that hands a message to the mail server and then fails to commit sends it again (ForumDelivery has the same window) | Accepted |
 | F102 | P7: a card kept from a hosted page carries no name, so `PsstOrdApprovePayMethNameDiff` holds every order paid with one, renewals included | The specs and demo turn the check off; for Sales |
 | F103 | P7: the 24-hour similar-order check holds a renewal or prepaid term bought within a day of the last | Sales |
@@ -2022,6 +2022,18 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F113 | P7 review: new periods are claimed only by the base's nightly cron, so access can lapse up to a day at each renewal | Commerce P12: the hourly job starts due renewals |
 | F114 | P7 review: ending a card clears consent without bumping the contract's revision; `dispatch#Renewal` and `run#Renewals` are anonymous-all (internal, allow-remote false) | Commerce P12 (the revision) |
 | F115 | P7 review: the first customer-initiated charge that keeps the card sends no stored-credential indicator, and renewals send no `recurringBilling`; never tried against the Authorize.Net sandbox | Before production: a sandbox check |
+| F116 | P8: every cart-making spec in one run shares the cart-creation throttle; ShopOperations resets it before and after (as ShopCheckout, Commerce F128) | Accepted |
+| F117 | P8: `dependsOn` still does not order a run (Commerce F106); the acceptance spec is named to sort after ShopFixtures | Framework |
+| F118 | P8: over gRPC, whether the image Cache-Control header is forwarded is not checked (REST forwards it) | Later |
+| F119 | P8: no Commerce page for the adoption preview | Commerce (later) |
+| F120 | P8: the second-approval sweep covers Authorize.Net only | Each adapter's own |
+| F121 | P8: no stuck-placement alert (Commerce's attention filter and Home count find them) | Later |
+| F122 | P8: Transport.js was not Prettier-clean on master | Accepted |
+| F123 | P8: expired carts whose money is unresolved are re-read each run | Accepted |
+| F124 | P8: ShopOperationsScenarios cancels its order to protect the demo's stock | Accepted |
+| F125 | P8 review: a REFUND_PENDING left by a crash after the provider confirmed is finished by Refund again; one left by an unknown outcome waits for Accounting's lookup | Accepted (retry refused in both) |
+| F126 | P8 review: the fulfillment backstop (F96) finds only orders with a StoreCheckout, not a renewal order whose approval SECA never ran | P9 |
+| F127 | P8 review: a sweep candidate still inside its form-token window counts toward the run's 200-search limit | Accepted |
 
 ## 7. Later
 
