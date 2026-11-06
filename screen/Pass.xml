@@ -4,7 +4,9 @@
   <always-actions>
     <script><![CDATA[
         if (!resolvedSiteId) { const e=new Error('Site not found');e.moquiErrorKind='NotFound';throw e }
-        if(ec.web.response){ec.web.response.setHeader('Cache-Control','no-store');ec.web.response.setHeader('Referrer-Policy','same-origin');ec.web.response.setHeader('Content-Security-Policy',"script-src 'self' 'unsafe-eval'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")}
+        // the headers are per route (Shared/Headers.js): no-store and the shell's CSP until the route is known, and by default
+        const headers=ec.resource.script('component://mr-pass/screen/Shared/Headers.js')
+        headers.apply(null,'')
         publicHost=String(publicHost || "").toLowerCase()
         siteId=resolvedSiteId
         siteInfo=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getSiteInfo',input:{siteId,hostname:publicHost}}).call().result
@@ -16,6 +18,8 @@
         passApp=(siteInfo.mounts || [])
             .filter(m=>requestPath===m.pathPrefix || requestPath.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/'))
             .sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]?.app || null
+        const appBase=passApp ? passBases[passApp] : ''
+        headers.apply(passApp,requestPath.slice(appBase.length) || '/')
     ]]></script>
   </always-actions>
   <subscreens default-item="Forum">
@@ -26,6 +30,7 @@
     <subscreens-item name="Billing" location="component://mr-pass/screen/Billing.xml"/>
     <subscreens-item name="Supplier" location="component://mr-pass/screen/Supplier.xml"/>
     <subscreens-item name="Support" location="component://mr-pass/screen/Support.xml"/>
+    <subscreens-item name="Shop" location="component://mr-pass/screen/Shop.xml"/>
   </subscreens>
   <widgets>
     <render-mode>

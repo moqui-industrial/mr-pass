@@ -29,9 +29,20 @@ export interface Post {
 }
 export interface PostWindow { postList: Post[]; nextCursor: Cursor | null; revision: number; generation: number }
 export interface PublishedPost { postId: string; rootCommEventId: string; ordinal: number; revision: number; state: 'published' | 'pending' }
-export interface SafeError { code: string; message: string; fieldErrors: { field: string; message?: string }[]; correlationId: string }
+/** A refusal: its kind (code), an allow-listed camelCase reason (design-shop §7.3; impl-shop P1, F4), the request's own text for Unprocessable and Conflict, else a fixed one. */
+export interface SafeError { code: string; reason: string | null; message: string; fieldErrors: { field: string; reason?: string | null; message?: string }[]; correlationId: string }
 export interface HostInput { hostname: string; canonical?: boolean }
-export interface MountInput { app: 'forum' | 'account' | 'members' | 'sites'; pathPrefix: string; enabled?: boolean; appMountId?: string }
+export interface MountInput { app: 'forum' | 'account' | 'members' | 'sites' | 'billing' | 'supplier' | 'support' | 'shop'; pathPrefix: string; enabled?: boolean; appMountId?: string; targetId?: string }
+/** getShopContext (impl-shop P1): the trusted Shop context of the routed site; release is P2's active theme release. */
+export interface ShopContext {
+    site: { siteId: string; name: string; locale: string; timeZone: string; generation: number }
+    mount: { pathPrefix: string; base: string }
+    store: { productStoreId: string; name: string }
+    locale: string
+    currency: string | null
+    release: { releaseId: string; revision: number } | null
+    capabilities: { canBrowse: boolean; canPurchase: boolean; signedIn: boolean }
+}
 /** Server-owned uploaded file handle. It is never a browser-supplied resource location. */
 export interface UploadedFile { readonly name: string; readonly size: number; readonly contentType: string }
 export interface PollInput {
@@ -923,7 +934,10 @@ export interface OperationInputs {
         siteId: string
         path?: string
     }
+    getShopContext: {
+        siteId: string
+    }
 }
 export type Operation = keyof OperationInputs
 export type Request<O extends Operation> = { operation: O; input: OperationInputs[O] }
-export type Result<O extends Operation> = O extends 'getPosts' ? PostWindow : O extends 'publishPost' ? PublishedPost : O extends 'markRead' ? { marker: ReadMarker } : Record<string, unknown>
+export type Result<O extends Operation> = O extends 'getPosts' ? PostWindow : O extends 'publishPost' ? PublishedPost : O extends 'markRead' ? { marker: ReadMarker } : O extends 'getShopContext' ? ShopContext : Record<string, unknown>

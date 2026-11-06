@@ -18,7 +18,7 @@ and verified, and what is deferred, is in [the implementation record](plan/imple
 Operators start with [Deployment](docs/Deployment.md), which also covers the Billing, Supplier and Support apps.
 
 [IronStone Shop](plan/design-shop.md) designs the public storefront, checkout, customer purchases
-and subscriptions. Its theme/page editors are defined in
+and subscriptions; its app (`screen/Shop.xml`) mounts at `/shop` or a site's root for one ProductStore. Its theme/page editors are defined in
 [IronStone Commerce](../mr-boss/plan/design-commerce.md); published shops run without BOSS.
 [impl-shop](plan/impl-shop.md) plans Shop's build, in one order with Commerce's.
 
@@ -40,11 +40,11 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -52,7 +52,7 @@ JavaScript service and browser specs run through Moqui, without Node as a test d
 regression suite, grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
 `Account`, ...). `acceptance/` holds the acceptance suite: the forum's, the Supplier app's and the Support app's browser scenarios (`ForumHttp`,
 `SupplierPortalHttp`, `SupportFeedbackHttp` and `SupportPagesHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the
-Support app's isolation between customers (`SupportIsolation`), the large
+Support app's isolation between customers (`SupportIsolation`), Shop's mount at a site's root (`ShopMount`), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.

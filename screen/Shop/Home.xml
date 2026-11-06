@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Home (design-shop §5 Home; impl-shop P1): the Shop root. Until the theme (P2) and the catalog pages (P3) it shows the
+    store's name and an empty state, from the context Shop.xml read. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Home">
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/Home.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

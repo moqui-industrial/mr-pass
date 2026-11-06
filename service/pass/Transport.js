@@ -21,6 +21,38 @@ const statusKind = (status) =>
         422: 'Unprocessable',
         429: 'Tarpit',
     })[Number(status)] || 'Unavailable'
+/* The authority's refusal as the error a local call would have raised (impl-shop P1, F4): its kind from the status, and
+   its reason, field and text (the envelope's message) put back as "reason[field]: text", the form Shared/Portal.js reads
+   from a local refusal; an envelope without them keeps the fallback text. */
+function refused(status, envelope, fallback) {
+    const reason = /^[a-z][a-zA-Z0-9]{1,63}$/.test(String(envelope?.reason || ''))
+        ? envelope.reason
+        : null
+    const field = reason ? envelope.fieldErrors?.[0]?.field : null
+    const own = ['Unprocessable', 'Conflict'].includes(statusKind(status))
+    const text =
+        own && typeof envelope?.message === 'string' && envelope.message
+            ? envelope.message.split('\n')[0].slice(0, 300)
+            : fallback
+    fail(
+        statusKind(status),
+        (reason
+            ? reason +
+              (/^[A-Za-z][A-Za-z0-9_.]{0,63}$/.test(String(field || ''))
+                  ? '[' + field + ']'
+                  : '') +
+              ': '
+            : '') + text,
+    )
+}
+/* The JSON envelope of a REST error response, or null. */
+function envelopeOf(response) {
+    try {
+        return response.jsonObject()
+    } catch (error) {
+        return null
+    }
+}
 /* Writes a bearer link's token authorizes for a visitor who is not signed in (Mantle's PassAuthority lists the same). */
 const TOKEN_WRITES = [
     'startInvoicePayment',
@@ -40,6 +72,7 @@ const TOKEN_WRITES = [
     'rateArticle',
     'addReturnEvidence',
     'withdrawCustomerReturn',
+    // Shop P1: none yet; P4 adds the cart writes
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -219,8 +252,9 @@ const rest = {
                     parts[k] = k === 'file' ? v : String(v)
             const sent = client.multipart(parts).send()
             if (Number(sent.statusCode) < 200 || Number(sent.statusCode) >= 300)
-                fail(
-                    statusKind(sent.statusCode),
+                refused(
+                    sent.statusCode,
+                    envelopeOf(sent),
                     'The authority could not complete this request',
                 )
             return sent.jsonObject()
@@ -238,8 +272,9 @@ const rest = {
                 return rest.call(operation, input, def)
         }
         if (status < 200 || status >= 300)
-            fail(
-                statusKind(status),
+            refused(
+                status,
+                envelopeOf(response),
                 'The authority could not complete this request',
             )
         return response.jsonObject()
@@ -316,7 +351,7 @@ function grpcCall(operation, siteId, input, extra) {
 }
 /* An answer's result, or its error as the REST adapter's: the envelope's status gives the kind. */
 function answered(answer, message) {
-    if (answer.error) fail(statusKind(answer.error.status), message)
+    if (answer.error) refused(answer.error.status, answer.error, message)
     return answer.result
 }
 const grpc = (endpoint) => ({
@@ -467,4 +502,6 @@ const account = (action, input, siteId) =>
     account,
     authorityClient,
     statusKind,
+    answered,
+    refused,
 })
