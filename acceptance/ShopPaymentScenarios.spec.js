@@ -4,7 +4,10 @@
 // side of both transports): a price changed during checkout asks for review and the resubmit pays the new price; a second
 // submit answers the first order; an unknown outcome stays processing for a refreshed frontend (the reference and key
 // only) and the reconciliation job finishes it once the provider answers; a capture that fails after placement holds the
-// order, which the payment operator (PAYMENT_HOLD_RELEASE) releases. The browser walk is ShopCheckoutHttp.
+// order, which the payment operator (PAYMENT_HOLD_RELEASE) releases. Shop P9 ("Failed placement after provider
+// success"): an order changed while its payer is on the provider's page is not placed when the approved payment returns;
+// the page says the order is being finished (no confirmation) and the payment stays, until the store's resolver
+// (COMMERCE_PLACEMENT_RESOLVE) releases it and cancels the checkout. The browser walk is ShopCheckoutHttp.
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const SITE = 'ZIZI_SHOP'
@@ -28,9 +31,11 @@ function caller(remote) {
 }
 // a guest's cart of Demo Product Three-One (POPC_DEFAULT requires inventory, which the demo's physical items have), its
 // delivery address and the first delivery option, ready to pay
-function ready(call, emailAddress) {
-    const token = call('addCartItem', { productId: 'DEMO_3_1', quantity: '1' })
-        .result.token
+function ready(call, emailAddress, productId) {
+    const token = call('addCartItem', {
+        productId: productId || 'DEMO_3_1',
+        quantity: '1',
+    }).result.token
     call('beginCheckout', { token })
     call('setCheckoutContact', { token, emailAddress, name: 'Accept Guest' })
     const begun = call('getCheckout', { token }).result
@@ -261,6 +266,116 @@ feature(
             reasons.length == 1
             held == 'OrderHold'
             released != 'OrderHold'
+        },
+    },
+)
+feature(
+    'a placement refused after the provider approved keeps its payment and confirms nothing until the resolver releases it',
+    {
+        when() {
+            const call = caller(true)
+            // (Demo Product One-One: the other scenarios use up Three-One's demo stock)
+            const { token, view } = ready(
+                call,
+                'placement@shop-accept.example.test',
+                'DEMO_1_1',
+            )
+            const submitted = submit(call, token, view)
+            const reference = submitted.result.checkout.reference
+            const key = submitted.result.returnKey
+            // while the payer is on the provider's page the order changes (staff change its quantity)
+            const row = rowOf(reference)
+            const line = list('mantle.order.OrderItem', {
+                orderId: row.orderId,
+                productId: 'DEMO_1_1',
+            })[0]
+            sys('mantle.order.OrderServices.update#OrderItem', {
+                orderId: row.orderId,
+                orderItemSeqId: line.orderItemSeqId,
+                quantity: 2,
+            })
+            // the payer comes back; the provider approved the payment, the placement is refused
+            const returned = call('getCheckoutPaymentResult', {
+                reference,
+                key,
+                returned: 'true',
+            })
+            const stuck = rowOf(reference)
+            const stuckPayment = one('mantle.account.payment.Payment', {
+                paymentId: stuck.paymentId,
+            }).statusId
+            const unconfirmed = call('getOrderConfirmation', {
+                reference,
+                key,
+                token,
+            })
+            // the store's resolver gives the payment back and cancels the checkout (the acceptance's hosted test gateway
+            // releases for this feature only)
+            const T = 'mantle.account.PaymentTestServices.'
+            const gateway = { paymentGatewayConfigId: 'ZIZI_SHOP_HOSTED' }
+            const before = one(
+                'mantle.account.method.PaymentGatewayConfig',
+                gateway,
+            )
+            let resolved
+            try {
+                sys('update#mantle.account.method.PaymentGatewayConfig', {
+                    ...gateway,
+                    releaseServiceName: T + 'alwaysApprove#PaymentRelease',
+                    refundServiceName: T + 'alwaysApprove#PaymentRefund',
+                })
+                resolved = sys(
+                    'mantle.order.ShopOperationsServices.resolve#StuckPlacement',
+                    {
+                        orderId: stuck.orderId,
+                        action: 'refund',
+                        reason: 'Acceptance: the order changed after payment',
+                        operationKey: 'accept-placement-' + Date.now(),
+                    },
+                )
+            } finally {
+                sys('update#mantle.account.method.PaymentGatewayConfig', {
+                    ...gateway,
+                    releaseServiceName: before.releaseServiceName || null,
+                    refundServiceName: before.refundServiceName || null,
+                })
+            }
+            return {
+                returned,
+                stuck,
+                stuckPayment,
+                unconfirmed,
+                resolved,
+                after: rowOf(reference),
+                order: one('mantle.order.OrderHeader', {
+                    orderId: stuck.orderId,
+                }).statusId,
+                // given back: released, or (taken already) refunded
+                givenBack: list(
+                    'mantle.account.method.PaymentGatewayResponse',
+                    { paymentId: stuck.paymentId },
+                ).filter(
+                    (row) =>
+                        ['PgoRelease', 'PgoRefund'].includes(
+                            row.paymentOperationEnumId,
+                        ) && row.resultSuccess == 'Y',
+                ).length,
+                page: call('getCheckoutPaymentResult', { reference, key }),
+            }
+        },
+        then(r) {
+            r.returned.result.checkout.state == 'placementPending'
+            r.stuck.statusId == 'ScoPlacementPending'
+            r.stuck.failureCode == 'ORDER_CHANGED'
+            // the provider took the money (the hosted test page authorizes and captures)
+            r.stuckPayment == 'PmntAuthorized' ||
+                r.stuckPayment == 'PmntDelivered'
+            !r.unconfirmed.result?.confirmation?.orderId
+            r.resolved.resolved == true
+            r.after.statusId == 'ScoCancelled'
+            r.order == 'OrderCancelled'
+            r.givenBack == 1
+            r.page.result?.checkout?.state != 'completed'
         },
     },
 )

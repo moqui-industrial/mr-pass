@@ -417,3 +417,47 @@ feature('a sign-in on a site lands on its root app, else its Forum (F71)', {
         neither == '/'
     },
 })
+feature(
+    'Shop P9: a refused field is invalid, described by the alert and focused; with no field the alert takes the focus',
+    {
+        when() {
+            const c = shopCheckout()
+            const form =
+                '<form><input type="hidden" name="expectedRevision" value="3"><label>Email <input name="emailAddress" value="" type="email"></label><label>Name <input name="name" value=""></label></form>'
+            const page = (notice) =>
+                c.markInvalid(c.noticeHtml(notice) + form, notice)
+            return {
+                field: page({
+                    kind: 'error',
+                    text: 'Enter the email address for your order',
+                    field: 'emailAddress',
+                }),
+                noField: page({ kind: 'error', text: 'Reload the checkout' }),
+                elsewhere: page({
+                    kind: 'error',
+                    text: 'Choose',
+                    field: 'paymentOptionId',
+                }),
+                hidden: page({
+                    kind: 'error',
+                    text: 'Reload the checkout and try again',
+                    field: 'expectedRevision',
+                }),
+                ok: page({ kind: 'ok', text: 'Saved your contact details.' }),
+            }
+        },
+        then({ field, noField, elsewhere, hidden, ok }) {
+            field.includes('role="alert" id="ShopNotice" tabindex="-1">')
+            field.includes(
+                '<input aria-invalid="true" aria-describedby="ShopNotice" autofocus name="emailAddress"',
+            )
+            !field.includes('name="name" aria-invalid')
+            noField.includes('id="ShopNotice" tabindex="-1" autofocus>')
+            !noField.includes('aria-invalid')
+            elsewhere.includes('tabindex="-1" autofocus>')
+            hidden.includes('tabindex="-1" autofocus>')
+            !hidden.includes('aria-invalid')
+            ok.includes('role="status">') && !ok.includes('autofocus')
+        },
+    },
+)

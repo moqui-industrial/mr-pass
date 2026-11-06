@@ -1,6 +1,9 @@
 # IronStone PASS — Shop implementation
 
-Nov 5, 2026 — plan, before Shop starts. P0 partly done: F1–F34 found while writing it, F35–F36 from Customer Service's
+Nov 6, 2026 — built: P0–P9 (the app and mount, themes, catalog, cart, checkout and payment, orders and downloads, prepaid
+and recurring access, adoption and operations, and the finish: design-shop §18.1's scenarios each mapped to its tests in
+P9, the accessibility and device checks, the Deployment guide's Shop section). What remains is §7 and the open findings
+of §6 (the lead's Remaining-Work). Nov 5, 2026 — plan, before Shop starts. P0 partly done: F1–F34 found while writing it, F35–F36 from Customer Service's
 finished code (§6); design-shop brought in line with them. The open questions shared with Commerce answered, and the
 review of Nov 5 decided (impl-commerce §4; here §4). Customer Service is done; Shop is built with IronStone Commerce in
 one build order, kept in [mr-boss impl-commerce.md](../../mr-boss/plan/impl-commerce.md) §1.
@@ -163,7 +166,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | built Nov 6, 2026 |
 | P7 Prepaid and recurring access | Mantle, mr-pass, BOSS (demo) | Subscriptions, SubscriptionDetail | built Nov 6, 2026 |
 | P8 Adoption and operations | Mantle, mr-pass, BOSS (CartDetail, grant) | — (Commerce CartDetail's ResolvePlacement) | built Nov 6, 2026 |
-| P9 Finish | mr-pass | — | — |
+| P9 Finish | mr-pass, Mantle | — (the accessibility fixes in Checkout, the cart and the starter) | built Nov 6, 2026 |
 
 ### P0 — Checks
 
@@ -1866,6 +1869,89 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
   reconciliation jobs), the README's Shop lines and development checks.
 - The USL inventory's `PASS:` rows, design-shop's status, and Remaining-Work.
 
+- **Built (mr-pass, Mantle), Nov 6, 2026** (branch `shop/p9`). The inventories' `PASS:` rows are Commerce P15's and
+  Remaining-Work is the lead's (from both reports).
+  - **Design-shop §18.1 review.** Each scenario with the acceptance tests that walk it and the regression specs of its
+    rules; acceptance was added only for the two with none (Failed placement after provider success; Accessibility and
+    devices). Specs are mr-pass's unless named; "Mantle" is mr-mantle `test/`, "BOSS" mr-boss `acceptance/Commerce/`.
+
+    | Scenario | Acceptance | Rules (regression) |
+    | --- | --- | --- |
+    | Two sites/stores, one shopper, local and remote | ShopHttp, ShopRemoteHttp (each site only its store's products), ShopMount (the root Shop leaves Account, Billing, Support and the framework's paths; a remote frontend's context), ShopCartRemoteHttp (the cart local or remote) | ShopAccess, ShopCatalog, ShopCart; Mantle ShopCart (another store's or currency's cart apart), StorePublication |
+    | Anonymous browse and explicit publication | ShopHttp, ShopRemoteHttp (nothing unpublished; public caching by generation); BOSS CommerceAssortmentWalk, CommerceSitePagesWalk, CommerceFeedsWalk (a withdrawn product leaves the feed) | ShopCatalog (sitemap), ShopFeeds; Mantle ShopCatalog, StorePublication, StoreFeeds |
+    | Guest checkout and later account login | ShopCartHttp, ShopCartRemoteHttp (proven carts merge once; sign-out leaves none), ShopCheckoutHttp, ShopOrderScenarios (registering with the purchase email claims the order only verified) | ShopCart, ShopCheckout; Mantle ShopCart, ShopCustomer |
+    | Price, stock, address and promotion changes | ShopPaymentScenarios (a price change asks for review); BOSS CommercePromotionsWalk (an exhausted code refused at placement) | Mantle ShopCheckout (price review, promotion limit at the freeze), StorePromotions, StoreShippingRates |
+    | Duplicate submit, crash and callbacks | ShopPaymentScenarios (a second submit answers the first order), ShopCheckoutHttp (the same submit again), ShopOperationsScenarios (a lost answer placed by the job) | Mantle ShopCheckout, StoreFulfillment (a run stopped mid-way resumes with no second invoice), ShopOperations |
+    | Unknown provider outcome | ShopPaymentScenarios (processing across a refreshed frontend; the job reconciles) | Mantle ShopCheckout, PaymentAttemptPurpose |
+    | Mixed physical/digital purchase | ShopOrderScenarios | Mantle StoreFulfillment, ShopCheckout |
+    | Failed placement after provider success | **ShopPaymentScenarios (P9)**: an order changed while its payer is on the provider's page is not placed; the page says it is finishing, no confirmation, the payment kept, until the resolver gives it back and cancels | Mantle ShopCheckout, ShopOperations (retry or refund, R1) |
+    | Protected download | ShopOrderScenarios (only the link's file; a refund ends it) | Mantle StoreFulfillment; ShopAccount |
+    | Prepaid and recurring purchase; renewal race, failure and cancellation; multiple access sources | ShopSubscriptionScenarios, ShopSubscriptionsInCommerce | Mantle ShopSubscriptions (with F126's backstop), Subscriptions; ShopSubscriptions |
+    | Account and payment self-service | ShopOrderScenarios (a hosted card and an address; ending the card names its recurring order) | ShopAccount; Mantle ShopCustomer, AuthorizeNetGateway |
+    | Reviews and support | BOSS CommerceReviewsScenario; ShopOrderScenarios (return and question by the order link, a cancel request), ShopOrdersInCommerce, SupportPagesHttp | ShopReviews; Mantle StoreReviews, SupportPortal |
+    | One account | ShopOrderScenarios (verified sees the order, invoice and case from the hub; unverified nothing) | ShopAccount; Mantle ShopCustomer |
+    | Payment exception after placement | ShopPaymentScenarios (a failed capture holds; Accounting releases), ShopOrdersInCommerce (Commerce cannot release) | Mantle ShopCheckout, StoreOperations; StoreFulfillment (a refund revokes only its grant) |
+    | Theme visual and source edit | BOSS ThemeEditorWalk (client: drag and Alt+Down agree; a script refused) | Mantle ThemeAuthoring (required components kept) |
+    | Renderer attacks and limits | ShopThemeRelease (a looping section stops at its budget; `ec` fails validation) | Mantle ThemeReleases, ThemeAuthoring; mr-moqui's renderer tests |
+    | Preview and publication | BOSS ThemeEditorWalk (origin and nonce checked; noindex, no-store), ShopThemeRelease (a remote release checked by digest) | ShopPreview; Mantle ThemeReleases (a stale revision refused), ThemeAuthoring |
+    | Rollback and withdrawal | ShopOperationsScenarios (a withdrawn mount leaves orders; an outage serves nothing kept) | ShopThemes, ShopOperations; Mantle ThemeReleases (restore), ShopOperations |
+    | Partial failures | ShopThemeRelease (an optional section left out), ShopOperationsScenarios | Mantle StoreFeeds, DeliveryLedger, ShopSubscriptions, ShopOperations |
+    | Accessibility and devices | **ShopAccessibilityHttp (P9)**; overflow at 390 px also in ShopHttp, ShopCartHttp, ShopCheckoutHttp; no-JS discovery and the basic cart forms in ShopHttp's and ShopCartRemoteHttp's plain requests | ShopCheckout (the labelled, focused refusal) |
+
+  - **Accessibility and devices** (`acceptance/client/ShopAccessibilityHttp`, in the client suite's list): a guest at 390 px
+    buys with the keyboard alone (Tab to each control, typing, Space for a choice, Enter to send) from the product page's
+    Add to cart through the cart and each checkout step to the confirmation; the purchase island's count, the cart's
+    totals and the checkout's totals are polite live regions; an email the browser accepts and the authority refuses comes
+    back as an alert (`#ShopNotice`) the field is described by, the field `aria-invalid` and focused; nothing scrolls
+    sideways; the starter theme and the PASS shell stop animations and transitions under `prefers-reduced-motion`; a
+    signed-in shopper's account pages and ZIZI_DIGITAL's Shop pages at 390 px. Fixed where it failed:
+    - Checkout (`screen/Shop/ShopCheckout.js`): an error notice carries the refused field; `noticeHtml` gives an error
+      `id="ShopNotice" tabindex="-1"`, and `markInvalid` marks the named field `aria-invalid`, `aria-describedby` the
+      notice and `autofocus` (the notice takes the focus when the page has no such field) — no script needed.
+    - The cart's totals (`Cart.qvue` and the plain page) are a polite live region; the cart and purchase islands' notices
+      are `role="alert"` for an error, else `status`.
+    - Reduced motion: the starter's `assets/store.css` and the PASS shell (`Shared/Header.html.fancy`) stop animations and
+      transitions under `prefers-reduced-motion: reduce` (the shell had only `scroll-behavior`; theme CSS refuses the word
+      `behavior`, so the starter's rule leaves it out).
+    - The browser API has no reduced-motion emulation or script switch, so the motion check reads the stylesheets' rules
+      and no-JS stays with the plain-request walks.
+  - **F126** (Mantle `ShopFulfillment.js` `unstarted`): `fulfill#StoreItems` also takes the renewal orders
+    (StoreRenewalOccurrence) made in the last seven days that are approved, have a line Shop fulfills and no fulfillment
+    row. Spec: Mantle ShopSubscriptions +1 feature (0.06 s; fails without the change): such an order is found, its row made
+    for the contract's store and customer, and held on its declined payment, nothing granted.
+  - F66: mr-mantle `docs/Upgrading.md` "ZZW_RETAIL's public page address" (demo databases made before Shop P3).
+  - Specs (all `--nobuild`): Mantle ShopSubscriptions (14, 4.6 s), StoreFulfillment, ShopOperations: 21 of 21 (8.2 s);
+    mr-pass ShopCheckout +1 feature (4, 0.02 s for the new one), ShopCart, ShopThemes, ShopCatalog, ShopPreview, ShopAccess,
+    Portals, Forum: 36 of 36; client ShopCheckoutWalk 1 of 1. Feature time added: Mantle 0.06 s, mr-pass 0.02 s; client none.
+  - Acceptance: `ShopAccessibilityHttp` 3 of 3 (29.8 s, 0.65 s, 2.9 s); `ShopPaymentScenarios` 6 of 6 with the new feature
+    (0.56 s). Then `./moq accept mr-pass` once: server suite 41 passed, 3 ignored (RemoteFixtures, ShopRemoteFixtures: the
+    dedicated remote runtime; Scale: opt-in), 0 failed (34.6 s); client suite 44 of 44 (158 s). Afterwards a hidden field
+    named by a refusal (the revision) leaves the focus to the notice; ShopCheckout and ShopCart 8 of 8 and the client
+    ShopCheckoutWalk 1 of 1 (4.6 s) rerun.
+  - Lint: `moqui lint --screens` flags nothing in the Shop screens or the shell.
+  - Docs: mr-pass `docs/Deployment.md` "Shop app" (subscriptions, reviews, recovery and feeds; "Deploying a Shop site":
+    hosts and mounts, payments and the relays' CSP, email, media and the scanner, caches, the jobs with their schedules);
+    README's Shop paragraph, development checks and acceptance list; design-shop's status line.
+  - Decisions: the keyboard walk goes to the confirmation, but takes the pay link's address rather than tabbing to it (the
+    result page's own check may find the test payment approved first, F77); the failed-placement scenario lends the
+    acceptance's hosted test gateway a release service for the feature only (its fixture gateway has none); no-JS is
+    checked by the plain-request walks, as the browser cannot turn script off.
+  - Findings (provisional):
+    - **F-SP9-1** The client browser API has no `prefers-reduced-motion` emulation and no way to turn JavaScript off; the
+      motion check reads the CSS rules and no-JS is plain requests (framework: `reducedMotion` and `javaScriptEnabled` on
+      `newPage`).
+    - **F-SP9-2** ShopFixtures' `ZIZI_SHOP_HOSTED` test gateway has no release or refund service, so a resolver's refund on
+      an acceptance checkout answers REFUND_NOT_DONE; ShopPaymentScenarios lends one for its feature (the fixture is
+      create-once, so a fixture change reaches only new databases).
+    - **F-SP9-3** Demo stock: the server scenarios use up Demo Product Three-One on a reused acceptance database (F124's
+      kind); the new feature buys Demo Product One-One. A fixture that tops up the demo stock would end it.
+    - **F-SP9-4** Theme CSS refuses any `behavior` text, so a theme cannot write `scroll-behavior` (the validator's legacy
+      `behavior:` check matches the substring).
+    - **F-SP9-5** Only Checkout marks a refused field; the cart's and account forms' refusals (Addresses, PaymentMethods,
+      review form) show the alert without naming the field. The cart islands' quantity has no field error to mark.
+    - **F-SP9-6** The error notice takes the focus by `autofocus` after a redirect; a screen reader announces the alert
+      and lands on the field, but the theme's skip link and heading order were not audited beyond the walk.
+
 ## 4. Decisions
 
 These are made before and during the build. Each one that changes the design is also written into design-shop.md or
@@ -1972,7 +2058,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F63 | P3: Pass.xml still calls `getSiteInfo` uncached on every remote page | P8 (remote caches). Done in P8 |
 | F64 | P3: the authority price skips PriceResolver `extras` (feature extras on a virtual's price), and the low-stock threshold of 5 is fixed | P4: extras for the authority price; the threshold a store setting later |
 | F65 | P3: hreflang names only the page's own locale, since Shop URLs carry no locale | Later (localized routes) |
-| F66 | P3: existing databases keep ZZW_RETAIL's old URL and `/pcontact`; the data change reaches only new databases | Noted in mr-mantle docs/Upgrading.md at the finish |
+| F66 | P3: existing databases keep ZZW_RETAIL's old URL and `/pcontact`; the data change reaches only new databases | Noted in mr-mantle docs/Upgrading.md at the finish. Done in P9 |
 | F67 | P3 review: ProductDetail's "Ask a question" Forum link is not built; `Knowledge.js` `publicLink` refuses NO_PUBLIC_URL before trying the Support site's article page; search sends the visitor's text to the index as a query string, whose syntax the visitor controls; a category whose members are published but none public shows "No products here yet" | P4: the Ask a question link, and search text escaped (a simple query) to bound its cost; `publicLink` tries the Support site first (Customer Service's owner contract, P6); the category case kept (only its name shows) |
 | F68 | P4: TEST1 is limited to the customer CustJqp, so a guest cannot use it | The walks use TEST2 (Buy 1 Get 1 Half Off) |
 | F69 | P4: a refused nested service call marks the transition's transaction rollback-only, so the refusal came back as a 500 | `Portal.attempt({newTransaction: true})` for the cart; Billing's and Support's page writes may need it (later) |
@@ -2032,7 +2118,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F123 | P8: expired carts whose money is unresolved are re-read each run | Accepted |
 | F124 | P8: ShopOperationsScenarios cancels its order to protect the demo's stock | Accepted |
 | F125 | P8 review: a REFUND_PENDING left by a crash after the provider confirmed is finished by Refund again; one left by an unknown outcome waits for Accounting's lookup | Accepted (retry refused in both) |
-| F126 | P8 review: the fulfillment backstop (F96) finds only orders with a StoreCheckout, not a renewal order whose approval SECA never ran | P9 |
+| F126 | P8 review: the fulfillment backstop (F96) finds only orders with a StoreCheckout, not a renewal order whose approval SECA never ran | P9. Done in P9 (renewal occurrences' orders too, with a spec) |
 | F127 | P8 review: a sweep candidate still inside its form-token window counts toward the run's 200-search limit | Accepted |
 
 ## 7. Later
@@ -2057,7 +2143,8 @@ Designed, not in this build:
 - **End to end,** open the demo Shop site ZIZI_SHOP as an anonymous visitor, a guest buyer and a signed-in buyer, and
   walk each built phase's "usable when", locally and through a remote frontend with only framework, webroot and PASS
   installed; then the staff side in Commerce (impl-commerce §8).
-- **Design-shop §18.1 scenarios,** each an acceptance test (`./moq accept mr-pass`, when asked):
+- **Design-shop §18.1 scenarios,** each an acceptance test (`./moq accept mr-pass`, when asked); P9's Built note maps each
+  to the acceptance tests and regression specs that cover it:
 
 | Scenario | Phase |
 | --- | --- |

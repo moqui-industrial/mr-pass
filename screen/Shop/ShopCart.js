@@ -358,7 +358,7 @@ function cartHtml(context, cartView, notice) {
     )
     const totals = cart.totals
     parts.push(
-        '<dl class="shop-cart-totals" id="ShopCartTotals"><dt>Items</dt><dd>' +
+        '<dl class="shop-cart-totals" id="ShopCartTotals" aria-live="polite"><dt>Items</dt><dd>' +
             escapeText(totals.items.display) +
             '</dd>' +
             (totals.discounts.amount && Number(totals.discounts.amount) !== 0
