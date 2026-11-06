@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Downloads (design-shop §10 Downloads; impl-shop P6): the grants the buyer owns, or the session's order link reaches for its order (getDownloads); file streams one with a capability of ten minutes and the browser's range (issueDownload, getShopDownload). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Your downloads">
+  <transition name="file">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopAccount.js').act(shopContext,'downloadFile')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- pre-actions: run before the PASS shell renders, so a redirect leaves at once (F78) -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopAccount.js').render(shopContext,'downloads')
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

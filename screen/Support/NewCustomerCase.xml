@@ -15,6 +15,8 @@
       <script><![CDATA[
         const support=ec.resource.script('component://mr-pass/screen/Support/Support.js'),p=ec.web.parameters
         const token=support.param('token')
+        // a guest's order link admits a request about its one order (impl-shop P6, F27); its receipt stays on this page
+        const orderToken=support.orderLink(resolvedSiteId,support.param('orderId'))
         const back={path:support.base(publicPath,'submit'),params:{token,orderId:support.param('orderId'),wikiPageId:support.param('wikiPageId'),
             requestCategoryId:support.param('requestCategoryId'),requestTypeEnumId:support.param('requestTypeEnumId')}}
         // the template answers of the fields the page showed, by name (a checkbox or a multiple choice sends several)
@@ -25,12 +27,12 @@
             if(value==null || value==='')continue
             values[name]=Array.isArray(value)?value.map(String):(typeof value==='object' && value.length!=null?Array.from(value).map(String):String(value))
         }
-        const input={siteId:resolvedSiteId,token,requestName:support.param('requestName'),description:support.param('description'),
+        const input={siteId:resolvedSiteId,token,orderToken,requestName:support.param('requestName'),description:support.param('description'),
             requestCategoryId:support.param('requestCategoryId'),requestTypeEnumId:support.param('requestTypeEnumId'),
             customerPartyId:support.param('customerPartyId'),orderId:support.param('orderId'),wikiPageId:support.param('wikiPageId'),
             templateValues:JSON.stringify(values),firstName:support.param('firstName'),lastName:support.param('lastName'),
             emailAddress:support.param('emailAddress'),website:support.param('website'),file:support.file(),operationId:support.param('operationId')}
-        support.post('createCustomerCase',input,back,result=>result.requestId
+        support.post('createCustomerCase',input,back,result=>result.requestId && !orderToken
             ? {path:passBases.support+'/CustomerCase',params:{requestId:result.requestId}}
             : {path:back.path,params:{token,received:'Y'}})
     ]]></script>
@@ -42,9 +44,10 @@
       <script><![CDATA[
         const support=ec.resource.script('component://mr-pass/screen/Support/Support.js'),p=ec.web.parameters
         const orderId=support.param('orderId')
+        const orderToken=support.orderLink(resolvedSiteId,orderId)
         const lines=Object.keys(p).filter(k=>/^cancel_[A-Za-z0-9]{1,20}$/.test(k)).map(k=>{const seq=k.slice(7)
             return {orderItemSeqId:seq,quantity:support.param('quantity_'+seq)}})
-        support.post('requestOrderCancel',{siteId:resolvedSiteId,orderId,lines:JSON.stringify(lines),reason:support.param('reason'),
+        support.post('requestOrderCancel',{siteId:resolvedSiteId,orderToken,orderId,lines:JSON.stringify(lines),reason:support.param('reason'),
             consent:support.param('consent'),operationId:support.param('operationId')},{path:support.base(publicPath,'cancelOrder'),params:{orderId}})
     ]]></script>
     </actions>
@@ -57,9 +60,10 @@
         received=support.param('received')==='Y'
         flash=support.take()
         view=null;failure=null
-        if(!token && !siteInfo.authenticated)failure={kind:'AuthenticationRequired',message:'Sign in to send us a request, or use the form link we gave you.'}
+        orderToken=siteInfo.authenticated ? null : support.orderLink(resolvedSiteId,orderId)
+        if(!token && !siteInfo.authenticated && !orderToken)failure={kind:'AuthenticationRequired',message:'Sign in to send us a request, or use the form link we gave you.'}
         else{
-            const found=support.portal.attempt('getCaseIntake',{siteId:resolvedSiteId,token,orderId,wikiPageId,query})
+            const found=support.portal.attempt('getCaseIntake',{siteId:resolvedSiteId,token,orderToken,orderId,wikiPageId,query})
             if(found.error)failure=found.error.kind==='NotFound' && token?{kind:'NotFound',message:'This form is not available. The link may have expired or been replaced.'}:found.error
             else view=found.result
         }

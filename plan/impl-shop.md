@@ -160,7 +160,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | built Nov 6, 2026 |
 | P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | built Nov 6, 2026 |
 | P5 Checkout and payment | Mantle, mr-pass, BOSS (grants) | Checkout, PaymentResult, OrderConfirmation | built Nov 6, 2026 |
-| P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | — |
+| P6 Orders, account and digital delivery | Mantle, mr-pass, BOSS (grants) | AccountOverview, Addresses, PaymentMethods, Orders, OrderDetail, RequestReturn, NewCustomerCase, Downloads; Account's hub and email preferences | built Nov 6, 2026 |
 | P7 Prepaid and recurring access | Mantle, mr-pass | Subscriptions, SubscriptionDetail | — |
 | P8 Adoption and operations | Mantle, mr-pass | — | — |
 | P9 Finish | mr-pass | — | — |
@@ -1228,6 +1228,216 @@ Stage C2/S2 ends with Commerce P11.
     Service's flag applies it at once;
   - a signed-in buyer adds a payment method through the hosted setup and an address, and ending the method names the
     contracts it affects; refunding the digital item ends its download.
+
+- **Built (Mantle, mr-pass and BOSS), Nov 6, 2026** (branch `shop/p6`):
+  - P5 review's open items first (F85, F83): Accept Hosted issues no new form token once the reference has a transaction
+    (paid, declined or held; a search that cannot tell issues none), and a second approval under one reference is flagged
+    on the payment (`DUPLICATE_APPROVAL`, the other transaction ids) and holds the placed order (OhtPayment, the attempt's
+    outcome `exception`) as an amount mismatch does (AuthorizeNet.js `referenceTransactions`, `flagDuplicates`;
+    ShopCheckout.js `duplicateApproval`). The reference and key read only the checkout's state, due amount and attempt
+    (`referenceView`) and the order's reference and state (a minimal confirmation); the guest's order link is issued only to
+    the cart's own session (its capability, live or of the placed cart: `reach` names it `placedCart`); `resume#Checkout`
+    hands no cart capability to the reference. Specs: ShopCheckout +1 feature (an amount mismatch holds the order; a signed-in
+    buyer's kept card through the test gateway's hosted profile), its first feature reads the confirmation by the reference
+    (minimal, no link) and by the session (the link once); AuthorizeNetGateway +1 (a used reference gets no form; a second
+    approval is flagged).
+  - Records: `mantle.product.store.StoreItemFulfillment` (one per digital line: step SifPending, SifInvoiced, SifPaid,
+    SifCompleted, SifHeld, SifRevoked; the invoice, payment, each step's marker, tries, next try, failure) and
+    `StoreDownloadGrant` (a line's file, a PcntDownload ProductContent, its version text, recipient, store, site, dates,
+    revocation and reason SdrRefunded/SdrReturned/SdrChargeback/SdrStaff, use count) in `entity/ShopFulfillmentEntities.xml`;
+    the delivery ledger `mantle.party.MessageDelivery` (unique event, recipient, channel and template key; source, address,
+    transactional flag, consent snapshot, state MdsQueued/Sent/Retry/Failed/Suppressed/Uncertain, attempts, next attempt,
+    provider id) and `MessageDeliveryAttempt` in `entity/MessageDeliveryEntities.xml`; `data/ShopFulfillmentSetupData.xml`
+    (PsetDownloadReady, the source MdsrcShopDownloads with its build service, MESSAGE_DELIVERY_REVIEW with its ADMIN grant,
+    the jobs `fulfill_StoreItems` every five minutes and `run_MessageDeliveries` every two); `data/AccountHubSetupData.xml`
+    (purpose PcpCartReminder, list type CART_REMINDER, setting PsstCartReminderList).
+  - `mantle.product.ShopFulfillmentServices` (D, ShopFulfillment.js): `fulfill#ShopOrder` (SECA ShopOrderApprovedFulfillDigital,
+    tx-commit on the approval, only for an order with a completed StoreCheckout): rows for the plain digital lines (PtDigital,
+    no subscription resource), then capture (capture#SinglePayment with `shop-capture-{paymentId}` in a transaction holding only
+    the payment, before any invoice), invoice (`create#FulfillmentInvoice`), finalize (its InvoiceFinalized email is the
+    receipt) and check paid, `checkComplete#OrderPart` and the grants, then the download-ready notice on the ledger; each step
+    in its own transaction, a failure counted with backoff, a declined capture holding the rows (SifHeld, no grant);
+    `fulfill#StoreItems` (the job); `build#DownloadNotice` (the ledger's source: a guest's link with a new SalesOrder capability,
+    OrderView and Download, its token only in the message; suppressed once nothing is left); `get#Downloads`, `issue#Download`
+    (ten minutes, one grant's order, rate limited), `get#DownloadFile` (the capability and grant checked again, the use counted,
+    the location kept on the server, the byte range); `reconcile#RefundedItem` (a settled return's digital lines, a named or
+    cancelled line, or every digital line of an order whose payment less its refunds no longer covers them) with the SECAs
+    `PaymentRefundedReconcileAccess` (refund#OrderPayment) and `ReturnSettledReconcileAccess` (settle#Return);
+    `check#ApprovedEmail` (OrderApprovedSendEmail skips an all-digital Shop order). F22: `create#InvoiceFromSource` split
+    (Payables.js `sourceOf`, `invoiceSource`) with the internal `mantle.account.InvoiceServices.create#FulfillmentInvoice`
+    (no user permission; a sale only; `orderItemSeqIds` with their adjustments, each set of lines once by its source key).
+  - The delivery ledger (X8, CX-DELIVERY, Comms' contract): `mantle.party.MessageServices` (MessageDeliveries.js)
+    `queue#Delivery` (one per event, recipient, channel and template; kept in a transaction of its own; `sendNow`),
+    `attempt#Delivery` (the source builds the message, consent snapshotted, send#EmailTemplate, the outcome: sent, retryable
+    with backoff to five tries, permanent, else uncertain), `record#DeliveryReceipt`, `run#Deliveries` (never an uncertain one),
+    `resolve#Delivery` (MESSAGE_DELIVERY_REVIEW).
+  - `mantle.party.ShopCustomerServices` (A, ShopCustomer.js): `get#Account`, `find#Orders`, `get#Order`, `get#OrderDocument`,
+    `preview#Reorder`, `reorder#Order`, `get#Addresses`, `store#Address`, `end#Address`, `get#PaymentMethods`,
+    `begin#`/`finish#PaymentMethodSetup`, `end#PaymentMethod`, `get#AccountCard`; ownership by the self relationship or the
+    SalesOrder OrderView link, never a party id. One account: a verified account claims the store's completed guest checkouts
+    of its verified email whose guest party has no account (`merge#Parties` of the guest party, each in its own transaction).
+    The test gateway's hosted checkout also keeps a card (`store#HostedPaymentProfile`) and sets one up
+    (`begin#`/`finish#HostedMethodSetup`, a test card ending 1111); Authorize.Net's hosted profile page
+    (`get#HostedProfileForm`, `sync#CustomerProfile` by the kept reference or the party as merchantCustomerId; F40);
+    StoreCheckout.js `gatewayCapabilities` names them. Ending a card names the recurring orders it pays and needs confirming;
+    Mantle ends it once its open payments complete (`ending`).
+  - Support from Shop (F26, F27, F35; the owner contract, written into design-customer-service §8): SupportPortal.js `askers`
+    admits a SalesOrder OrderView link (`orderToken`) as the order's customer for that one order in `get#CaseIntake`,
+    `create#CustomerCase`, `get#ReturnableOrder`, `request#CustomerReturn` and `request#CustomerCancel`; a case about an order
+    carries its store (`Request.productStoreId`, impl-commerce F37) and goes to the store's checkout support queue when the mount
+    offers it; a guest's case has no filer. `get#CaseIntake` and `get#ReturnableOrder` are POSTs now (capability reads, F75).
+    The Support pages take the link from the session (Support.js `orderLink`) and keep a guest's receipt on the page.
+  - The PASS Account hub and email preferences (F6): `mantle.public.AccountHubServices` (AccountHub.js) `get#AccountHub` (a
+    card per mounted app that registers PublicApps `accountCard`: Shop's, Billing's `PortalServices.get#AccountCard`, Support's
+    `SupportCaseServices.get#AccountCard`, each in its own transaction), `get#`/`store#EmailPreferences` (a list link's token
+    through resolve#/apply#UnsubscribePreferences, the account's lists, each site store's cart reminders by
+    `store#PartyConsent` PcpCartReminder on the store's topic list), `apply#OneClickUnsubscribe`, and
+    `check#CartReminderConsent` for Commerce P10 (never a party with no account). ConsentServices `create#UnsubscribeToken`
+    links the recipient's site's `/account/EmailPreferences?token=` (a `siteId`, else a site the party belongs to that mounts
+    Account; with neither, or a `baseUrl`, `/u/` as before). Billing: the Invoice kind admits the self relationship, and
+    `find#Invoices` lists the account's own invoices beside its contacts' (R-SHP-W06).
+  - Other Mantle: F76 (`check#AvailableInventory`: a PtDigital product passes the store's inventory requirement);
+    OrderApprovedSendEmail skips an all-digital Shop order; merge#Parties moves StoreDownloadGrant, StoreItemFulfillment and
+    StoreCheckout with their party; `check#OrderPreApprove` no longer fails on a part with no address when the store turns the
+    address check off; a Shop placement gives the buyer the checkout's email as EmailBilling (the receipt's address);
+    ExternalAccess's SalesOrder links find the order's store's Shop site (F82); the confirmation's link of an order with a file
+    carries the Download scope; PassAuthority's DOWNLOADS takes `getShopDownload` with its size and range, and PassApi streams
+    it ranged (206, 416).
+  - PASS operations (Schema/Routes and the mirrors identical, `Contracts.d.ts`): `getShopAccount`, `findShopOrders`,
+    `getShopOrder`, `getShopOrderDocument`, `previewReorder`, `reorder`, `getAddresses`, `storeAddress`, `endAddress`,
+    `getPaymentMethods`, `beginPaymentMethodSetup`, `finishPaymentMethodSetup`, `endPaymentMethod`, `getDownloads`,
+    `issueDownload`, `getShopDownload` (a GET file), `getAccountHub`, `getEmailPreferences`, `storeEmailPreferences`,
+    `applyOneClickUnsubscribe`; Support's operations take `orderToken`; the reads that carry a link are POSTs, in the three
+    TOKEN_WRITES lists with the Support ones an order link admits.
+  - mr-pass pages: `screen/Shop/ShopAccount.js` with `Shop/Account.xml` (AccountOverview), `Shop/Orders.xml` (OrderList,
+    OrderDetail routed from `Orders/{orderId}` by resolve#Route, Status for an emailed link, Document, reorder), `Downloads.xml`
+    (file: a new capability then `Facade.downloadRanged` with the browser's range), `Addresses.xml`, `PaymentMethods.xml`
+    (add, return, end) and `MethodRelay.xml` (Headers.js: its CSP alone, with PaymentRelay's, adds Authorize.Net's form-action);
+    each through the active release's checkout page kind or the PASS shell; `Account/Home.xml` and `Account/EmailPreferences.xml`
+    (Account/Hub.js); the header's My account and Your purchases links; the Support pages' guest order link; the minimal
+    confirmation (F85).
+  - BOSS: design-customer-service §8 records the owner contract; no new grant (MESSAGE_DELIVERY_REVIEW waits for a
+    store-scoped review view, F-SP6-6).
+  - Specs: Mantle `test/product/StoreFulfillment` (4 features, 2.6 s alone, 3.1 s in the full run: captured, invoiced, receipted and granted once with the
+    notice and no approved email, the notice's link and the session's link downloading only that file with a range, an
+    OrderView-only link refused; a declined capture granting nothing and holding the order, a run stopped between the
+    invoice and the grant resumed by the job with no second invoice; a refund and a return ending their grants and a cached
+    download capability, another order's grant kept; F76's physical default), `test/party/ShopCustomer` (4 features, 1.2 s (1.5 s in the full run): own
+    orders by the link and the verified account, another refused alike, unverified none, the claim and the Billing invoice;
+    reorder at today's price, addresses owned and at their revision; the hosted card setup once and the card's recurring order
+    named; the store's cart reminders, a guest never, a list link to the site's page), `test/party/DeliveryLedger` (3 features,
+    0.1 s), `test/request/SupportPortal` +1 (a case, return and cancel request by the order link, another order refused, no link
+    no order; 0.5 s), ShopCheckout +1 (7 features), AuthorizeNetGateway +2 (19: the used reference and second approval; the hosted profile
+    page's token and its sync keeping each new card once). mr-pass `test/Shop/ShopAccount` (3 features,
+    0.4 s: an order link's one order locally and remotely, the Status page keeping it, the order page's one render with its
+    Support and download links and no token, a remote download's range; the hub's one render with the Shop and Billing cards and
+    the email preferences' cart reminders; the POSTs, the three lists and the relays' CSP); ShopCheckout (P5) reads the
+    confirmation by the session. Also run, all pass: Mantle AccountingPortals, Consent, ShopCart, PaymentAttemptPurpose,
+    OrderToCashBasicFlow, ReturnToResponseBasicFlow, Subscriptions, PassAuthority, AccountingPayables, AccountingMatching,
+    AccountingBudgets, StoreCheckout, StoreAdmin, SitePages, Contacts, PartyServices, ContactBooks, PaymentGateway,
+    GatewayContracts, AccountingPaymentGateway, ShopCatalog, OrderChanges, RestApiTests, AssetReservationMultipleThreads
+    (259 features); mr-pass ShopCheckout, ShopCart, ShopAccess, Forum, SupportAccess, Portals, Transport.
+    `./moq test-apps`: the server suites 3222 of 3222 passed (mr-mantle 387.6 s of 370, mr-boss 289.2 of 264, mr-pass 19.6 of
+    17, each over and under 1.5 times; the run shared the machine with other spec runs, and mr-boss, which this phase barely
+    touched, rose 37 s on the same code, so the shares are noisy: P6's own Mantle specs add about 6 s, mr-pass's 0.5 s);
+    the client suites 17 of 17 passed (mr-pass 8.4 s of 6, as P5's F84; P6 adds no client spec).
+  - Acceptance: `acceptance/ShopOrderScenarios` (4 features, on ZIZI_SHOP: the mixed purchase approved, its digital line
+    captured, invoiced, receipted and downloaded by the notice's link only, the physical part shipped on its own invoice; a
+    return request and a question by the order link and a cancel request of another order; the registered guest verified sees
+    the order, the invoice and the case from the hub, unverified nothing; a buyer's hosted card setup and address, the card's
+    recurring order named, a refund ending the download). `./moq accept mr-pass` once: server suite 24 passed, 3 ignored, 0
+    failed; client suite 41 passed (ShopPaymentScenarios now reads its confirmation by the session, F85).
+  - Lint: `moqui lint --screens` 132 sites as before, none in the Shop, Account or Support files.
+  - Docs: mr-pass Deployment.md "Orders, account and downloads"; design-shop §4.2, §8.3, §9 (the checkout return), §10.
+  - Decisions: capture before the invoice (no provider asked while the invoice or order is held), a mixed order's hosted
+    authorization captured whole at the digital step and the physical invoice applying the rest; a verified account claims
+    the guest purchases of its email by merge#Parties (the account's verification is the proof); the session's order link of
+    an order with a file carries Download; a second approval under one reference holds the placed order as a mismatch does;
+    the ledger is CX-DELIVERY's `MessageDelivery` with `MessageServices` (crosscut's names) and a source's build service makes
+    a link's token fresh per attempt (no secret stored); the cart reminders topic is a contact list per store named by a store
+    setting; Billing's Invoice kind admits the self relationship; the test gateway's hosted gateways keep and set up a test card.
+  - Findings (provisional):
+    - **F-SP6-1** Mantle's `check#OrderPreApprove` holds a new customer's order and a part with no address for staff, so a
+      Shop guest's first order (digital too) waits for approval unless the store turns those checks off (`PsstOrdApproveNewCust`,
+      `PsstOrdApproveAddrMissing`); design-shop §8.3 says an all-digital order's approval follows its payment. For Commerce (a
+      store default for digital-only orders) or Sales.
+    - **F-SP6-2** `refund#OrderPayment` refunds only an unapplied amount, so a fulfilled digital line's refund comes through a
+      return's settlement (ReturnSettledReconcileAccess) or Accounting's chargeback intake (§7); PaymentRefundedReconcileAccess
+      covers an unapplied payment's refund.
+    - **F-SP6-3** The framework's resource stream reads whole (`readAllBytes` only), so a ranged download reads the file to cut
+      the range, locally and in PassApi; over gRPC the host's `passAuthority.download` streams the whole file without the
+      range. Framework: a partial read and a ranged gRPC download.
+    - **F-SP6-4** A mixed order's money for its physical part is taken at the digital step (one capture of a hosted
+      authorization), not at shipment; design-shop §8.2's separate payments per policy group need two provider pages, or a
+      provider's partial capture. For the lead.
+    - **F-SP6-5** `send#InvoiceStoreEmail` sends to EmailBilling only; Shop now gives the buyer the checkout's email as
+      EmailBilling at placement, so its invoices' receipts reach the buyer.
+    - **F-SP6-6** `resolve#Delivery` has no store scope, so BOSS grants MESSAGE_DELIVERY_REVIEW to no Commerce group yet; with
+      Commerce P8's exceptions (or Comms), a store-scoped review.
+    - **F-SP6-7** `getShopDownload` is a GET (the transports' downloads), so its ten-minute capability for one order is in the
+      frontend's request to the authority, not in any browser URL.
+    - **F-SP6-8** A guest's case or return filed by the order link reads nothing until the guest signs in verified (the claim
+      then makes it the account's); the receipt stays on the page.
+    - **F-SP6-9** design-shop §9's reorder of subscription lines and the PaymentMethods' replacement before switching are P7's
+      (no recurring contract yet; ending a card names recurring orders only).
+- **Review Nov 6 (P6)** (Mantle, mr-pass, mr-boss; branch `shop/p6`). Checked: F85/F83 (Accept Hosted issues no form
+  token once the reference has any transaction, none when the search cannot tell; a second approval is flagged once on the
+  payment and holds the placed order with the attempt `exception`; `reach`'s `reference` reads only `referenceView` and
+  the minimal confirmation, `placedCart` only when the session's own placed cart names the same checkout, the order link
+  issued only to `cart`/`placedCart`, `resume#Checkout` hands out no cart token; `submit#Checkout`'s replay is P5's);
+  fulfillment (capture under the payment's lock with `shop-capture-{paymentId}` before any invoice, the invoice, finalize,
+  complete and grant steps each `requireNewTransaction` over `forUpdate` rows, so a retry or a second run re-reads the
+  markers; `create#FulfillmentInvoice` refusing a second invoice of the same lines by its source key; `create#InvoiceFromSource`
+  unchanged for its callers; a declined capture holding the rows; the job's per-order failure tolerance); the mixed order
+  (F-SP6-4): the digital invoice is marked `forInvoiceId` and takes its share, and the shipment invoice's
+  `apply#OrderPaymentsToInvoice` applies the payment's unapplied rest with no capture of a delivered payment, so nothing is
+  captured twice (read for an authorization; ZIZI's hosted gateway charges at once, and ShopOrderScenarios now asserts at
+  most one capture, both invoices paid and nothing left unapplied); refunds (the SECAs, a return's lines, a payment no longer
+  covering the digital lines; another order's grant kept); downloads (a ten-minute SalesOrder Download capability of the
+  grant's order, the grant and fulfillment checked again on the file, the location and token kept off any browser URL: the
+  PASS page issues and streams in one request); the Support owner contract (`askers` checks the OrderView link with the
+  mount's organization and pins every request to its one order; the case's store; the POSTs and their callers in PASS's
+  pages, Routes/Schema and their Mantle mirrors identical, the three TOKEN_WRITES lists); Billing's self relationship; the
+  delivery ledger (the unique event key, the consent snapshot, an uncertain send never picked by the job, each attempt its
+  own transaction); F76's default, `check#OrderPreApprove`, OrderApprovedSendEmail. Fixes:
+  - R1 (high) The one-account claim merged any party named by a completed guest checkout of the email whose cart's
+    `guestPartyId` matched and that had no user account; but `merge#Parties` moves `StoreCartAccess.guestPartyId` and
+    `StoreCheckout.customerPartyId`, so once staff merged a guest into another party of the organization (a customer of its
+    own, a supplier's contact sharing the address), that whole party was merged into the verified account by email. The
+    claim now takes only a party that is still the anonymous guest of exactly that one cart (its only cart, no account, no
+    relationship, no role but Customer, no order but the cart's) (ShopCustomer.js `anonymousGuest`; ShopCustomer's first
+    feature: a guest purchase merged into a supplier's party stays unclaimed, which failed before). The claim's query also
+    filters by the (lower-case) email instead of reading every guest checkout of the store on each account page.
+  - R2 (medium) Any signed-in account could turn a store's cart reminders on, so Commerce P10's recovery would mail an
+    address the account never verified; turning one on now needs the account's current email verified (VERIFY_REQUIRED;
+    turning off never does) (AccountHub.js `emailVerified`; ShopCustomer's cart reminders feature +1 check).
+  - R3 (low) ShopOrderScenarios' mixed purchase asserted two invoices only; it now asserts the payment captured at most
+    once, both invoices paid and none of the payment left unapplied (F-SP6-4).
+  Specs (all `--nobuild`): Mantle ShopCustomer, StoreFulfillment, DeliveryLedger, SupportPortal, ShopCheckout,
+  AuthorizeNetGateway 46 of 46 (10.8 s of features); OrderToCashBasicFlow, ReturnToResponseBasicFlow, AccountingPortals,
+  Consent 89 of 89; mr-boss CustomerServiceChannels, CustomerServiceReturns, CustomerServiceOrderChanges,
+  CustomerServiceCases, Unsubscribe, Consent 37 of 37; mr-pass ShopAccount, ShopAccess, ShopCheckout, SupportAccess 13 of 13;
+  acceptance ShopFixtures with ShopOrderScenarios 7 of 7 (ShopOrderScenarios needs ShopFixtures' guide when run alone).
+  The Built note is accurate otherwise.
+  For the lead:
+  - A second approval that lands after the first was confirmed (a second page opened before the first paid, paid after
+    the lookup) is never looked for: `flagDuplicates` runs only on the lookup that finds the approval. A sweep of recently
+    completed hosted checkouts' references (or the webhook naming a second transaction of a known reference) would catch it.
+  - The SECA is the only start of fulfillment: an approval whose tx-commit SECA never ran (a crash between the commit and
+    it) leaves no StoreItemFulfillment row for the job to find. The job could also look for approved Shop orders with
+    digital lines and no rows.
+  - Authorize.Net's customer profile is the party's by `merchantCustomerId` = partyId, and E00039 adopts an existing one
+    (P5's pattern); `sync#CustomerProfile` now imports every card of a profile it found that way. On a gateway account
+    shared with another system or a reloaded database reusing party ids, that is another person's cards; consider a
+    namespaced merchantCustomerId, or importing only from a profile this instance made.
+  - `issue#Download`'s ten-minute capability is a Download capability of the whole order, so it also passes
+    `get#Downloads`/`issue#Download` as an `orderToken` and can mint the next one; it never reaches a browser, and its holder
+    already reaches that order's files, but a scope of its own (a file capability) would end the chain.
+  - After a claim, the guest's emailed order and download links stop working (the capability's party is the merged guest);
+    the account reaches them signed in. Intended by the design's one account, but the notice's text says the link lasts.
+  - `StoreCheckout.contactEmail` has no index; the claim's query by store, status and email scans the store's checkouts.
+  - An attempt that hands a message to the mail server and then fails to commit its record leaves the delivery queued, so
+    the job sends it again (a narrow window; ForumDelivery's as well).
 
 ### P7 — Prepaid and recurring access
 

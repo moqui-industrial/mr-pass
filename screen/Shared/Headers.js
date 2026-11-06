@@ -30,7 +30,8 @@ const ROUTES = [
     // page (production and sandbox); only this route's form-action allows them, and it stays no-store
     {
         app: 'shop',
-        path: /^\/PaymentRelay\/?$/,
+        // Shop P6 (F40): the hosted profile page's relay for a card kept outside a checkout
+        path: /^\/(?:PaymentRelay|MethodRelay)\/?$/,
         formAction: [
             'https://accept.authorize.net',
             'https://test.authorize.net',

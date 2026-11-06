@@ -304,9 +304,16 @@ feature(
                             key,
                         })
                     })(),
+                    // Shop P6 (F85): the reference and key alone read the order's state, and no order link; the cart's
+                    // own session (its placed cart's capability) the confirmation and the link
+                    byReference: remote('getOrderConfirmation', {
+                        reference,
+                        key,
+                    }),
                     confirmation: remote('getOrderConfirmation', {
                         reference,
                         key,
+                        token,
                     }),
                     noKey: remote('getCheckoutPaymentResult', { reference }),
                 }
@@ -341,6 +348,8 @@ feature(
                 'https://' + HOST + '/shop/Checkout/return?ref=',
             )
             r.returned.result.checkout.state == 'completed'
+            r.byReference.result.confirmation.minimal == true
+            !r.byReference.result.orderToken
             r.confirmation.result.confirmation.totals.total.amount == '20.00'
             r.confirmation.result.orderToken.length == 48
             r.noKey.kind == 'NotFound'

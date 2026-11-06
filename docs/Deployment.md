@@ -270,6 +270,22 @@ return key and a guest's order link in its server session, never in a page or UR
 capability and are POSTs (`getCart` too), so no capability travels as a query parameter between a frontend and the
 authority. A sign-in with no return path lands on the site's root app (Forum or Shop at `/`).
 
+**Orders, account and downloads** (impl-shop P6; design-shop §9, §10). A signed-in buyer whose email is verified has
+`/Account` (the store's purchases), `/Orders`, `/Orders/{orderId}`, `/Addresses`, `/PaymentMethods` and `/Downloads`; a
+guest reaches the order of the session's order link (kept from the confirmation), or of an emailed link
+`/Orders/Status?token=`, which the frontend keeps in its session and drops from the address. The order page links the
+site's own Support pages with the order (Request a return, Ask a question, Request cancellation), so a Shop site needs a
+Support mount targeting the store's organization (Commerce's readiness requires it). A download (`/Downloads/file?grant=`)
+issues a capability of ten minutes and streams the file at once with the browser's byte range; through a remote frontend
+over REST the authority answers the range (206) itself. Cards are added on the store's gateway's hosted profile page:
+for Authorize.Net through `MethodRelay`, whose CSP alone (with `PaymentRelay`) adds Authorize.Net's form-action. A Shop
+order's digital lines are fulfilled once it is approved (POPC_DEFAULT's staff approve a new customer's order; a store can
+turn Mantle's approval checks off with its `PsstOrdApprove*` settings): give the store a `PsetDownloadReady` store email
+for the download notice and a `PsetInvoiceFinalized` one for the receipt; the `fulfill_StoreItems` and
+`run_MessageDeliveries` jobs resume what a crash or a mail outage left. The PASS Account hub is `/account/Home`, the email
+preferences page `/account/EmailPreferences` (a list link's token, its one-click POST at `EmailPreferences/oneClick`, and
+each store's cart reminders).
+
 **Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
 `mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published
 release Shop's pages are the release's own documents instead of the PASS shell, and its assets are served under the

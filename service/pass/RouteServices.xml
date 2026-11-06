@@ -42,6 +42,10 @@
                     // P3: the id and the slug as screen parameters (F47); the page redirects an old slug after its access check
                     if(parts[0]==='products'){screenPath='/Shop/Products/ProductDetail';screenParameters={productId:parts[1],productSlug:parts[2] || ''}}
                     else{screenPath='/Shop/Categories/CategoryDetail';screenParameters={productCategoryId:parts[1],categorySlug:parts[2] || ''}}}
+            }else if(mounted.app==='shop' && parts[0]==='Orders' && parts.length===2 && !['OrderList','OrderDetail','Status','Document','reorder'].includes(parts[1])){
+                // P6 (F82): an order's page, Orders/{orderId}; the page checks the buyer or the session's order link
+                if(!/^[A-Za-z0-9_-]{1,40}$/.test(parts[1]))fail()
+                screenPath='/Shop/Orders/OrderDetail';screenParameters={orderId:parts[1]}
             }else if(mounted.app==='shop' && parts.length===1 && ['robots.txt','sitemap.xml'].includes(parts[0])){
                 // P3: the Shop's robots and sitemap (design-shop §11: only current public pages)
                 screenPath=parts[0]==='robots.txt'?'/Shop/robots':'/Shop/sitemap'

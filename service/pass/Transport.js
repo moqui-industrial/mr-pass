@@ -98,6 +98,20 @@ const TOKEN_WRITES = [
     'getCheckoutPaymentResult',
     'getCheckoutPaymentForm',
     'getOrderConfirmation',
+    // Shop P6: reads and writes a guest's order link (orderToken) or a list link's token (email preferences) authorizes,
+    // and the Support operations an order link admits (F27); the Support reads with a capability are POSTs (F75)
+    'findShopOrders',
+    'getShopOrder',
+    'getShopOrderDocument',
+    'getDownloads',
+    'issueDownload',
+    'getEmailPreferences',
+    'storeEmailPreferences',
+    'applyOneClickUnsubscribe',
+    'getCaseIntake',
+    'getReturnableOrder',
+    'requestCustomerReturn',
+    'requestOrderCancel',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
