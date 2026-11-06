@@ -1317,7 +1317,7 @@ Stage C2/S2 ends with Commerce P11.
     (Account/Hub.js); the header's My account and Your purchases links; the Support pages' guest order link; the minimal
     confirmation (F85).
   - BOSS: design-customer-service §8 records the owner contract; no new grant (MESSAGE_DELIVERY_REVIEW waits for a
-    store-scoped review view, F-SP6-6).
+    store-scoped review view, F91).
   - Specs: Mantle `test/product/StoreFulfillment` (4 features, 2.6 s alone, 3.1 s in the full run: captured, invoiced, receipted and granted once with the
     notice and no approved email, the notice's link and the session's link downloading only that file with a range, an
     OrderView-only link refused; a declined capture granting nothing and holding the order, a run stopped between the
@@ -1356,29 +1356,29 @@ Stage C2/S2 ends with Commerce P11.
     the ledger is CX-DELIVERY's `MessageDelivery` with `MessageServices` (crosscut's names) and a source's build service makes
     a link's token fresh per attempt (no secret stored); the cart reminders topic is a contact list per store named by a store
     setting; Billing's Invoice kind admits the self relationship; the test gateway's hosted gateways keep and set up a test card.
-  - Findings (provisional):
-    - **F-SP6-1** Mantle's `check#OrderPreApprove` holds a new customer's order and a part with no address for staff, so a
+  - Findings (F86–F94 in §6):
+    - **F86** Mantle's `check#OrderPreApprove` holds a new customer's order and a part with no address for staff, so a
       Shop guest's first order (digital too) waits for approval unless the store turns those checks off (`PsstOrdApproveNewCust`,
       `PsstOrdApproveAddrMissing`); design-shop §8.3 says an all-digital order's approval follows its payment. For Commerce (a
       store default for digital-only orders) or Sales.
-    - **F-SP6-2** `refund#OrderPayment` refunds only an unapplied amount, so a fulfilled digital line's refund comes through a
+    - **F87** `refund#OrderPayment` refunds only an unapplied amount, so a fulfilled digital line's refund comes through a
       return's settlement (ReturnSettledReconcileAccess) or Accounting's chargeback intake (§7); PaymentRefundedReconcileAccess
       covers an unapplied payment's refund.
-    - **F-SP6-3** The framework's resource stream reads whole (`readAllBytes` only), so a ranged download reads the file to cut
+    - **F88** The framework's resource stream reads whole (`readAllBytes` only), so a ranged download reads the file to cut
       the range, locally and in PassApi; over gRPC the host's `passAuthority.download` streams the whole file without the
       range. Framework: a partial read and a ranged gRPC download.
-    - **F-SP6-4** A mixed order's money for its physical part is taken at the digital step (one capture of a hosted
+    - **F89** A mixed order's money for its physical part is taken at the digital step (one capture of a hosted
       authorization), not at shipment; design-shop §8.2's separate payments per policy group need two provider pages, or a
       provider's partial capture. For the lead.
-    - **F-SP6-5** `send#InvoiceStoreEmail` sends to EmailBilling only; Shop now gives the buyer the checkout's email as
+    - **F90** `send#InvoiceStoreEmail` sends to EmailBilling only; Shop now gives the buyer the checkout's email as
       EmailBilling at placement, so its invoices' receipts reach the buyer.
-    - **F-SP6-6** `resolve#Delivery` has no store scope, so BOSS grants MESSAGE_DELIVERY_REVIEW to no Commerce group yet; with
+    - **F91** `resolve#Delivery` has no store scope, so BOSS grants MESSAGE_DELIVERY_REVIEW to no Commerce group yet; with
       Commerce P8's exceptions (or Comms), a store-scoped review.
-    - **F-SP6-7** `getShopDownload` is a GET (the transports' downloads), so its ten-minute capability for one order is in the
+    - **F92** `getShopDownload` is a GET (the transports' downloads), so its ten-minute capability for one order is in the
       frontend's request to the authority, not in any browser URL.
-    - **F-SP6-8** A guest's case or return filed by the order link reads nothing until the guest signs in verified (the claim
+    - **F93** A guest's case or return filed by the order link reads nothing until the guest signs in verified (the claim
       then makes it the account's); the receipt stays on the page.
-    - **F-SP6-9** design-shop §9's reorder of subscription lines and the PaymentMethods' replacement before switching are P7's
+    - **F94** design-shop §9's reorder of subscription lines and the PaymentMethods' replacement before switching are P7's
       (no recurring contract yet; ending a card names recurring orders only).
 - **Review Nov 6 (P6)** (Mantle, mr-pass, mr-boss; branch `shop/p6`). Checked: F85/F83 (Accept Hosted issues no form
   token once the reference has any transaction, none when the search cannot tell; a second approval is flagged once on the
@@ -1389,7 +1389,7 @@ Stage C2/S2 ends with Commerce P11.
   complete and grant steps each `requireNewTransaction` over `forUpdate` rows, so a retry or a second run re-reads the
   markers; `create#FulfillmentInvoice` refusing a second invoice of the same lines by its source key; `create#InvoiceFromSource`
   unchanged for its callers; a declined capture holding the rows; the job's per-order failure tolerance); the mixed order
-  (F-SP6-4): the digital invoice is marked `forInvoiceId` and takes its share, and the shipment invoice's
+  (F89): the digital invoice is marked `forInvoiceId` and takes its share, and the shipment invoice's
   `apply#OrderPaymentsToInvoice` applies the payment's unapplied rest with no capture of a delivered payment, so nothing is
   captured twice (read for an authorization; ZIZI's hosted gateway charges at once, and ShopOrderScenarios now asserts at
   most one capture, both invoices paid and nothing left unapplied); refunds (the SECAs, a return's lines, a payment no longer
@@ -1412,7 +1412,7 @@ Stage C2/S2 ends with Commerce P11.
     address the account never verified; turning one on now needs the account's current email verified (VERIFY_REQUIRED;
     turning off never does) (AccountHub.js `emailVerified`; ShopCustomer's cart reminders feature +1 check).
   - R3 (low) ShopOrderScenarios' mixed purchase asserted two invoices only; it now asserts the payment captured at most
-    once, both invoices paid and none of the payment left unapplied (F-SP6-4).
+    once, both invoices paid and none of the payment left unapplied (F89).
   Specs (all `--nobuild`): Mantle ShopCustomer, StoreFulfillment, DeliveryLedger, SupportPortal, ShopCheckout,
   AuthorizeNetGateway 46 of 46 (10.8 s of features); OrderToCashBasicFlow, ReturnToResponseBasicFlow, AccountingPortals,
   Consent 89 of 89; mr-boss CustomerServiceChannels, CustomerServiceReturns, CustomerServiceOrderChanges,
@@ -1637,6 +1637,22 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F83 | P5: no spec covers the address correction, the saved card or an amount mismatch | P6 adds the amount mismatch and saved card cases |
 | F84 | P5: ShopCheckoutWalk's client time puts mr-pass's client budget over | Raised at the next quiet suite run by the measured share (the user's agreement) |
 | F85 | P5 review: two hosted pages open at once (two tabs' relays) can each take a payment under one reference and the lookup finds one; the return URL's reference and key (known to the provider, kept in history) read the checkout for a day, issue the guest's order link to whoever reads the confirmation first, and after a decline hand over a new cart capability; a declined hosted payment shows pending for the 15-minute window; a placement refused ORDER_CHANGED or past its tries stays placementPending with an approved payment; an amount mismatch is placed and held (OhtPayment) | P6: refuse a new form token once the reference has a transaction and flag a reference with more than one approval; issue the order link only to the cart's session; drop the cart hand-over from the reference path. The held mismatch is design-shop §8.2's exception (accepted); the pending window is accepted; Commerce P8 lists stuck placements |
+| F86 | P6: Mantle's `check#OrderPreApprove` holds a new customer's order and a part with no address, so a Shop guest's first order (digital too) waits for approval unless the store turns those checks off | Commerce (a store default for digital-only orders) or Sales |
+| F87 | P6: `refund#OrderPayment` refunds only an unapplied amount, so a fulfilled digital line's refund comes through a return's settlement or Accounting's chargeback intake | Accepted; the reconcile SECAs cover both |
+| F88 | P6: resource streams read whole, so a ranged download reads the file to cut the range; over gRPC the download ignores the range | Framework: a partial read and a ranged gRPC download |
+| F89 | P6: a mixed order's physical part is captured at the digital step (one capture of the hosted authorization; Authorize.Net captures an authorization once) | For the user's confirmation; two provider pages or a partial capture otherwise |
+| F90 | P6: `send#InvoiceStoreEmail` sends to EmailBilling only | Shop gives the buyer the checkout's email as EmailBilling at placement |
+| F91 | P6: `resolve#Delivery` has no store scope, so no Commerce group has MESSAGE_DELIVERY_REVIEW | Commerce P8 (a store-scoped review) |
+| F92 | P6: `getShopDownload` is a GET, so the ten-minute capability is in the frontend-to-authority query, never a browser URL | Accepted |
+| F93 | P6: a guest's case or return filed by the order link reads nothing until the guest signs in verified | Accepted; the receipt stays on the page |
+| F94 | P6: subscription reorder and the card replacement before switching | P7 |
+| F95 | P6 review: a second approval landing after the first was confirmed is never flagged (`flagDuplicates` runs only on the lookup that finds the approval) | P8 (operations): a sweep of recent hosted references or the webhook |
+| F96 | P6 review: fulfillment starts only from the approval SECA, so a crash between the commit and it leaves no StoreItemFulfillment row | P8 (operations): the job also finds approved Shop orders with digital lines and no rows |
+| F97 | P6 review: Authorize.Net's customer profile is found by `merchantCustomerId` = partyId and adopted on E00039; `sync#CustomerProfile` imports every card of such a profile, another person's on a shared gateway account or a reloaded database | P8: a namespaced customer id, or import only from profiles this instance created |
+| F98 | P6 review: the ten-minute download capability covers the order, so it can mint the next one | Accepted (never reaches a browser); a scope of its own later |
+| F99 | P6 review: the emailed guest order and download links stop working once the guest is claimed into an account | P8: the notice's wording, or the claim keeps the links |
+| F100 | P6 review: no index on `StoreCheckout.contactEmail` for the claim's query | P8 |
+| F101 | P6 review: an attempt that hands a message to the mail server and then fails to commit sends it again (ForumDelivery has the same window) | Accepted |
 
 ## 7. Later
 
