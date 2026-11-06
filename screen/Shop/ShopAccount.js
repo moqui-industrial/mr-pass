@@ -912,4 +912,17 @@ const pages = {
         return pages[name](context)
     },
     orderHtml,
+    // Commerce P9 (Shop/ShopReviews.js): the account pages' helpers
+    helpers: {
+        esc,
+        param,
+        hidden,
+        formToken,
+        notify,
+        takeNotice,
+        attempt,
+        page,
+        signIn,
+        back,
+    },
 })

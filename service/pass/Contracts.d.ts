@@ -1172,6 +1172,11 @@ export interface OperationInputs {
     getEmailPreferences: { siteId: string; token?: string }
     storeEmailPreferences: { siteId: string; token?: string; choices: string }
     applyOneClickUnsubscribe: { siteId: string; token: string }
+    /** Commerce P9: a product's approved reviews (and the signed-in author's own); a signed-in verified buyer's review or
+     * edit (its proof found by the authority, never sent), one photo a call; an approved review's image by its digest */
+    getProductReviews: { siteId: string; productId: string; cursor?: string; limit?: string }
+    submitProductReview: { siteId: string; productId: string; productReviewId?: string; expectedRevision?: string; rating: string; body: string; displayChoice?: 'name' | 'anonymous'; removeImageSeqIds?: string; file?: unknown }
+    getShopReviewImage: { siteId: string; reviewImage: string }
 }
 /** Shop P6: a decimal amount with its display text */
 export type Money = { amount: string; currencyUomId: string; display: string }
