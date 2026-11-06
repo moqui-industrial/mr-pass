@@ -109,7 +109,8 @@ names any trusted Vue component it embeds (ProductDetail's purchase selection, C
 PaymentResult, PaymentMethods, SubscriptionDetail). Public screen paths use `PASS:` in
 inventories. No staff editor is a Shop screen. A simple review/address/payment dialog is a form on
 its parent, not another route. Customer Service's Support pages RequestReturn and NewCustomerCase
-are mounted inside Shop with order context (§9, X7); the PASS Account pages are reused.
+are linked from Shop's order pages with the order, on the site's Support mount (§9, X7; Nov 5); the
+PASS Account pages are reused.
 
 | Screen | Path | Archetype | Impl | Purpose | Main record | Reused | Roles | Scope/stage | Context |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -128,8 +129,8 @@ are mounted inside Shop with order context (§9, X7); the PASS Account pages are
 | PaymentMethods | PASS:Shop/Account/PaymentMethods | settings | xml | Manage tokenized methods | PaymentMethod | own safe projection | self | new S2 | self/provider |
 | Orders | PASS:Shop/Orders | list | xml | Find own purchases | OrderHeader | own public view | self | new S2 | filters |
 | OrderDetail | PASS:Shop/Orders/OrderDetail | detail | xml | Follow fulfillment and request help | safe order/shipments projection | own public view | self/order capability | new S2 | order |
-| RequestReturn | PASS:Shop/Orders/RequestReturn | wizard | xml | Ask to return eligible goods of this order | ReturnHeader | Customer Service Support RequestReturn (Customer Service §8) | self/order capability | new S2 | order, items |
-| NewCustomerCase | PASS:Shop/Orders/NewCustomerCase | wizard | xml | Ask privately about a purchase, or ask to cancel it (its OrderCancelRequest) | Request (case) | Customer Service Support NewCustomerCase (Customer Service §8) | self/order capability | new S2 | order, store queue |
+| RequestReturn | PASS:Support/RequestReturn, linked from OrderDetail (Nov 5) | wizard | xml | Ask to return eligible goods of this order | ReturnHeader | Customer Service Support RequestReturn (Customer Service §8) | self/order capability | new S2 | order, items |
+| NewCustomerCase | PASS:Support/NewCustomerCase, linked from OrderDetail (Nov 5) | wizard | xml | Ask privately about a purchase, or ask to cancel it (its `cancelOrder`) | Request (case) | Customer Service Support NewCustomerCase (Customer Service §8) | self/order capability | new S2 | order, store queue |
 | Downloads | PASS:Shop/Downloads | list | xml | Retrieve entitled digital content | proposed StoreDownloadGrant | existing protected media primitives | self/delivery capability | new S2 | order item/grant |
 | Subscriptions | PASS:Shop/Subscriptions | list | xml | Inspect paid/recurring access | Subscription + StoreRecurringContract | own over Mantle | verified self | new S3 | self |
 | SubscriptionDetail | PASS:Shop/Subscriptions/SubscriptionDetail | detail | xml | Renew/manage billing and cancellation | recurring contract projection | own | verified self | new S3 | contract |
@@ -286,13 +287,17 @@ SHOP-ACCOUNT, SHOP-CART.
 Sites and Shop mounts start disabled/unpublished. Readiness checks canonical host/mount,
 organization/store, explicit assortment, active compatible theme, mandatory pages/terms,
 locale/currency, payment capability, applicable shipping/tax policy, digital/recurring
-fulfillment handlers and the store's support queue. A browse-only release is permitted but must
+fulfillment handlers, the store's support queue and, for purchase, a Support mount on the site
+targeting the store's organization (§9). A browse-only release is permitted but must
 not advertise purchase. Turning on checkout requires its independent readiness check, and
 recurring offers require the off-session capability of §8.1. When the store sells paid access
-for the site, readiness sets `PublicSite.subscriptionUrl` to the Shop Subscriptions route, so
-Forum's "Manage your subscription" link opens Shop (R-SHP-13, R-SHP-W04). All checks run on the
+for the site, `store#RecurringOffer` sets `PublicSite.subscriptionUrl` to the Shop Subscriptions
+route and clears it when no offer remains, so Forum's "Manage your subscription" link opens Shop
+(R-SHP-13, R-SHP-W04); it never replaces an outside address a site owner entered, and readiness,
+which only reads, reports the difference (Nov 5, impl-commerce §4). All checks run on the
 authority, including when a remote frontend previews a proposed release; the shop readiness
-service is an Admin §14 readiness provider, like Commerce's `check#StoreReadiness` (Z9).
+service is Commerce's `check#StoreReadiness`, registered as the `shop` app's PASS readiness and,
+once Admin builds the registry, as an Admin §14 readiness provider (Z9; Nov 5, impl-shop F34).
 
 Public page access always rechecks current site/mount publication; possession of an old theme
 bundle or URL does not keep a withdrawn site accessible. Preview is a separate limited staff
@@ -393,12 +398,14 @@ states. Derived from Frappe routing and PASS search projection. **Needs:** SHOP-
 | Product | display | Explain the product | title, safe description, gallery, price, availability band, delivery/terms | accessible image gallery | `getProduct`; existing `mantle.product.AssetServices.get#AvailableInventory` | PopRestStore product; Odoo product page |
 | PurchaseSelection | single | Choose a purchasable offer | variant, quantity/UOM, permitted options, one-time/recurring offer | trusted Vue variant selectors, server price update | `quoteSelection`, `addCartItem` | PopRestStore add product; Mantle order services |
 | PublicReviews | list, read | Read moderated feedback | rating, body, public author label, date, verified purchase, store reply | rating distribution | `getProductReviews` | ProductReview; Odoo product discussion and `portal_rating` publisher comment |
-| SubmitReview | dialog | Submit or revise own purchase feedback | rating, body, display-name choice, order-item proof, own review/revision when editing | plain/rich text sanitizer | `submitProductReview` | existing ProductReview model; new guarded public submission |
+| SubmitReview | dialog | Submit or revise own purchase feedback | rating, body, display-name choice, order-item proof, images, own review/revision when editing | plain/rich text sanitizer; image upload through the facade's media staging | `submitProductReview` | existing ProductReview model; new guarded public submission |
 | RelatedContent | list, read | Discover relevant products/support | published related products, help articles, Forum topics about the product, "Ask a question" | normal links | product projection; Forum topic creation with a `CommunicationEventProduct` link | ProductAssoc; Forum product binding |
 
 **Layout:** detail; the theme composes the page, and PurchaseSelection is a trusted Vue component
 inside it. The submit-review form fields above are complete; authority derives product/store/party and
-validates the claimed purchase proof. Editing requires ownership and the expected review revision.
+validates the claimed purchase proof. Images are PNG or JPEG, staged and scanned through Mantle's
+`PortalMedia.js`, and shown only with an approved review (Nov 5, impl-commerce P9). Editing requires
+ownership and the expected review revision.
 No direct ProductReview CRUD endpoint. Pending reviews are visible only to their author/staff,
 and only approved reviews affect public aggregates. Add an approved-to-pending transition for
 author edits; the current ProductReview status flow does not provide it. An approved review shows
@@ -457,7 +464,7 @@ presentation never changes the business state machine.
 | Addresses | wizard step | Supply billing/delivery facts | saved own address or postal fields, billing-same flag | locale-aware address, own-address picker; suggested correction from address validation | `setCheckoutAddresses`; existing `mantle.shipment.CarrierServices.validate#PostalAddress` | Mantle set#OrderBillingShippingInfo and contact services |
 | Delivery | wizard step | Select a current quote | order part, carrier/method, quote ID, amount, estimate | available options with full cost | `getDeliveryOptions`, `selectDelivery` | StoreServices.get#StoreShippingOptions; Odoo delivery |
 | Payment | wizard step | Choose an eligible method | provider/instrument, existing own token or hosted setup result, off-session consent for a recurring offer | operator-installed provider component | `getPaymentOptions`, `selectPayment` | Mantle gateways; Frappe registry |
-| ReviewPurchase | wizard step | Accept the authoritative purchase | lines, totals, due-now/later, recurring cadence/amount, delivery, terms version, required consents, optional marketing opt-in | changed-value comparison; unchecked opt-in | `getCheckout`, `submitCheckout`; Marketing's proposed `mantle.marketing.MarketingPortalServices.request#Subscription` | Odoo checkout validation; PopRestStore composition |
+| ReviewPurchase | wizard step | Accept the authoritative purchase | lines, totals, due-now/later, recurring cadence/amount, delivery, terms version, required consents, optional marketing opt-in (not in the first build, below) | changed-value comparison; unchecked opt-in | `getCheckout`, `submitCheckout`; Marketing's proposed `mantle.marketing.MarketingPortalServices.request#Subscription` | Odoo checkout validation; PopRestStore composition |
 
 Contact/account creation is optional for ordinary guest purchases; recurring offers require a
 verified account before payment, and Payment records the customer's explicit off-session consent
@@ -881,16 +888,18 @@ documents use checked download capabilities, never raw resource URLs. **Needs:**
 
 ### RequestReturn and NewCustomerCase — Context passed
 
-Shop mounts Customer Service's PASS Support pages
+Shop links Customer Service's PASS Support pages
 [RequestReturn and NewCustomerCase](../../mr-boss/plan/design-customer-service.md#8-support-app-pages)
-inside its own mount, so a store without a Support mount still takes returns and questions
-through the same pages and Mantle operations (X7, R-SHP-03). Shop designs no return or question
-form of its own.
+on the site's own Support mount, passing the order (X7, R-SHP-03). The pages resolve their
+organization from that mount and redirect within it, so a Shop site needs a Support mount
+targeting the store's organization, which readiness requires for purchase (Nov 5, 2026;
+impl-shop F35, the user's call in impl-commerce §4; they were to be mounted inside Shop). Shop
+designs no return or question form of its own.
 
-| Page | Mount | Context passed | Emphasis |
+| Page | Link | Context passed | Emphasis |
 | --- | --- | --- | --- |
-| RequestReturn | `PASS:Shop/Orders/RequestReturn` | this order (signed-in self or the order's `SalesOrder` OrderView capability), its store, eligible lines from existing `mantle.order.ReturnServices.find#ReturnableOrderItems` and the store's ReturnPolicy; submit calls `ReturnPolicyServices.request#CustomerReturn`, making a ReturnHeader in ReturnRequested | requested remedy is not an approved refund; the receipt links Support CustomerReturn when the site has a Support mount, else this order |
-| NewCustomerCase | `PASS:Shop/Orders/NewCustomerCase` | this order and its lines as the case's source, the store's service queue from CheckoutPolicy; submit calls `SupportCaseServices.create#CustomerCase` | private help; the receipt links Support CustomerCase when mounted; nothing is posted to Forum |
+| RequestReturn | `PASS:Support/RequestReturn` with the order | this order (signed-in self or the order's `SalesOrder` OrderView capability), its store, eligible lines from existing `mantle.order.ReturnServices.find#ReturnableOrderItems` and the store's ReturnPolicy; submit calls `ReturnPolicyServices.request#CustomerReturn`, making a ReturnHeader in ReturnRequested | requested remedy is not an approved refund; the receipt links Support CustomerReturn |
+| NewCustomerCase | `PASS:Support/NewCustomerCase` with the order | this order and its lines as the case's source and its store on the case, the store's service queue from CheckoutPolicy; submit calls `SupportCaseServices.create#CustomerCase`; its `cancelOrder` is the cancellation request | private help; the receipt links Support CustomerCase; nothing is posted to Forum |
 
 ### Shared account screens — Context passed
 
@@ -900,7 +909,7 @@ form of its own.
 | Registration | Existing Account/Register verification/site-eligibility flow. Registration policy comes from the site; purchase does not bypass a closed/invitation-only policy. No automatic public profile discoverability. |
 | AccountSettings | Existing Account/Settings identity/security/preferences. Shop links its addresses/payment methods/orders; it does not duplicate password, verification or second-factor forms. |
 | AccountHub | The PASS Account "My account" hub (X6, crosscut §5.1); not built yet, so Shop builds it as the PASS Account foundation's unless Customer Service has (Nov 5, impl-shop F6). Shop registers one card, the AccountOverview summary for each store the customer bought from; Billing, Support, Sales and Marketing register theirs. |
-| EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Today `Account/Unsubscribe` handles only the Forum opt-out and `/u/` is a BOSS route, so Shop builds the page with the hub (Nov 5, impl-shop F6). Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
+| EmailPreferences | The one PASS Account "Email preferences" page (X15): list unsubscribe, topic preferences and the Forum opt-out; `/u/` redirects to it. Today `Account/Unsubscribe` handles only the Forum opt-out and `/u/` is a BOSS route, so Shop builds the page with the hub (Nov 5, impl-shop F6). Among its topics is each store's "cart reminders", which a signed-in customer turns on (`ConsentServices.store#PartyConsent`) and cart recovery requires, there being no checkout opt-in (Nov 5, impl-commerce §4). Shop's recovery, review-request and marketing links point here; Shop keeps no preference page. |
 
 ## 10. Digital delivery and subscriptions
 
@@ -936,8 +945,8 @@ orders/documents remain readable. Public previews are separate ProductContent en
 Derived from existing Subscription records and Forum paid
 access. It includes prepaid access even when no recurring contract exists. Status describes
 billing and access separately: cancellation of future renewal does not mean the paid term has
-already ended. Shop readiness points `PublicSite.subscriptionUrl` here, so Forum's "Manage your
-subscription" link lands on this page (§4.3). What a product grants is edited in Commerce's
+already ended. `store#RecurringOffer` points `PublicSite.subscriptionUrl` here, so Forum's "Manage
+your subscription" link lands on this page (§4.3). What a product grants is edited in Commerce's
 Product360 Paid access pane (X16). **Needs:** SHOP-SUBSCRIPTION.
 
 ### SubscriptionDetail
@@ -1408,7 +1417,9 @@ theme authoring and BOSS operations are not public Shop operations.
 Package aliases below are **proposed**: K = `mantle.product.ShopCatalogServices`,
 C = `mantle.order.ShopCartServices`, X = `mantle.order.ShopCheckoutServices`,
 A = `mantle.party.ShopCustomerServices`, D = `mantle.product.ShopFulfillmentServices`,
-R = `mantle.product.ShopSubscriptionServices`. Named services receive a restricted `input` map
+R = `mantle.product.ShopSubscriptionServices`. These letters are this design's own: Commerce §1.3's C
+is `StoreAdminServices`, so where both designs are read together the services are named in full
+(Nov 5, impl-commerce §2). Named services receive a restricted `input` map
 and return declared `result`; the underlying business services keep their normal typed APIs.
 These wrappers add public ownership/projection/orchestration, not merely alternate names.
 
@@ -1420,7 +1431,7 @@ These wrappers add public ownership/projection/orchestration, not merely alterna
 | `beginCheckout`, `getCheckout`, `resumeCheckout` | X.begin#Checkout, get#Checkout, resume#Checkout | cart/checkout revision → CheckoutView | new coordination over the existing open order |
 | `setCheckoutContact`, `setCheckoutAddresses` | X.set#CheckoutContact, set#CheckoutAddresses | verified account or permitted guest contact/address → revised checkout | ContactServices.store#PartyContactInfo; OrderServices.set#OrderBillingShippingInfo |
 | `getDeliveryOptions`, `selectDelivery` | X.get#DeliveryOptions, select#Delivery | address/part/quote → eligible rates and revised checkout | StoreServices.get#StoreShippingOptions; CarrierServices.get#OrderShippingRatesBulk; TaxServices.calculate#OrderSalesTax |
-| `getPaymentOptions`, `selectPayment`, `submitCheckout`, `getCheckoutPaymentResult` | X.get#PaymentOptions, select#Payment, submit#Checkout, get#PaymentResult | permitted method, accepted snapshot/terms, optional marketing opt-in → attempt/action or placed order | OrderServices.add#OrderPartPayment, place#Order; PaymentServices.authorize#OrderPayments and `authorize#SinglePayment` with `operationKey`; Accounting's typed attempt coordinator (purpose shopCheckout, X9); Marketing `request#Subscription` for the opt-in |
+| `getPaymentOptions`, `selectPayment`, `submitCheckout`, `getCheckoutPaymentResult` | X.get#PaymentOptions, select#Payment, submit#Checkout, get#PaymentResult | permitted method, accepted snapshot/terms, optional marketing opt-in (later, §6) → attempt/action or placed order | OrderServices.add#OrderPartPayment, place#Order; PaymentServices.authorize#OrderPayments and `authorize#SinglePayment` with `operationKey`; Accounting's typed attempt coordinator (purpose shopCheckout, X9); Marketing `request#Subscription` for the opt-in |
 | `getOrderConfirmation`, `getShopAccount`, `findShopOrders`, `getShopOrder`, `getShopOrderDocument` | A.get#OrderConfirmation, get#Account, find#Orders, get#Order, get#OrderDocument | self (ExternalAccess self relationship) or `SalesOrder` OrderView capability → safe summary or protected document | OrderInfoServices.get#OrderDisplayInfo; ExternalAccessServices.check#AccessCapability; native document rendering/access; no raw internal order display output |
 | `previewReorder`, `reorder` | A.preview#Reorder, reorder#Order | owned order/items → current offer preview/cart | OrderServices.add#OrderProductQuantity; new ownership and replay guards |
 | `getAddresses`, `storeAddress`, `endAddress` | A.get#Addresses, store#Address, end#Address | self + own address/revision → own addresses | ContactServices.get#PartyContactInfoList, store#PartyContactInfo, create#PostalAddress, update#PartyPostalAddress; CarrierServices.validate#PostalAddress |
@@ -1429,7 +1440,7 @@ These wrappers add public ownership/projection/orchestration, not merely alterna
 | `getDownloads`, `issueDownload` | D.get#Downloads, issue#Download | self or `SalesOrder` Download capability + grant → protected download action | PcntDownload content and framework protected streaming; new order-item entitlement |
 | `getSubscriptions`, `getSubscription`, `beginSubscriptionPurchase`, `changeSubscriptionMethod`, `cancelSubscription`, `resumeRenewal` | R.get#Subscriptions, get#Subscription, begin#SubscriptionPurchase, change#SubscriptionMethod, cancel#Subscription, resume#Renewal | verified self (or `SalesOrder` RenewalAction capability for one occurrence) + owned contract/offer/occurrence → subscription view or checkout/action | existing Subscription/recurring-order/payment services with proposed offer/contract/occurrence guards; Accounting's coordinator (purpose shopRenewal) |
 
-Returns, questions and cancellation requests are not Shop operations: the mounted Support pages
+Returns, questions and cancellation requests are not Shop operations: the linked Support pages
 RequestReturn and NewCustomerCase call Customer Service's operations over
 `ReturnPolicyServices.request#CustomerReturn` (with existing
 `ReturnServices.find#ReturnableOrderItems` for eligibility), `SupportCaseServices.create#CustomerCase`
@@ -1439,8 +1450,15 @@ and, for NewCustomerCase's OrderCancelRequest, `requestOrderCancel` over
 Additional internal service operations prepare/resolve attempts through Accounting's
 coordinator, consume provider SystemMessage receipts, expire checkouts, fulfill settled items
 (StoreItemFulfillment over `create#InvoiceFromSource`), generate/execute renewal occurrences,
-reconcile refunds (proposed `D.reconcile#RefundedItem`), set `PublicSite.subscriptionUrl` at
-readiness, and hand notices to the Comms delivery ledger. They are not browser API entries.
+reconcile refunds (proposed `D.reconcile#RefundedItem`, its download half with S2 and its
+paid-access half with S3), keep `PublicSite.subscriptionUrl` from the store's offers (§4.3), and
+hand notices to the Comms delivery ledger. They are not browser API entries.
+
+Two public entries come from Commerce's work (Nov 5, impl-commerce P10 and P14): `recoverCart`,
+whose route under the Shop mount spends a cart's one-time recovery token (a token write), rotates
+the cart capability into a fresh session and reprices; and the store's Shop-site feed
+destination, a reserved feed path under the Shop mount that serves the active feed build after
+checking the current publication generation.
 Commerce calls scoped staff methods of the same business modules, not public operations with
 forged shopper context. Media uploads use existing staging/scanner handling; only server-owned
 scanned handles cross into intake services.
@@ -1534,7 +1552,7 @@ Tracking is Marketing's MKT-TRACKING (X10).
 
 | Need | Kind | Proposed as / owner | Used by | Stub spec |
 | --- | --- | --- | --- | --- |
-| SHOP-MOUNT | service type, seed data | PASS/Mantle app registration and framework route extension | all Shop pages | Target ProductStore, optional root, one Shop per site, reserved-path protection, local/remote parity and readiness; readiness sets `PublicSite.subscriptionUrl` and registers as an Admin §14 readiness provider |
+| SHOP-MOUNT | service type, seed data | PASS/Mantle app registration and framework route extension | all Shop pages | Target ProductStore, optional root, one Shop per site, reserved-path protection, local/remote parity and readiness; readiness is Commerce's `check#StoreReadiness`, reads `PublicSite.subscriptionUrl` (which `store#RecurringOffer` keeps) and registers as an Admin §14 readiness provider once Admin builds the registry |
 | SHOP-CATALOG | data model, service type | ShopCatalogServices and store publication / Mantle | discovery, reviews, feeds | One published safe catalog projection; a virtual product's publication covers its saleable variants with per-variant withdrawal; price/category rules; availability bands over `get#AvailableInventory(Multi)` and store facilities; bounded search, review proof/moderation and store reply, current-access filtering |
 | SHOP-CART | data model, service type | ShopCartServices and StoreCartAccess / Mantle | Cart, login merge, recovery | Open orders, session-bound capabilities reusing the ExternalAccess digest and throttle, one-time recovery tokens, `orderRevision` as the cart revision, idempotency, same-scope merge and activity/retention |
 | SHOP-CHECKOUT | data model, service type | ShopCheckoutServices and StoreCheckout / Mantle | Checkout, confirmation | Fixed validated core, fresh quotes, address validation, frozen monetary snapshot bound to `orderRevision`, durable placement/recovery, shared price/tax/stock/promotion services, checkout opt-in through Marketing `request#Subscription`, facade error kinds with camelCase reasons |
@@ -1608,7 +1626,7 @@ parity; BOSS is needed for authoring, not live Shop operation.
 | S1 — public catalog and themes | app routing, publication, safe catalog/pages, theme adapter/releases, Commerce visual/source editors and preview | Local/remote public browsing, explicit publication, sandbox/asset/caching tests, preview isolation, accessible SSR |
 | S2 — purchases and account | owned carts, checkout/payment, physical/digital fulfillment, order self-service in the Account hub, reviews, returns and questions through Customer Service, cancellation proposals, recovery notices | Double-submit/timeout/callback/stock-change scenarios; no unauthorized access or unpaid downloads; native accounting/warehouse effects once; a Shop-registered buyer sees their invoices and cases |
 | S3 — prepaid and recurring access | accepted offers/contracts, occurrences, payment recovery, cancellation and resource access | Unique period/charge, no charge without recorded off-session consent, paid-source activation, failure/expiry/refund/restore and independent-grant cases, no Dunning letter for a renewal in retry |
-| S4 — channel/operational completion | Commerce feeds/connectors, scheduled publication/metrics, adoption diagnostics and production operations | Withdrawal-safe outputs, partial-failure continuation, observability, retention and rollback/reconciliation drills |
+| S4 — channel/operational completion | Commerce feeds/connectors, scheduled feeds and metrics (scheduled page and menu publication is S1's, Nov 5), adoption diagnostics and production operations | Withdrawal-safe outputs, partial-failure continuation, observability, retention and rollback/reconciliation drills |
 
 S1–S4 define the complete first release; visual editing and recurring purchases are included,
 not future optional placeholders. mr-boss impl-commerce §1 orders both apps' phases within these
@@ -1653,7 +1671,7 @@ behind them are regression specs in `test/`
 
 ### 18.2 Design coverage
 
-Every §2 own screen has a form/layout contract above; the mounted Support pages and the shared
+Every §2 own screen has a form/layout contract above; the linked Support pages and the shared
 account screens have Context passed blocks. Existing services called by forms through the public
 facade are mapped additively in the BOSS USL inventory with `PASS:` paths. New proposed services
 and job-only/internal helpers are not invented as existing inventory rows. Commerce owns the
@@ -1680,7 +1698,7 @@ as a public UI implementation.
 | Payment holds (Nov 1, 2026; review X4) | A payment exception after placement is an `OhtPayment` hold released by an Accounting payment operator; before placement it is a checkout state; no `OhtStock` |
 | Recurring model (Nov 1, 2026; review X5) | Bases carry the RecurringTemplate purpose; renewals clone with `copyPayment=false` and charge only with recorded off-session consent; Sales owns worker guards and recurrence fields, Shop dispatch, Accounting monitoring and the auto-invoice right; Dunning skips renewals in retry; refunds, return settlement and chargebacks call `reconcile#RefundedItem` |
 | One customer account (Nov 1, 2026; review X6) | Self relationship in ExternalAccess `check` with a verified email; `appKinds` gains support and sales; guest order, download and renewal links are the `SalesOrder` record kind shared with Sales; cart access stays session-bound StoreCartAccess on the capability digest and throttle; "My account" is the PASS Account hub with AccountOverview as its Shop card |
-| Customer requests (Nov 1, 2026; review X7) | Returns go to `request#CustomerReturn`, questions to `create#CustomerCase` in the store's queue, cancellations to a `save#OrderChange` cancel proposal, immediate only under Customer Service's `customerImmediateCancel` flag; Shop mounts the Support pages and keeps no Request intake |
+| Customer requests (Nov 1, 2026; review X7) | Returns go to `request#CustomerReturn`, questions to `create#CustomerCase` in the store's queue, cancellations to a `save#OrderChange` cancel proposal, immediate only under Customer Service's `customerImmediateCancel` flag; Shop links the Support pages (Nov 5: not mounted, impl-shop F35) and keeps no Request intake |
 | Delivery (Nov 1, 2026; review X8) | Shop notices are sources on the one Comms-owned delivery ledger; no Shop outbox |
 | Payment attempts (Nov 1, 2026; review X9) | Accounting owns the typed PortalPaymentAttempt coordinator (invoice, shopCheckout, shopRenewal, eventRegistration); the attempt key is `PaymentGatewayResponse.operationKey`; webhooks land as SystemMessage receipts; the first adapter is Authorize.Net P1 and S3 is gated on its off-session charges |
 | Tracking (Nov 1, 2026; review X10) | Shop forwards the tracking code and an opaque visitor key; Marketing records tracking on the authority and attribution at placement by SECA |
@@ -1694,6 +1712,7 @@ as a public UI implementation.
 | First payment adapter (Nov 1, 2026; R-SHP-05) | Authorize.Net (payments plan P1): Accept Hosted for checkout and customer payment profiles charged as stored-credential, merchant-initiated renewals; Stripe P3 second. P1's scope gains the merchant-initiated indicators and S3 waits for them (§8.1, X9) |
 | Account hub path and owner (Nov 1, 2026; review X6) | `PASS:Account/Home`, owned by the PASS Account foundation (design-forum §8), with registered cards from Shop, Billing, Support, Sales and Marketing; the hub exists without Shop, which is store-scoped and may not be installed |
 | Code check (Nov 5, 2026; impl-shop F1–F34; the user's calls in impl-commerce §4) | Accept Hosted is the S2 payment page and the checkout opt-in waits for Marketing (§6, §8.1); the registration places and one root app per site (§1); the PASS shell keeps Account, Billing and Support pages on a Shop site with the site's brand (§1); catalog prices computed as the authority (§5.1); promotion limits rechecked under lock at freeze (§7.2); reasons through the remote error envelope (§7.3); the hosted page and merchant-initiated charges added to the built Authorize.Net adapter (§8.1); `PAYMENT_HOLD_RELEASE` (§8.2); digital invoicing through an internal service, and the existing store emails keeping their senders in the first build (§8.3); cancellation through Support's OrderCancelRequest, Customer Service's services admitting the `SalesOrder` capability (§4.2, §9); dated ProductStoreProduct, review decisions in the audit log, operation results on `PostingOperation`, a `sitePageId` key (§14.2) |
+| Plan review (Nov 5, 2026; impl-shop F35–F36; the user's calls in impl-commerce §4) | Shop links the site's Support pages for returns, questions and cancel requests instead of mounting them, a Support mount for the store's organization required for purchase (§2, §4.3, §9); recovery consent is the store's "cart reminders" topic on EmailPreferences (§9); reviews take scanned images (§5); `store#RecurringOffer` keeps `PublicSite.subscriptionUrl` and readiness only reads it (§4.3, §10, §15); one readiness service, Commerce's (§4.3); the recovery route and the Shop-site feed destination (§13.2); this design's service letters are its own (§13.2); scheduled page and menu publication is S1's (§17.2) |
 
 ## 20. Open
 
