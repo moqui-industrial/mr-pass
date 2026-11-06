@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Recover (Commerce P10; design-shop §6 Cart, §7.1, §13.2 recoverCart; design-commerce §6 RecoverCart): a cart recovery
+    link. Recover?r= keeps the link's token in this session and opens the page without it in the address; the page asks a
+    visitor to sign in, and offers the signed-in shopper Open my cart, whose post spends the token (recoverCart: the cart's
+    capability rotated into this session, repriced, its unavailable lines named) and opens the cart. A spent, expired or
+    another account's link gets the not-available page. Shop/ShopRecovery.js; no-store. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Your cart">
+  <transition name="restore" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopRecovery.js').restore(shopContext)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- pre-actions: run before the PASS shell renders, so a redirect leaves at once (F78) -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopRecovery.js').render(shopContext)
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
