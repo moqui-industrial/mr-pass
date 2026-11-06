@@ -51,9 +51,8 @@ Register app key `shop`, screen root `Shop` under `Pass.xml`, default mount `/sh
 `productStore`, and a readiness service. Extend both PASS `Apps.js` and Mantle `PublicApps.js`,
 the route/operation registries and the runtime's operator allowlist using Forum §13.1; the Header's
 app branches, the test runtime's mounts and the three `TOKEN_WRITES` lists are registration places
-too (Nov 5, impl-shop F1). Shop may also mount at `/`; Mantle's `storeMounts` permits only Forum at
-root, so this is an explicit extension: one root app per site, Forum or Shop, with Mantle's reserved
-paths aligned with the framework's (impl-shop F2). One Shop mount per PublicSite is the initial rule. Multiple stores use separate sites;
+too (Nov 5, impl-shop F1). Shop may also mount at `/`: one root app per site, Forum or Shop, with Mantle's
+reserved paths aligned with the framework's (impl-shop F2; built in P1: PublicApps' `root` and `onePerSite`). One Shop mount per PublicSite is the initial rule. Multiple stores use separate sites;
 one store may have multiple sites with independently bound themes/content. No fallback store
 is chosen for an unknown hostname.
 
@@ -610,7 +609,11 @@ map to field errors and customer-safe messages (R-SHP-19):
 A pending or unknown payment is not an error: it is the attempt's state in the result
 (`paymentPending`, `paymentUnknown`). No UI matches raw gateway exception text. The authority's
 error envelope today answers a fixed message per status and no field errors, so a remote frontend
-cannot see a reason; it gains an allow-listed `reason` and the field errors (Nov 5, impl-shop F4).
+cannot see a reason; it gains an allow-listed `reason` and the field errors (Nov 5, impl-shop F4). Built in P1: a
+Mantle refusal names its reason as its message's code, `CODE: text` or `CODE[field]: text`; the envelope answers the
+code's camelCase form when PassAuthority's `REASONS` lists it, with the field error, and for Unprocessable and Conflict
+the refusal's own text unless it reads as a framework failure's (a database or script error, a qualified entity or service
+name), which keeps the fixed message; Transport.js puts them back so `Shared/Portal.js` reads a remote refusal as a local one.
 
 Scope an operation ID to site, principal/capability and operation; persist its normalized input
 digest and result. Matching replay returns the result; changed input with the same key conflicts.
@@ -1074,6 +1077,8 @@ redirects are versioned configuration (proposed `PublicSiteNavigation`) with loc
 and typed destinations. Link resolution uses the selected site's registered mounts. Reserved
 routes cannot be shadowed.
 
+Under the Shop mount, `products/<id>/<slug>`, `categories/<id>/<slug>` and `pages/<path>` route to ProductDetail,
+CategoryDetail and Page (PASS `resolve#Route`, impl-shop P1); the page reads the id from the request path.
 Product/category URLs contain stable IDs plus decorative slugs from existing
 `mantle.product.StoreServices.generate#UrlSlugFromProductName` and
 `generate#UrlSlugFromCategoryName`/`format#UrlSlug` conventions. Access checks precede old-slug
@@ -1358,7 +1363,8 @@ The PASS shell today sends `Cache-Control: no-store` on every page (`mr-pass/scr
 none of this HTTP caching exists yet. Shop adds a route-level cache policy: public caching only
 for anonymous catalog and content routes (Home, Categories, CategoryDetail, Search without
 personal facets, ProductDetail, Page) and `no-store` for everything else, including any request
-with a session cart or signed-in user (R-SHP-15, §14.3).
+with a session cart or signed-in user (R-SHP-15, §14.3). The policy is per route in mr-pass
+`screen/Shared/Headers.js`, `no-store` by default (impl-shop P1); P3 adds the catalog routes.
 
 Authority-issued publication generations invalidate affected catalog, content, feeds and public
 HTML. Request authorization checks current generation before using cached projections; cluster
@@ -1400,7 +1406,9 @@ next actions and relevant revision/generation. Money and quantities cross the bo
 decimal strings with currency/UOM and separate localized display text. Instants have an explicit
 zone-independent representation plus localized display text where needed.
 
-Core proposed DTO families are `ShopContext`, `CatalogPage`, `ProductView`, `CartView`,
+`getShopContext` (route `shop/context`; built in P1, `mantle.product.ShopCatalogServices.get#ShopContext`) answers the
+site, the Shop mount, the store, locale, currency, the active release and capabilities, NotFound (`notAvailable`) for a
+site not published, a disabled mount or a store no longer available. Core proposed DTO families are `ShopContext`, `CatalogPage`, `ProductView`, `CartView`,
 `CheckoutView`, `PaymentAttemptView`, `CustomerOrderView`, `DownloadView`, `SubscriptionView`
 and `ThemeReleaseManifest`. View objects carry capabilities, not broad entity maps. Theme views
 are a further restricted projection, not every API result made automatically available to templates.

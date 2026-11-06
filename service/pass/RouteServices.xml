@@ -28,6 +28,12 @@
             }else if(mounted.app==='forum' && parts[0]==='p'){
                 if(!/^[A-Za-z0-9_-]{1,40}$/.test(parts[1] || ''))fail()
                 postId=parts[1];screenPath='/Forum/Post'
+            }else if(mounted.app==='shop' && ['products','categories','pages'].includes(parts[0])){
+                // Shop's canonical paths (impl-shop P1; design-shop §11): a stable id and a decorative slug, or a page's
+                // path; the page reads them from publicPath
+                const id=/^[A-Za-z0-9_-]{1,40}$/,slug=/^[A-Za-z0-9_-]{0,200}$/
+                if(parts[0]==='pages'){if(parts.length<2 || parts.length>6 || !parts.slice(1).every(p=>id.test(p)))fail();screenPath='/Shop/Page'}
+                else{if(!id.test(parts[1] || '') || parts.length>3 || !slug.test(parts[2] || ''))fail();screenPath=parts[0]==='products'?'/Shop/Products/ProductDetail':'/Shop/Categories/CategoryDetail'}
             }else screenPath='/'+root+suffix
         ]]></script>
     </actions>

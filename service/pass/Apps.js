@@ -13,4 +13,6 @@
     supplier: { screen: 'Supplier', base: '/supplier' },
     // Customer Service P13: the Support app (its Feedback page; P15 the rest)
     support: { screen: 'Support', base: '/support' },
+    // Shop (impl-shop P1): a ProductStore's storefront, mounted at /shop or at a site's root
+    shop: { screen: 'Shop', base: '/shop' },
 })

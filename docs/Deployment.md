@@ -100,7 +100,7 @@ Configure the public routing allowlist on each presentation runtime:
 
 Use the operator's `mantle.public.SiteServices.store#Mounts` operation to register the same host
 and app paths at the authority. Hostnames are unique; mounts must not overlap or occupy framework,
-API, authentication, token, asset, or operational paths. Only Forum may use `/`. Keep the runtime
+API, authentication, token, asset, or operational paths. One app per site may use `/`: Forum or Shop. Keep the runtime
 allowlist aligned when changing mounts, and reload runtime configuration after changing it.
 Unknown public hosts are concealed. The request cannot replace the routed site or configured
 backend. Existing framework token routes retain their handlers.
@@ -211,21 +211,39 @@ queue and every customer and public knowledge source).
   `/js/moqui-form-when.js` for the form's show and require rules (the CSP stays `script-src 'self'`).
 - **Access.** A customer's account is a public account holding no user group; the Support pages answer only that customer's
   own records (another customer's case, return or file is "not available", whatever the request names). Where BOSS runs in
-  the same runtime, its Commons and Comms roots are authorized for every user, so narrow them for public accounts with the
-  deployment's own authorization (impl-customer-service F-P16-2); every Customer Service screen and service refuses them.
+  the same runtime, its roots, Commons and Comms among them, are authorized only for its staff (`BOSS_USERS`), so a public
+  account opens none of them; every Customer Service screen and service refuses it too.
 - **Remote frontend.** `getCaseFeedbackInvitation`, `submitCaseFeedback` and the `support/...` operations are PASS operations
   served by Mantle's PassApi; the writes a link's token authorizes (the feedback answer, a queue form's request, a case link's
   reply, reopen and cancel, an article rating, an RMA link's evidence and withdrawal) are `TOKEN_WRITES`, accepted from a
   registered deployment without a member session.
 
-### Adding an app
+## Shop app
 
-An app registers in four places: its name and target type in the authority's
-`mr-mantle/service/mantle/public/PublicApps.js` (with its readiness service, if any), its root screen and default path
-in `service/pass/Apps.js`, a `subscreens-item` of `screen/Pass.xml`, and its operations in `service/pass/Schema.js` and
-`Routes.js` with Mantle's copies (`ForumSchema.js`, `script/PassRoutes.js`), which Forum's spec keeps identical. Each
-operation maps to a Mantle service taking PASS's `input` map; a bearer link's write is listed in `TOKEN_WRITES` in
-`Facade.js` and Mantle's `PassApi.js`. Then mount it in the runtime's `<public-site>`.
+Shop is a ProductStore's storefront (`screen/Shop.xml`, app `shop`; [design](../plan/design-shop.md),
+[plan](../plan/impl-shop.md)). An operator mounts it with `store#Mounts`, its target the store (a ProductStore of an
+internal organization); it may be the site's root app in place of Forum, and a site has one Shop mount. Account, Billing,
+Support and the framework's paths keep their owners under a root Shop: the longest mount wins, and the framework's own
+routes (`/rest`, `/static`, `/assets`, `/s`, `/u`, `/r` and the rest) are never a site's. For a root Shop the runtime's
+`<public-site>` names `<mount path="/" screen="Shop"/>` beside the other apps' mounts. Shop's pages are concealed (Not
+Found) until the site is published and its Shop mount enabled. The site's readiness (`checkReadiness`) adds Commerce's
+store readiness (`mantle.product.StoreAdminServices.check#StoreReadiness`) under `shop`. On a Shop site the Account,
+Billing and Support pages keep the PASS shell with the site's brand values from `PublicSite.theme` (a small JSON object:
+`primaryColor`, `backgroundColor`, `textColor`, `surfaceColor` as six-digit hex colors, `logoUrl` a local path or https; an https logo's origin joins the shell's `img-src`).
+
+Responses are `no-store` with the shell's CSP unless a route in `screen/Shared/Headers.js` says otherwise.
+
+## Adding an app
+
+An app registers in these places: its name, target type and readiness service in the authority's
+`mr-mantle/service/mantle/public/PublicApps.js` (`root` if it may mount at `/`, `onePerSite` for one mount a site); its root
+screen and default path in `service/pass/Apps.js`; a `subscreens-item` of `screen/Pass.xml`; its branch of the header's
+navigation (`screen/Shared/Header.html.fancy`); its operations in `service/pass/Schema.js` and `Routes.js` with Mantle's
+copies (`ForumSchema.js`, `script/PassRoutes.js`), which Forum's spec keeps identical, each mapping to a Mantle service
+taking PASS's `input` map; a bearer link's write in the three `TOKEN_WRITES` lists (`service/pass/Transport.js`, Mantle's
+`script/PassApi.js` and `script/PassAuthority.js`); a refusal reason a page shows in `PassAuthority.js`'s `REASONS` and
+`screen/Shared/Portal.js`'s `reasons`; its mount in the test runtime (`test/MoquiConf.xml`) and Portals' spec's list of
+targeted apps. Then mount it in the runtime's `<public-site>`.
 
 ## Provisioning and publication
 

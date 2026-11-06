@@ -155,7 +155,7 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 | Phase | Repos | Pages | Status |
 | --- | --- | --- | --- |
 | P0 Checks | all (read) | — | done Nov 5 (§6 F1–F45) |
-| P1 App and mount | Mantle, mr-pass | the Shop root, the PASS shell on a Shop site | — |
+| P1 App and mount | Mantle, mr-pass | the Shop root, the PASS shell on a Shop site | built Nov 5, 2026 |
 | P2 Theme engine and releases | mr-moqui, Mantle, mr-pass | the starter theme's page kinds | — |
 | P3 Catalog pages | Mantle, mr-pass | Home, Categories, CategoryDetail, Search, ProductDetail, Page | — |
 | P4 Cart and shopper identity | Mantle, mr-pass | Cart, ProductDetail's purchase selection | — |
@@ -219,6 +219,107 @@ Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
 - **Usable when:** an operator mounts Shop at the root of ZIZI_SHOP for POPC_DEFAULT, and `/account`, `/billing`, the
   API, `/static` and token routes still reach their owners; readiness lists the store's findings; a remote frontend gets
   the same context, and a refused write shows its reason there.
+
+- **Built, Nov 5, 2026** (mr-mantle and mr-pass, branch `shop/p1`):
+  - Registration: `shop` in `service/pass/Apps.js` (screen `Shop`, base `/shop`) and Mantle's `PublicApps.js` (target
+    `productStore`: a ProductStore whose organization has `OrgInternal`; `root: true`; `onePerSite: true`; readiness
+    `mantle.product.StoreAdminServices.check#StoreReadiness` unchanged); `Pass.xml`'s Shop subscreen; the Header's Shop
+    branch (nav "Shop", a Shop link on any page of a site with a Shop mount); `test/MoquiConf.xml`'s `/shop` mount;
+    Portals' targeted apps `billing,shop,supplier,support`; a "Shop P1: none yet" line in the three `TOKEN_WRITES`
+    lists; `getShopContext` in `Schema.js`/`Routes.js` (`GET shop/context`) and the mirrors; `Contracts.d.ts`
+    (`ShopContext`, `SafeError.reason`, `MountInput` with every app and `targetId`). `docs/Deployment.md`: a Shop app
+    section, "Adding an app" made complete (the places F1 lists, plus the reasons lists) and its Access note corrected
+    (BOSS's roots are `BOSS_USERS`'), "one app per site may use `/`".
+  - The root (Forum.js `storeMounts`): one root app per site, Forum or Shop (`ROOT_NOT_ALLOWED[pathPrefix]`; two at `/`
+    overlap), one Shop mount a site (`MOUNT_TAKEN[app]`), the target refusal coded
+    (`TARGET_INVALID[targetId]`, "Choose the store ..."), and the reserved paths gain `static`, `assets`, `sw.js`,
+    `manifest.webmanifest` and `WebPush` (the framework's list). PASS `resolve#Route` routes `products/<id>/<slug>`,
+    `categories/<id>/<slug>` and `pages/<path>` under the Shop mount to `/Shop/Products/ProductDetail`,
+    `/Shop/Categories/CategoryDetail` and `/Shop/Page` (ids `[A-Za-z0-9_-]{1,40}`, anything else Not Found); the page
+    reads the id from `publicPath` (F-SP1-2). Account, Billing and Support under a root Shop keep their paths (longest
+    mount wins).
+  - The Shop root: `screen/Shop.xml` reads `getShopContext` first (Not Found for every failure of concealment) and
+    `screen/Shop/Home.xml` shows the store's name and an empty state in the PASS shell until P2's theme. `getSiteInfo`
+    (Forum.js) returns `brand` (from `PublicSite.theme`: six-digit hex `primaryColor`, `backgroundColor`, `textColor`,
+    `surfaceColor` and a local or https `logoUrl`; anything else dropped) and `subscriptionUrl`; the Header adds the
+    brand's colors and logo.
+  - Headers (F3): `screen/Shared/Headers.js` (`ROUTES`, `policyOf`, `csp`, `apply`): `no-store`, `Referrer-Policy` and the
+    shell's CSP by default, a route's `cacheControl` and `formAction` sources when it names them (none in P1); Pass.xml
+    applies the default first and then the request's app and path within its mount.
+  - Errors (F4, Purchasing F170 closed): `PassAuthority.envelope` answers `reason`, the camelCase form of the refusal's
+    leading code (`CODE: text`, `CODE[field]: text`, after any `Error: ` prefixes) when `REASONS` lists it (design-shop
+    §7.3's reasons and P1's three), `fieldErrors` `[{field, reason, message}]`, and for Unprocessable and Conflict the
+    refusal's own text (other kinds keep the fixed message); Transport.js (`refused`, used by REST's error responses and
+    gRPC's `answered`) puts them back as `reason[field]: text`; `Shared/Portal.js` `attempt` answers `{kind, reason,
+    message, fieldErrors}`, a reason's page text from its `reasons` (the same keys as `REASONS`, checked by ShopAccess).
+  - Context: Mantle `mantle.product.ShopCatalogServices.get#ShopContext` over `service/mantle/product/ShopContext.js`
+    (`shopOf(siteId)`: the published site, its enabled Shop mount and the internal store, else `NOT_AVAILABLE`, NotFound;
+    for every later Shop service): site, mount, store, locale, currency, `release` null (P2), capabilities (`canBrowse`,
+    `canPurchase` false until P4/P5, `signedIn`).
+  - Specs: mr-pass `test/Shop/ShopSpecLib.js` (records of its own: an internal and an outside organization with a store
+    each, sites, `facade`, `mounts`, `remote` — PassAuthority.handle as a registered client, taken by Transport's
+    `answered` —, `render`, `route`) and `ShopAccess` (4 features, 0.2 s: the target, one-mount, root and reserved-path
+    refusals with their reasons, the readiness's `shop` checks, a non-operator refused; the root's routes; concealment of an
+    unpublished site and a disabled mount, the context, the brand (unsafe values dropped), Home's one html render in the
+    shell, the default headers; the remote context equal to the local one, a forged store field refused, a refused write
+    with the same reason, field and text both ways, the two reasons lists equal). Mantle `PassAuthority` 6 features (+1:
+    a listed reason with its field, an unlisted code, a NotFound's detail kept back), 0.1 s; its first feature now expects
+    the request's own text. Also run, all pass: Forum, ForumAccess, Integrations, Portals, SupplierPages, SupportAccess,
+    Transport (47 features with ShopAccess, mr-pass 3.6 s of 15 s); Mantle AccountingPortals, SupportPortal, StoreAdmin
+    (32). Schema and Routes mirrors identical.
+  - Acceptance: `acceptance/ShopMount.spec.js` (2 features: the operator mounts Shop at ZIZI_SHOP's root for POPC_DEFAULT,
+    the reserved paths refused, `/account`, `/billing`, `/support` routed to their apps, readiness lists the store's
+    findings; the anonymous root shows Ziziwork Retail Store, the remote context equals the local one, a second Shop mount's
+    refusal reads `mountTaken` with the same text both ways). Without BOSS it makes ZIZI_SHOP as Commerce's demo does; it
+    puts the site's state back. Run: 2 passed. No RemoteHttp feature: that walk needs the two-runtime setup; the transport
+    is checked through the authority's answer.
+  - Lint: `moqui lint --screens` flags none of the Shop screens, Pass.xml or the Shared files.
+  - Demo (F33): ZIZI_SHOP's and ZIZI_DIGITAL's Shop mounts belong in mr-boss `service/ironstone/commerce/Demo.js` (it makes
+    the sites); not made here (F-SP1-3).
+  - Decisions: concealment is strict (a published site and an enabled mount for everyone, operators too; preview is
+    Commerce P5's); the context's service is Shop's catalog package (K) with the shared `shopOf` module; a reason is a
+    Mantle code in the message (it survives service calls, which a property does not), allow-listed in one list per side;
+    `onePerSite` is the registry's flag, set only on Shop.
+  - Findings (provisional):
+    - **F-SP1-1** A refusal's message reaches a page as `Error: Error: CODE: text` after crossing service calls, so
+      Portal.js's old code strip (`^[A-Z_]+: `) never matched and a local Unprocessable showed the prefixes. Both
+      readers now drop them.
+    - **F-SP1-2** The framework's public-site routing passes only the Forum's ids from a resolver (`rootCommEventId`,
+      `requestedTopicSlug`, `postId`; public_site.rs `parameters`), so Shop's product and category ids are read from
+      `publicPath`. For the framework, optional: let a resolver return named route parameters.
+    - **F-SP1-3** For the lead (mr-boss, not edited here): Demo.js `ensureSite`'s mount list gains
+      `["shop", <store>]` with the site's path, the store and path as fields of `sites`: ZIZI_SHOP `{productStoreId:
+      "POPC_DEFAULT", shopPath: "/"}`, ZIZI_DIGITAL `{productStoreId: "BOSS_COM_DIGITAL", shopPath: "/shop"}`, written
+      as `createOnce("mantle.public.PublicSiteApp", {siteId, appMountId: "shop"}, {app: "shop", pathPrefix: shopPath,
+      enabled: "Y", targetId: productStoreId})`; the sites stay disabled until published.
+    - **F-SP1-4** The framework marks a request a public-site path when any `<public-site>`'s mount matches it, before
+      the host check (public_site.rs `resolve_conf`), so a `/` mount on one host turns every non-framework path of every
+      other host into "Public hostname not found". The test runtime therefore has no root mount; ShopAccess and ShopMount
+      check the root through `resolve#Route`. For the framework: match mounts only on the route's own host.
+
+- **Review Nov 5 (P1)** (mr-mantle, mr-pass; branch `shop/p1`): checked the diff in both repos against this section,
+  design-shop §1, §4.1, §4.3 and §7.3, and §2: the `shop` registration (target `productStore` of an `OrgInternal`
+  organization, `root`, `onePerSite`, readiness unchanged); `storeMounts`' one root and one Shop a site, the coded target
+  refusal, the reserved paths; `shopOf` and `get#ShopContext` (Not Found unless a published site and an enabled mount,
+  the site from the facade only); the brand values (hex colors only reach `<style>`, the logo cannot leave its quoted
+  attribute or take a scheme other than https); Transport's and Portal.js' mapping; Headers.js (the default CSP equals the
+  old one); Shop.xml's concealment; the Schema/Routes mirrors identical; the three `TOKEN_WRITES` lists; nothing in either
+  diff references ironstone or mr-boss code (only docs and comments name them). The Built note is accurate.
+  - **R1 (medium)** A refusal's own text went to a remote frontend for every Unprocessable and Conflict, and a service
+    whose nested call fails without throwing ends as an Unprocessable whose text is the message facade's errors: a
+    database error with entity and constraint names, a script's TypeError, a service name (`Transaction marked for
+    rollback, not running service ...`). `PassAuthority.envelope` now keeps the fixed message when the text reads as a
+    framework failure (`internal`: a database or script error word, a `://`, a `name#verb`, a package-qualified name);
+    `Shared/Portal.js` does the same for a local page, which showed such text before P1. PassAuthority's P1 feature
+    gains the two cases. Account's and the other operations' refusals (plain sentences) still pass.
+  - **R2 (low)** The brand allows an https `logoUrl`, but the shell's CSP `img-src` is `'self' data:`, so such a logo never
+    showed. `Headers.apply` takes the site's logo and adds its origin (a plain host and port only, so nothing else
+    reaches the policy) to `img-src`; ShopAccess checks the origin and a forged one. Deployment.md says so.
+  - Specs after the fixes: ShopAccess, Forum, ForumAccess, Integrations, Portals, SupplierPages, SupportAccess,
+    Transport (47 passed); PassAuthority, AccountingPortals, SupportPortal, StoreAdmin (38 passed).
+  - For the lead: F-SP1-3 (the demo Shop mounts in mr-boss Demo.js) and F-SP1-4 (the framework's host check) stay open as
+    the Built note says. The `internal` guard is a deny-list; a stricter rule (pass only coded refusals' text) would need
+    the uncoded Conflict/Unprocessable sentences in Mantle coded first.
 
 ### P2 — Theme engine and releases
 

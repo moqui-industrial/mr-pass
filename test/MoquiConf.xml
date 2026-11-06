@@ -23,6 +23,7 @@
         <mount path="/billing" screen="Billing"/>
         <mount path="/supplier" screen="Supplier"/>
         <mount path="/support" screen="Support"/>
+        <mount path="/shop" screen="Shop"/>
       </public-site>
     </webapp>
   </webapp-list>
