@@ -1380,6 +1380,64 @@ Stage C2/S2 ends with Commerce P11.
       then makes it the account's); the receipt stays on the page.
     - **F-SP6-9** design-shop §9's reorder of subscription lines and the PaymentMethods' replacement before switching are P7's
       (no recurring contract yet; ending a card names recurring orders only).
+- **Review Nov 6 (P6)** (Mantle, mr-pass, mr-boss; branch `shop/p6`). Checked: F85/F83 (Accept Hosted issues no form
+  token once the reference has any transaction, none when the search cannot tell; a second approval is flagged once on the
+  payment and holds the placed order with the attempt `exception`; `reach`'s `reference` reads only `referenceView` and
+  the minimal confirmation, `placedCart` only when the session's own placed cart names the same checkout, the order link
+  issued only to `cart`/`placedCart`, `resume#Checkout` hands out no cart token; `submit#Checkout`'s replay is P5's);
+  fulfillment (capture under the payment's lock with `shop-capture-{paymentId}` before any invoice, the invoice, finalize,
+  complete and grant steps each `requireNewTransaction` over `forUpdate` rows, so a retry or a second run re-reads the
+  markers; `create#FulfillmentInvoice` refusing a second invoice of the same lines by its source key; `create#InvoiceFromSource`
+  unchanged for its callers; a declined capture holding the rows; the job's per-order failure tolerance); the mixed order
+  (F-SP6-4): the digital invoice is marked `forInvoiceId` and takes its share, and the shipment invoice's
+  `apply#OrderPaymentsToInvoice` applies the payment's unapplied rest with no capture of a delivered payment, so nothing is
+  captured twice (read for an authorization; ZIZI's hosted gateway charges at once, and ShopOrderScenarios now asserts at
+  most one capture, both invoices paid and nothing left unapplied); refunds (the SECAs, a return's lines, a payment no longer
+  covering the digital lines; another order's grant kept); downloads (a ten-minute SalesOrder Download capability of the
+  grant's order, the grant and fulfillment checked again on the file, the location and token kept off any browser URL: the
+  PASS page issues and streams in one request); the Support owner contract (`askers` checks the OrderView link with the
+  mount's organization and pins every request to its one order; the case's store; the POSTs and their callers in PASS's
+  pages, Routes/Schema and their Mantle mirrors identical, the three TOKEN_WRITES lists); Billing's self relationship; the
+  delivery ledger (the unique event key, the consent snapshot, an uncertain send never picked by the job, each attempt its
+  own transaction); F76's default, `check#OrderPreApprove`, OrderApprovedSendEmail. Fixes:
+  - R1 (high) The one-account claim merged any party named by a completed guest checkout of the email whose cart's
+    `guestPartyId` matched and that had no user account; but `merge#Parties` moves `StoreCartAccess.guestPartyId` and
+    `StoreCheckout.customerPartyId`, so once staff merged a guest into another party of the organization (a customer of its
+    own, a supplier's contact sharing the address), that whole party was merged into the verified account by email. The
+    claim now takes only a party that is still the anonymous guest of exactly that one cart (its only cart, no account, no
+    relationship, no role but Customer, no order but the cart's) (ShopCustomer.js `anonymousGuest`; ShopCustomer's first
+    feature: a guest purchase merged into a supplier's party stays unclaimed, which failed before). The claim's query also
+    filters by the (lower-case) email instead of reading every guest checkout of the store on each account page.
+  - R2 (medium) Any signed-in account could turn a store's cart reminders on, so Commerce P10's recovery would mail an
+    address the account never verified; turning one on now needs the account's current email verified (VERIFY_REQUIRED;
+    turning off never does) (AccountHub.js `emailVerified`; ShopCustomer's cart reminders feature +1 check).
+  - R3 (low) ShopOrderScenarios' mixed purchase asserted two invoices only; it now asserts the payment captured at most
+    once, both invoices paid and none of the payment left unapplied (F-SP6-4).
+  Specs (all `--nobuild`): Mantle ShopCustomer, StoreFulfillment, DeliveryLedger, SupportPortal, ShopCheckout,
+  AuthorizeNetGateway 46 of 46 (10.8 s of features); OrderToCashBasicFlow, ReturnToResponseBasicFlow, AccountingPortals,
+  Consent 89 of 89; mr-boss CustomerServiceChannels, CustomerServiceReturns, CustomerServiceOrderChanges,
+  CustomerServiceCases, Unsubscribe, Consent 37 of 37; mr-pass ShopAccount, ShopAccess, ShopCheckout, SupportAccess 13 of 13;
+  acceptance ShopFixtures with ShopOrderScenarios 7 of 7 (ShopOrderScenarios needs ShopFixtures' guide when run alone).
+  The Built note is accurate otherwise.
+  For the lead:
+  - A second approval that lands after the first was confirmed (a second page opened before the first paid, paid after
+    the lookup) is never looked for: `flagDuplicates` runs only on the lookup that finds the approval. A sweep of recently
+    completed hosted checkouts' references (or the webhook naming a second transaction of a known reference) would catch it.
+  - The SECA is the only start of fulfillment: an approval whose tx-commit SECA never ran (a crash between the commit and
+    it) leaves no StoreItemFulfillment row for the job to find. The job could also look for approved Shop orders with
+    digital lines and no rows.
+  - Authorize.Net's customer profile is the party's by `merchantCustomerId` = partyId, and E00039 adopts an existing one
+    (P5's pattern); `sync#CustomerProfile` now imports every card of a profile it found that way. On a gateway account
+    shared with another system or a reloaded database reusing party ids, that is another person's cards; consider a
+    namespaced merchantCustomerId, or importing only from a profile this instance made.
+  - `issue#Download`'s ten-minute capability is a Download capability of the whole order, so it also passes
+    `get#Downloads`/`issue#Download` as an `orderToken` and can mint the next one; it never reaches a browser, and its holder
+    already reaches that order's files, but a scope of its own (a file capability) would end the chain.
+  - After a claim, the guest's emailed order and download links stop working (the capability's party is the merged guest);
+    the account reaches them signed in. Intended by the design's one account, but the notice's text says the link lasts.
+  - `StoreCheckout.contactEmail` has no index; the claim's query by store, status and email scans the store's checkouts.
+  - An attempt that hands a message to the mail server and then fails to commit its record leaves the delivery queued, so
+    the job sends it again (a narrow window; ForumDelivery's as well).
 
 ### P7 — Prepaid and recurring access
 

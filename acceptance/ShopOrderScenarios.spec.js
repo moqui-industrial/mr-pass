@@ -98,6 +98,7 @@ function buy(email, productIds) {
         orderToken: confirmation.orderToken,
         token,
         partyId: row.customerPartyId,
+        paymentId: row.paymentId,
     }
 }
 function account(partyId, email, verified) {
@@ -274,7 +275,31 @@ feature(
             const invoices = list('mantle.order.OrderItemBilling', {
                 orderId: state.mixed.orderId,
             }).map((row) => row.invoiceId)
+            // the payment taken at most once (ZIZI's hosted page charges at once; an authorization is captured at the digital
+            // step), and the physical part's invoice paid by the rest of it
+            const captures = list(
+                'mantle.account.method.PaymentGatewayResponse',
+                {
+                    paymentId: state.mixed.paymentId,
+                    paymentOperationEnumId: 'PgoCapture',
+                },
+            ).filter((row) => row.resultSuccess === 'Y')
+            const unpaid = [...new Set(invoices)].map((invoiceId) =>
+                String(
+                    sys('mantle.account.InvoiceServices.get#InvoiceTotal', {
+                        invoiceId,
+                    }).unpaidTotal,
+                ),
+            )
+            const unapplied = String(
+                one('mantle.account.payment.Payment', {
+                    paymentId: state.mixed.paymentId,
+                }).unappliedTotal,
+            )
             return {
+                captures,
+                unpaid,
+                unapplied,
                 rows,
                 subjects,
                 link,
@@ -293,6 +318,9 @@ feature(
             r.file.result.location == ids.file
             r.otherOrder.kind == 'NotFound'
             r.invoices.length == 2
+            r.captures.length <= 1
+            r.unpaid.every((amount) => Number(amount) === 0)
+            Number(r.unapplied) === 0
         },
     },
 )
