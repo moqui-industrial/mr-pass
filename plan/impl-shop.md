@@ -1443,11 +1443,11 @@ Stage C2/S2 ends with Commerce P11.
 - **Note Nov 6 (Commerce P9 follow-up; impl-commerce P9 "Follow-up Nov 6", §4).** Checkout consent and the store topics:
   EmailPreferences lists each store's "review requests" beside "cart reminders" (StoreTopics.js, which now holds both topics;
   R2's verified email applies to both), and marks a choice waiting for confirmation. Checkout's ReviewPurchase offers the
-  store's optional emails (`PsstCheckoutOptIns`: review requests, cart reminders to a signed-in buyer, the store's news when
+  store's optional emails (`PsstCheckoutOptIns`: review requests, cart reminders to a signed-in buyer with a verified email, the store's news when
   `PsstNewsList` names its list), separate and unchecked, each saying what it is and is not; `submitCheckout` takes `optIns`.
   At placement a verified account's choice is granted; a guest's or an unverified account's waits as a `CLPT_PENDING`
   membership of the topic's list, confirmed by the order receipt's link (`?confirm=` on EmailPreferences: read only, one
-  Confirm button) or by P6's claim on a verified sign-in. The receipt and order notices stay transactional, and so do
+  Confirm button) or, for an account's own choice, by its verified sign-in (a claimed guest's choice only by the link). The receipt and order notices stay transactional, and so do
   instructional follow-ups of a purchase (design-shop §11's message classes). Specs: mr-pass ShopCheckout (the unchecked
   box and its statement) and ShopAccount (the review requests topic); Mantle ShopCheckout +1 feature, ShopCustomer (the
   claim confirming a pending choice).

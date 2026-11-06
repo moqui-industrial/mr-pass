@@ -492,8 +492,8 @@ purchase; Shop keeps no consent of its own (X15, R-SC-12, R-SHP-W03).
 clearly marked opt-ins, each a separate checkbox, unchecked until the buyer checks it, each with a
 one-line statement of what it is and what it is not: "Ask me to review what I bought" (one email
 per item after it arrives; no offers or newsletters), "Remind me about a cart I leave" (this store
-only, while signed in; no newsletters; offered to a signed-in buyer only, since a guest's cart is
-never recovered) and the store's "news and offers" (its marketing list; offered only when the store
+only, while signed in; no newsletters; offered only to a signed-in buyer whose account email is
+verified, since a guest's cart is never recovered and a reminder goes to the account's address) and the store's "news and offers" (its marketing list; offered only when the store
 names one, `PsstNewsList`). Which ones a store offers is its `PsstCheckoutOptIns` setting (absent:
 all three, news only with its list, so the demo stores offer the first two; `none` offers none).
 None is a prerequisite: the receipt and the order's notices are transactional whatever is chosen,
@@ -505,8 +505,10 @@ Mantle's `PartyConsent` has no pending state, so it is the list's existing pendi
 (`ContactListParty` `CLPT_PENDING`, never sent to), confirmed by the link in the order receipt
 (`PsetOrderPlaced`: a one-time code whose digest the checkout keeps, to Account/EmailPreferences,
 whose page only reads until its one button confirms, so a mail scanner's fetch changes nothing; 60
-days) or by the buyer signing in with that email verified (Shop P6's claim, and the preferences
-page). A choice turned off on the preferences page before it is confirmed stays off. Marketing's
+days) or, for a choice checked while signed in, by the account signing in with that email
+verified (Shop P6's claim, and the preferences page). A guest's choice, even once Shop P6's claim
+moves it to the account, is confirmed only by the receipt's link or by the account turning the
+topic on itself: whoever checked it was not signed in (P9 follow-up review R1). A choice turned off on the preferences page before it is confirmed stays off. Marketing's
 `request#Subscription`, when built, takes over the news opt-in's recording.
 Provider-hosted fields collect payment credentials;
 Shop receives only provider references/tokens. Required address fields derive from destination
@@ -1809,7 +1811,7 @@ as a public UI implementation.
 | Tracking (Nov 1, 2026; review X10) | Shop forwards the tracking code and an opaque visitor key; Marketing records tracking on the authority and attribution at placement by SECA |
 | Site pages (Nov 1, 2026; review X14) | Pages bind through the extended `PublicSitePage` and `get#SitePage`; no `PublicShopPage` |
 | Identity hygiene (Nov 1, 2026; review X15) | Checkout opt-in records through Marketing `request#Subscription`; one PASS Account email preferences page; Shop registers the store privacy provider; merges go through Commons' guarded `merge#Parties` |
-| Optional emails at checkout (Nov 6, 2026; the user's call, impl-commerce §4) | A few separate, unchecked opt-ins with what each is and is not: review requests (a store topic of their own, not marketing), cart reminders (signed in), the store's news when it has a list; offered by the store's `PsstCheckoutOptIns`; a guest's or unverified account's choice waits as a pending list membership until the receipt's link or a verified sign-in confirms it; receipts and order notices stay transactional; instructional follow-ups of a purchase are transactional (§6, §9, §11) |
+| Optional emails at checkout (Nov 6, 2026; the user's call, impl-commerce §4) | A few separate, unchecked opt-ins with what each is and is not: review requests (a store topic of their own, not marketing), cart reminders (signed in), the store's news when it has a list; offered by the store's `PsstCheckoutOptIns`; a guest's or unverified account's choice waits as a pending list membership until the receipt's link (or, for an account's own choice, its verified sign-in) confirms it; receipts and order notices stay transactional; instructional follow-ups of a purchase are transactional (§6, §9, §11) |
 | Paid-access editor (Nov 1, 2026; review X16) | Commerce's Product360 Paid access pane is the one ProductSubscriptionResource editor |
 | Stack contributions (Nov 1, 2026; review L4, L6, L7) | Delivery on CX-DELIVERY; `operation` marks on placement, reconciliation, renewal and download jobs with Commerce's checkout-failure alert; video help later through an Event with a CallLink |
 | Operation names and errors (Nov 1, 2026; R-SHP-19) | Flat camelCase operation names unique across PASS, with a Shop noun where needed; errors use the facade kinds with a camelCase reason |
