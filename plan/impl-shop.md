@@ -445,23 +445,23 @@ Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME,
     the activation history (no event table); the release asset path is keyed by the manifest digest so a stylesheet's
     relative `url()` works; the theme source of the active release goes only to registered frontends.
   - Findings (provisional):
-    - **F-SP2-1** The adapter checks `locales/<name>.json` but no template function reads it (`localize` is the locked
+    - **F52** The adapter checks `locales/<name>.json` but no template function reads it (`localize` is the locked
       renderer's own), so the starter's texts are in its templates and settings. For the framework, optional: a package
       text lookup for the view's locale.
-    - **F-SP2-2** The framework reserves `/assets` at the root, so a root Shop cannot use design-shop's
+    - **F53** The framework reserves `/assets` at the root, so a root Shop cannot use design-shop's
       `/shop/assets/sha256-…`; release assets are `{mount}/theme/{manifestDigest}/{path}` (design §12.3 and §12.7 changed).
-    - **F-SP2-3** A screen's `actions` variables do not reach its parent's widgets (only `always-actions`' do), so Shop.xml
+    - **F54** A screen's `actions` variables do not reach its parent's widgets (only `always-actions`' do), so Shop.xml
       decides `shopThemed` in always-actions and Home renders in its actions. P3's themed pages do the same.
-    - **F-SP2-4** The adapter's package is text only (`{files: {path: text}}`); images and fonts are named only. Binary
+    - **F55** The adapter's package is text only (`{files: {path: text}}`); images and fonts are named only. Binary
       theme assets (P5's upload) need bytes through the release reads, `getShopThemeFiles` and `sendAsset`; for P5 and
       the framework.
-    - **F-SP2-5** After a switch only the active release's assets are served, so a page rendered before it loses its
+    - **F56** After a switch only the active release's assets are served, so a page rendered before it loses its
       stylesheet until reloaded; P3's caching by generation and release keeps that short.
-    - **F-SP2-6** `ec.resource.theme.engines()` gives no renderer version; Mantle's `renderers` table records version 1.
+    - **F57** `ec.resource.theme.engines()` gives no renderer version; Mantle's `renderers` table records version 1.
       For the framework, optional: the engine's version.
-    - **F-SP2-7** F43's Transport.js read-through cache by generation and release is not built here (`getSiteGeneration`
+    - **F58** F43's Transport.js read-through cache by generation and release is not built here (`getSiteGeneration`
       is); P3 builds it with the catalog reads.
-    - **F-SP2-8** For the lead: the inventories' Implemented-in columns (mr-boss ss-inventory, usl-inventory) are mr-boss's
+    - **F59** For the lead: the inventories' Implemented-in columns (mr-boss ss-inventory, usl-inventory) are mr-boss's
       and not edited here; the CLIENT_READS rule is checked in ShopThemes (it needs a published release), not ShopAccess.
 
 - **Review Nov 5 (P2)** (Mantle and mr-pass; the framework adapter was reviewed with com/fw). Checked: the records
@@ -844,6 +844,14 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F49 | P1: `public_site.rs` `resolve_conf` decides a request is for a public site before checking the host, so a `/` mount on one host makes every non-framework path on every other host answer "Public hostname not found" | Framework (mr-moqui 885a273d): a root mount claims only its own host; a named mount on a host no site names is still concealed; framework paths stay reserved |
 | F50 | Commerce P3 review: `get#StorePublication` without a `siteId` skips the site check, and "site access" does not yet read the site's own access rule | P3: Shop's catalog reads always pass the site; the resolver requires it from a non-staff caller and reads the site's access |
 | F51 | Commerce P3 review: the resolver's public list mode resolves every published product before paging (one `check#ProductUsable` each) | P3: Shop's catalog uses the in-process `resolve` with its own paging and the index's candidates (F32) |
+| F52 | P2: the adapter checks `locales/*.json`, but no template function reads it (`localize` is the renderer's own), so the starter's texts are literals | Optional framework work: a theme translation reader; Commerce P5's Translations edit the files meanwhile |
+| F53 | P2: the framework keeps `/assets` at the root, so a root Shop cannot use it | Release assets are served at `{mount}/theme/{manifestDigest}/{path}`; design-shop changed |
+| F54 | P2: variables set in a screen's `actions` don't reach the parent screen's widgets; only `always-actions` variables do | Shop.xml decides `shopThemed` in always-actions |
+| F55 | P2: a theme package is text only, so binary assets (Commerce P5's uploads) need byte transport in the release reads and the asset route | Commerce P5 (with framework work if needed) |
+| F56 | P2: after a switch only the active release's assets are served | Kept: a page of the old release reloads; noted in design-shop §12.7 |
+| F57 | P2: `ec.resource.theme.engines()` reports no renderer version, so Mantle records version 1 | Optional framework work |
+| F58 | P2: F43's Transport.js read-through cache is not built | P3 |
+| F59 | P2: the inventories are mr-boss's; the CLIENT_READS rule is tested in ShopThemes (it needs a published release) | The lead updates the inventories at the finish |
 
 ## 7. Later
 
