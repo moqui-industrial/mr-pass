@@ -384,8 +384,17 @@ function cartHtml(context, cartView, notice) {
         parts.push(
             '<p class="shop-cart-notice">' + escapeText(item.text) + '</p>',
         )
+    // P5: BeginCheckout (the cart's checkout, begun or resumed)
     parts.push(
-        '<p class="shop-checkout-note">Checkout is not open in this store yet.</p>',
+        cart.checkoutPending
+            ? '<p class="shop-checkout-note"><a href="' +
+                  escapeText(base(context) + '/Checkout') +
+                  '">Your checkout is in progress</a></p>'
+            : '<form method="post" class="shop-begin-checkout" action="' +
+                  escapeText(base(context) + '/Checkout/begin') +
+                  '">' +
+                  tokenField() +
+                  '<button type="submit">Check out</button></form>',
     )
     return '<div class="shop-cart" id="ShopCart">' + parts.join('') + '</div>'
 }
@@ -764,4 +773,6 @@ function signingOut(siteId, siteInfo) {
     signingOut,
     takeNotice,
     tokenKey,
+    // P5: the checkout pages' notice on the cart
+    notify,
 })

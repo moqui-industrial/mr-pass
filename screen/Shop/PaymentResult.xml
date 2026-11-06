@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- PaymentResult (design-shop §6 PaymentResult; impl-shop P5): a submitted checkout's payment for its reference (the key kept in the session): pending with the provider's page to continue to, unknown, approved and placing, or not completed with the way back; polled with backoff (Checkout/enhance), never inferring paid or declined from time. A placed order goes to OrderConfirmation. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Payment">
+  <transition name="state" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'resultState')</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- pre-actions: run before the PASS shell renders, so a redirect (an empty cart, a placed order) leaves at once -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').resultPage(shopContext)
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

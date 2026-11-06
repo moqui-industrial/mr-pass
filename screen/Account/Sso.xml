@@ -3,7 +3,7 @@
   <pre-actions>
     <script><![CDATA[
         ec.resource.script('component://mr-pass/service/pass/Account.js').finishSso(ec.web.parameters,resolvedSiteId)
-        const destination=ec.web.sessionAttributes.passReturnTo || passBases.forum || '/';ec.web.sessionAttributes.remove('passReturnTo');sri.sendRedirectAndStopRender(destination)
+        const destination=ec.web.sessionAttributes.passReturnTo || ec.resource.script('component://mr-pass/service/pass/Account.js').landing(siteInfo);ec.web.sessionAttributes.remove('passReturnTo');sri.sendRedirectAndStopRender(destination)
     ]]></script>
   </pre-actions>
   <widgets>

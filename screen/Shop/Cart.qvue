@@ -58,7 +58,11 @@
                 <dd id="ShopCartTotal">{{ cart.totals.total.display }}</dd>
             </dl>
             <p v-for="(notice, index) in cart.notices" :key="'n' + index" class="shop-cart-notice">{{ notice.text }}</p>
-            <p class="shop-checkout-note">Checkout is not open in this store yet.</p>
+            <p v-if="cart.checkoutPending" class="shop-checkout-note"><a :href="context.actionBase.replace(/Cart\/$/, 'Checkout')">Your checkout is in progress</a></p>
+            <form v-else method="post" class="shop-begin-checkout" :action="context.actionBase.replace(/Cart\/$/, 'Checkout/begin')">
+                <input type="hidden" name="moquiSessionToken" :value="token" />
+                <button type="submit">Check out</button>
+            </form>
         </template>
         <template v-else-if="cart">
             <p class="shop-cart-empty" id="ShopCartEmpty">Your cart is empty.</p>

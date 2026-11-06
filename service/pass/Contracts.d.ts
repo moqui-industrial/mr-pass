@@ -85,6 +85,65 @@ export interface CartView {
     merged?: boolean
     unavailableItems?: string[]
 }
+/** Shop P5: a postal address as a checkout shows it. */
+export interface CheckoutAddress {
+    toName: string; address1: string; address2: string; city: string; stateProvinceGeoId: string; postalCode: string
+    countryGeoId: string; text: string
+}
+/** Shop P5: a payment's progress after a submit (design-shop §7.2): pending at the provider's page (providerUrl, or a
+ * relay form when providerForm), unknown (being confirmed), approved, declined, cancelled or failed; never a gateway id. */
+export interface CheckoutAttempt {
+    state: 'pending' | 'unknown' | 'approved' | 'declined' | 'cancelled' | 'failed'
+    amount: ShopPrice
+    providerUrl: string | null
+    providerForm: boolean
+    message: string
+}
+/** Shop P5: getCheckout and every checkout write's answer (design-shop §6 Checkout); returnKey once, in the first submit's
+ * answer (the narrow capability the result is read with), and token when resumeCheckout gives a refreshed session its cart. */
+export interface CheckoutView {
+    checkout: {
+        reference: string
+        state: 'editing' | 'ready' | 'reviewRequired' | 'paymentPending' | 'placementPending' | 'completed' | 'expired' | 'cancelled'
+        revision: string
+        accountCheckout: boolean
+        missing: string[]
+        contact: { done: boolean; emailAddress: string; name: string; phone: string; phoneMode: string; fromAccount: boolean }
+        addresses: { needed: boolean; done: boolean; shipping: CheckoutAddress | null; billingSame: boolean; billing: CheckoutAddress | null; suggestion: CheckoutAddress | null }
+        delivery: { needed: boolean; done: boolean; selected: { carrierPartyId: string; shipmentMethodEnumId: string; label: string; amount: ShopPrice; current: boolean } | null }
+        payment: { needed: boolean; done: boolean; options: { paymentOptionId: string; label: string; provider: string; hosted: boolean; canSave: boolean }[]; selected: { paymentOptionId: string; label: string } | null; savePaymentMethod: boolean }
+        terms: { required: boolean; version?: string; title?: string; url?: string | null }
+        lines: CartLine[]
+        promoCodes: { code: string; label: string | null }[]
+        totals: { items: ShopPrice; discounts: ShopPrice; shipping: ShopPrice | null; tax: ShopPrice; total: ShopPrice; dueNow: ShopPrice }
+        notices: { code: string; text: string }[]
+        /** what changed at the last freeze: price, unavailable, delivery, quoteExpired, tax, promotionLimit, terms */
+        review: { kind: string; text: string; name?: string; before?: string; after?: string }[]
+        attempt: CheckoutAttempt | null
+        failure: { code: string } | null
+    }
+    returnKey?: string
+    token?: string
+    alreadyApplied?: boolean
+    alreadySubmitted?: boolean
+    resumed?: boolean
+}
+/** Shop P5: getOrderConfirmation's answer; orderToken once (a guest's SalesOrder OrderView capability). */
+export interface OrderConfirmation {
+    confirmation: {
+        orderId: string; reference: string; placedDate: string; statusText: string
+        lines: { name: string; quantity: string; total: ShopPrice }[]
+        totals: { items: ShopPrice; shipping: ShopPrice | null; tax: ShopPrice; total: ShopPrice }
+        payment: { state: 'paid' | 'authorized' | 'none'; text: string; reference: string | null }
+        delivery: { method: string; address: string } | null
+        contactEmail: string
+        /** the signed-in order page, for the QR: never a bearer token */
+        orderUrl: string | null
+        guest: boolean
+        nextActions: string[]
+    }
+    orderToken?: string
+}
 /** The view contract v1 (design-shop §12.3): plain approved data only, never ec, an entity, a session or a secret. */
 export interface ShopView {
     site: { displayName: string; locale: string }
@@ -1074,6 +1133,21 @@ export interface OperationInputs {
     /** signed in: attach (sign-in) and release (sign-out) the session's cart */
     attachCart: { siteId: string; token?: string }
     releaseCart: { siteId: string; token?: string }
+    /** Shop P5: checkout and payment; reference and key are a submitted checkout's (a provider's return, a refreshed
+     * session), orderToken a guest's order link; reads are POSTs (F75) */
+    beginCheckout: { siteId: string; token?: string }
+    getCheckout: { siteId: string; token?: string; reference?: string; key?: string }
+    resumeCheckout: { siteId: string; token?: string; reference?: string; key?: string }
+    setCheckoutContact: { siteId: string; token?: string; emailAddress?: string; name: string; phone?: string; expectedRevision?: string; operationId?: string }
+    setCheckoutAddresses: { siteId: string; token?: string; expectedRevision: string; operationId?: string; contactMechId?: string; useSuggestion?: string; toName?: string; address1?: string; address2?: string; city?: string; stateProvinceGeoId?: string; postalCode?: string; countryGeoId?: string; billingSame?: string; billingToName?: string; billingAddress1?: string; billingAddress2?: string; billingCity?: string; billingStateProvinceGeoId?: string; billingPostalCode?: string; billingCountryGeoId?: string }
+    getDeliveryOptions: { siteId: string; token?: string }
+    selectDelivery: { siteId: string; token?: string; carrierPartyId: string; shipmentMethodEnumId: string; expectedRevision: string; operationId?: string }
+    getPaymentOptions: { siteId: string; token?: string }
+    selectPayment: { siteId: string; token?: string; paymentOptionId: string; savePaymentMethod?: string; operationId?: string }
+    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string }
+    getCheckoutPaymentResult: { siteId: string; token?: string; reference?: string; key?: string; returned?: string }
+    getCheckoutPaymentForm: { siteId: string; reference: string; key: string }
+    getOrderConfirmation: { siteId: string; token?: string; reference?: string; key?: string; orderToken?: string }
 }
 export type Operation = keyof OperationInputs
 export type Request<O extends Operation> = { operation: O; input: OperationInputs[O] }

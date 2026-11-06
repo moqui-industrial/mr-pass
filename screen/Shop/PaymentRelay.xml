@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- PaymentRelay (impl-shop P5, F37): for a pending Authorize.Net Accept Hosted payment, a fresh form token asked of the authority on each visit (getCheckoutPaymentForm) and posted at once to the provider's page; reached by a link, no-store, the token in this page alone. Only this route's CSP allows the provider's form-action (Shared/Headers.js). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Payment">
+  <!-- pre-actions: run before the PASS shell renders, so a redirect (an empty cart, a placed order) leaves at once -->
+  <pre-actions>
+    <script><![CDATA[
+        shopPage=ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').relayPage(shopContext)
+        if(shopPage.redirect)sri.sendRedirectAndStopRender(shopPage.redirect)
+    ]]></script>
+  </pre-actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Shop/CheckoutPage.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

@@ -26,6 +26,16 @@ const ROUTES = [
         cacheControl: 'public, max-age=60',
         anonymousOnly: true,
     },
+    // P5 (F37; the user's call, impl-shop §4): the payment relay posts a fresh Accept Hosted form token to Authorize.Net's
+    // page (production and sandbox); only this route's form-action allows them, and it stays no-store
+    {
+        app: 'shop',
+        path: /^\/PaymentRelay\/?$/,
+        formAction: [
+            'https://accept.authorize.net',
+            'https://test.authorize.net',
+        ],
+    },
 ]
 /* The cookies of a session (the framework's, and a servlet container's): a request with one is not anonymous. */
 const SESSION_COOKIES = /^(?:moqui\.session|moquiSession|JSESSIONID)$/

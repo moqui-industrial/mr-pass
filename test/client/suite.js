@@ -1,7 +1,7 @@
-suite(['PortalHttp'], {
+suite(['PortalHttp', 'ShopCheckoutWalk'], {
     server: {
         components: ['mr-pass'],
-        specs: ['ClientFixtures', 'PortalFixtures'],
+        specs: ['ClientFixtures', 'PortalFixtures', 'ShopWalkFixtures'],
         conf: 'conf/MoquiLoadTestConf.xml',
     },
 })

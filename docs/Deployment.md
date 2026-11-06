@@ -254,6 +254,22 @@ image is served at `media?productContentId=` after the authority checks its prod
 the cart are plain HTML forms; with JavaScript each is a trusted Vue island (`WebrootPublic.qvt.js` island mode loading
 `Purchase.qvue` and `Cart.qvue`) over the same transitions.
 
+**Checkout and payment** (impl-shop P5; design-shop §6, §7.2, §8). The Cart's Check out button begins the cart's
+checkout (`/Checkout`: contact, delivery address, delivery option, payment option and review, each a plain form). Submitting
+freezes it and starts the payment on the store's hosted payment gateway for the store's card payments
+(`ProductStorePaymentGateway`, one whose gateway type has a hosted page: Authorize.Net with
+`AuthorizeNetServices.authorizeHosted#Payment`, or the test gateway's `hostedPending`); `PaymentResult` links the provider's
+page and polls the outcome (a same-origin script, `Checkout/enhance`); the provider returns the payer to
+`{mount}/Checkout/return?ref=&key=`, built from the site's canonical host, so the site needs one. For Authorize.Net Accept
+Hosted the link goes to `PaymentRelay`, which asks the authority for a fresh form token on each visit and posts it to
+Authorize.Net at once: only that route's CSP adds `form-action https://accept.authorize.net https://test.authorize.net`, and it
+is `no-store`. Configure Authorize.Net's webhooks as `docs/AuthorizeNet.md` in mr-mantle says: a payer who never comes back
+is reconciled by the webhook or by the `reconcile_StoreCheckouts` job (every five minutes), and `expire_StoreCheckouts`
+expires unsubmitted checkouts; the store's readiness names either job when it is paused. The frontend keeps the checkout's
+return key and a guest's order link in its server session, never in a page or URL it makes. The checkout's reads carry a
+capability and are POSTs (`getCart` too), so no capability travels as a query parameter between a frontend and the
+authority. A sign-in with no return path lands on the site's root app (Forum or Shop at `/`).
+
 **Themes** (impl-shop P2; design-shop §12). Commerce staff start a theme from the starter (`theme/starter/`, starter
 `mr-pass/starter`), validate and publish it to a site's Shop mount (`mantle.public.ThemeServices`); with a published
 release Shop's pages are the release's own documents instead of the PASS shell, and its assets are served under the
