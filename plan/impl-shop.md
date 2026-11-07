@@ -2103,7 +2103,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F86 | P6: Mantle's `check#OrderPreApprove` holds a new customer's order and a part with no address, so a Shop guest's first order (digital too) waits for approval unless the store turns those checks off | Commerce (a store default for digital-only orders) or Sales |
 | F87 | P6: `refund#OrderPayment` refunds only an unapplied amount, so a fulfilled digital line's refund comes through a return's settlement or Accounting's chargeback intake | Accepted; the reconcile SECAs cover both |
 | F88 | P6: resource streams read whole, so a ranged download reads the file to cut the range; over gRPC the download ignores the range | Framework: a partial read and a ranged gRPC download |
-| F89 | P6: a mixed order's physical part is captured at the digital step (one capture of the hosted authorization; Authorize.Net captures an authorization once) | For the user's confirmation; two provider pages or a partial capture otherwise |
+| F89 | P6: a mixed order's physical part is captured at the digital step (one capture of the hosted authorization; Authorize.Net captures an authorization once) | Accepted for now (the user, Nov 6); revisit with the later payment processing work (two provider pages, or a provider's partial or multiple capture) |
 | F90 | P6: `send#InvoiceStoreEmail` sends to EmailBilling only | Shop gives the buyer the checkout's email as EmailBilling at placement |
 | F91 | P6: `resolve#Delivery` has no store scope, so no Commerce group has MESSAGE_DELIVERY_REVIEW | Commerce P8 (a store-scoped review) |
 | F92 | P6: `getShopDownload` is a GET, so the ten-minute capability is in the frontend-to-authority query, never a browser URL | Accepted |
