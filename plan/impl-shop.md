@@ -2121,7 +2121,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F104 | P7: `OrderApprovedFulfillSubscriptions` ran inside the placement and invoiced Shop lines first | Fixed in P7 |
 | F105 | P7: `clone#Order` copies `isNewCustomer` and the part's promotions flag | The base clears the first and turns promotions off |
 | F106 | P7: a card added through the hosted setup has no customer-initiated transaction id for its renewals | With the Authorize.Net sandbox check (F115) |
-| F107 | P7: ZIZI_DIGITAL has no Forum mount, so the demo's paid access is bound to the site, not a Forum paid category | Commerce P12 or P15 (a Forum mount, a category, qualifying sources, membership; CommerceFoundationWalk and ShopSubscriptionScenarios) |
+| F107 | P7: ZIZI_DIGITAL has no Forum mount, so the demo's paid access is bound to the site, not a Forum paid category | Commerce P12 or P15 (a Forum mount, a category, qualifying sources, membership; CommerceFoundationWalk and ShopSubscriptionScenarios). Done in Commerce P15 (ZIZI_DIGITAL's Forum members' category, BossZZCommerceForumDemoData.xml) |
 | F108 | P7: the renewal email's RenewalAction link is not built; notices link the signed-in SubscriptionDetail | Later |
 | F109 | P7: `queue#Delivery` checks then creates, so two concurrent sends race on the unique key and mark the caller rollback-only; renewal notices queue in their own transaction, P6's download notice still does not | Comms |
 | F110 | P7: two fulfillment runs of one order race on StoreItemFulfillment's unique key | Accepted: the loser logs, the winner's rows stand |
