@@ -370,17 +370,21 @@ preview host, which serves only `/preview/{token}` and its assets `/preview/{tok
 every other path. To give a site one:
 - bind the host to the site as a preview host (`store#Mounts` with `{hostname, preview: true}`; a PublicSiteHost row of
   kind `PshkPreview`, never canonical, which page links, `sitesFor` and readiness ignore);
-- give the authority's runtime a `<public-site>` for it with one mount at the root, so it claims every path of the host:
+- give the authority's runtime a `<public-site>` for it with one mount at the root, so it claims every path of the host,
+  and Mantle's preview host check, so the framework's own routes are refused there:
   `<public-site host="preview.shop.example.com" site-id="SHOP_SITE" screen-location="component://mr-pass/screen/Pass.xml"
-  resolver-service="pass.RouteServices.resolve#Route"><mount path="/" screen="Shop"/></public-site>`;
+  resolver-service="pass.RouteServices.resolve#Route" host-check-service="mantle.public.ThemeServices.get#PreviewHost">
+  <mount path="/" screen="Shop"/></public-site>`;
 - set `pass_preview_frame_origins` to the BOSS origins that may frame it (`https://boss.example.com`; `http://localhost:*`
   in development). Unset, the preview is not framed at all.
 
 Previews are served only by the authority's runtime (a remote frontend has no Mantle in process and treats every host as
 live). A preview page is `no-store`, `noindex`, sends no referrer and has its own CSP (a script only by nonce, no form
 action, `frame-ancestors` the origins above); its capability is the token in its path, valid for twenty minutes for one
-site, theme draft and staff user. The framework's own routes (`/apps`, `/qapps`, `/rest`, `/Login` and the rest) still
-answer on any host, the preview host too, so keep the preview host's name apart from the BOSS host's.
+site, theme draft and staff user. With the `host-check-service` the framework's own routes (`/apps`, `/qapps`, `/rest`,
+`/Login`, the token routes and the rest) answer Not Found on the preview host, so nobody signs in there (Commerce F87);
+the static files the preview loads (`/js`, `/css`, `/libs`, `/images`, `/static`, `/assets`) still answer. Keep the
+preview host's name apart from the BOSS host's all the same.
 
 ## Adding an app
 

@@ -6,6 +6,9 @@ feature(
     'a guest browses, adds to the cart, pays on the hosted page and sees the confirmation',
     {
         when() {
+            // the purchase island's component (Purchase.qvue, the screen's file served as content), loaded by a cookieless
+            // visitor, starts no session and may be cached (F72)
+            const island = session().get('/shop/Purchase.qvue')
             const page = browser.newPage({
                 viewport: { width: 390, height: 844 },
             })
@@ -53,6 +56,11 @@ feature(
                 { timeout: 15 },
             )
             return {
+                island: {
+                    status: island.status,
+                    cookies: island.headers('Set-Cookie').length,
+                    cache: island.header('Cache-Control'),
+                },
                 pending,
                 provider,
                 confirmation: page.text(),
@@ -65,7 +73,10 @@ feature(
                 ),
             }
         },
-        then({ pending, provider, confirmation, url, overflow, qr }) {
+        then({ island, pending, provider, confirmation, url, overflow, qr }) {
+            island.status === 200
+            island.cookies === 0
+            island.cache.includes('public')
             pending.includes('Your payment is not confirmed yet')
             provider.includes('/shop/Checkout/return?ref=')
             confirmation.includes('Thank you for your order')
