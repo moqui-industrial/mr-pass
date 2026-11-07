@@ -138,6 +138,13 @@ function preferences(siteId, publicPath) {
     const v = found.result
     if (v.mode === 'confirm') return confirmation(v, confirm, publicPath)
     const waiting = ' (waiting for you to confirm it from your order receipt)'
+    // a choice waiting for its confirmation shows unchecked, so declining it is a box of its own (Commerce F124)
+    const decline = (name, pending) =>
+        pending
+            ? '<label class="decline"><input type="checkbox" name="decline_' +
+              name +
+              '" value="true"> Decline this; never send it</label>'
+            : ''
     const box = (name, checked, label, description) =>
         '<label><input type="checkbox" name="' +
         name +
@@ -155,7 +162,7 @@ function preferences(siteId, publicPath) {
                 list.subscribed,
                 list.name + (list.confirmPending ? waiting : ''),
                 list.description,
-            ),
+            ) + decline('list_' + list.contactListId, list.confirmPending),
         )
         .join('')
     const topics = (v.topics || [])
@@ -165,7 +172,7 @@ function preferences(siteId, publicPath) {
                 topic.on,
                 topic.name + (topic.confirmPending ? waiting : ''),
                 topic.description,
-            ),
+            ) + decline('topic_' + topic.topicId, topic.confirmPending),
         )
         .join('')
     return (
@@ -257,7 +264,13 @@ function save(siteId, publicPath) {
     const parameters = ec.web.parameters
     const lists = {}
     const topics = {}
+    const decline = { lists: [], topics: [] }
     for (const name of Object.keys(parameters)) {
+        const declined = /^decline_(list|topic)_(.{1,80})$/.exec(name)
+        if (declined && param(name) === 'true')
+            decline[declined[1] === 'list' ? 'lists' : 'topics'].push(
+                declined[2],
+            )
         const shown = /^(list|topic)_(.{1,80})__shown$/.exec(name)
         if (!shown) continue
         const on = param(shown[1] + '_' + shown[2]) === 'true'
@@ -271,6 +284,7 @@ function save(siteId, publicPath) {
         choices: JSON.stringify({
             lists,
             topics,
+            decline,
             unsubscribeAll: param('unsubscribeAll') === 'true',
         }),
     })

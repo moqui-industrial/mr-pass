@@ -1,7 +1,8 @@
 // Shop P7's "usable when" on the server (impl-shop P7; design-shop §18.1 "Prepaid/recurring purchase", "Renewal
 // race/failure/cancellation", "Multiple access sources"), on ShopFixtures' ZIZI_DIGITAL (BOSS_COM_DIGITAL, its demo monthly
-// membership offer) through a page's calls: a verified buyer subscribes with the renewal consent and gets the site's
-// paid access, and the site's subscription address (the Forum's "Manage your subscription") is Shop's Subscriptions page;
+// membership offer) through a page's calls: a verified buyer, a member of the site, subscribes with the renewal consent and
+// gets the paid access, the members' Forum category the demo binds it to (Commerce P15, impl-shop F107), which they can then
+// read, and the site's subscription address (the Forum's "Manage your subscription") is Shop's Subscriptions page;
 // the renewal charges once under a retried job; a declined renewal sends one notice, extends nothing and leaves no invoice
 // for Dunning; cancelling keeps access to the paid term; refunding the first term leaves a manual grant.
 // Run: ./moq accept mr-pass --spec ShopFixtures,ShopSubscriptionScenarios
@@ -35,6 +36,27 @@ const dueNow = () =>
     })
 const grants = () =>
     list('mantle.public.PublicAccessGrant', { partyId: BUYER, siteId: SITE })
+// the demo's members' category (mr-boss Demo.js), which the monthly membership opens
+const members = () => one('mantle.forum.ForumCategory', { siteId: SITE, slug: 'members' })
+// the category as the buyer reads it through the Forum: its projection, or the refusal
+function readMembers() {
+    login(BUYER)
+    ec.message.pushErrors()
+    try {
+        const out = ec.service
+            .sync()
+            .name('mantle.forum.ForumServices.get#Category')
+            .parameters({ input: { siteId: SITE, contactListId: members()?.contactListId } })
+            .call()
+        return ec.message.hasError() ? { error: ec.message.getErrorsString() } : { category: out.result.category }
+    } catch (error) {
+        return { error: String(error.message || error) }
+    } finally {
+        ec.message.clearErrors()
+        ec.message.popErrors()
+        login('john.doe')
+    }
+}
 spec({
     stepwise: true,
     setupSpec() {
@@ -58,6 +80,16 @@ spec({
                 emailAddress: email,
                 verifiedAt: ec.user.nowTimestamp,
             })
+            // a member of the site, as signing up there makes them: the paid category opens to its members with a grant
+            sys('create#mantle.public.PublicSiteParty', {
+                siteId: SITE,
+                partyId: BUYER,
+                state: 'active',
+                role: 'member',
+                joinedAt: ec.user.nowTimestamp,
+                fromDate: ec.user.nowTimestamp,
+                revision: 1,
+            })
         }
         // the renewals here come minutes after the purchase, not a month later
         sys('create#mantle.product.store.ProductStoreSetting', {
@@ -78,8 +110,9 @@ spec({
         login('john.doe')
     },
 })
-feature('a verified buyer subscribes with consent and gets the paid access; the site manages it in Shop', {
+feature('a verified buyer subscribes with consent and gets the members\' category; the site manages it in Shop', {
     when() {
+        const before = readMembers()
         const offers = call('getSubscriptions', {}).result.offers
         const offer = offers.find((row) => row.name === 'Monthly membership')
         call('beginSubscriptionPurchase', { offerId: offer.offerId })
@@ -98,13 +131,18 @@ feature('a verified buyer subscribes with consent and gets the paid access; the 
         state.firstOrderId = row.orderId
         const site = one('mantle.public.PublicSite', { siteId: SITE })
         const page = lib().render(SITE, 'digital.zizi.localhost', '/shop/Subscriptions', 'Shop/Subscriptions/SubscriptionList')
-        return { view, made, site, grants: grants(), page }
+        return { before, view, made, site, grants: grants(), page, after: readMembers(), category: members() }
     },
-    then({ view, made, site, grants, page }) {
+    then({ before, view, made, site, grants, page, after, category }) {
         view.checkout.recurring.consentRequired == true
         made.length == 1
         made[0].stateEnumId == 'ScsActive' && made[0].consentDate != null && made[0].baseOrderId != null
         grants.filter((g) => g.sourceType == 'subscription' && !g.revokedAt).length == 1
+        // the grant is the members' category's, which the buyer now reads (and could not before)
+        grants.find((g) => g.sourceType == 'subscription').targetType == 'category'
+        grants.find((g) => g.sourceType == 'subscription').targetId == category.contactListId
+        before.error != null
+        after.category.contactListId == category.contactListId
         site.subscriptionUrl == 'https://digital.zizi.localhost/shop/Subscriptions'
         page.errors.length == 0
     },
@@ -165,8 +203,8 @@ feature('cancelling keeps access to the paid term; refunding the first term leav
             grantId: 'PASS_ACC_MANUAL_GRANT',
             partyId: BUYER,
             siteId: SITE,
-            targetType: 'site',
-            targetId: SITE,
+            targetType: 'category',
+            targetId: members().contactListId,
             sourceType: 'manual',
             sourceId: 'PASS_ACC_STAFF',
             fromDate: ec.user.nowTimestamp,

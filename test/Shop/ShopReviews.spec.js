@@ -205,6 +205,11 @@ feature(
                 {
                     decision: 'approve',
                     productReviewId: submitted.result.review.id,
+                    expectedLastUpdatedStamp: ec.entity
+                        .find('mantle.product.ProductReview')
+                        .condition({ productReviewId: submitted.result.review.id })
+                        .disableAuthz()
+                        .one().lastUpdatedStamp,
                 },
             )
             lib().run(
@@ -212,6 +217,11 @@ feature(
                 {
                     productReviewId: submitted.result.review.id,
                     replyText: 'Glad it keeps you warm.',
+                    expectedLastUpdatedStamp: ec.entity
+                        .find('mantle.product.ProductReview')
+                        .condition({ productReviewId: submitted.result.review.id })
+                        .disableAuthz()
+                        .one().lastUpdatedStamp,
                 },
             )
             logout()
