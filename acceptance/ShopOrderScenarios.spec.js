@@ -7,7 +7,7 @@
 // "Cancellation requested"; the guest registers with the purchase email and, verified, sees the order, its invoice in
 // Billing and the case in Support from the hub, which an unverified account does not; a signed-in buyer adds a card
 // through the hosted setup and an address, ending the card names the recurring order it pays, and a refund of the digital
-// item ends its download. Run: ./moq accept mr-pass --spec ShopOrderScenarios
+// item ends its download. Run: ./moq accept mr-pass --spec ShopOrderScenarios (with ShopFixtures, its dependsOn)
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const SITE = 'ZIZI_SHOP'
@@ -127,6 +127,7 @@ function account(partyId, email, verified) {
 }
 spec({
     stepwise: true,
+    dependsOn: ['ShopFixtures'],
     setupSpec() {
         capture.enable()
         login('john.doe')

@@ -3,10 +3,11 @@
 // choice, Enter to send), from the product page's Add to cart through the cart and every checkout step to the payment
 // page; the purchase island's count, the cart's totals and the checkout's totals are in polite live regions; a field the
 // authority refuses (an email address without a domain the browser accepts) comes back as an alert the field is described
-// by, the field marked invalid and focused; no page of the walk scrolls sideways. Motion: the starter theme (ZIZI_SHOP) and
-// the PASS shell (ZIZI_DIGITAL's Shop at /shop) stop animations and transitions under prefers-reduced-motion. A signed-in
-// shopper's account pages and ZIZI_DIGITAL's Shop pages do not scroll sideways at 390 px. Discovery and the basic cart forms
-// without JavaScript are ShopHttp's and ShopCartRemoteHttp's plain requests.
+// by, the field marked invalid and focused; no page of the walk scrolls sideways. Motion: with reduced motion emulated, the
+// starter theme (ZIZI_SHOP) and the PASS shell (ZIZI_DIGITAL's Shop at /shop) stop every animation and transition, and
+// without it their rule does not apply. A signed-in shopper's account pages and ZIZI_DIGITAL's Shop pages do not scroll
+// sideways at 390 px. With the page's scripts off, a guest finds a product from the home page, shows a quantity's price
+// and adds it to the cart through the plain forms.
 // Run: ./moq accept mr-pass --spec ShopFixtures,ShopAccessibilityHttp
 const SHOP = 'http://shop.zizi.localhost:' + server.port
 const DIGITAL = 'http://digital.zizi.localhost:' + server.port
@@ -66,32 +67,33 @@ const live = (page, text) =>
                 !!el.closest('[aria-live="polite"],[role=status],[role=alert]'),
         )
     }, text)
-/* A reduced-motion rule in the page's own stylesheets that stops animations and transitions. */
-const reducedMotion = (page) =>
+/* The page's motion: whether every element's animations and transitions are stopped (at most 0.1 ms), and whether the
+ * reduced-motion rule is what set the body's transition (0s when it does not apply). */
+const motion = (page) =>
     page.evaluate(() => {
-        const rules = []
-        const walk = (list) => {
-            for (const rule of Array.from(list || [])) {
-                if (rule.media && rule.conditionText !== undefined)
-                    if (
-                        /prefers-reduced-motion:\s*reduce/.test(
-                            rule.conditionText,
-                        )
-                    )
-                        rules.push(rule.cssText)
-                if (rule.cssRules) walk(rule.cssRules)
-            }
+        const seconds = (text) =>
+            Math.max(
+                ...String(text)
+                    .split(',')
+                    .map(
+                        (part) =>
+                            parseFloat(part) *
+                            (/ms\s*$/.test(part) ? 0.001 : 1),
+                    ),
+            )
+        let longest = 0
+        for (const el of Array.from(document.querySelectorAll('*'))) {
+            const style = getComputedStyle(el)
+            longest = Math.max(
+                longest,
+                seconds(style.transitionDuration),
+                seconds(style.animationDuration),
+            )
         }
-        for (const sheet of Array.from(document.styleSheets)) {
-            try {
-                walk(sheet.cssRules)
-            } catch (e) {}
+        return {
+            stopped: longest <= 0.0001,
+            ruled: getComputedStyle(document.body).transitionDuration !== '0s',
         }
-        return rules.some(
-            (text) =>
-                /transition-duration/.test(text) &&
-                /animation-duration/.test(text),
-        )
     })
 feature(
     'a guest buys with the keyboard alone at phone width; totals are announced and a refused field is labelled and focused',
@@ -247,16 +249,68 @@ feature(
     'the starter theme and the PASS shell stop animations and transitions under reduced motion',
     {
         when() {
-            const page = browser.newPage({ viewport: PHONE })
+            const page = browser.newPage({
+                viewport: PHONE,
+                reducedMotion: 'reduce',
+            })
             page.goto(SHOP + '/')
-            const themed = reducedMotion(page)
+            const themed = motion(page)
             page.goto(DIGITAL + '/shop/')
-            const shell = reducedMotion(page)
-            return { themed, shell }
+            const shell = motion(page)
+            page.setEmulation({ reducedMotion: 'no-preference' })
+            page.goto(SHOP + '/')
+            const themedMoving = motion(page)
+            page.goto(DIGITAL + '/shop/')
+            const shellMoving = motion(page)
+            return { themed, shell, themedMoving, shellMoving }
         },
-        then({ themed, shell }) {
-            themed === true
-            shell === true
+        then({ themed, shell, themedMoving, shellMoving }) {
+            themed.stopped === true
+            themed.ruled === true
+            shell.stopped === true
+            shell.ruled === true
+            themedMoving.ruled === false
+            shellMoving.ruled === false
+        },
+    },
+)
+feature(
+    "without JavaScript a guest finds a product, shows a quantity's price and adds it to the cart with the plain forms",
+    {
+        when() {
+            const page = browser.newPage({ viewport: PHONE, javaScript: false })
+            page.goto(SHOP + '/')
+            const product = page
+                .locator('a[href="/products/DEMO_1_1/demo-product-one-one"]')
+                .first()
+            product.click()
+            page.waitForURL(/\/products\/DEMO_1_1\//)
+            const islandMounted = page.evaluate(
+                () =>
+                    !!document.querySelector('#ShopPurchase .m-public-island'),
+            )
+            page.getByLabel('Quantity').fill('2')
+            page.getByRole('button', {
+                name: 'Show price',
+                exact: true,
+            }).click()
+            until(page, '2 × $16.99 = $33.98')
+            page.getByRole('button', {
+                name: 'Add to cart',
+                exact: true,
+            }).click()
+            page.waitForURL(/\/Cart$/)
+            return {
+                islandMounted,
+                cart: page.text(),
+                sideways: overflow(page),
+            }
+        },
+        then({ islandMounted, cart, sideways }) {
+            islandMounted === false
+            cart.includes('Demo Product One-One')
+            cart.includes('$16.99 each')
+            sideways === false
         },
     },
 )

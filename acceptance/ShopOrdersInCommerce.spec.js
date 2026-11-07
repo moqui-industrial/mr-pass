@@ -7,8 +7,8 @@
 // Returns and the order's badge, each opening Customer Service, and Commerce takes none of their actions; the failed
 // capture's Payment hold shows and the operator cannot release it; Order again on a past order makes a new open order at
 // today's prices; and each Orders and Customers screen opens for the operator. It lives here, beside the Shop scenarios it
-// reads, because a spec's dependsOn runs before it only by the order of the run (components in load order, then names); it needs mr-boss (Commerce's screens
-// and demo users), and without it every feature is ignored, so PASS stands alone. The rules are Mantle's StoreOperations
+// reads and names in dependsOn; it needs mr-boss (Commerce's screens and demo users), and without it every feature is
+// ignored, so PASS stands alone. The rules are Mantle's StoreOperations
 // and mr-boss CommerceOrders'.
 // Run: ./moq accept mr-pass --spec ShopOrdersInCommerce (with ShopFixtures and ShopOrderScenarios, its dependsOn)
 const boss = ec.resource

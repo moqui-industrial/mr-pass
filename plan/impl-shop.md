@@ -2131,7 +2131,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F114 | P7 review: ending a card clears consent without bumping the contract's revision; `dispatch#Renewal` and `run#Renewals` are anonymous-all (internal, allow-remote false) | Commerce P12 (the revision) |
 | F115 | P7 review: the first customer-initiated charge that keeps the card sends no stored-credential indicator, and renewals send no `recurringBilling`; never tried against the Authorize.Net sandbox | Before production: a sandbox check |
 | F116 | P8: every cart-making spec in one run shares the cart-creation throttle; ShopOperations resets it before and after (as ShopCheckout, Commerce F128) | Accepted |
-| F117 | P8: `dependsOn` still does not order a run (Commerce F106); the acceptance spec is named to sort after ShopFixtures | Framework |
+| F117 | P8: `dependsOn` still does not order a run (Commerce F106); the acceptance spec is named to sort after ShopFixtures | Framework. Done in com/fw7, mr-moqui 2ae6a83c: a run orders specs by dependsOn; the acceptance specs that read ShopFixtures declare it (names kept) |
 | F118 | P8: over gRPC, whether the image Cache-Control header is forwarded is not checked (REST forwards it) | Later. Done in com/fw5, mr-moqui bb453ba3: the gRPC download carries `public, max-age=60` (only that value) in place of no-store |
 | F119 | P8: no Commerce page for the adoption preview | Commerce (later) |
 | F120 | P8: the second-approval sweep covers Authorize.Net only | Each adapter's own |
@@ -2142,7 +2142,7 @@ Service's finished code and the plan's review, which also updated F1, F6, F9, F1
 | F125 | P8 review: a REFUND_PENDING left by a crash after the provider confirmed is finished by Refund again; one left by an unknown outcome waits for Accounting's lookup | Accepted (retry refused in both) |
 | F126 | P8 review: the fulfillment backstop (F96) finds only orders with a StoreCheckout, not a renewal order whose approval SECA never ran | P9. Done in P9 (renewal occurrences' orders too, with a spec) |
 | F127 | P8 review: a sweep candidate still inside its form-token window counts toward the run's 200-search limit | Accepted |
-| F128 | P9: the client browser API cannot emulate `prefers-reduced-motion` or turn JavaScript off; the motion check reads the stylesheets' rules | Framework (later) |
+| F128 | P9: the client browser API cannot emulate `prefers-reduced-motion` or turn JavaScript off; the motion check reads the stylesheets' rules | Framework (later). Done in com/fw7, mr-moqui 2c126027: `newPage({reducedMotion, javaScript})` and `page.setEmulation`; ShopAccessibilityHttp checks motion under the emulation and walks the plain forms with scripts off |
 | F129 | P9: ShopFixtures' `ZIZI_SHOP_HOSTED` gateway has no release or refund service, so a resolver's refund there fails (REFUND_NOT_DONE); the fixture is create-once | Accepted (the feature sets them for itself) |
 | F130 | P9: the server scenarios use up Demo Product Three-One's stock on a reused acceptance database | Accepted (as F124) |
 | F131 | P9: theme CSS refuses any text containing `behavior`, so a theme cannot use `scroll-behavior` | Framework (the theme validator). Done in com/fw5, mr-moqui bb453ba3: `behavior` refused only as a property of its own; `scroll-behavior` passes |
