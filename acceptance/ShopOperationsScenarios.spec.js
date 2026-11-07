@@ -3,8 +3,8 @@
 // feature, then put back) previews its template roles with their conversion findings and proposes publication rows,
 // writing nothing, and a publisher approves them; withdrawing the Shop mount leaves the placed orders as they are and the
 // reconciliation job still places an open attempt's order; a remote frontend whose authority is down serves neither the
-// site information it kept nor a personal page. Needs mr-mantle's StoreAdoptionServices (no BOSS); named to run after
-// ShopFixtures (impl-commerce F106).
+// site information it kept nor a personal page. Needs mr-mantle's StoreAdoptionServices (no BOSS); runs after
+// ShopFixtures, its dependsOn.
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const SITE = 'ZIZI_SHOP'

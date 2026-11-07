@@ -5,7 +5,7 @@
 // read, and the site's subscription address (the Forum's "Manage your subscription") is Shop's Subscriptions page;
 // the renewal charges once under a retried job; a declined renewal sends one notice, extends nothing and leaves no invoice
 // for Dunning; cancelling keeps access to the paid term; refunding the first term leaves a manual grant.
-// Run: ./moq accept mr-pass --spec ShopFixtures,ShopSubscriptionScenarios
+// Run: ./moq accept mr-pass --spec ShopSubscriptionScenarios (with ShopFixtures, its dependsOn)
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const SITE = 'ZIZI_DIGITAL'
@@ -59,6 +59,7 @@ function readMembers() {
 }
 spec({
     stepwise: true,
+    dependsOn: ['ShopFixtures'],
     setupSpec() {
         login('john.doe')
         const email = 'subscriber@zizi.example.test'

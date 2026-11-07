@@ -4,10 +4,10 @@
 // declined renewal is retried by the operator, which resumes the failed occurrence and makes one charge (a double submit
 // answers the first result); the operator cancels the renewal, the paid term staying; and a refund of one paid-access
 // item revokes that term's source grant only. Subscriptions, SubscriptionDetail and Customer360 open for the operator. It
-// lives here beside ShopSubscriptionScenarios (whose offer and decline gateway it reuses), after it by name; it needs mr-boss
+// lives here beside ShopSubscriptionScenarios (whose offer and decline gateway it reuses); it needs mr-boss
 // (Commerce's screens and groups), and without it every feature is ignored, so PASS stands alone. The rules are Mantle's
 // ShopSubscriptions and mr-boss CommerceSubscriptions'.
-// Run: ./moq accept mr-pass --spec ShopFixtures,ShopSubscriptionsInCommerce
+// Run: ./moq accept mr-pass --spec ShopSubscriptionsInCommerce (with ShopFixtures, its dependsOn)
 const boss = ec.resource
     .getLocationReference('component://mr-boss/screen/Commerce.xml')
     .getExists()
@@ -78,6 +78,7 @@ const liveGrants = () =>
     grants().filter((g) => g.sourceType == 'subscription' && !g.revokedAt)
 spec({
     stepwise: true,
+    dependsOn: ['ShopFixtures'],
     setupSpec() {
         if (!boss) return
         login('john.doe')
