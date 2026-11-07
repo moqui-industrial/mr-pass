@@ -144,14 +144,15 @@ function packageOf(siteId, release, call) {
 }
 /* A file of a release as the package holds it, checked against its manifest entry: a text file's text when its digest is
  * the pinned one, a binary asset by reference ({digest, size, contentType}, Shop F55) when all three are the pinned ones
- * and its type is its extension's; else null. */
+ * and its type is its extension's (in any case); else null. */
 function verifiedEntry(pin, file) {
     if (!pin) return null
     if (typeof file.text === 'string')
         return digestOf(file.text) === pin.digest ? file.text : null
-    const extension = String(file.path).slice(
-        String(file.path).lastIndexOf('.') + 1,
-    )
+    // the extension in any case, as the authority and the adapter take it (assets/Logo.PNG is an image/png)
+    const extension = String(file.path)
+        .slice(String(file.path).lastIndexOf('.') + 1)
+        .toLowerCase()
     if (
         !String(file.path).startsWith('assets/') ||
         TEXT_ASSETS.includes(extension) ||

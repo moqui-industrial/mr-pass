@@ -266,3 +266,52 @@ feature(
         },
     },
 )
+// Shop F55: a frontend takes a binary asset by reference only as its manifest pins it, whatever the extension's case (as
+// the authority and the adapter take it); a text file named by reference, or another content type, fails the release.
+feature(
+    'a binary asset by reference is verified against its pin, its extension in any case',
+    {
+        when() {
+            const engine = ec.resource.theme.engines()[0]
+            const digest = 'a'.repeat(64)
+            const verify = (path, answered) => {
+                const pin = { path, digest, size: 70, contentType: 'image/png' }
+                const manifestText = JSON.stringify({
+                    engine,
+                    viewApiVersion: 1,
+                    files: [pin],
+                })
+                const manifestDigest = ec.resource.digestText(
+                    manifestText,
+                    'sha256',
+                )
+                const ask = (operation) =>
+                    operation === 'getShopThemeRelease'
+                        ? { manifestDigest, manifestText }
+                        : { files: [Object.assign({}, pin, answered)] }
+                try {
+                    return theme().packageOf(
+                        'PASS_SHOP_PREVIEW_PIN',
+                        { releaseId: 'R' + manifestDigest, manifestDigest },
+                        ask,
+                    ).files[path]
+                } catch (error) {
+                    return { error: error.moquiErrorKind }
+                }
+            }
+            return {
+                upper: verify('assets/Logo.PNG', {}),
+                otherType: verify('assets/logo.png', {
+                    contentType: 'image/gif',
+                }),
+                textByReference: verify('assets/store.css', {}),
+            }
+        },
+        then({ upper, otherType, textByReference }) {
+            upper.contentType === 'image/png'
+            upper.size === 70
+            otherType.error === 'Unavailable'
+            textByReference.error === 'Unavailable'
+        },
+    },
+)
