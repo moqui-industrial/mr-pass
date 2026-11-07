@@ -3,7 +3,9 @@
 // the preview; the preview page is the draft rendered through the adapter with the trusted components, its sections
 // marked for selection and its script by nonce, sent no-store, noindex, without referrer and framed only by the
 // configured BOSS origins; a token of another site or a forged one is Not Found. An image uploaded to the draft (F55) is
-// served as bytes by the preview and, once published, by the live asset route.
+// served as bytes by the preview and, once published, by the live asset route by its digest, immutable (Shop F55: the
+// release's package names it by reference; only a registered frontend reads it by digest); a release published before,
+// whose image is base64 text, still serves it.
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const preview = () =>
@@ -191,15 +193,125 @@ feature(
                 published.manifestDigest,
                 'hero.png',
             )
-            return { uploaded, previewed, live }
+            const entry = theme().packageOf(SITE, shop.release).files[
+                'assets/hero.png'
+            ]
+            // the authority's download of it, to a browser and to a registered frontend
+            const asked = (clientId) =>
+                ec.resource
+                    .script('component://mr-mantle/script/PassAuthority.js')
+                    .handle({
+                        operation: 'getShopThemeAsset',
+                        siteId: SITE,
+                        input: {
+                            releaseId: published.releaseId,
+                            path: 'assets/hero.png',
+                            digest: entry.digest,
+                        },
+                        ...(clientId ? { clientId, clientVerified: true } : {}),
+                    })
+            setProperty('pass_client_' + l.ids.client + '_sites', SITE)
+            const browser = asked(null)
+            const frontend = asked(l.ids.client)
+            // as publish pinned it before: the digest of the image's base64 text, in the release's manifest and its row
+            const digestOf = (text) => ec.resource.digestText(text, 'sha256')
+            const release = ec.entity
+                .find('mantle.public.PublicThemeRelease')
+                .condition({ releaseId: published.releaseId })
+                .disableAuthz()
+                .one()
+            const manifest = JSON.parse(release.manifestText)
+            Object.assign(
+                manifest.files.find((file) => file.path === 'assets/hero.png'),
+                { digest: digestOf(PNG), size: PNG.length },
+            )
+            const manifestText = JSON.stringify(manifest)
+            l.run('update#mantle.public.PublicThemeRelease', {
+                releaseId: published.releaseId,
+                manifestText,
+                manifestDigest: digestOf(manifestText),
+            })
+            l.run('update#mantle.public.PublicThemeReleaseFile', {
+                releaseId: published.releaseId,
+                filePath: 'assets/hero.png',
+                digest: digestOf(PNG),
+                fileSize: PNG.length,
+            })
+            const before = l.facade('getShopContext', { siteId: SITE }).result
+            const old = theme().sendAsset(
+                before,
+                before.release.manifestDigest,
+                'hero.png',
+            )
+            return { uploaded, previewed, live, entry, browser, frontend, old }
         },
-        then({ uploaded, previewed, live }) {
+        then({ uploaded, previewed, live, entry, browser, frontend, old }) {
             uploaded.path === 'assets/hero.png'
             previewed.contentType === 'image/png'
             previewed.body.length === 70
             previewed.body[0] === 0x89
+            entry.contentType === 'image/png'
+            entry.size === 70
             live.contentType === 'image/png'
-            live.text === PNG
+            live.cacheControl === 'public, max-age=31536000, immutable'
+            live.bytes.length === 70
+            live.bytes[0] === 0x89
+            browser.error.status === 404
+            frontend.download.cacheControl ===
+                'public, max-age=31536000, immutable'
+            frontend.download.disposition === 'inline'
+            frontend.download.contentType === 'image/png'
+            old.contentType === 'image/png'
+            old.text === PNG
+        },
+    },
+)
+// Shop F55: a frontend takes a binary asset by reference only as its manifest pins it, whatever the extension's case (as
+// the authority and the adapter take it); a text file named by reference, or another content type, fails the release.
+feature(
+    'a binary asset by reference is verified against its pin, its extension in any case',
+    {
+        when() {
+            const engine = ec.resource.theme.engines()[0]
+            const digest = 'a'.repeat(64)
+            const verify = (path, answered) => {
+                const pin = { path, digest, size: 70, contentType: 'image/png' }
+                const manifestText = JSON.stringify({
+                    engine,
+                    viewApiVersion: 1,
+                    files: [pin],
+                })
+                const manifestDigest = ec.resource.digestText(
+                    manifestText,
+                    'sha256',
+                )
+                const ask = (operation) =>
+                    operation === 'getShopThemeRelease'
+                        ? { manifestDigest, manifestText }
+                        : { files: [Object.assign({}, pin, answered)] }
+                try {
+                    return theme().packageOf(
+                        'PASS_SHOP_PREVIEW_PIN',
+                        { releaseId: 'R' + manifestDigest, manifestDigest },
+                        ask,
+                    ).files[path]
+                } catch (error) {
+                    return { error: error.moquiErrorKind }
+                }
+            }
+            return {
+                upper: verify('assets/Logo.PNG', {}),
+                otherType: verify('assets/logo.png', {
+                    contentType: 'image/gif',
+                }),
+                textByReference: verify('assets/store.css', {}),
+            }
+        },
+        then({ upper, otherType, textByReference }) {
+            upper.contentType === 'image/png'
+            upper.size === 70
+            otherType.error === 'Unavailable'
+            textByReference.error === 'Unavailable'
         },
     },
 )
