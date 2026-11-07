@@ -42,8 +42,8 @@
         <mount path="/support" screen="Support"/>
       </public-site>
       <!-- Commerce P5 (F54): ZIZI_SHOP's theme preview host, which serves only the preview render (Commerce's ThemeEditor
-          frames it; its PublicSiteHost row is PshkPreview) -->
-      <public-site host="preview.shop.zizi.localhost" site-id="ZIZI_SHOP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+          frames it; its PublicSiteHost row is PshkPreview); Mantle's host check keeps the framework's routes off it (F87) -->
+      <public-site host="preview.shop.zizi.localhost" site-id="ZIZI_SHOP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route" host-check-service="mantle.public.ThemeServices.get#PreviewHost">
         <mount path="/" screen="Shop"/>
       </public-site>
     </webapp>
