@@ -325,7 +325,7 @@ function sendAsset(context, manifestDigest, assetPath, call) {
     if (
         !release ||
         release.manifestDigest !== manifestDigest ||
-        !/^assets\/[A-Za-z0-9_-]+(\/[A-Za-z0-9_.-]+)*\.[a-z0-9]+$/.test(path) ||
+        !/^assets\/[A-Za-z0-9_-]+(\/[A-Za-z0-9_.-]+)*\.[A-Za-z0-9]+$/.test(path) ||
         path.includes('..')
     )
         fail('NotFound', 'Not found')
@@ -336,7 +336,8 @@ function sendAsset(context, manifestDigest, assetPath, call) {
         fail('NotFound', 'Not found')
     }
     let text = verified.files[path]
-    const extension = path.slice(path.lastIndexOf('.') + 1)
+    // the extension in any case, as the authority and the adapter take it
+    const extension = path.slice(path.lastIndexOf('.') + 1).toLowerCase()
     const type = ASSET_TYPES[extension]
     // only the asset types a theme serves: never its template source (.html.fancy-locked) or another file under assets/
     if (text == null || !type) fail('NotFound', 'Not found')
