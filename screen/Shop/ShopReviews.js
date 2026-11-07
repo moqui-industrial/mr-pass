@@ -195,7 +195,9 @@ function reviewPage(context) {
     const write =
         view.own || view.canReview
             ? formHtml(context, view)
-            : signedIn
+            : view.reviewRemoved
+              ? '<p id="ReviewRemoved">The store removed your review of this product, so another cannot be written.</p>'
+              : signedIn
               ? '<p id="ReviewNotAllowed">You can review this product once your order of it has arrived and your email address is verified.</p>'
               : '<div id="ReviewSignIn">' +
                 signIn(context, reviewPath(productId)).replace(
