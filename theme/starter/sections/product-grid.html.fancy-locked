@@ -1,4 +1,4 @@
-<section class="store-section" data-section-id="${section.id}" aria-label="${section.settings.heading || 'Coming soon'}">
+<section class="store-section" data-section-id="${section.id}" aria-label="${section.settings.heading || t('grid.emptyHeading')}">
   <#if productList && productList.length>
   <#if section.settings.heading><h2>${section.settings.heading}</h2></#if>
   <ul class="grid">
@@ -7,7 +7,7 @@
     </#list>
   </ul>
   <#else>
-  <h2>${section.settings.emptyHeading || 'Coming soon'}</h2>
-  <p class="empty" id="ShopEmpty">${section.settings.emptyText || 'This store is getting ready. Check back soon to browse its products.'}</p>
+  <h2>${section.settings.emptyHeading || t('grid.emptyHeading')}</h2>
+  <p class="empty" id="ShopEmpty">${section.settings.emptyText || t('grid.emptyText')}</p>
   </#if>
 </section>

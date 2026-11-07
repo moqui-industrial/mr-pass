@@ -125,9 +125,11 @@ function downloadFile(siteId, operation, input) {
     }
     transport().downloadOperation(siteId, operation, { siteId, ...input })
 }
+/* The bytes a ranged download reads and writes at a time. */
+const RANGE_WINDOW = 1024 * 1024
 /* A granted download (impl-shop P6): the browser's byte range asked of the authority, which rechecks the grant and its
-   capability, and the file streamed with it: in process its range cut from the file (206, or 416 outside it), through a
-   remote frontend the authority's own ranged answer forwarded. */
+   capability, and the file streamed with it: in process only its range read (206, or 416 outside it), through a remote
+   frontend the authority's own ranged answer forwarded (REST or gRPC). */
 function downloadRanged(siteId, operation, input) {
     const range = String(ec.web.request.getHeader('Range') || '').trim()
     const asked = {
@@ -154,20 +156,6 @@ function downloadRanged(siteId, operation, input) {
         response.setHeader('Content-Range', 'bytes */' + result.file.size)
         return
     }
-    const wasDisabled = ec.artifactExecution.disableAuthz()
-    let bytes
-    try {
-        const stream = ec.resource
-            .getLocationReference(result.location)
-            .openStream()
-        try {
-            bytes = stream.readAllBytes()
-        } finally {
-            stream.close()
-        }
-    } finally {
-        if (!wasDisabled) ec.artifactExecution.enableAuthz()
-    }
     response.setContentType(result.file.mimeType)
     if (r) {
         response.setStatus(206)
@@ -175,9 +163,31 @@ function downloadRanged(siteId, operation, input) {
             'Content-Range',
             'bytes ' + r.start + '-' + r.end + '/' + result.file.size,
         )
-        bytes = bytes.slice(r.start, r.end + 1)
     }
-    response.write(bytes)
+    // only the range is read, a window at a time (Shop F88)
+    const start = r ? r.start : 0
+    const end = r ? r.end : result.file.size - 1
+    const wasDisabled = ec.artifactExecution.disableAuthz()
+    try {
+        const stream = ec.resource
+            .getLocationReference(result.location)
+            .openStream()
+        try {
+            for (let at = start; at <= end; ) {
+                const bytes = stream.read(
+                    at,
+                    Math.min(RANGE_WINDOW, end - at + 1),
+                )
+                if (!bytes.length) break
+                response.write(bytes)
+                at += bytes.length
+            }
+        } finally {
+            stream.close()
+        }
+    } finally {
+        if (!wasDisabled) ec.artifactExecution.enableAuthz()
+    }
 }
 ;({
     call,

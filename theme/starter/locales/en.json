@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "skip": "Skip to content",
+    "menu": "Store menu",
+    "categories": "Categories",
+    "search": "Search",
+    "cart": "Cart"
+  },
+  "category": {
+    "empty": "No products here yet.",
+    "more": "More products"
+  },
+  "grid": {
+    "emptyHeading": "Coming soon",
+    "emptyText": "This store is getting ready. Check back soon to browse its products."
+  },
+  "notFound": {
+    "heading": "This page is not available.",
+    "back": "Back to the store"
+  },
+  "product": {
+    "sku": "SKU"
+  },
+  "reviews": {
+    "heading": "Reviews",
+    "ofFive": "of 5",
+    "count": "reviews",
+    "none": "No reviews yet.",
+    "own": "Your review:",
+    "verified": "Verified purchase",
+    "replyFrom": "Reply from",
+    "all": "All reviews",
+    "write": "Write or change your review"
+  },
+  "search": {
+    "heading": "Search",
+    "invalid": "Enter up to 100 characters to search.",
+    "unavailable": "Search is not available right now. Please try again soon.",
+    "noMatch": "No products match your search.",
+    "pages": "Pages",
+    "more": "More results"
+  }
+}

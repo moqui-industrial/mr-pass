@@ -1,7 +1,7 @@
 // Shop's orders, account and downloads on PASS, and the PASS Account hub (impl-shop P6; design-shop §9, §10 Downloads; F6,
 // F27, F82): a guest's order link reads its one order, the same through a remote frontend, and the emailed link's page keeps
 // it in the session for that order and cleans the address; the order page (one render) links the site's Support pages
-// with the order and its downloads; a remote frontend's download answers its range; the hub's one render shows the Shop and
+// with the order and its downloads; a remote frontend's download answers its range, the REST servlet reading only it; the hub's one render shows the Shop and
 // Billing cards of a verified buyer and the email preferences the store's cart reminders; P6's capability reads are POSTs in
 // all three TOKEN_WRITES lists, Support's too, and only the relays' routes allow the provider's form-action. The rules are
 // Mantle's (mr-mantle test/party/ShopCustomer, test/product/StoreFulfillment).
@@ -266,6 +266,50 @@ feature(
                         clientId: lib().ids.client,
                         clientVerified: true,
                     })
+                // the REST servlet streams only the range (F88): 206 with its bytes, 416 outside the file
+                const rest = (range) => {
+                    const out = { status: 200, headers: {}, text: '' }
+                    const response = {
+                        setStatus: (status) => (out.status = status),
+                        setHeader: (name, value) =>
+                            (out.headers[name.toLowerCase()] = value),
+                        setContentType: (type) =>
+                            (out.headers['content-type'] = type),
+                        write: (body) =>
+                            (out.text +=
+                                typeof body === 'string'
+                                    ? body
+                                    : String.fromCharCode(...Array.from(body))),
+                    }
+                    const headers = {
+                        'x-pass-client': lib().ids.client,
+                        'x-pass-client-secret': 'pass-shop-spec-secret',
+                    }
+                    ec.resource
+                        .script('component://mr-mantle/script/PassApi.js')
+                        .service(
+                            {
+                                requestURI:
+                                    '/rest/s1/pass/v1/sites/' +
+                                    SITE +
+                                    '/shop/downloads/file',
+                                method: 'GET',
+                                getHeader: (name) =>
+                                    headers[String(name).toLowerCase()] ?? null,
+                                getParameterMap: () => ({
+                                    downloadGrantId: grant.downloadGrantId,
+                                    downloadToken: issued.result.downloadToken,
+                                    range,
+                                }),
+                            },
+                            response,
+                        )
+                    return {
+                        status: out.status,
+                        range: out.headers['content-range'],
+                        text: out.text,
+                    }
+                }
                 return {
                     local,
                     remote,
@@ -277,6 +321,8 @@ feature(
                     detail,
                     grant,
                     file,
+                    part: rest('bytes=4-7'),
+                    outside: rest('bytes=999-'),
                 }
             } finally {
                 login('john.doe')
@@ -305,6 +351,10 @@ feature(
             r.grant.available == true
             r.file.download.range.start == 4 && r.file.download.range.end == 7
             r.file.download.size > 8
+            r.part.status == 206 && r.part.text == 'spec'
+            r.part.range == 'bytes 4-7/' + r.file.download.size
+            r.outside.status == 416 && r.outside.text == ''
+            r.outside.range == 'bytes */' + r.file.download.size
             !JSON.stringify(r.file.result).includes('dbresource')
         },
     },
