@@ -335,7 +335,7 @@ one. A published product feed is served at `{mount}/feeds/{key}.xml` (or `.csv`)
 - **Caches.** Anonymous catalog pages are `public, max-age=60` with an ETag under the site's generation; everything with a
   session or a user is `no-store`. A CDN may keep catalog pages for that minute; it must keep nothing marked `no-store` and
   must forward cookies, since a cookieless anonymous catalog response is the only kind marked public and it sets none. Theme assets under
-  `{mount}/theme/{digest}/` are immutable. A remote frontend keeps anonymous catalog reads and the site information under
+  `{mount}/theme/{digest}/` are `public, max-age=31536000, immutable`, whether the frontend is local or remote. A remote frontend keeps anonymous catalog reads and the site information under
   the generation, and serves nothing kept when the authority cannot answer it.
 - **Jobs.** Mantle's jobs, each in its own transaction per item (one failing is named and the rest go on); keep them
   unpaused (the store's readiness names a paused checkout job) and watch their `operation` marks in the framework Monitor:
@@ -362,8 +362,11 @@ mount at `theme/{manifest digest}/{path}`, immutable. A remote frontend fetches 
 over its authority connection (registered clients only), checks every digest and keeps the release; one it cannot
 verify, or an engine or view API it does not have, shows a safe "not available" page. The renderer's budgets are
 lowered in conf with `<resource-facade><theme-limits .../>` (mr-moqui `docs/ui/Themes.md`).
-A release's images and fonts (`assets/*.png`, `.jpg`, `.gif`, `.webp`, `.woff2`) travel as the base64 of their bytes,
-digest-checked like the text files, and are served as bytes.
+A release's images and fonts (`assets/*.png`, `.jpg`, `.gif`, `.webp`, `.woff2`) are pinned by the SHA-256 of their
+bytes and named in the package by reference (`{digest, size, contentType}`), so the render package stays text; a frontend
+reads an asset's bytes only when it is asked for, by release, path and digest (`getShopThemeAsset`, registered clients
+only), and serves them `public, max-age=31536000, immutable`, also over gRPC. A release published before carries them as
+base64 text, digest-checked like the text files, and still serves them.
 
 **Theme preview host** (impl-commerce P5, F54; design-shop §12.6). Commerce's ThemeEditor frames a draft from a site's
 preview host, which serves only `/preview/{token}` and its assets `/preview/{token}/asset/{path}` and answers Not Found for

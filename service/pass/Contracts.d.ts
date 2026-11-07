@@ -1111,6 +1111,13 @@ export interface OperationInputs {
         releaseId: string
         paths: string
     }
+    /** registered frontends only; Shop F55: a binary asset's bytes (a download), by the digest the manifest pins */
+    getShopThemeAsset: {
+        siteId: string
+        releaseId: string
+        path: string
+        digest: string
+    }
     getSiteGeneration: {
         siteId: string
     }
