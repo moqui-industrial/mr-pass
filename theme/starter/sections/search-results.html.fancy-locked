@@ -1,8 +1,8 @@
 <section class="store-section" data-section-id="${section.id}">
-  <h1>${page.title || page.query || 'Search'}</h1>
+  <h1>${page.title || page.query || t('search.heading')}</h1>
   <div class="component">${components["shop.search"]}</div>
-  <#if page.resultState == 'invalid'><p class="empty" role="alert">Enter up to 100 characters to search.</p></#if>
-  <#if page.resultState == 'unavailable'><p class="empty" role="alert">Search is not available right now. Please try again soon.</p></#if>
+  <#if page.resultState == 'invalid'><p class="empty" role="alert">${t("search.invalid")}</p></#if>
+  <#if page.resultState == 'unavailable'><p class="empty" role="alert">${t("search.unavailable")}</p></#if>
   <#if productList && productList.length>
   <ul class="grid">
     <#list productList as product>
@@ -10,15 +10,15 @@
     </#list>
   </ul>
   <#elseif page.resultState == 'noMatch'>
-  <p class="empty">No products match your search.</p>
+  <p class="empty">${t("search.noMatch")}</p>
   </#if>
   <#if page.contentResults && page.contentResults.length>
-  <h2>Pages</h2>
+  <h2>${t("search.pages")}</h2>
   <ul>
     <#list page.contentResults as result>
     <li><a href="${result.url}">${result.label}</a></li>
     </#list>
   </ul>
   </#if>
-  <#if page.nextUrl><p><a rel="next" href="${page.nextUrl}">More results</a></p></#if>
+  <#if page.nextUrl><p><a rel="next" href="${page.nextUrl}">${t("search.more")}</a></p></#if>
 </section>

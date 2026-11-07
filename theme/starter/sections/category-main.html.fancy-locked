@@ -23,7 +23,7 @@
     </#list>
   </ul>
   <#elseif !(category.children && category.children.length)>
-  <p class="empty">No products here yet.</p>
+  <p class="empty">${t("category.empty")}</p>
   </#if>
-  <#if page.nextUrl><p><a rel="next" href="${page.nextUrl}">More products</a></p></#if>
+  <#if page.nextUrl><p><a rel="next" href="${page.nextUrl}">${t("category.more")}</a></p></#if>
 </section>

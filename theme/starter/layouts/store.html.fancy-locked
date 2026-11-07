@@ -8,18 +8,18 @@
 <link rel="icon" href="${assets["assets/logo.svg"]}">
 ${styles}</head>
 <body style="--accent: ${settings.accent}; --surface: ${settings.surface}">
-<a class="skip" href="#main">Skip to content</a>
+<a class="skip" href="#main">${t("nav.skip")}</a>
 <header class="store-header">
 <a class="brand" href="${shop.baseUrl}"><img src="${assets["assets/logo.svg"]}" alt="" width="32" height="32"> <span>${shop.name}</span></a>
-<nav aria-label="Store menu"><ul>
+<nav aria-label="${t("nav.menu")}"><ul>
 <#if navigation && navigation.length>
 <#list navigation as item>
 <li><a href="${item.url}">${item.label}</a></li>
 </#list>
 </#if>
-<#if shop.categoriesUrl><li><a href="${shop.categoriesUrl}">Categories</a></li></#if>
-<#if shop.searchUrl><li><a href="${shop.searchUrl}">Search</a></li></#if>
-<#if shop.cartUrl><li><a href="${shop.cartUrl}">Cart</a></li></#if>
+<#if shop.categoriesUrl><li><a href="${shop.categoriesUrl}">${t("nav.categories")}</a></li></#if>
+<#if shop.searchUrl><li><a href="${shop.searchUrl}">${t("nav.search")}</a></li></#if>
+<#if shop.cartUrl><li><a href="${shop.cartUrl}">${t("nav.cart")}</a></li></#if>
 </ul></nav>
 </header>
 <main id="main">
