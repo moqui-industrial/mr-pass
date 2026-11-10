@@ -66,7 +66,7 @@ const as = (name, work) => {
     }
 }
 const wiki = (verb, input) =>
-    sys(() => call('org.moqui.impl.WikiServices.' + verb, input))
+    sys(() => call('org.moqui.resource.WikiServices.' + verb, input))
 /* Deliveries a member got for one post. */
 const deliveriesFor = (partyId, postId) =>
     sys(() =>

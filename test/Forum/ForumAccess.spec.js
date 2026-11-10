@@ -401,7 +401,7 @@ feature('site pages expose only their explicitly approved wiki version', {
     when() {
         login('john.doe')
         const wiki = (verb, input) =>
-            call('org.moqui.impl.WikiServices.' + verb, input)
+            call('org.moqui.resource.WikiServices.' + verb, input)
         let wikiPageId, first, second
         sys(() => {
             wiki('create#WikiSpace', {

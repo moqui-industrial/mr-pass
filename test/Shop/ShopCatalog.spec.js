@@ -118,7 +118,7 @@ spec({
         })
         // a published page of the Shop mount: its wiki version bound
         const wiki = (verb, parameters) =>
-            l.run('org.moqui.impl.WikiServices.' + verb, parameters)
+            l.run('org.moqui.resource.WikiServices.' + verb, parameters)
         wiki('create#WikiSpace', {
             wikiSpaceId: ids.space,
             description: 'Shop catalog spec pages',

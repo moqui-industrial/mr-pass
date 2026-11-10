@@ -149,7 +149,7 @@ feature(
                 })
             ) {
                 const wiki = (verb, parameters) =>
-                    l.run('org.moqui.impl.WikiServices.' + verb, parameters)
+                    l.run('org.moqui.resource.WikiServices.' + verb, parameters)
                 if (
                     !one('moqui.resource.wiki.WikiSpace', {
                         wikiSpaceId: 'PASSHPG',
@@ -389,7 +389,7 @@ feature(
                 })
             ) {
                 const wiki = (verb, parameters) =>
-                    l.run('org.moqui.impl.WikiServices.' + verb, parameters)
+                    l.run('org.moqui.resource.WikiServices.' + verb, parameters)
                 const wikiPageId = wiki('update#WikiPage', {
                     wikiSpaceId: 'PASSHPG',
                     pageName: 'Terms of sale',

@@ -143,7 +143,7 @@ revisions: Mantle `909e43053c67`, BOSS `19af60169f2a`, Discourse `568a006ad8f5`,
 | R7 | Odoo `addons/website_forum/models/forum_forum.py`, `forum_post.py`, `forum_post_vote.py`; `addons/website_forum/views/forum_forum_templates_post.xml`, `forum_forum_templates_moderation.xml`; `addons/website_forum/controllers/website_forum.py` | Adopt category discussion/Q&A intent, answer filtering, accepted-answer affordances and website integration. Optional Q&A mode keeps the same chronological storage and accepted-answer highlight. Omit a separate karma ledger; PASS trust/reactions cover the need. |
 | R8 | Odoo `addons/website_blog/models/website_blog.py`, `controllers/main.py`, `views/website_blog_templates.xml`, `views/website_blog_posts_loop.xml`; `addons/website_blog/__manifest__.py` | Future Publishing: publications, author/teaser/cover, taxonomy, scheduled visibility, archive/search and public-site integration. Full publishing screens deferred, contracts in §13. |
 | R9 | Odoo `addons/website_sale/models/website.py`, `product_public_category.py`, `controllers/cart.py`, `payment.py`, `portal.py`; `addons/website_sale/__manifest__.py`; `addons/website`, `website_mail`, `website_payment`, `auth_signup`, `portal` | Shop: site/store/account binding, public catalog, cart/checkout, portal and content integration. Full screens are specified in [Shop design](design-shop.md); BOSS Commerce owns visual theme/page editing. These remain outside Forum's implementation scope. |
-| R10 | Framework `runtime/base-component/framework/entity/ResourceEntities.xml`, `service/org/moqui/impl/WikiServices.xml` under that same component; `docs/interfaces/Mail-Inbound.md`; `runtime/base-component/framework/entity/ChatEntities.xml`; `crates/moqui-core/src/service/remote.rs`; Mantle `entity/ProductDefinitionEntities.xml`, `service/mantle/product/SubscriptionServices.xml` | Reuse wiki versions/reviews, mail ingestion, remote transport and subscription interfaces. Chat reactions/polls are keyed to ChatEvent and cannot be used as forum rows unchanged. |
+| R10 | Framework `runtime/base-component/framework/entity/ResourceEntities.xml`, `service/org/moqui/resource/WikiServices.xml` under that same component; `docs/interfaces/Mail-Inbound.md`; `runtime/base-component/framework/entity/ChatEntities.xml`; `crates/moqui-core/src/service/remote.rs`; Mantle `entity/ProductDefinitionEntities.xml`, `service/mantle/product/SubscriptionServices.xml` | Reuse wiki versions/reviews, mail ingestion, remote transport and subscription interfaces. Chat reactions/polls are keyed to ChatEvent and cannot be used as forum rows unchanged. |
 
 Additional dispositions: Discourse migration is S3 (§18); phpBB import is deferred. Topic voting
 as a separate feature-request ranking system, badges/leaderboards, live chat, events, federation,
@@ -319,7 +319,7 @@ not direct entity CRUD. Prefixes: **S** = `mantle.public.SiteServices`; **A** =
 `mantle.forum.OperationServices`; **I** = `mantle.forum.IntegrationServices`; **X** =
 `mantle.forum.ImportServices`. Existing prefixes: **L** =
 `mantle.marketing.ContactListServices`; **C** = `mantle.party.CommunicationServices`;
-**W** = `org.moqui.impl.WikiServices`. Calls listed as existing need the shared-rule extensions
+**W** = `org.moqui.resource.WikiServices`. Calls listed as existing need the shared-rule extensions
 before they can be used for PASS; they are never blanket public grants.
 
 **Common screen behavior.** Every screen loads in the resolved site, checks capabilities at load
@@ -1286,7 +1286,7 @@ to their linked internal records.
 | ContactListServices, CommunicationServices | R1 | Existing services are extended, not exposed unrestricted; see §15. |
 | mantle.search.UniversalSearchServices.search#Universal | Mantle service/mantle/search/UniversalSearchServices.xml | Existing authorized search pattern; add site-aware public projections and current-access post-filter. |
 | mantle.party.ConsentServices.create#UnsubscribeToken, check#UnsubscribeToken, resolve#UnsubscribeToken, apply#UnsubscribePreferences | Mantle service/mantle/party/ConsentServices.xml | Reuse token/consent mechanisms; existing membership-changing unsubscribe is not the forum delivery action. |
-| org.moqui.impl.WikiServices publication/review methods | Framework service/org/moqui/impl/WikiServices.xml | Existing version-bound review; scheduled public release and publication metadata remain new. |
+| org.moqui.resource.WikiServices publication/review methods | Framework service/org/moqui/resource/WikiServices.xml | Existing version-bound review; scheduled public release and publication metadata remain new. |
 
 ### 14.2 Records
 
