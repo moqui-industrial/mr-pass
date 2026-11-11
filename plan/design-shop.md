@@ -1,5 +1,9 @@
 # IronStone PASS — Shop design
 
+Nov 11, 2026 — the seller's approval setting of mr-boss impl-sales §4 written in (§§6, 8.3, 10.2): where the store's
+organization has it on, a paid order or renewal is not approved automatically; off by default; a pre-approval warning
+blocks the automatic approval as built, and with the setting on is shown to the approver only. The order-placed
+attribution SECA calls Marketing's one handler, `handle#OrderPlaced` (§§4.1, 8.3; mr-boss impl-marketing §4).
 Nov 6, 2026 — built (impl-shop P0–P9); the sections are as built, with the later scope in §17.2 and §20 and
 impl-shop §7. §18.1's scenarios are each covered by acceptance tests and regression specs (the map is in impl-shop P9).
 Nov 5, 2026 — checked against the code while writing [impl-shop.md](impl-shop.md) (its F1–F34) and mr-boss
@@ -232,7 +236,7 @@ frontend, so Shop never keys tracking on a visit. The facade carries the landing
 (UTM source, medium, campaign) and an opaque visitor key with each call, and the authority records
 Marketing's tracking events (MKT-TRACKING) when the visitor's tracking consent allows it. At
 placement the proposed Mantle SECA `OrderPlacedRecordAttribution` (tx-commit) calls Marketing's
-proposed `record#OrderAttribution`; Shop writes no TrackingCodeVisit row and runs no attribution
+proposed handler `handle#OrderPlaced`, which calls `record#OrderAttribution` (impl-marketing §4); Shop writes no TrackingCodeVisit row and runs no attribution
 of its own. Previews send nothing. **Needs:** SHOP-RENDER; Marketing MKT-TRACKING.
 
 ### 4.2 Shopper identity and authorization
@@ -557,7 +561,10 @@ session through its narrow capability, without exposing the whole customer accou
 Derived from
 PopRestStore checkout success and Mantle order summaries. A confirmation is available only after
 authoritative placement; pending payment gets PaymentResult. A newly placed order may still need
-staff approval, so wording must not promise shipping or access before the relevant state.
+staff approval, so wording must not promise shipping or access before the relevant state. That
+includes a paid order of a seller whose SalesPolicy approval setting is on (mr-boss impl-sales §4,
+Nov 11, 2026), and one that a pre-approval warning kept from automatic approval: its payment is
+authorized and it stays Placed until it is approved.
 Refresh never places the order again. The QR encodes the signed-in order page URL, never a bearer
 token (R-SHP-W06). An account created from NextActions with the purchase email is linked to the
 guest's party only after that email is verified, and then the self relationship reaches the
@@ -769,7 +776,7 @@ reconciliation/compensation; do not lose them in a rolled-back cart transaction.
 | Existing automation | Kept or changed for Shop |
 | --- | --- |
 | `OrderPlacedAuthorizePayments` in AccountingPayment.secas.xml | Kept. `authorize#OrderPayments` already skips Authorized payments, so preauthorization plus placement re-tries only Promised ones; the proposed guard skips a Promised payment that has an unresolved attempt (R-SHP-08). Never two provider requests. |
-| `OrderPlacedAutoApprove` in OrderReturn.secas.xml; `OrderPreApproveCredit` in AccountingCredit.secas.xml | Kept: configured delay, registered ProductStoreApprove checks and credit policy. `autoApprove#Order` already requires Authorized, Delivered or Confirmed payments covering the grand total, so the Shop pre-approve check is limited to manual `approve#Order`, which runs `mantle.order.OrderInfoServices.check#OrderPreApprove` (X4), and to an attempt in an unknown state. |
+| `OrderPlacedAutoApprove` in OrderReturn.secas.xml; `OrderPreApproveCredit` in AccountingCredit.secas.xml | Kept: configured delay, registered ProductStoreApprove checks and credit policy. `autoApprove#Order` already requires Authorized, Delivered or Confirmed payments covering the grand total, so the Shop pre-approve check is limited to manual `approve#Order`, whose sales direction calls the credit check itself (X4 as built, mr-boss impl-sales F11), and to an attempt in an unknown state. Conditioned by the seller (mr-boss impl-sales §4, Nov 11, 2026; built in impl-sales P11): where the store's organization has its SalesPolicy approval setting on, `autoApprove#Order` approves none of its sales orders, whichever app placed them, so a paid Shop order or renewal stays Placed until a holder of `SALES_ORDER_APPROVE` approves it, and what follows approval (fulfillment, digital delivery, access, the approved email) waits with it. The setting is off by default, and with it off a Shop order is approved as described here: a pre-approval warning, a Sales one included (impl-sales P9), blocks the automatic approval, as built. With the setting on the warnings are shown to the approver only. |
 | D7 `OrderHold`, OrderHoldEntities.xml | Extended with the proposed `OhtPayment` type for exceptions after placement (§8.2, X4); no `OhtStock`. |
 | ProductAsset.secas.xml reservation rules and `OrderItemHandleChange` EECA | Kept: native reservation/line-change paths and store policy. Enforce checkout freeze in the guarded order mutation services; staff edits to an active checkout must explicitly resolve/release it first. Conditioned: no reservation for a RecurringTemplate base (X5). |
 | `OrderPartHandleChange` and the revision EECAs `OrderContentRevision`, `OrderPartPartyRevision`, `OrderPartContactMechRevision`, `OrderPartTermRevision`, `OrderNoteRevision` in entity/Order.eecas.xml | Kept. `orderRevision` is the cart and checkout revision (§7.1); under X2, OrderContent, OrderNote and status-only part updates stop incrementing it, so a note or a status change does not invalidate a frozen checkout. |
@@ -780,7 +787,7 @@ reconciliation/compensation; do not lose them in a rolled-back cart transaction.
 | `OrderApprovedFulfillSubscriptions` in ProductSubscription.secas.xml | Conditioned for Shop: existing fulfillment creates the Subscription before invoicing/applying payment. Separate preparation/settlement from activation, and retry the source-bound activation only after required settlement. It already skips recurring bases. Retain non-Shop policy behavior unless explicitly migrated. |
 | ServiceJob `create_RecurringOrders` (`create#RecurringOrders`) in MantleSetupData.xml | Kept, with Shop-linked bases dispatched to Shop's occurrence coordinator (§10.1, X5). |
 | Proposed refund and chargeback SECA | New Mantle SECA on Payment refund and return-item settlement, and on Accounting's chargeback intake, calling `reconcile#RefundedItem` (§10.2, X5). |
-| Proposed `OrderPlacedRecordAttribution` | New Mantle SECA (tx-commit) calling Marketing's `record#OrderAttribution` (X10, §4.1). |
+| Proposed `OrderPlacedRecordAttribution` | New Mantle SECA (tx-commit) calling Marketing's handler `handle#OrderPlaced`, which calls `record#OrderAttribution` (X10, §4.1; impl-marketing §4). |
 | `RequestTriageNotice` in entity/Request.eecas.xml | Kept for the case Customer Service's `create#CustomerCase` makes from a Shop question; Shop files no plain Request. |
 | `PaymentApplyForInvoice` and AccountingLedger posting rules | Kept: applications/postings through native services. Payment retries cannot make duplicate invoices, applications, captures or GL postings. |
 | Existing return processing rules | Kept per Customer Service D11 and Accounting's mode; a customer return request (`request#CustomerReturn`) cannot authorize or settle itself. |
@@ -1103,7 +1110,9 @@ native renewal order and durable attempt, then charge through the same payment r
 machinery. Customer-action-required outcomes open a scoped action flow. Retries use the same
 occurrence and unresolved provider identity. The default retry schedule is one day, three days and
 seven days after the initial failure, bounded by the store's approved policy; never retry unknown
-outcomes as new charges.
+outcomes as new charges. A charged renewal order is approved by `autoApprove#Order` as any paid
+order is; for a seller whose SalesPolicy approval setting is on, or where a pre-approval warning
+blocks the automatic approval, it waits for an approver (§8.3), and the next term is granted at its settled, approved fulfillment as before.
 
 **Notices and Dunning (R-SC-03).** Failure and action notices are payment-attempt notices
 (`PsetPaymentRetry`), sent once per attempt through the Comms delivery ledger (X8). Accounting's
