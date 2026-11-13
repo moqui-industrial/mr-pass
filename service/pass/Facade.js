@@ -1,6 +1,11 @@
 /* PASS owns presentation and one configured authority, never a business replica: in process when pass_backend_url is
    empty, else over REST or gRPC (Transport.js). */
-const schema = ec.resource.script('component://mr-pass/service/pass/Schema.js')
+// Smithy's operations are in their own file, a copy of Mantle's SmithySchema.js (plan/design-smithy.md §4.1), as Schema.js is
+// of its ForumSchema.js; a name is in one of the two
+const schema = {
+    ...ec.resource.script('component://mr-pass/service/pass/Schema.js'),
+    ...ec.resource.script('component://mr-pass/service/pass/SmithySchema.js'),
+}
 const fail = (kind, text) => {
     const e = new Error(text)
     e.moquiErrorKind = kind

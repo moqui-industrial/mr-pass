@@ -15,7 +15,7 @@ without loading its entity catalog or copying its Party records. BOSS is not a r
 
 The [Forum design](plan/design-forum.md) defines the stages and how an app registers (§13.1); what is built
 and verified, and what is deferred, is in [the implementation record](plan/implementation-forum.md).
-Operators start with [Deployment](docs/Deployment.md), which also covers the Billing, Supplier and Support apps.
+Operators start with [Deployment](docs/Deployment.md), which also covers the Billing, Supplier, Support and Smithy apps.
 
 Its Shop app ([IronStone Shop](plan/design-shop.md), `screen/Shop.xml`) is a ProductStore's storefront, mounted at
 `/shop` or a site's root: the published catalog and search, a cart, a guest or signed-in checkout paying on the store's
@@ -25,6 +25,11 @@ ShopSubscriptionServices, ShopOperationsServices). Its pages render the site's p
 `theme/starter/`) and work without JavaScript, with Vue islands for the purchase selection and the cart. Its theme and
 page editors are [IronStone Commerce](../mr-boss/plan/design-commerce.md)'s; published shops run without BOSS.
 [impl-shop](plan/impl-shop.md) records Shop's build; [Deployment](docs/Deployment.md) "Shop app" its setup and jobs.
+
+Its Smithy app ([design](plan/design-smithy.md), `screen/Smithy.xml`) is public git hosting, mounted at `/code` or a
+site's root: groups, repositories and their code (files, a file with line anchors, raw, commits, branches, tags, a commit
+and a comparison), read-only and without JavaScript, over Mantle's `mantle.smithy` services and the framework's git host.
+What a visitor may not view is Not Found. [Deployment](docs/Deployment.md) "Smithy app" has its setup.
 
 ## Starting a community
 
@@ -44,7 +49,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyAccess --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens

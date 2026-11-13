@@ -37,6 +37,16 @@ const ROUTES = [
             'https://test.authorize.net',
         ],
     },
+    // Smithy DG1 (plan/design-smithy.md §1): its read pages are public for a minute, and only for a request with no session
+    // cookie and no signed-in user (anonymousOnly), which sees public groups and repositories alone; a signed-in or
+    // session request, so every members-only and private page, is no-store, as are the app's own paths under /-/ and the
+    // create and import pages. A page answers no-store itself for a refusal and a redirect (Smithy/Smithy.js).
+    {
+        app: 'smithy',
+        path: /^\/(?!-(?:\/|$)|new(?:\/|$)|import(?:\/|$))/,
+        cacheControl: 'public, max-age=60',
+        anonymousOnly: true,
+    },
 ]
 /* The cookies of a session (the framework's, and a servlet container's): a request with one is not anonymous. */
 const SESSION_COOKIES = /^(?:moqui\.session|moquiSession|JSESSIONID)$/

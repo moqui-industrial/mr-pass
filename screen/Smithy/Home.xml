@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Home (design-smithy §6 Home): the home group's Overview, without the group shell's breadcrumb, when the site has a home
+    group the caller may view (getSmithyHome, then GroupOverview's reads); else Explore. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Home">
+  <actions>
+    <script><![CDATA[
+        const smithy=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js')
+        smithyHome=true
+        const found=smithy.home(resolvedSiteId,passBases.smithy)
+        exploreView=found.explore || null
+        smithyGroup=found.shell || null
+        overviewView=found.overview || null
+    ]]></script>
+  </actions>
+  <widgets>
+    <section name="SmithyHomeExplore" condition="!!exploreView">
+      <widgets>
+        <render-mode>
+          <text type="html" location="component://mr-pass/screen/Smithy/Explore.html.fancy"/>
+            </render-mode>
+      </widgets>
+    </section>
+    <section name="SmithyHomeGroup" condition="!exploreView">
+      <widgets>
+        <render-mode>
+          <text type="html" location="component://mr-pass/screen/Smithy/GroupOverview.html.fancy"/>
+            </render-mode>
+      </widgets>
+    </section>
+  </widgets>
+</screen>

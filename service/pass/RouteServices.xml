@@ -22,12 +22,18 @@
             const info=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getSiteInfo',input:{siteId,hostname}}).call().result
             const mounted=info.mounts.filter(m=>path===m.pathPrefix || path.startsWith((m.pathPrefix==='/'?'':m.pathPrefix)+'/')).sort((a,b)=>b.pathPrefix.length-a.pathPrefix.length)[0]
             const fail=()=>{const error=new Error('Page not found');error.moquiErrorKind='NotFound';throw error}
-            if(!mounted || path.includes('..'))fail()
+            // a Smithy path may hold "..." (compare/main...topic), so its check is by segment (SmithyRoutes.js: no . or .. segment)
+            if(!mounted || (mounted.app!=='smithy' && path.includes('..')))fail()
             const root=ec.resource.script('component://mr-pass/service/pass/Apps.js')[mounted.app]?.screen
             if(!root)fail()
             const suffix=path.slice(mounted.pathPrefix==='/'?0:mounted.pathPrefix.length)
             const parts=suffix.split('/').filter(Boolean)
-            if(mounted.app==='forum' && parts[0]==='t'){
+            if(mounted.app==='smithy'){
+                // Smithy's URL grammar (plan/design-smithy.md §4.4): names, then a section after /-/; the authority tells a group
+                // from a repository (resolveSmithyPath) and splits a ref from a path
+                const smithyRoute=ec.resource.script('component://mr-pass/service/pass/SmithyRoutes.js').route(siteId,suffix,mounted.pathPrefix==='/'?'':mounted.pathPrefix)
+                screenPath=smithyRoute.screenPath;screenParameters=smithyRoute.screenParameters
+            }else if(mounted.app==='forum' && parts[0]==='t'){
                 if(!/^[A-Za-z0-9_-]{1,40}$/.test(parts[1] || ''))fail()
                 topicId=parts[1];const mode=(parts[2] || '').match(/\.(qvue|qvt|qjs)$/);topicSlug=(parts[2] || '').replace(/\.(qvue|qvt|qjs)$/,'');screenPath='/Forum/Topics/TopicDetail'+(mode?'.'+mode[1]:'')+(parts.length>3?'/'+parts.slice(3).join('/'):'')
             }else if(mounted.app==='forum' && parts[0]==='p'){

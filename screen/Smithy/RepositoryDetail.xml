@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- RepositoryDetail (design-smithy §1, §7): a repository's shell, the breadcrumb, the chips, the clone box (HTTPS and SSH) and
+    the tabs, over getRepository; a repository the caller may not view is Not Found. Tabs: Files (with Blob), Commits,
+    Branches, Tags. The raw transition serves a file at -/raw/<refPath> (downloadBlob), never as a page of the site. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Repository">
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <parameter name="refPath"/>
+  <always-actions>
+    <script><![CDATA[
+        smithyRepository=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
+    ]]></script>
+  </always-actions>
+  <transition name="raw" method="get" read-only="true">
+    <parameter name="repositoryId"/>
+    <parameter name="refPath"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').raw(resolvedSiteId,String(repositoryId || ''),String(refPath || ''))</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <subscreens default-item="Files"/>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+    </render-mode>
+    <subscreens-active/>
+  </widgets>
+</screen>

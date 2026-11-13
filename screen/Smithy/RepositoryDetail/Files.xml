@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Files (design-smithy §7 Files): the tree at a ref and a path (getTree, which splits refPath), the ref picker (findRefs; a
+    GET form whose choice is redirected to the tree's address), the path's breadcrumb and last commit, and the directory's
+    README rendered by the authority; an empty repository shows the push instructions. A path that is a file goes to Blob. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Files">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').files(smithyRepository,String(refPath || ''))
+        if(view.redirect)sri.sendRedirectAndStopRender(view.redirect)
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/Files.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

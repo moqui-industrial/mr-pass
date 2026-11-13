@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- GroupOverview (design-smithy §6 GroupOverview): before DG7 the group's description, its pinned repositories
+    (findRepositories pinned) and its subgroups (findGroups). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Overview">
+  <actions>
+    <script><![CDATA[
+        overviewView=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').overview(resolvedSiteId,smithyGroup,passBases.smithy)
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/GroupOverview.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

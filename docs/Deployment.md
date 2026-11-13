@@ -389,6 +389,44 @@ site, theme draft and staff user. With the `host-check-service` the framework's 
 the static files the preview loads (`/js`, `/css`, `/libs`, `/images`, `/static`, `/assets`) still answer. Keep the
 preview host's name apart from the BOSS host's all the same.
 
+## Smithy app
+
+Smithy (`screen/Smithy.xml`; [design](../plan/design-smithy.md)) is public git hosting over the framework's git host and
+Mantle's `mantle.smithy` services: groups, repositories and their code. It runs where the git data is, so mount it on the
+authority's own instance. It is bound to no business record (no target), a site has one Smithy mount, and it may be the
+site's root app:
+
+```xml
+<public-site host="code.example.org" site-id="EXAMPLE" screen-location="component://mr-pass/screen/Pass.xml"
+        resolver-service="pass.RouteServices.resolve#Route">
+    <mount path="/" screen="Smithy"/>
+    <mount path="/forum" screen="Forum"/>
+    <mount path="/account" screen="Account"/>
+</public-site>
+```
+
+Or under a path beside another root app: `<mount path="/code" screen="Smithy"/>` (`/code` is its default base). The
+site's own mount rows (`mantle.public.SiteServices.store#Mounts`, `{app: 'smithy', pathPrefix: '/'}` or `'/code'`) must
+name the same path, as for every app.
+
+- **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
+  `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
+  `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, and `/<group>/-/repositories`, `/-/members`; `/explore` lists
+  what the visitor may view. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
+  and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
+  (`/<group>/<repository>/blob/main/README.md`) redirect (301) once Mantle has found something the visitor may view.
+  Because the first segment of a path is a group or a handle, mount the other apps at their own paths and keep group
+  names off them (Mantle reserves the mounts and the framework's routes).
+- **Clone addresses.** The clone box shows the HTTPS and SSH addresses Mantle answers. Mounted at `/`, a repository's page
+  URL is its clone address too (the framework sends git's requests on a public-site host to the git handler); under
+  another mount the address is `/git/<path>.git`, which works on every host of the instance.
+- **Access.** What a visitor may not view (a members-only or private repository, a hidden one, a group not yet active) is
+  Not Found on every page and path, the same as what does not exist.
+- **Caching.** A read page is `public, max-age=60` only for a request with no session cookie and no signed-in user, which
+  sees public repositories alone; every other request is `no-store` (`screen/Shared/Headers.js`). A raw file is served as
+  plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
+- **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
+
 ## Adding an app
 
 An app registers in these places: its name, target type and readiness service in the authority's
@@ -396,7 +434,8 @@ An app registers in these places: its name, target type and readiness service in
 screen and default path in `service/pass/Apps.js`; a `subscreens-item` of `screen/Pass.xml`; its branch of the header's
 navigation (`screen/Shared/Header.html.fancy`); its operations in `service/pass/Schema.js` and `Routes.js` with Mantle's
 copies (`ForumSchema.js`, `script/PassRoutes.js`), which Forum's spec keeps identical, each mapping to a Mantle service
-taking PASS's `input` map; a bearer link's write in the three `TOKEN_WRITES` lists (`service/pass/Transport.js`, Mantle's
+taking PASS's `input` map (an app may keep its operations in a file of its own that `service/pass/Facade.js` merges, as
+Smithy's `SmithySchema.js` is a copy of Mantle's `service/mantle/smithy/SmithySchema.js`, kept identical by Smithy's spec); a bearer link's write in the three `TOKEN_WRITES` lists (`service/pass/Transport.js`, Mantle's
 `script/PassApi.js` and `script/PassAuthority.js`); a refusal reason a page shows in `PassAuthority.js`'s `REASONS` and
 `screen/Shared/Portal.js`'s `reasons`; its mount in the test runtime (`test/MoquiConf.xml`) and Portals' spec's list of
 targeted apps. Then mount it in the runtime's `<public-site>`.

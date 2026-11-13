@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- AccountDetail (design-smithy §6 AccountDetail): a personal namespace, the profile card (getProfile) and the repositories of
+    the namespace the caller may view (findRepositories by ownerHandle); neither is Not Found. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Account">
+  <parameter name="handle"/>
+  <actions>
+    <script><![CDATA[
+        const smithy=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js')
+        view=smithy.account(resolvedSiteId,String(handle || ''),passBases.smithy)
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/AccountDetail.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

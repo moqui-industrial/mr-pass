@@ -1,0 +1,7 @@
+<#if smithyHome><h1 class="wrap">${smithyGroup.group.name}</h1></#if>
+<#if overviewView.description><section class="card" id="SmithyGroupAbout"><p class="smithy-pre">${overviewView.description}</p></section></#if>
+<#if overviewView.pinned.length><section id="SmithyPinned" aria-label="Pinned repositories"><h2>Pinned repositories</h2>
+${raw(ec.resource.template('component://mr-pass/screen/Smithy/RepositoryRows.html.fancy', {rows: overviewView.pinned}))}</section></#if>
+<#if overviewView.subgroups.length><section id="SmithySubgroups" aria-label="Subgroups"><h2>Subgroups</h2>
+${raw(ec.resource.template('component://mr-pass/screen/Smithy/GroupRows.html.fancy', {rows: overviewView.subgroups}))}</section></#if>
+<p><a href="${overviewView.repositoriesHref}">All repositories</a></p>

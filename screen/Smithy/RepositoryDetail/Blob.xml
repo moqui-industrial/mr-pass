@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Blob (design-smithy §7 Blob): a file (getBlob): text with line numbers and anchors (#L10), Markdown rendered with a Source
+    toggle (?plain=1), an image, or a download link for a binary, LFS or too large file; Raw, History and Permalink. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="File">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').blob(smithyRepository,String(refPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/Blob.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

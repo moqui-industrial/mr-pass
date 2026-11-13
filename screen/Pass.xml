@@ -39,6 +39,8 @@
     <subscreens-item name="Supplier" location="component://mr-pass/screen/Supplier.xml"/>
     <subscreens-item name="Support" location="component://mr-pass/screen/Support.xml"/>
     <subscreens-item name="Shop" location="component://mr-pass/screen/Shop.xml"/>
+    <!-- Smithy (Dogfood DG1; plan/design-smithy.md): public git hosting -->
+    <subscreens-item name="Smithy" location="component://mr-pass/screen/Smithy.xml"/>
     <!-- Commerce P5 (F54): the theme preview host's render, reached only through resolve#Route on a preview host -->
     <subscreens-item name="ShopPreview" location="component://mr-pass/screen/ShopPreview.xml" menu-include="false"/>
   </subscreens>

@@ -15,4 +15,6 @@
     support: { screen: 'Support', base: '/support' },
     // Shop (impl-shop P1): a ProductStore's storefront, mounted at /shop or at a site's root
     shop: { screen: 'Shop', base: '/shop' },
+    // Smithy (Dogfood DG1; plan/design-smithy.md): public git hosting, mounted at /code or at a site's root
+    smithy: { screen: 'Smithy', base: '/code' },
 })

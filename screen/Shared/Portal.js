@@ -21,7 +21,8 @@ const messages = {
 /* The page's text of each reason a refusal may name (design-shop §7.3; impl-shop P1, F4): the same reasons as Mantle's
  * PassAuthority REASONS, which it passes to a remote frontend; a reason with null shows the refusal's own text. */
 const reasons = {
-    notAvailable: messages.NotFound,
+    // the refusal's kind gives the text (a Not Found's is the Not Found text); a refusal of another kind shows its own
+    notAvailable: null,
     signInRequired: messages.AuthenticationRequired,
     accessDenied: 'You do not have access to this.',
     staleRevision:
@@ -41,6 +42,21 @@ const reasons = {
     promoCodeInvalid: null,
     checkoutPending: null,
     valueInvalid: null,
+    // Smithy (plan/design-smithy.md §4.1): its refusals, each with the refusal's own text (which name, which limit)
+    addressUnconfirmed: 'Confirm your email address to do this.',
+    nameTaken: null,
+    nameInvalid: null,
+    quotaExceeded: null,
+    limitReached: null,
+    repositoryArchived: 'This repository is archived and cannot be changed.',
+    agreementUnsigned: null,
+    checksRequired: null,
+    squashFoldsSignature: null,
+    fileChanged: 'This file changed since you opened it. Reload the page and try again.',
+    notEditable: null,
+    policyRefused: null,
+    // what a later phase builds
+    notBuilt: 'This is not available yet.',
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */

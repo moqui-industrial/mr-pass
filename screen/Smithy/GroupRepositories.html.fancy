@@ -1,0 +1,8 @@
+<#if view.subgroups.length><section id="SmithySubgroups" aria-label="Subgroups"><h2>Subgroups</h2>
+${raw(ec.resource.template('component://mr-pass/screen/Smithy/GroupRows.html.fancy', {rows: view.subgroups}))}</section></#if>
+<h2>Repositories</h2>
+<form method="get" action="${view.action}" class="card" role="search" id="SmithyRepositoryFind"><label>Filter <input type="search" name="q" value="${view.q}" maxlength="100"></label>
+<label>Sort by <select name="sort"><option value="name"<#if view.sort == 'name'> selected</#if>>Name</option><option value="pushed"<#if view.sort == 'pushed'> selected</#if>>Last push</option></select></label><button>Show</button></form>
+<section id="SmithyRepositoryList" aria-label="Repositories"><#if !view.repositories.length><p class="card">No repositories to show.</p></#if>
+${raw(ec.resource.template('component://mr-pass/screen/Smithy/RepositoryRows.html.fancy', {rows: view.repositories}))}</section>
+<#if view.moreHref><p><a href="${view.moreHref}">More repositories</a></p></#if>

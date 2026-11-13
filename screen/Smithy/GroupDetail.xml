@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- GroupDetail (design-smithy §1, §6): a group's shell, the breadcrumb, the visibility chip and the tabs, over getGroup; a group
+    the caller may not view is Not Found. Tabs: Overview, Repositories, Members (Issues, Forum and Settings come with their
+    phases). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Group">
+  <parameter name="groupId"/>
+  <parameter name="namePath"/>
+  <always-actions>
+    <script><![CDATA[
+        smithyHome=false
+        smithyGroup=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').groupShell(resolvedSiteId,String(groupId || ''),passBases.smithy,String(publicPath || ''))
+    ]]></script>
+  </always-actions>
+  <subscreens default-item="Overview"/>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/GroupShell.html.fancy"/>
+    </render-mode>
+    <subscreens-active/>
+  </widgets>
+</screen>

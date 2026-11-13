@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Tags (design-smithy §7 Tags): the tags with their commit (findRefs, refType tag). Releases and downloads come in DG7. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Tags">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').refs(smithyRepository,'tag')
+        refTitle='Tags'
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/Refs.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

@@ -1,0 +1,4 @@
+<section id="SmithyChanges" aria-label="Changed files"><h2>${changes.files.length} ${changes.files.length == 1 ? 'file' : 'files'} changed <small>+${changes.insertions} −${changes.deletions}</small></h2>
+<#if changes.truncated><p class="card">This change is large; only part of its diff is shown.</p></#if>
+<ul class="card" id="SmithyFileList"><#list changes.files as file><li class="wrap"><a href="#${file.anchor}">${file.path}</a> <small>${file.status}<#if file.oldPath> from ${file.oldPath}</#if> +${file.insertions} −${file.deletions}</small></li></#list></ul>
+<#list changes.files as file><section class="card" id="${file.anchor}"><h3 class="wrap">${file.path}</h3><#if file.diffHtml><pre class="smithy-diff">${raw(file.diffHtml)}</pre><#elseif file.binary><p>Binary file.</p><#else><p>No text changes to show.</p></#if></section></#list></section>

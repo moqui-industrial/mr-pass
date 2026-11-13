@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Explore (design-smithy §6 Explore): the groups and repositories the caller may view (findGroups, findRepositories), with
+    one search field and a kind filter, a GET form; components join in DG7. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Explore">
+  <actions>
+    <script><![CDATA[
+        const smithy=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js')
+        smithyHome=false
+        exploreView=smithy.explore(resolvedSiteId,passBases.smithy)
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/Explore.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

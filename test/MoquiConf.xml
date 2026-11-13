@@ -26,6 +26,14 @@
         <mount path="/supplier" screen="Supplier"/>
         <mount path="/support" screen="Support"/>
         <mount path="/shop" screen="Shop"/>
+        <mount path="/code" screen="Smithy"/>
+      </public-site>
+      <!-- Smithy (Dogfood DG1; plan/design-smithy.md §4.1): a site with Smithy at its root, where a repository's page URL is its
+          clone address too; a browser reaches *.localhost on this machine -->
+      <public-site host="smithy.localhost" site-id="SMITHY_ROOT" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Smithy"/>
+        <mount path="/forum" screen="Forum"/>
+        <mount path="/account" screen="Account"/>
       </public-site>
       <!-- Shop P3's acceptance walks (test/acceptance/ShopFixtures, client/ShopHttp): the demo Shop sites, ZIZI_SHOP with Shop at
           its root, ZIZI_DIGITAL with Shop at /shop; a browser reaches *.localhost on this machine -->

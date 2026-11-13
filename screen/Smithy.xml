@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Smithy: public git hosting (Dogfood DG1; plan/design-smithy.md), the `smithy` app of PublicSiteApp, mounted at /code or
+    at a site's root. Its paths are names, then a section after /-/ (service/pass/SmithyRoutes.js, the smithy branch of
+    pass.RouteServices.resolve#Route), so every page here is reached through the resolver with its ids as screen parameters.
+    DG1 is public, read-only browsing: Home, Explore, AccountDetail, GroupDetail (Overview, Repositories, Members),
+    RepositoryDetail (Files, Blob, raw, Commits, Branches, Tags), CommitDetail and Compare. Every page calls the authority
+    through pass.Facade.call#Operation only (Smithy/Smithy.js, Shared/Portal.js); what it conceals is the framework's Not
+    Found. The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
+    path): 301 to a path on this site, with the request's query. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Code">
+  <always-actions>
+    <set field="passApp" value="smithy"/>
+  </always-actions>
+  <transition name="redirect" method="get" read-only="true">
+    <parameter name="location"/>
+    <actions>
+      <script><![CDATA[
+        // only a path on this site, as the resolver makes it (Smithy.js redirect)
+        ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').redirectRoute(location)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <subscreens default-item="Home"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>
