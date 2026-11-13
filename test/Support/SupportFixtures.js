@@ -2,7 +2,7 @@
  * customer, a resolved case and a published feedback form (a dated DbForm: a required rating 1 to 5, a comment shown once a
  * rating is chosen and required for a rating of 1 or 2), and feedback invitations of the case with their link tokens: one to
  * answer, one expired and one withdrawn. The SupportAccess spec (test/) and the acceptance walks' fixture
- * (acceptance/SupportFixtures) load it; nothing here calls BOSS. CC0 plus patent grant. */
+ * (test/acceptance/SupportFixtures) load it; nothing here calls BOSS. CC0 plus patent grant. */
 const call = (name, parameters) => {
     const out =
         ec.service

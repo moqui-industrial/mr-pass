@@ -149,8 +149,8 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
   - the Schema and Routes mirrors identical (Forum's spec) and Portals' registry parity (F1);
   - its row and **Built** note here.
 
-  The phase's "usable when" is an acceptance test to write in mr-pass `acceptance/` (the browser walk on ForumHttp's
-  pattern in `acceptance/client/`, the remote one on RemoteHttp's, the remote fixture on RemoteFixtures'); running it is
+  The phase's "usable when" is an acceptance test to write in mr-pass `test/acceptance/` (the browser walk on ForumHttp's
+  pattern in `test/acceptance/client/`, the remote one on RemoteHttp's, the remote fixture on RemoteFixtures'); running it is
   not part of Done.
 
 ## 3. Phases
@@ -270,7 +270,7 @@ Design-shop §1, §4.1 and §4.3's readiness; SHOP-MOUNT.
     the request's own text. Also run, all pass: Forum, ForumAccess, Integrations, Portals, SupplierPages, SupportAccess,
     Transport (47 features with ShopAccess, mr-pass 3.6 s of 15 s); Mantle AccountingPortals, SupportPortal, StoreAdmin
     (32). Schema and Routes mirrors identical.
-  - Acceptance: `acceptance/ShopMount.spec.js` (2 features: the operator mounts Shop at ZIZI_SHOP's root for POPC_DEFAULT,
+  - Acceptance: `test/acceptance/ShopMount.spec.js` (2 features: the operator mounts Shop at ZIZI_SHOP's root for POPC_DEFAULT,
     the reserved paths refused, `/account`, `/billing`, `/support` routed to their apps, readiness lists the store's
     findings; the anonymous root shows Ziziwork Retail Store, the remote context equals the local one, a second Shop mount's
     refusal reads `mountTaken` with the same text both ways). Without BOSS it makes ZIZI_SHOP as Commerce's demo does; it
@@ -437,7 +437,7 @@ Design-shop §12.1–§12.5 and §12.7's assets and remote delivery; SHOP-THEME,
     ShopAccess, Transport, Portals, Forum, ForumAccess, Integrations, SupportAccess, SupplierPages; Mantle PassAuthority,
     StoreAdmin, StorePublication, AccountingPortals, SupportPortal; mr-boss CommerceStores, CommerceAccess (11). mr-pass
     2.5 s of 15 s. Schema and Routes mirrors identical.
-  - Acceptance: `acceptance/ShopThemeRelease.spec.js` (4 features: the starter published to ZIZI_SHOP at its root for
+  - Acceptance: `test/acceptance/ShopThemeRelease.spec.js` (4 features: the starter published to ZIZI_SHOP at its root for
     POPC_DEFAULT shows the store's name and the empty state in its own layout; a section that loops forever is left out
     at the time budget, the page in under 3 s, then the starter restored; a template naming `ec` fails at its file and
     line and publish is refused `THEME_INVALID`; the remote frontend's render equals the local one, a forged file shows
@@ -534,9 +534,9 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
   mr-pass `ShopCatalog` (one render per page kind, the cache headers by route).
 - **Usable when** (design-shop §18.1 "Two sites", "Anonymous browse"): an anonymous visitor browses POPC_DEFAULT's
   published categories and products, searches, and reads its returns policy page, with and without JavaScript, at 390 px
-  and on the desktop (`acceptance/client/ShopHttp`); ZIZI_DIGITAL shows only BOSS_COM_DIGITAL's products, and neither
+  and on the desktop (`test/acceptance/client/ShopHttp`); ZIZI_DIGITAL shows only BOSS_COM_DIGITAL's products, and neither
   site another's; nothing unpublished shows anywhere; the same through a remote
-  frontend (`acceptance/client/ShopRemoteHttp` with its fixture).
+  frontend (`test/acceptance/client/ShopRemoteHttp` with its fixture).
 
 - **Built (framework), Nov 5, 2026** (b502417e; F42): a response whose `Cache-Control` has `public`, to a request with
   no verified session cookie and no signed-in user, sends no `Set-Cookie`, `moquiSessionToken` or `X-CSRF-Token`, and
@@ -623,15 +623,15 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
     SitePages, PassAuthority, StoreAdmin, ProductEffectivePrices, ProductPricePolicy, ProductPriceLists, Promotions,
     SupportPortal (60 with ShopCatalog); mr-boss CustomerServiceKnowledge, CommerceSitePages, CommerceAccess,
     CommerceAssortment, CommerceStores, Knowledge (44). Not run: `./moq test-apps` and the budget measure.
-  - Acceptance: `acceptance/ShopFixtures` (the demo Shop sites as Commerce's demo makes them, published; POPC_DEFAULT's
+  - Acceptance: `test/acceptance/ShopFixtures` (the demo Shop sites as Commerce's demo makes them, published; POPC_DEFAULT's
     demo publication, BOSS_COM_DIGITAL's digital guide, ZIZI_SHOP's starter release and returns page; ZIZI_DIGITAL
-    unthemed), `acceptance/client/ShopHttp` (4 features: at 390 px Home, Categories, Demo Category One, Demo Product
+    unthemed), `test/acceptance/client/ShopHttp` (4 features: at 390 px Home, Categories, Demo Category One, Demo Product
     One-One at $16.99, a quantity of 3 ($50.97), a search and the returns page, no horizontal overflow; on the desktop
     ZIZI_DIGITAL shows only its guide in the PASS shell and Not Found for POPC_DEFAULT's product, ZIZI_SHOP Not Found for
     the guide; without JavaScript (plain requests) the links, the old slug's 301, the quote and structured data, DEMO_VAR
     Not Found and absent from search and the sitemap, robots naming the sitemap; a cookieless request public with no
     cookie or token and an ETag, a 304 to revalidate, no-store with a session and for a 404),
-    `acceptance/client/ShopRemoteHttp` (2 features: the same sites and pages, the public headers and 304) with `acceptance/ShopRemoteFixtures`
+    `test/acceptance/client/ShopRemoteHttp` (2 features: the same sites and pages, the public headers and 304) with `test/acceptance/ShopRemoteFixtures`
     (the frontend: no Mantle catalog, both contexts from the authority). Run: ShopHttp 4 passed and ShopRemoteHttp 2
     passed under `./moq accept mr-pass --spec` (local authority); then Deployment.md's two-runtime check over REST (the
     authority serving ClientFixtures, PortalFixtures and ShopFixtures on 127.0.0.1:18091, a frontend runtime of framework,
@@ -813,10 +813,10 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
     ShopThemes, Forum, ForumAccess, Portals, Transport, Integrations, SupportAccess, SupplierPages, Operations,
     SsoHandoff, PublicIdentity (73 with ShopCart, 6.3 s of 17); mr-boss CommerceAccess, CommerceStores,
     CommercePromotions, CustomerServiceKnowledge (19). Not run: `./moq test-apps`. Schema and Routes mirrors identical.
-  - Acceptance: `acceptance/client/ShopCartHttp` (1 feature: at 390 px on ZIZI_SHOP a guest's quantity priced in place, two
+  - Acceptance: `test/acceptance/client/ShopCartHttp` (1 feature: at 390 px on ZIZI_SHOP a guest's quantity priced in place, two
     adds announced without leaving the page, the product image through the media route, the cart island, TEST2 applied
     with its discount, then sign-in merging into the shopper's own cart with the notice, no horizontal overflow) and
-    `acceptance/client/ShopCartRemoteHttp` (2 features, plain requests: two adds from the product's form (a public page
+    `test/acceptance/client/ShopCartRemoteHttp` (2 features, plain requests: two adds from the product's form (a public page
     with no form token), TEST2's discount, another tab's older removal refused with its reason (the notice, and 409
     `staleRevision` as JSON) and nothing removed; sign-in merging once, sign-out leaving no cart, a second sign-in adding
     nothing); ShopFixtures gains the two shopper accounts with their carts; ShopHttp's quantity step now uses the island.
@@ -1053,10 +1053,10 @@ Design-shop §6 Checkout, PaymentResult and OrderConfirmation, §7.2–§7.3, §
     of 17, over but under 1.5 times), the one failure MantleSearch's limited universal search (both totals at the query's
     100 limit), which passes alone and with P5's Mantle specs (for the lead: likely the full run's data volume); the client
     suites 17 passed (mr-pass 8.2 s of 6, F84).
-  - Acceptance: `acceptance/ShopPaymentScenarios` (5 features, local and remote: a price changed during checkout asks for
+  - Acceptance: `test/acceptance/ShopPaymentScenarios` (5 features, local and remote: a price changed during checkout asks for
     review and a second submit answers the first order; an unknown outcome stays processing for a refreshed frontend (the
     reference and key only) and the job finishes it once the provider answers; a capture failing after placement holds the
-    order and the payment operator releases it) and `acceptance/client/ShopCheckoutHttp` (1 feature: at 390 px on ZIZI_SHOP a
+    order and the payment operator releases it) and `test/acceptance/client/ShopCheckoutHttp` (1 feature: at 390 px on ZIZI_SHOP a
     guest checks out Demo Product One-One with an address, a delivery option, the hosted test page and the terms, back to the
     confirmation, no overflow); ShopFixtures gains ZIZI_SHOP's hosted, lost-answer and capture-declining test gateways
     (POPC_DEFAULT's card gateway the hosted one), the terms page and a guide. `./moq accept mr-pass` once: server suite 20
@@ -1345,7 +1345,7 @@ Stage C2/S2 ends with Commerce P11.
     17, each over and under 1.5 times; the run shared the machine with other spec runs, and mr-boss, which this phase barely
     touched, rose 37 s on the same code, so the shares are noisy: P6's own Mantle specs add about 6 s, mr-pass's 0.5 s);
     the client suites 17 of 17 passed (mr-pass 8.4 s of 6, as P5's F84; P6 adds no client spec).
-  - Acceptance: `acceptance/ShopOrderScenarios` (4 features, on ZIZI_SHOP: the mixed purchase approved, its digital line
+  - Acceptance: `test/acceptance/ShopOrderScenarios` (4 features, on ZIZI_SHOP: the mixed purchase approved, its digital line
     captured, invoiced, receipted and downloaded by the notice's link only, the physical part shipped on its own invoice; a
     return request and a question by the order link and a cancel request of another order; the registered guest verified sees
     the order, the invoice and the case from the hub, unverified nothing; a buyer's hosted card setup and address, the card's
@@ -1577,7 +1577,7 @@ P12; gated on the adapter's off-session charges (design-shop §8.1).
     mr-pass ShopCheckout, ShopAccount, ShopAccess, Forum, Portals, Transport, Integrations, Entitlements, SupplierPages,
     ShopCart, ShopReviews, Operations; mr-boss CommerceStores, CommerceAccess, CommerceCheckoutSettings, CommerceOrders,
     CommerceReports, CommerceRecovery, AccountingAccess. Whole suites (`test-apps`) not run (the brief).
-  - Acceptance: `acceptance/ShopSubscriptionScenarios` (4 features on ZIZI_DIGITAL's demo offer): subscribe with consent and
+  - Acceptance: `test/acceptance/ShopSubscriptionScenarios` (4 features on ZIZI_DIGITAL's demo offer): subscribe with consent and
     the site's address Shop's; one charge under a retried job; a decline's one notice, no extension, nothing for Dunning;
     cancel keeps access, refunding the first term leaves a manual grant. With ShopFixtures: 7 of 7. `./moq accept mr-pass` once: server suite 33 passed, 3 ignored, 0 failed; client suite 41 passed.
   - Lint: `moqui lint --screens` 132 sites as before, none in the new files.
@@ -1782,7 +1782,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     Forum, ShopSubscriptions, ShopReviews, ShopThemes, ShopPreview, SupportAccess (49 with ShopOperations); mr-boss
     CommerceAccess, CommerceOrders (CartDetail's one qvt render), CommerceFeeds, CommerceStores, CommerceRecovery. Not run:
     `./moq test-apps` and the budget measure. Feature time added: Mantle about 2.1 s, mr-pass 0.03 s, BOSS 0.06 s.
-  - Acceptance: `acceptance/ShopOperationsScenarios` (3 features, after ShopFixtures by name, F106): POPC_DEFAULT's
+  - Acceptance: `test/acceptance/ShopOperationsScenarios` (3 features, after ShopFixtures by name, F106): POPC_DEFAULT's
     publication rows set aside, the preview (ZZWR_TMP's footers, the conversion findings, the categories) proposing rows
     with nothing written, a publisher approving five through `publish#StoreProducts`, the rows put back; a ZIZI_SHOP
     checkout whose answer is lost, the Shop mount withdrawn (the Shop context NotFound), the job placing it, the placed
@@ -1873,7 +1873,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
   Remaining-Work is the lead's (from both reports).
   - **Design-shop §18.1 review.** Each scenario with the acceptance tests that walk it and the regression specs of its
     rules; acceptance was added only for the two with none (Failed placement after provider success; Accessibility and
-    devices). Specs are mr-pass's unless named; "Mantle" is mr-mantle `test/`, "BOSS" mr-boss `acceptance/` (ThemeEditorWalk is its client walk).
+    devices). Specs are mr-pass's unless named; "Mantle" is mr-mantle `test/`, "BOSS" mr-boss `test/acceptance/` (ThemeEditorWalk is its client walk).
 
     | Scenario | Acceptance | Rules (regression) |
     | --- | --- | --- |
@@ -1898,7 +1898,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     | Partial failures | ShopThemeRelease (an optional section left out), ShopOperationsScenarios | Mantle StoreFeeds, DeliveryLedger, ShopSubscriptions, ShopOperations |
     | Accessibility and devices | **ShopAccessibilityHttp (P9)**; overflow at 390 px also in ShopHttp, ShopCartHttp, ShopCheckoutHttp; no-JS discovery and the basic cart forms in ShopHttp's and ShopCartRemoteHttp's plain requests | ShopCheckout (the labelled, focused refusal) |
 
-  - **Accessibility and devices** (`acceptance/client/ShopAccessibilityHttp`, in the client suite's list): a guest at 390 px
+  - **Accessibility and devices** (`test/acceptance/client/ShopAccessibilityHttp`, in the client suite's list): a guest at 390 px
     buys with the keyboard alone (Tab to each control, typing, Space for a choice, Enter to send) from the product page's
     Add to cart through the cart and each checkout step to the confirmation; the purchase island's count, the cart's
     totals and the checkout's totals are polite live regions; an email the browser accepts and the authority refuses comes
@@ -1967,7 +1967,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     field (a checkout refusal taken there): `resultHtml` now runs `markInvalid` too, so the notice takes the focus.
   - R2 (minor, docs) Deployment's Media item pointed "above" to "Mail, accounts, and media", which is below; Upgrading's
     ZZW_RETAIL statements now say to stop the server first (ScreenPathAlias is cached); the §18.1 table's "BOSS" names
-    mr-boss `acceptance/` (ThemeEditorWalk is a client walk).
+    mr-boss `test/acceptance/` (ThemeEditorWalk is a client walk).
   - Specs (`--nobuild`): Mantle ShopSubscriptions, StoreFulfillment, ShopOperations 21 of 21 (F126's feature 0.07 s);
     mr-pass ShopCheckout, ShopCart, ShopThemes, ShopCatalog, ShopAccess 18 of 18; client ShopCheckoutWalk 1 of 1 (4.6 s).
   - For the lead: F126's window is the occurrence's `createdDate`, so an occurrence reopened for a retry more than seven

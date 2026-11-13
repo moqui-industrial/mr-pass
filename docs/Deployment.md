@@ -537,7 +537,7 @@ reconciliation, a frozen source and a backup reference. Proxies can send old com
 
 ## Reproducing the remote check
 
-`RemoteHttp` and its `RemoteFixtures` are acceptance tests, in `acceptance/`. Start an authority fixture on a dedicated loopback port:
+`RemoteHttp` and its `RemoteFixtures` are acceptance tests, in `test/acceptance/`. Start an authority fixture on a dedicated loopback port:
 
 ```sh
 ./moq test mr-pass --nobuild --acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures,SupportFixtures --db snapshot --serve 127.0.0.1:18091
@@ -550,7 +550,7 @@ that runtime. Run `RemoteFixtures` (`--acceptance`) with `MOQUI_RUNTIME` set to 
 and `--serve 127.0.0.1:18092`; it asserts the Mantle entity catalog is absent. Then run:
 
 ```sh
-./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/test/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
 That run is REST; build the frontend with `--lite` to check REST on Lite. The same test runs over each gRPC transport
@@ -567,7 +567,7 @@ point `pass_backend_grpc_url` at 4317.
 # the frontend's conf: the remote properties above, and
 #   pass_backend_grpc_url=grpc://127.0.0.1:18093   pass_backend_transport=grpc
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
-./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/test/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
 gRPC on the edge link: the frontend is an edge node, which the authority runtime pairs with. Pairing checks the edge
@@ -582,7 +582,7 @@ node's certificate by WebPKI, so its runtime needs a certificate for a public na
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
 # on the frontend, signed in as john.doe: System › Edge Clients, make a pairing code; on the authority
 # (http://127.0.0.1:18091): System › Edge Node, pair with https://edge.example.test:18443 and the code, wait for Linked
-./moq test-client runtime/component/mr-pass/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
+./moq test-client runtime/component/mr-pass/test/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
 
 Run the authority with `--acceptance --spec ClientFixtures,PortalFixtures,SupplierPortalFixtures,SupportFixtures` for the

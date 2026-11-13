@@ -1527,7 +1527,7 @@ separately from request latency, with counts/lag reported rather than a fabricat
 
 ### 19.1 Implementation acceptance scenarios
 
-Each scenario below is an acceptance test in `acceptance/` (server side) or `acceptance/client/`
+Each scenario below is an acceptance test in `test/acceptance/` (server side) or `test/acceptance/client/`
 (browser flows, desktop and phone), named for its scenario and run with `./moq accept mr-pass`
 ([the two suites](../../../../docs/Build-Test.md#the-two-suites)). The rules behind them are
 regression specs in `test/` (`moqui test`); Node is not a test dependency. Extend Mantle

@@ -1,7 +1,7 @@
 /* Purchasing's Supplier pages' documents for the PASS specs (impl-purchasing P16): for a buying organization with a supplier
  * site and one of its suppliers, an RFQ with a requested quote of the supplier and a competitor's, and a sent purchase
  * order at revision 2, with their link tokens: the quote's, the order's of revision 2 and of revision 1 (superseded). The
- * SupplierPages spec (test/) and the acceptance walks' fixture (acceptance/SupplierPortalFixtures) load it. CC0 plus patent
+ * SupplierPages spec (test/) and the acceptance walks' fixture (test/acceptance/SupplierPortalFixtures) load it. CC0 plus patent
  * grant. */
 const call = (name, parameters) => {
     const out =

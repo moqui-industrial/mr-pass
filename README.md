@@ -54,7 +54,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 JavaScript service and browser specs run through Moqui, without Node as a test dependency. The specs in `test/` are the
 regression suite, grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
-`Account`, ...). `acceptance/` holds the acceptance suite: the forum's, the Supplier app's and the Support app's browser scenarios (`ForumHttp`,
+`Account`, ...). `test/acceptance/` holds the acceptance suite: the forum's, the Supplier app's and the Support app's browser scenarios (`ForumHttp`,
 `SupplierPortalHttp`, `SupportFeedbackHttp` and `SupportPagesHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the
 Support app's isolation between customers (`SupportIsolation`), Shop's mount at a site's root (`ShopMount`), its theme release (`ShopThemeRelease`), its catalog walks over the demo Shop
 sites (`ShopHttp` and `ShopRemoteHttp`, with `ShopFixtures`, and `ShopRemoteFixtures` for the remote frontend), its cart walks

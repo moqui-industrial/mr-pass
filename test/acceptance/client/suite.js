@@ -1,5 +1,5 @@
 // The acceptance client specs of mr-pass (./moq accept mr-pass), against mr-pass with the fixtures of test/ and
-// SupplierPortalFixtures, SupportFixtures and ShopFixtures (acceptance/).
+// SupplierPortalFixtures, SupportFixtures and ShopFixtures (test/acceptance/).
 suite(['ForumHttp', 'SupplierPortalHttp', 'SupportFeedbackHttp', 'SupportPagesHttp', 'ShopHttp', 'ShopRemoteHttp', 'ShopCartHttp', 'ShopCartRemoteHttp', 'ShopCheckoutHttp', 'ShopAccessibilityHttp'], {
     server: {
         components: ['mr-pass'],

@@ -38,7 +38,7 @@ execution session and record its revisions rather than silently treating this ba
 | [Mantle Shop catalogue](../../mr-mantle/service/mantle/product/ShopCatalogServices.xml), [cart](../../mr-mantle/service/mantle/order/ShopCartServices.xml), [checkout](../../mr-mantle/service/mantle/order/ShopCheckoutServices.xml) | Store-derived price and publication, cart revisions, freeze/payment/placement contract |
 | [Shop customer](../../mr-mantle/service/mantle/party/ShopCustomerServices.xml), [fulfillment](../../mr-mantle/service/mantle/product/ShopFulfillmentServices.xml), [subscriptions](../../mr-mantle/service/mantle/product/ShopSubscriptionServices.xml), [operations](../../mr-mantle/service/mantle/order/ShopOperationsServices.xml) | Ownership, grants, invoicing, repeated work, cancellation and recovery semantics |
 | [Theme authority](../../mr-mantle/service/mantle/public/ThemeServices.xml), [authority handler](../../mr-mantle/script/PassAuthority.js), [Support helper](../screen/Support/Support.js) | Publish/restore boundaries, registered deployments, identity and one-order Support continuations |
-| [Shop regression sources](../test/Shop), [golden client walk](../test/client/Shop/ShopCheckoutWalk.spec.js), [acceptance sources](../acceptance) | Existing assertions, dependencies and remaining execution gaps; summarized in section 5 |
+| [Shop regression sources](../test/Shop), [golden client walk](../test/client/Shop/ShopCheckoutWalk.spec.js), [acceptance sources](../test/acceptance) | Existing assertions, dependencies and remaining execution gaps; summarized in section 5 |
 
 The research and design's existing references to PopRestStore, Ridgecrest, Shopify, Odoo and other commerce patterns
 supply comparison questions, not a claim of parity or fresh external verification. For example, use composable themes,
@@ -865,28 +865,28 @@ the repository's per-spec regression ceiling still applies. These numbers do not
 | [ShopWalkFixtures](../test/Shop/ShopWalkFixtures.spec.js) | Provisions one no-theme digital guide/test hosted gateway on PASS_HTTP; fixture assertion confirms mount, not checkout result | Setup for SHP-09, SHP-13–SHP-18 |
 | [ShopCheckoutWalk](../test/client/Shop/ShopCheckoutWalk.spec.js) | Single guest digital purchase at 390×844, contact/payment/hosted test return, confirmation totals/email, no return key URL, QR, no horizontal overflow and cookieless public Purchase.qvue; no physical delivery or real gateway | SHP-09, SHP-13, SHP-15–SHP-18, SHP-34 |
 
-[acceptance/client/suite.js](../acceptance/client/suite.js) explicitly registers six Shop clients with
+[test/acceptance/client/suite.js](../test/acceptance/client/suite.js) explicitly registers six Shop clients with
 `ClientFixtures`, `PortalFixtures`, `SupplierPortalFixtures`, `SupportFixtures`, `ShopFixtures`. A registered remote
 spec still needs its dedicated frontend/authority prerequisites; an ignored conditional feature is not remote evidence.
 
 | Acceptance source | Actual scenario/assertion coverage and dependency | Activities |
 | --- | --- | --- |
-| [ShopFixtures](../acceptance/ShopFixtures.spec.js) | Creates two demo sites/stores if BOSS demo is absent, publishes products/theme/returns/terms, separate shopper carts and test/exception gateways; setup, not an independent customer walkthrough | All dependent scenarios |
-| [ShopRemoteFixtures](../acceptance/ShopRemoteFixtures.spec.js) | Dedicated remote runtime requires `pass_backend_url`, asserts no Mantle catalogue and reads authority sites; ignored without that runtime | SHP-33 |
-| [ShopMount](../acceptance/ShopMount.spec.js) | Root Shop mount preserves other app paths; visitor/remote context and refusal reason | SHP-01 |
-| [ShopThemeRelease](../acceptance/ShopThemeRelease.spec.js) | Starter publication/render, infinite optional section bounded, `ec` template rejected with location, remote digest check | SHP-06–SHP-07 |
-| [ShopPaymentScenarios](../acceptance/ShopPaymentScenarios.spec.js) | Changed-price review and repeated submit local/remote, unknown refresh/provider reconciliation, capture hold and authorized release, approved-but-unplaced resolver | SHP-15–SHP-18 |
-| [ShopOrderScenarios](../acceptance/ShopOrderScenarios.spec.js) | Mixed physical/digital order, paid digital invoice/download, one-order guest Support request/cancel proposal, verified claim versus unverified, hosted card/address and refund revocation | SHP-18–SHP-25, SHP-31–SHP-32 |
-| [ShopOrdersInCommerce](../acceptance/ShopOrdersInCommerce.spec.js) | Scenario records visible in Commerce/Warehouse/Accounting, requests/returns/cancel context, operator cannot release payment hold, current-price no-payment reorder and screen opens; requires BOSS and preceding scenario records | SHP-17–SHP-18, SHP-21, SHP-25, SHP-31 |
-| [ShopSubscriptionScenarios](../acceptance/ShopSubscriptionScenarios.spec.js) | Consent/access, retried job charges once, decline extends nothing/leaves no Dunning amount, cancel keeps term and refund preserves manual grant | SHP-26–SHP-29 |
-| [ShopSubscriptionsInCommerce](../acceptance/ShopSubscriptionsInCommerce.spec.js) | Staff contract screens, failed occurrence retry once, cancellation retains paid term and source-specific refund; requires BOSS/related subscription fixtures | SHP-27–SHP-29 |
-| [ShopOperationsScenarios](../acceptance/ShopOperationsScenarios.spec.js) | Adoption proposal read-only until publisher, withdrawal leaves orders and job finishes attempt, remote unavailable authority serves no kept/personal page | SHP-01, SHP-06, SHP-17, SHP-33 |
-| [ShopHttp](../acceptance/client/ShopHttp.spec.js) | Phone catalogue/page browsing, desktop other-store isolation/shell, JS-off selection/old slug/private refusal, cookieless public/304 versus session no-store | SHP-01–SHP-05, SHP-09, SHP-34 |
-| [ShopRemoteHttp](../acceptance/client/ShopRemoteHttp.spec.js) | Two-store remote publication isolation and cookieless cache/304 | SHP-01–SHP-05, SHP-33 |
-| [ShopCartHttp](../acceptance/client/ShopCartHttp.spec.js) | Phone islands, TEST2 promotion and sign-in cart merge | SHP-09–SHP-11 |
-| [ShopCartRemoteHttp](../acceptance/client/ShopCartRemoteHttp.spec.js) | Remote add/code, two-tab stale refusal, one merge and sign-out drop | SHP-09–SHP-11, SHP-33 |
-| [ShopCheckoutHttp](../acceptance/client/ShopCheckoutHttp.spec.js) | Physical guest checkout through test hosted return at phone width | SHP-13–SHP-18 |
-| [ShopAccessibilityHttp](../acceptance/client/ShopAccessibilityHttp.spec.js) | Keyboard phone purchase, announced totals and focused/described refusal; reduced motion; JS-off price/add; account/digital 390 px overflow checks | SHP-04, SHP-09, SHP-13–SHP-18, SHP-20–SHP-29, SHP-34 |
+| [ShopFixtures](../test/acceptance/ShopFixtures.spec.js) | Creates two demo sites/stores if BOSS demo is absent, publishes products/theme/returns/terms, separate shopper carts and test/exception gateways; setup, not an independent customer walkthrough | All dependent scenarios |
+| [ShopRemoteFixtures](../test/acceptance/ShopRemoteFixtures.spec.js) | Dedicated remote runtime requires `pass_backend_url`, asserts no Mantle catalogue and reads authority sites; ignored without that runtime | SHP-33 |
+| [ShopMount](../test/acceptance/ShopMount.spec.js) | Root Shop mount preserves other app paths; visitor/remote context and refusal reason | SHP-01 |
+| [ShopThemeRelease](../test/acceptance/ShopThemeRelease.spec.js) | Starter publication/render, infinite optional section bounded, `ec` template rejected with location, remote digest check | SHP-06–SHP-07 |
+| [ShopPaymentScenarios](../test/acceptance/ShopPaymentScenarios.spec.js) | Changed-price review and repeated submit local/remote, unknown refresh/provider reconciliation, capture hold and authorized release, approved-but-unplaced resolver | SHP-15–SHP-18 |
+| [ShopOrderScenarios](../test/acceptance/ShopOrderScenarios.spec.js) | Mixed physical/digital order, paid digital invoice/download, one-order guest Support request/cancel proposal, verified claim versus unverified, hosted card/address and refund revocation | SHP-18–SHP-25, SHP-31–SHP-32 |
+| [ShopOrdersInCommerce](../test/acceptance/ShopOrdersInCommerce.spec.js) | Scenario records visible in Commerce/Warehouse/Accounting, requests/returns/cancel context, operator cannot release payment hold, current-price no-payment reorder and screen opens; requires BOSS and preceding scenario records | SHP-17–SHP-18, SHP-21, SHP-25, SHP-31 |
+| [ShopSubscriptionScenarios](../test/acceptance/ShopSubscriptionScenarios.spec.js) | Consent/access, retried job charges once, decline extends nothing/leaves no Dunning amount, cancel keeps term and refund preserves manual grant | SHP-26–SHP-29 |
+| [ShopSubscriptionsInCommerce](../test/acceptance/ShopSubscriptionsInCommerce.spec.js) | Staff contract screens, failed occurrence retry once, cancellation retains paid term and source-specific refund; requires BOSS/related subscription fixtures | SHP-27–SHP-29 |
+| [ShopOperationsScenarios](../test/acceptance/ShopOperationsScenarios.spec.js) | Adoption proposal read-only until publisher, withdrawal leaves orders and job finishes attempt, remote unavailable authority serves no kept/personal page | SHP-01, SHP-06, SHP-17, SHP-33 |
+| [ShopHttp](../test/acceptance/client/ShopHttp.spec.js) | Phone catalogue/page browsing, desktop other-store isolation/shell, JS-off selection/old slug/private refusal, cookieless public/304 versus session no-store | SHP-01–SHP-05, SHP-09, SHP-34 |
+| [ShopRemoteHttp](../test/acceptance/client/ShopRemoteHttp.spec.js) | Two-store remote publication isolation and cookieless cache/304 | SHP-01–SHP-05, SHP-33 |
+| [ShopCartHttp](../test/acceptance/client/ShopCartHttp.spec.js) | Phone islands, TEST2 promotion and sign-in cart merge | SHP-09–SHP-11 |
+| [ShopCartRemoteHttp](../test/acceptance/client/ShopCartRemoteHttp.spec.js) | Remote add/code, two-tab stale refusal, one merge and sign-out drop | SHP-09–SHP-11, SHP-33 |
+| [ShopCheckoutHttp](../test/acceptance/client/ShopCheckoutHttp.spec.js) | Physical guest checkout through test hosted return at phone width | SHP-13–SHP-18 |
+| [ShopAccessibilityHttp](../test/acceptance/client/ShopAccessibilityHttp.spec.js) | Keyboard phone purchase, announced totals and focused/described refusal; reduced motion; JS-off price/add; account/digital 390 px overflow checks | SHP-04, SHP-09, SHP-13–SHP-18, SHP-20–SHP-29, SHP-34 |
 
 ### Authority and neighboring checks
 
