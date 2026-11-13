@@ -1,4 +1,4 @@
-/* How PASS reaches its one configured authority (mr-moqui plans/Edge-Node.md §5.5): in process (local mode), or
+/* How PASS reaches its one configured authority (mr-moqui plans/archive/Edge-Node.md §5.5): in process (local mode), or
    remotely by one of two transports behind the same functions, so a caller cannot tell them apart and sees the same
    statusKind error kinds from both:
    - rest: the authority's REST API (Mantle's PassApi.js) at pass_backend_url, the client's secret in headers;

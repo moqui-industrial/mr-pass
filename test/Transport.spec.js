@@ -1,4 +1,4 @@
-// How PASS chooses its authority's transport (service/pass/Transport.js, mr-moqui plans/Edge-Node.md §5.5 and decision
+// How PASS chooses its authority's transport (service/pass/Transport.js, mr-moqui plans/archive/Edge-Node.md §5.5 and decision
 // 8): local with no pass_backend_url; rest or grpc when pass_backend_transport says; automatic is gRPC where the host
 // has the binding and a gRPC endpoint is configured, else REST; edge: is gRPC on the link. Settings that cannot work
 // are refused by name. This run has no gRPC client installed (Lite and Dev have none; a test run without --serve

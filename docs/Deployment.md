@@ -66,7 +66,7 @@ carries and the authority renews when it rotates the session.
 
 A business whose authority (its BOSS server) runs in the office, behind a firewall, serves its sites from an edge
 node: a small cloud server the authority dials out to and keeps one link open with (mr-moqui `docs/Run-Deploy.md`,
-"A local server with an edge node", and `plans/Edge-Node.md` §5.5). The edge node
+"A local server with an edge node", and `plans/archive/Edge-Node.md` §5.5). The edge node
 runs mr-pass with `pass_backend_url=edge:` (set in its `MoquiEdgeConf.xml`), so it calls the authority over gRPC down
 the link, and the authority needs no public address, open port or client secret for it.
 

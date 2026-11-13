@@ -1513,7 +1513,7 @@ and the authority's matching registry, with declared inputs and result projectio
 `Contracts.d.ts`. Continue using `pass.Facade.call#Operation` and the existing result/error
 envelope, with no new REST or GraphQL server: the same operations go over the authority's REST routes or, where the
 package has gRPC, the generic PassAuthority gRPC operation (direct, or on an edge node's link; mr-moqui
-plans/Edge-Node.md §5.5), so a Shop operation registered once is served by both transports.
+plans/archive/Edge-Node.md §5.5), so a Shop operation registered once is served by both transports.
 
 **Operation names (R-SHP-19).** Operation names are flat camelCase, as built PASS operations are
 (`getPaymentResult`, `searchForum`), and unique across the PASS registry; routes sit under
