@@ -126,7 +126,7 @@ by authorized extensions, and does not imply a BOSS Assist drawer.
 ## 3. Reference evidence and disposition
 
 Source paths are relative to these checkouts: **Framework** = `mr-moqui`; **Mantle** =
-`mr-moqui/runtime/component/mr-mantle`; **BOSS** = `mr-moqui/runtime/component/mr-boss`;
+`mr-moqui/runtime/components/addon/mr-mantle`; **BOSS** = `mr-moqui/runtime/components/addon/mr-boss`;
 **Discourse** = `3p_other/discourse`; **phpBB** = `3p_other/phpbb`; **Odoo** = `3p_other/odoo/odoo`.
 All are siblings under the working `moquiwork` directory except the components. Reviewed local
 revisions: Mantle `909e43053c67`, BOSS `19af60169f2a`, Discourse `568a006ad8f5`, phpBB
@@ -143,7 +143,7 @@ revisions: Mantle `909e43053c67`, BOSS `19af60169f2a`, Discourse `568a006ad8f5`,
 | R7 | Odoo `addons/website_forum/models/forum_forum.py`, `forum_post.py`, `forum_post_vote.py`; `addons/website_forum/views/forum_forum_templates_post.xml`, `forum_forum_templates_moderation.xml`; `addons/website_forum/controllers/website_forum.py` | Adopt category discussion/Q&A intent, answer filtering, accepted-answer affordances and website integration. Optional Q&A mode keeps the same chronological storage and accepted-answer highlight. Omit a separate karma ledger; PASS trust/reactions cover the need. |
 | R8 | Odoo `addons/website_blog/models/website_blog.py`, `controllers/main.py`, `views/website_blog_templates.xml`, `views/website_blog_posts_loop.xml`; `addons/website_blog/__manifest__.py` | Future Publishing: publications, author/teaser/cover, taxonomy, scheduled visibility, archive/search and public-site integration. Full publishing screens deferred, contracts in §13. |
 | R9 | Odoo `addons/website_sale/models/website.py`, `product_public_category.py`, `controllers/cart.py`, `payment.py`, `portal.py`; `addons/website_sale/__manifest__.py`; `addons/website`, `website_mail`, `website_payment`, `auth_signup`, `portal` | Shop: site/store/account binding, public catalog, cart/checkout, portal and content integration. Full screens are specified in [Shop design](design-shop.md); BOSS Commerce owns visual theme/page editing. These remain outside Forum's implementation scope. |
-| R10 | Framework `runtime/base-component/framework/entity/ResourceEntities.xml`, `service/org/moqui/resource/WikiServices.xml` under that same component; `docs/interfaces/Mail-Inbound.md`; `runtime/base-component/framework/entity/ChatEntities.xml`; `crates/moqui-core/src/service/remote.rs`; Mantle `entity/ProductDefinitionEntities.xml`, `service/mantle/product/SubscriptionServices.xml` | Reuse wiki versions/reviews, mail ingestion, remote transport and subscription interfaces. Chat reactions/polls are keyed to ChatEvent and cannot be used as forum rows unchanged. |
+| R10 | Framework `runtime/components/base/framework/entity/ResourceEntities.xml`, `service/org/moqui/resource/WikiServices.xml` under that same component; `docs/interfaces/Mail-Inbound.md`; `runtime/components/base/framework/entity/ChatEntities.xml`; `crates/moqui-core/src/service/remote.rs`; Mantle `entity/ProductDefinitionEntities.xml`, `service/mantle/product/SubscriptionServices.xml` | Reuse wiki versions/reviews, mail ingestion, remote transport and subscription interfaces. Chat reactions/polls are keyed to ChatEvent and cannot be used as forum rows unchanged. |
 
 Additional dispositions: Discourse migration is S3 (§18); phpBB import is deferred. Topic voting
 as a separate feature-request ranking system, badges/leaderboards, live chat, events, federation,
@@ -1529,7 +1529,7 @@ separately from request latency, with counts/lag reported rather than a fabricat
 
 Each scenario below is an acceptance test in `test/acceptance/` (server side) or `test/acceptance/client/`
 (browser flows, desktop and phone), named for its scenario and run with `./moq accept mr-pass`
-([the two suites](../../../../docs/Build-Test.md#the-two-suites)). The rules behind them are
+([the two suites](../../../../../docs/Build-Test.md#the-two-suites)). The rules behind them are
 regression specs in `test/` (`moqui test`); Node is not a test dependency. Extend Mantle
 `test/forum/Mailboxes.spec.js` and BOSS `test/Comms/InboxMailboxes.spec.js`, and add PASS/remote contract tests.
 Existing mailbox specs disable artifact authz for some service checks; add real artifact-authz

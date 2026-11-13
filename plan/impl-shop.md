@@ -68,8 +68,8 @@ Service, beside Commerce, on what is built:
 - Inventories: mr-boss [usl-inventory.md](../../mr-boss/plan/usl-inventory.md), where the services the public facade
   calls are mapped with `PASS:` paths.
 
-Framework paths are under the mr-moqui checkout (`crates/`, `runtime/base-component/`), Mantle paths under
-`runtime/component/mr-mantle/`, BOSS paths under `runtime/component/mr-boss/`.
+Framework paths are under the mr-moqui checkout (`crates/`, `runtime/components/base/`), Mantle paths under
+`runtime/components/addon/mr-mantle/`, BOSS paths under `runtime/components/addon/mr-boss/`.
 
 Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phases](#3-phases) ·
 [4 decisions](#4-decisions) · [5 open](#5-open-questions) · [6 findings](#6-findings) · [7 later](#7-later) ·
@@ -80,14 +80,14 @@ Sections: [1 scope](#1-scope-and-order) · [2 rules](#2-ground-rules) · [3 phas
 ## 1. Scope and order
 
 - **Repositories.** Each is its own git repo:
-  - `mr-moqui` (`crates/`, `runtime/base-component`): the theme composition adapter and its budgets on the locked
+  - `mr-moqui` (`crates/`, `runtime/components/base`): the theme composition adapter and its budgets on the locked
     renderer (P2), and what the route cache policy needs of the public-site routing (P1, P3);
-  - `runtime/component/mr-mantle`: Shop's Mantle services and records (design-shop §13.2's K, C, X, A, D and R) and the
+  - `runtime/components/addon/mr-mantle`: Shop's Mantle services and records (design-shop §13.2's K, C, X, A, D and R) and the
     owners' contracts of §4;
-  - `runtime/component/mr-pass`: the Shop app, the PASS Account hub and email preferences page (P6), the starter
+  - `runtime/components/addon/mr-pass`: the Shop app, the PASS Account hub and email preferences page (P6), the starter
     theme, and the Shop pieces of Commerce phases (impl-commerce §1: the preview host in its P5, review pages and images
     in P9, the recovery link in P10, the Shop-site feed destination in P14);
-  - `runtime/component/mr-boss`: the Commerce phases (impl-commerce) and BOSS's grants of the permissions Shop's Mantle
+  - `runtime/components/addon/mr-boss`: the Commerce phases (impl-commerce) and BOSS's grants of the permissions Shop's Mantle
     services seed.
 - **Scope.**
   - Every Shop row of design-shop §2 and the §15 needs they use, as changed by §6 (F26, F27, F35).

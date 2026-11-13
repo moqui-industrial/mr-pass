@@ -1812,7 +1812,7 @@ boxes, wishlists/comparison, a theme marketplace and the separate Publishing edi
 Each scenario is an acceptance test in `test/acceptance/` (server side, or in a browser under
 `test/acceptance/client/`), named for its scenario and run with `./moq accept mr-pass`; the rules
 behind them are regression specs in `test/`
-([the two suites](../../../../docs/Build-Test.md#the-two-suites)).
+([the two suites](../../../../../docs/Build-Test.md#the-two-suites)).
 
 | Scenario | Required result |
 | --- | --- |
