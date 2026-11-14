@@ -1707,4 +1707,17 @@
         service: 'mantle.order.SalesPortalServices.get#QuoteResponse',
         fields: ['siteId', 'token', 'orderId'],
     },
+    // IronStone Sales P17 (impl-sales P17; design-sales §10): PASS Sales' customer orders, reads only
+    findSalesOrders: {
+        service: 'mantle.order.SalesPortalServices.find#CustomerOrders',
+        fields: ['siteId', 'state', 'reference', 'cursor', 'limit'],
+    },
+    getSalesOrder: {
+        service: 'mantle.order.SalesPortalServices.get#CustomerOrder',
+        fields: ['siteId', 'token', 'orderId'],
+    },
+    getSalesOrderDocument: {
+        service: 'mantle.order.SalesPortalServices.get#OrderDocument',
+        fields: ['siteId', 'token', 'orderId'],
+    },
 })

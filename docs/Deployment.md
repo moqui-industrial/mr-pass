@@ -290,8 +290,8 @@ queue and every customer and public knowledge source).
 
 The Sales app (`screen/Sales.xml`, the `sales` mount) is IronStone Sales' customer pages for one selling organization, its
 mount's target: `{"app": "sales", "pathPrefix": "/sales", "targetId": "ORG_ID"}`, and `/sales` in the runtime's
-`<public-site>` mounts (screen `Sales`). Its pages are CustomerQuotes (My quotes), CustomerQuote and QuoteResponse; customer
-orders follow. Readiness adds the app's checks: the target is an internal organization with Sales defaults and the commercial
+`<public-site>` mounts (screen `Sales`). Its pages are CustomerQuotes (My quotes), CustomerQuote and QuoteResponse, and
+CustomerOrders (My orders) and CustomerOrder. Readiness adds the app's checks: the target is an internal organization with Sales defaults and the commercial
 revision a quote's issue binds (BOSS Sales › Settings › Defaults), and the site has a canonical host. Until a published site
 has the app, a quote goes out with no link and customers cannot accept online (Sales' readiness says so).
 
@@ -302,6 +302,15 @@ has the app, a quote goes out with no link and customers cannot accept online (S
   confirmed, the terms acknowledged, a PO when the organization asks one, the acceptor's name and title) or decline; afterwards
   it shows the receipt, and a second submit answers the first. It never lists other quotes. The issued PDF carries the quote's
   page without a token, for a signed-in contact. Every link lookup counts against a limit per requester, and responses do too.
+- **Orders.** A storeless sales order's confirmation (one the organization's Sales sends itself: a direct order or an accepted
+  quote) carries the recipient's own link (`/sales/CustomerOrder?token=`), the order's `ExternalAccessCapability` (OrderView,
+  for a year), made for that mail. It shows that one order read only: lines and totals, promised dates, the accepted quote,
+  shipments with their tracking (a carrier's https link), invoices with their open amount, and the confirmation's PDF; there
+  is no edit, cancel, reorder or payment on it. A signed-in contact sees the customer's placed orders under My orders. A store's
+  orders keep Shop's page (a store order's link opens the store's Shop site); CustomerOrders never lists them. Where the site
+  mounts Support for the same organization, an order offers its Support pages (ask or change, request cancellation, request a
+  return), which take the link for that order from the session; where it mounts Billing for it, a signed-in account's invoice
+  opens Billing's InvoicePay, which checks the account's own Billing access (a contact needs a Billing invitation too).
 - **High-value quotes.** With an acceptance threshold set for a currency (Sales › Settings › Defaults, unset by default), a
   quote above it is accepted only by a contact signed in; the link still shows it and can decline it.
 - **Contacts.** A customer's contact is invited from BOSS (Sales › Accounts › an account or a contact › Invite to Sales),
@@ -309,7 +318,8 @@ has the app, a quote goes out with no link and customers cannot accept online (S
   under My quotes and on the Account hub's Quotes and orders card, and accept them signed in. A customer who is a person reaches
   their own quotes with no invitation once their account's email is verified. Set the site's registration to invitation.
 - **Remote frontend.** The `sales/...` operations are PASS operations served by Mantle's PassApi; `respondSalesQuote` is a
-  `TOKEN_WRITES` write a link's token authorizes, accepted from a registered deployment without a member session.
+  `TOKEN_WRITES` write a link's token authorizes, accepted from a registered deployment without a member session. The order
+  operations (`findSalesOrders`, `getSalesOrder`, `getSalesOrderDocument`) are reads only.
 
 ## Shop app
 

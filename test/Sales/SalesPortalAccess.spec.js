@@ -4,10 +4,15 @@
 // schema and the route list, respondSalesQuote a bearer write in the three TOKEN_WRITES lists and the PDF a download. Mantle's
 // SalesPortal spec covers the rules (scope, binding, one response, the threshold); the acceptance tests SalesQuoteScenarios and
 // SalesQuoteHttp go through the pages and a remote frontend. The issue is made without its PDF, so no print is rendered here.
+// P17: an order's link (the storeless confirmation's OrderView) shows the order read only, with no form; a forged link and a quote's
+// link read "not available"; My orders asks a visitor to sign in; the three order reads are in both copies and are no bearer write
+// (Mantle's SalesPortal covers the rules; SalesOrderScenarios and SalesOrderHttp are the acceptance tests). The order is set placed
+// directly, so no confirmation is sent or printed here.
 const fx = () => ec.resource.script("component://mr-mantle/test/order/SalesQuoteIssueFixtures.js")
 const siteId = "PASS_SALES_PAGES"
 const host = "sales.example.test"
 let quote
+let order
 const render = (path, parameters) => {
     const rendered = ec.screen
         .makeTest()
@@ -65,16 +70,40 @@ spec({
                 validFromDate: ec.user.nowTimestamp,
                 validThruDate: part.validThruDate
             })
+            const link = ec.resource.script("component://mr-mantle/service/mantle/party/ExternalAccess.js").create({
+                recordType: "SalesOrder",
+                recordId: orderId,
+                scopes: "QuoteView,QuoteRespond",
+                recordRevision: order.orderRevision,
+                thruDate: part.validThruDate
+            })
+            quote = {orderId, other, token: link.token, url: link.url}
+        })
+        // P17: a direct order of A for account a, set placed without the placement's mail, and its OrderView link
+        const seller = fx().system(() =>
+            fx().addUser(f, "seller", [f.orgA], ["SALES_VIEW", "SALES_TEAM_VIEW", "SALES_ORDER_EDIT"])
+        )
+        const orders = "mantle.order.SalesOrderServices."
+        const orderId2 = fx().as(seller, orders + "create#SalesOrder", {
+            organizationPartyId: f.orgA,
+            customerPartyId: f.accounts.a,
+            otherPartyOrderId: "PO-PSP"
+        }).orderId
+        fx().as(seller, orders + "store#SalesOrderLine", {
+            orderId: orderId2,
+            orderRevision: fx().revision(orderId2),
+            productId: f.product,
+            quantity: 2
+        })
+        fx().system(() => {
+            const header = ec.entity.find("mantle.order.OrderHeader").condition({orderId: orderId2}).one()
+            header.statusId = "OrderPlaced"
+            header.placedDate = ec.user.nowTimestamp
+            header.update()
             const link = ec.resource
                 .script("component://mr-mantle/service/mantle/party/ExternalAccess.js")
-                .create({
-                    recordType: "SalesOrder",
-                    recordId: orderId,
-                    scopes: "QuoteView,QuoteRespond",
-                    recordRevision: order.orderRevision,
-                    thruDate: part.validThruDate
-                })
-            quote = {orderId, other, token: link.token, url: link.url}
+                .create({recordType: "SalesOrder", recordId: orderId2, scopes: "OrderView"})
+            order = {orderId: orderId2, token: link.token, url: link.url}
         })
         logout()
     },
@@ -110,14 +139,41 @@ feature(
         }
     }
 )
-feature("the five operations are in both schema copies and route lists; the response is a bearer write in all three lists", {
+feature(
+    "an order's link shows the order read only; a forged link and a quote's link read not available; My orders asks to sign in",
+    {
+        when() {
+            return {
+                page: render("Sales/CustomerOrder", {token: order.token}),
+                forged: render("Sales/CustomerOrder", {token: "x".repeat(48)}).html,
+                byQuoteLink: render("Sales/CustomerOrder", {token: quote.token}).html,
+                list: render("Sales/CustomerOrders", {}).html
+            }
+        },
+        then({page, forged, byQuoteLink, list}) {
+            order.url.startsWith("https://" + host + "/sales/CustomerOrder?token=")
+            page.errors.length === 0 && !page.html.includes("Error rendering")
+            page.html.includes("Order " + order.orderId) && page.html.includes("PO-PSP") && page.html.includes("Account a")
+            page.html.includes('id="OrderShipments"') && page.html.includes("Nothing has shipped yet")
+            page.html.includes("No invoice yet")
+            !page.html.includes("<form") && !page.html.includes("Request cancellation")
+            ;[forged, byQuoteLink].every(html => html.includes("This order is not available") && !html.includes("Account a"))
+            list.includes("Sign in to see your company's orders")
+        }
+    }
+)
+feature("the eight operations are in both schema copies and route lists; the quote's response is the one bearer write", {
     when() {
         const operations = [
             "findSalesQuotes",
             "getSalesQuote",
             "getSalesQuoteDocument",
             "respondSalesQuote",
-            "getSalesQuoteResponse"
+            "getSalesQuoteResponse",
+            // P17: the order reads, GETs and no bearer write
+            "findSalesOrders",
+            "getSalesOrder",
+            "getSalesOrderDocument"
         ]
         const pass = ec.resource.script("component://mr-pass/service/pass/Schema.js")
         const mantle = ec.resource.script("component://mr-mantle/service/mantle/forum/ForumSchema.js")
@@ -134,13 +190,18 @@ feature("the five operations are in both schema copies and route lists; the resp
             schemas: operations.every(op => pass[op] && JSON.stringify(pass[op]) === JSON.stringify(mantle[op])),
             routed: operations.every(op => routes.every(list => list.filter(row => row[2] === op).length === 1)),
             post: routes[0].find(row => row[2] === "respondSalesQuote")[0],
+            orderReads: ["findSalesOrders", "getSalesOrder", "getSalesOrderDocument"].every(
+                op =>
+                    routes.every(list => list.find(row => row[2] === op)[0] === "GET") && lists.every(list => !list.includes(op))
+            ),
             writes: lists.every(list => list.includes("respondSalesQuote") && !list.includes("getSalesQuote"))
         }
     },
-    then({schemas, routed, post, writes}) {
+    then({schemas, routed, post, orderReads, writes}) {
         schemas === true
         routed === true
         post === "POST"
+        orderReads === true
         writes === true
     }
 })
