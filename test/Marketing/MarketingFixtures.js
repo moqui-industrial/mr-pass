@@ -195,6 +195,81 @@ function onSite(prefix, siteId, host, person) {
     })
     return Object.assign({}, ids, {siteId})
 }
+/* IronStone Marketing P12: a published survey of the fixture organization (a scored choice and a comment) with three publications
+ * on the site: open to anyone, a draft never opened and one closed; setup's ids first. Answers their publication ids. */
+function forms(prefix, ids) {
+    const found = rows("mantle.party.FormPublication", {organizationPartyId: ids.org})
+    if (found.length) {
+        const by = description => found.find(r => r.description === description)?.publicationId
+        return {open: by("Open survey"), draft: by("Draft survey"), closed: by("Closed survey"), formId: found[0].formId}
+    }
+    return system(() => {
+        const formId = prefix + "_SURVEY"
+        make("moqui.screen.form.DbForm", {
+            formId,
+            purposeEnumId: "DbfpSurvey",
+            isDated: "Y",
+            ownerPartyId: ids.org,
+            description: "Visit survey"
+        })
+        const from = new Date(Date.now() - 10 * dayMs)
+        make("moqui.screen.form.DbFormField", {
+            formId,
+            fieldName: "rating",
+            title: "How was it?",
+            fieldTypeEnumId: "DBFFT_radio",
+            isRequired: "Y",
+            audienceEnumId: "CfaCustomer",
+            layoutSequenceNum: 10,
+            fromDate: from
+        })
+        for (const [sequenceNum, keyValue, text, scoreValue] of [
+            [1, "good", "Good", 2],
+            [2, "poor", "Poor", 0]
+        ])
+            make("moqui.screen.form.DbFormFieldOption", {
+                formId,
+                fieldName: "rating",
+                sequenceNum,
+                keyValue,
+                text,
+                scoreValue,
+                fromDate: from
+            })
+        make("moqui.screen.form.DbFormField", {
+            formId,
+            fieldName: "comment",
+            title: "Anything else?",
+            fieldTypeEnumId: "DBFFT_text-area",
+            isRequired: "N",
+            audienceEnumId: "CfaCustomer",
+            layoutSequenceNum: 20,
+            fromDate: from
+        })
+        const publication = (description, fromDate, thruDate) =>
+            make("mantle.party.FormPublication", {
+                formId,
+                purposeEnumId: "FppSurvey",
+                organizationPartyId: ids.org,
+                siteId: ids.siteId,
+                accessEnumId: "FpaAnonymous",
+                repeatEnumId: "FprMany",
+                description,
+                titleText: "How was your visit?",
+                completionMessage: "Thank you for telling us.",
+                subscriptionListId: ids.garden,
+                fromDate,
+                thruDate,
+                createdDate: from
+            }).publicationId
+        return {
+            open: publication("Open survey", from, null),
+            draft: publication("Draft survey", null, null),
+            closed: publication("Closed survey", from, new Date(Date.now() - dayMs)),
+            formId
+        }
+    })
+}
 /* A PASS operation through the facade (local mode), as a page calls it: its result, or the error's kind and message. */
 function call(operation, input) {
     try {
@@ -227,4 +302,4 @@ const partyOf = address =>
     rows("mantle.party.contact.PartyContactMechInfo", {contactMechTypeEnumId: "CmtEmailAddress"}).find(
         info => String(info.infoString).toLowerCase() === address
     )?.partyId || null
-;({setup, onSite, call, tokenTo, membership, partyOf, lib})
+;({setup, onSite, forms, call, tokenTo, membership, partyOf, lib})

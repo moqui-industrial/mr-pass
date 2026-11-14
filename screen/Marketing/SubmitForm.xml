@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- SubmitForm (design-marketing §13 SubmitForm; IronStone impl-marketing P12): PublicForm, a Marketing publication's form on this
+    site (getMarketingForm): by ?publication= for a public or a signed-in accounts' one, by ?token= for an invitation's link. The
+    questions are the publication's as of now on the server, with their show and require rules for moqui-form-when.js (the page
+    loads the framework's /js/moqui-form-when.js, CSP script-src 'self'; without it every question shows and the server checks the
+    rules again); the subscription choice is a separate box with its own address. Send posts (submitMarketingForm) and shows
+    FormReceipt, the publication's own neutral words, the same whatever the server kept; a repeat answers the first. A GET only
+    reads, so a mail scanner following an invitation changes nothing. An unpublished, closed or another site's form, and a forged or
+    expired link, show the same "not available". Inputs are named f_<field>, so no question meets a page parameter. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Form">
+  <transition name="submit" method="post">
+    <actions>
+      <script><![CDATA[
+        const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js'),p=ec.web.parameters
+        const page=marketing.base(publicPath,'submit')
+        const token=marketing.param('token'),publication=marketing.param('publication')
+        // the answers of the questions the page showed, by name (a checkbox group sends several)
+        const names=String(marketing.param('fieldNames') || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z][A-Za-z0-9_]{0,59}$/.test(s))
+        const values={}
+        for(const name of names){
+            const value=p['f_'+name]
+            if(value==null || value==='')continue
+            values[name]=Array.isArray(value)?value.map(String):(typeof value==='object' && value.length!=null?Array.from(value).map(String):String(value))
+        }
+        const back={path:page,params:{publication,token}}
+        marketing.post('submitMarketingForm',{siteId:resolvedSiteId,publicationId:publication,token,values:JSON.stringify(values),
+            subscribe:marketing.param('subscribe'),subscriptionEmail:marketing.param('subscriptionEmail'),operationId:marketing.param('operationId')},
+            back,{path:page,params:{publication,token,sent:'1'}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
+        flash=marketing.take()
+        token=marketing.param('token')
+        publicationParam=marketing.param('publication')
+        view=null;failure=null
+        if(!token && !publicationParam)failure={kind:'NotFound',message:'Open this page from the link you were given.'}
+        else{
+            const found=marketing.portal.attempt('getMarketingForm',{siteId:resolvedSiteId,...(token ? {token} : {publicationId:publicationParam})})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This form is not available. It may have closed, or the link may have expired.'}:found.error
+            else view=found.result
+        }
+        // the receipt shows after a post, never on a plain visit
+        receipt=marketing.param('sent') ? (flash.receipt || null) : null
+        const ruleText=(rule)=>rule?JSON.stringify({form:'PublicForm',field:'f_'+rule.field,operator:rule.operator,values:rule.values || []}):''
+        formFields=view?(view.form.fields || []).map(f=>Object.assign({},f,{showText:ruleText(f.show),requireText:ruleText(f.require)})):[]
+        fieldNames=formFields.map(f=>f.fieldName).join(',')
+        submitOperationId=marketing.portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/SubmitForm.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
