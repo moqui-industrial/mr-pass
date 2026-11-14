@@ -545,6 +545,43 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- DG8: the GitHub import and push mirrors (Smithy/SmithyImport.js) -->
+  <transition name="startGitHubImport" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('startGitHubImport',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="resumeGitHubImport" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('resumeGitHubImport',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="cancelGitHubImport" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('cancelGitHubImport',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeMirror" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeMirror',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deleteMirror" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('deleteMirror',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="pushMirror" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('pushMirror',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <transition name="previewPost" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('previewPost',resolvedSiteId,passBases)</script>

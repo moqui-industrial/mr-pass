@@ -36,7 +36,8 @@ and the runner pools), its releases and Docs, a group's landing page and `addons
 box, the site's old paths, forks, editing a file on its page with the save as a commit, the forum's own pages inside a group and a
 repository (limited to its category, with the moderation queue for its Owners, Report and Hide, a mailing list's import
 and invitations, and security reports by mail), and for an account with a confirmed address creating groups and repositories, their settings and
-members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript
+members, branch rules, webhooks, push mirrors, a GitHub repository's import (its issues and pull requests, on a group's Settings, with
+each import's own page) and its own SSH keys and access tokens (Account's Git access), all without JavaScript
 (a text's editor, the diff's line comments, the code editor and a running job's log are islands over the plain pages),
 over Mantle's `mantle.smithy` services and the framework's git host. What a visitor may not view is Not Found.
 [Deployment](docs/Deployment.md) "Smithy app" has its setup; [the implementation record](plan/implementation-smithy.md)
@@ -60,7 +61,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyAccess --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens

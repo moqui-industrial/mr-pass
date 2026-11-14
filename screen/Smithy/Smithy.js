@@ -1212,31 +1212,25 @@ function redirectRoute(location, siteId) {
     response.setHeader("Location", to)
     response.write("")
 }
-/* DG7 (design §13.6): the target of an old path of the site (the table of old paths, SmithyRedirect), which the resolver
- * answers with a 301 before Not Found: a path on this site or an https address of one of its hosts, re-checked here; null
- * for none. Mantle's resolve#Redirect is no operation of the facade, so a remote frontend, which has no Mantle, has none. */
+/* DG7 (design §13.6): the target of an old path of the site (the table of old paths, SmithyRedirect, and from DG8 an imported
+ * repository's GitHub paths), which the resolver answers with a 301 before Not Found: a path on this site or an https
+ * address of one of its hosts, re-checked here; null for none. DG8: it is the facade's resolveRedirect, so a remote frontend
+ * has it too. */
 function movedPath(siteId, host, path) {
-    if (!siteId || !path || System.getProperty("pass_backend_url")) return null
-    let found = null
+    if (!siteId || !path || !String(path).startsWith("/") || String(path).length > 2000) return null
     ec.message.pushErrors()
+    let out
     try {
-        found = ec.service
-            .sync()
-            .name("mantle.smithy.SmithySiteServices.resolve#Redirect")
-            .parameters({siteId, host: host || null, path})
-            .call()
-        if (ec.message.hasError()) {
-            ec.logger.warn("The site's old paths were not read for " + path + ": " + ec.message.getErrorsString())
-            found = null
-        }
-    } catch (error) {
-        ec.logger.warn("The site's old paths were not read for " + path + ": " + (error?.message || error))
-        found = null
+        out = portal.attempt("resolveRedirect", {siteId, host: host || null, path: String(path)})
     } finally {
         ec.message.clearErrors()
         ec.message.popErrors()
     }
-    const target = String(found?.targetPath || "")
+    if (out.error) {
+        if (out.error.kind !== "NotFound") ec.logger.warn("The site's old paths were not read for " + path + ": " + out.error.message)
+        return null
+    }
+    const target = String(out.result?.targetPath || "")
     if (!target || !(siteLocal(target) || ownAddress(siteId, target))) return null
     // never back to the path asked for (on this host): resolve#Redirect would answer it with the same row, a loop
     const whole = ADDRESS.exec(target)

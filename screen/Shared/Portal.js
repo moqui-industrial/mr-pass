@@ -61,6 +61,10 @@ const reasons = {
     recentSignInRequired: 'Sign in again to do this: you have been signed in for a while.',
     // Smithy DG6: a repository a moderator hid is not forked
     repositoryHidden: 'This repository is hidden.',
+    // Smithy DG8: the GitHub import; each with the refusal's own text (which token, which repository)
+    sourceRefused: null,
+    importActive: null,
+    numbersTaken: null,
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */

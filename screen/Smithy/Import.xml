@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Import (design-smithy §11 Import, DG8), at import/<importId>: a GitHub import's page for its group's Owners and operators
+    (getGitHubImport: its stage, counts, a wait on GitHub's rate limit with the time it goes on, what could not be carried,
+    Resume with a token and Cancel asked again; refreshed by a link), and at import the site's imports for an operator
+    (findGitHubImports). An import starts on the Import tab of a group's Settings. Not Found for anyone else
+    (Smithy/SmithyImport.js). The forms post to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Import">
+  <parameter name="importId"/>
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyImport.js').importPageView(resolvedSiteId,passBases,siteInfo,String(publicPath || ''),String(importId || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

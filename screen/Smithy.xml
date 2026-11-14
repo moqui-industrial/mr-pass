@@ -20,7 +20,8 @@
     Search, a repository's Docs and Releases, ReleaseDetail with its files' download, a group's addons.xml and the Redirects
     tab of Site. The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a
     renamed path, and from DG7 an old path of the site's table): 301 to a path on this site, or for the table an https
-    address of one of the site's hosts, with the request's query. -->
+    address of one of the site's hosts, with the request's query. DG8 adds Import (Smithy/SmithyImport.js): a GitHub import's
+    page and the site's imports, the Import tab of a group's Settings and the Mirrors tab of a repository's. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Code">

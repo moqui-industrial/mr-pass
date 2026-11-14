@@ -546,6 +546,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             ["forum", "Forum", root + "/forum"],
             ["pipelines", "Pipelines", root + "/pipelines"],
             ["quota", "Quota", root + "/quota"],
+            ["import", "Import", root + "/import"],
             ["delete", "Delete", root + "/delete"]
         ],
         current
@@ -572,6 +573,9 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             }`.html
         }
     }
+    // DG8: the GitHub import into the group (SmithyImport.js); the list stays when the start form is closed
+    if (current === "import")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyImport.js").groupImport(shell, head, c, closed)
     if (closed) return {html: h`${head}${closed}`.html}
     if (current === "delete")
         return {
@@ -717,9 +721,9 @@ function settingsAccess(shell) {
     const role = shell.capabilities.role
     if (!holds(role, "maintainer")) fail()
     const owner = holds(role, "owner")
-    return {tabs: ["general", "members", "branch-rules", "webhooks", "pipelines", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
+    return {tabs: ["general", "members", "branch-rules", "webhooks", "mirrors", "pipelines", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
 }
-/* RepositorySettings (design §11): General, Members, Branch rules, Webhooks and (DG5) Pipelines for a Maintainer, Archive for
+/* RepositorySettings (design §11): General, Members, Branch rules, Webhooks, (DG8) Mirrors and (DG5) Pipelines for a Maintainer, Archive for
  * an Owner; a tab
  * the caller's role does not reach is Not Found, as the whole page is for less than a Maintainer. */
 function repositorySettings(shell, bases, siteInfo, self, tab) {
@@ -740,6 +744,7 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
             ["members", "Members", at("members")],
             ["branch-rules", "Branch rules", at("branch-rules")],
             ["webhooks", "Webhooks", at("webhooks")],
+            ["mirrors", "Mirrors", at("mirrors")],
             ["pipelines", "Pipelines", at("pipelines")],
             ...(owner
                 ? [
@@ -763,6 +768,9 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
     // DG5: the runners, secrets and environments (SmithyPipelines.js)
     if (current === "pipelines")
         return ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js").repositorySettings(shell, head.html, bases, siteInfo, self)
+    // DG8: the push mirrors (SmithyImport.js)
+    if (current === "mirrors")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyImport.js").mirrors(shell, head, c, closed)
     const page = body => ({html: h`${head}${body}`.html})
     const common = h`${hidden("repositoryId", id)}`
     if (current === "members") {
@@ -1817,13 +1825,51 @@ const DO = {
             )
         }
     },
+    // DG8 (design §11 Import, §15.9): the GitHub import, whose token is never kept for the next page (SECRET); its options
+    // are the form's checkboxes as the operation's map, and a new repository's path is sent only for a new one
+    startGitHubImport: {
+        fields: ["groupId", "sourceRepository", "slug", "repositoryId", "token", "operationId"],
+        adjust: input => {
+            input.options = {
+                issues: param("issues") === "true",
+                pullRequests: param("pullRequests") === "true",
+                ...(param("publishPrivate") === "true" ? {publishPrivate: true} : {})
+            }
+            if (input.repositoryId) delete input.slug
+            else delete input.repositoryId
+        },
+        done: (result, c) => (result.importId ? c.base + "/import/" + encodeURIComponent(result.importId) : null),
+        notice: () => "The import started. It goes on in steps, and this page shows where it is."
+    },
+    resumeGitHubImport: {
+        fields: ["importId"],
+        optional: ["token"],
+        numbers: ["expectedRevision"],
+        notice: () => "The import goes on."
+    },
+    // asked again on the import's page (?confirm=cancel)
+    cancelGitHubImport: {
+        fields: ["importId"],
+        numbers: ["expectedRevision"],
+        confirm: true,
+        notice: () => "The import was stopped. What it brought stays."
+    },
+    // a mirror's secret is sent only when typed and never kept for the next page (SECRET), nor is its username shown again
+    storeMirror: {
+        fields: ["repositoryId", "mirrorId", "url", "refs", "operationId"],
+        optional: ["username", "secret"],
+        flags: ["deleteRefs", "enabled"],
+        notice: () => "The mirror was saved."
+    },
+    deleteMirror: {fields: ["repositoryId", "mirrorId"], confirm: true, notice: () => "The mirror was deleted."},
+    pushMirror: {fields: ["repositoryId", "mirrorId"], notice: () => "The mirror's push was queued."},
     // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
     previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
 /* The forms whose text Preview shows (a file's edit previews its Markdown: previewField). */
 const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile", "storeRelease"]
 /* What is never written back into a page after a refusal. */
-const SECRET = ["password", "code", "secret", "confirmPath", "value"]
+const SECRET = ["password", "code", "secret", "confirmPath", "value", "token"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
 function inputOf(spec) {
     const parameters = ec.web.parameters

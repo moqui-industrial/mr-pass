@@ -521,7 +521,9 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
             group: f.route(SITE, HOST, "/code/pass-smg/-/members"),
             stored: f.route(SITE, HOST, "/code/Pass-SMG/web.git"),
             slashes: f.route(SITE, HOST, "/code//pass-smg/web/"),
+            // DG8: a group's Import tab and an import's page are routed
             later: f.route(SITE, HOST, "/code/pass-smg/-/settings/import"),
+            importRun: f.route(SITE, HOST, "/code/import/SMI_1"),
             // DG7: an old path of the site's table, which no mount takes, is answered with its redirect
             moved: f.route(SITE, HOST, "/m/docs/web/"),
             gone: f.route(SITE, HOST, "/m/docs/other"),
@@ -569,7 +571,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         siteLater,
         groupSettings,
         webhooks,
-        mirrors
+        mirrors,
+        importRun
     }) {
         created.screenPath === "/Smithy/New/Repository"
         form.screenPath === "/Smithy/Do/createRepository"
@@ -579,7 +582,9 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         groupSettings.screenParameters.groupId === state.group
         webhooks.screenPath === "/Smithy/RepositoryDetail/Settings"
         webhooks.screenParameters.tab === "webhooks"
-        mirrors.kind === "NotFound"
+        mirrors.screenParameters.tab === "mirrors"
+        importRun.screenPath === "/Smithy/Import"
+        importRun.screenParameters.importId === "SMI_1"
         repository.screenPath === "/Smithy/RepositoryDetail/Files"
         repository.screenParameters.repositoryId === state.repo
         repository.screenParameters.namePath === "pass-smg/web"
@@ -592,7 +597,7 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         stored.screenParameters.location === "/code/pass-smg/web"
         slashes.screenPath === "/Smithy/redirect"
         slashes.screenParameters.location === "/code/pass-smg/web"
-        later.kind === "NotFound"
+        later.screenParameters.tab === "import"
         moved.screenPath === "/Smithy/redirect"
         moved.screenParameters.location === "/code/pass-smg/web/-/docs"
         gone.kind === "NotFound"
@@ -1014,9 +1019,9 @@ feature("a form's post answers 303: to its page after a write, back to the form 
         unasked.location === "/code/"
         unasked.flash.error.message === "Confirm this change on its own page first."
         // DG6's heldReport alone is a GET: the page of a held report's link, which writes nothing
-        transitions === 89
-        posts === 88
-        forms === 88
+        transitions === 95
+        posts === 94
+        forms === 94
         optOut === false
     }
 })
@@ -1563,7 +1568,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 130
+        count === 140
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"

@@ -34,7 +34,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1 to DG7); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG8); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -101,7 +101,9 @@ const BUILT = [
     "/Smithy/GroupDetail/addons",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
-    "/Smithy/redirect"
+    "/Smithy/redirect",
+    // DG8: a GitHub import's page and the site's imports (design §11 Import)
+    "/Smithy/Import"
 ]
 /* Built screens that have screens and transitions under them: Do's transitions, and (DG6) the forum's own screens mounted
  * under a group and a repository and the scope's moderation pages, whose paths forumSection and moderationSection check. */
@@ -111,12 +113,13 @@ const built = screenPath =>
 /* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
 const BUILT_TABS = {
     "/Smithy/Site": ["settings", "requests", "quotas", "redirects"],
-    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "pipelines", "quota", "delete"],
+    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "pipelines", "quota", "import", "delete"],
     "/Smithy/RepositoryDetail/Settings": [
         "general",
         "members",
         "branch-rules",
         "webhooks",
+        "mirrors",
         "pipelines",
         "agreement",
         "forum",

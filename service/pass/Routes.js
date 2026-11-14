@@ -433,4 +433,15 @@
     ['POST', 'smithy/redirects', 'storeRedirect'],
     ['POST', 'smithy/redirects/import', 'importRedirects'],
     ['DELETE', 'smithy/redirects/{redirectId}', 'deleteRedirect'],
+    ['GET', 'smithy/redirect', 'resolveRedirect'],
+    // Dogfood DG8: GitHub (design-smithy §15.9)
+    ['POST', 'smithy/imports', 'startGitHubImport'],
+    ['GET', 'smithy/imports', 'findGitHubImports'],
+    ['GET', 'smithy/imports/{importId}', 'getGitHubImport'],
+    ['POST', 'smithy/imports/{importId}/resume', 'resumeGitHubImport'],
+    ['POST', 'smithy/imports/{importId}/cancel', 'cancelGitHubImport'],
+    ['GET', 'smithy/repositories/{repositoryId}/mirrors', 'findMirrors'],
+    ['POST', 'smithy/repositories/{repositoryId}/mirrors', 'storeMirror'],
+    ['DELETE', 'smithy/repositories/{repositoryId}/mirrors/{mirrorId}', 'deleteMirror'],
+    ['POST', 'smithy/repositories/{repositoryId}/mirrors/{mirrorId}/push', 'pushMirror'],
 ]

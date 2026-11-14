@@ -683,7 +683,7 @@ anyone leaves. **Operations** `findGroupMembers`, `setGroupMember`, `leaveGroup`
 | Pipelines | the runner pools the operator allowed and which the group uses for trusted and for outside runs; the month's runner minutes | `getPipelineSettings`, `storePipelineSettings` | DG5 |
 | Forum | the group's category: on, off, link an existing one; the security address | `setScopeForum`, `storeIssueMailRoute` | DG6 |
 | Quota | usage against the limits; an operator edits the limits | `getQuotaUsage`, `setQuota` | DG2 |
-| Import | link to Import for this group | | DG8 |
+| Import | the start form (the GitHub repository, a token, a new repository or one of the group's, what to import, publishPrivate with its warning) and the group's imports, each linking to its page `B/import/<importId>` | `startGitHubImport`, `findGitHubImports` | DG8 |
 | Delete | delete an empty group, typed path to confirm | `deleteGroup` | DG2 |
 
 **Without JavaScript** all of it.
@@ -1278,7 +1278,7 @@ does not reach is absent.
 | Members | Maintainer reads, Owner changes | members of the repository and those inherited from its groups; add by handle, role, end date | `findRepositoryMembers`, `setRepositoryMember` | DG2 |
 | Branch rules | Maintainer | each rule: pattern, force push, delete, require a merge request, approvals, dismiss stale approvals, required contexts, merge methods | `getBranchRules`, `storeBranchRule`, `deleteBranchRule` | DG2 |
 | Webhooks | Maintainer | URL, events, active, the last delivery; Test; deliveries | `findWebhooks`, `storeWebhook`, `deleteWebhook`, `testWebhook`, `findWebhookDeliveries` | DG2 |
-| Mirrors | Maintainer | each push mirror: URL, refs, the last result and error; Push now | `findMirrors`, `storeMirror`, `deleteMirror`, `pushMirror` | DG8 |
+| Mirrors | Maintainer | each push mirror: URL, refs, delete refs, enabled, has a credential, the last push, its result and error, the next attempt; add and edit (an https URL with no credential, username and secret apart, the secret write-only), Delete asked again, Push now; on a server whose framework has no push mirrors (`notBuilt`), "Push mirrors are not available on this server yet" and no form | `findMirrors`, `storeMirror`, `deleteMirror`, `pushMirror` | DG8 |
 | Pipelines | Maintainer | secrets (names and scopes; a value is write-only), environments, the pools in use | `findCiSecrets`, `storeCiSecret`, `deleteCiSecret`, `findCiEnvironments`, `storeCiEnvironment`, `deleteCiEnvironment`, `getPipelineSettings` | DG5/DG10 |
 | Agreement | Owner | inherit, off or required; the file; the rules it changes | `getAgreement`, `setAgreement` | DG4 |
 | Forum | Owner | the repository's subcategory: on, off, link | `setScopeForum` | DG6 |
@@ -1344,11 +1344,15 @@ and its card are Smithy's: on a site that does not mount Smithy the page is Not 
 
 ### Import
 
-**Path** `B/import`, `B/import/<importId>`. An operator, or the Owner of the group the import goes to. **Shows** the
-start form (the group, the GitHub repository `owner/name`, a token, what to import), then the run: its stage, counts
-against GitHub's, the items that could not be carried, Resume and Cancel. **Operations** `startImport`,
-`getImportRun`, `findImportRuns`, `resumeImport`, `cancelImport`. **Without JavaScript** all of it; the run's page
-refreshes by a link. The mapping is [§18.2](#182-the-github-import).
+**Path** `B/import`, `B/import/<importId>`. An operator, or the Owner of the group the import goes to; Not Found for
+anyone else. **Shows** at `B/import/<importId>` the run: its stage, counts by type (imported, seen at GitHub, failed), a
+wait on GitHub's rate limit with the time it goes on, the items that could not be carried and what an import never
+carries, Resume (with a token, needed once the run ended) and Cancel (asked again); at `B/import` the site's imports,
+for an operator. The start form (the GitHub repository `owner/name`, a token that is never shown again, a new
+repository or one of the group's, issues and pull requests, publishPrivate with its warning) is on the Import tab of
+the group's Settings, with the group's imports; the group is the tab's, so the form does not ask for it. **Operations**
+`startGitHubImport`, `getGitHubImport`, `findGitHubImports`, `resumeGitHubImport`, `cancelGitHubImport`. **Without
+JavaScript** all of it; the run's page refreshes by a link. The mapping is [§18.2](#182-the-github-import).
 
 ## 12. Conversations, the gate and moderation
 
