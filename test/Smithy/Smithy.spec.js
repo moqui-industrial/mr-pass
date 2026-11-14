@@ -1568,7 +1568,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 140
+        count === 145
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"
