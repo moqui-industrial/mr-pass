@@ -15,7 +15,7 @@ const NUM = /^[1-9][0-9]{0,8}$/
 const COMMIT = /^[0-9a-fA-F]{7,40}$/
 const DO_NAME = /^[a-z][A-Za-z]{1,60}$/
 const ISLAND = /^([A-Z][A-Za-z0-9]{0,60})\.(qvue|qvt|qjs)$/
-/* A held report's token (design §12.4), as a link in mail carries it. */
+/* A held report's or a held list message's token (design §12.4, Dogfood §6.3), as a link in mail carries it. */
 const TOKEN = /^[A-Za-z0-9._~-]{8,200}$/
 /* §4.2: a group's or subgroup's segment (a handle is always one), and a repository's slug. */
 const GROUP_SEGMENT = /^[a-z0-9][a-z0-9_-]{1,38}$/
@@ -170,7 +170,8 @@ function compareSpec(rest) {
 }
 /* The forum inside a group's or a repository's shell (design §12.5, Dogfood §6.1): the rest of the path after -/forum is
  * mapped as the forum's own resolver maps a path after its mount (pass.RouteServices): t/<id>/<slug> is a topic (the slug
- * may end in a render mode, and a transition's name may follow), p/<id> a post's permalink, else a screen of the forum that
+ * may end in a render mode, and a transition's name may follow), p/<id> a post's permalink, held-mail/<token>[/claim] a
+ * held list message's page (a list bound to the scope links there), else a screen of the forum that
  * has a scope, then at most a transition's name. The forum's screens are mounted under the shell (screen), so the
  * page is the forum's own. topicId, topicSlug and postId are the resolver's own outputs, as the forum's are. */
 const FORUM_SCREENS = [
@@ -200,6 +201,11 @@ function forumSection(screen, rest, parameters) {
         })
     }
     if (rest[0] === "p") return rest.length === 2 && ID.test(rest[1]) ? to("/Post", {postId: rest[1]}) : fail()
+    // the link a list in this scope answers held mail with (Forum/HeldMail), held-mail/<token>, and its claim
+    if (rest[0] === "held-mail") {
+        if (!TOKEN.test(rest[1] || "") || rest.length > 3 || (rest.length === 3 && rest[2] !== "claim")) fail()
+        return page(screen + "/HeldMail" + (rest[2] ? "/claim" : ""), {...parameters, forumPath: rest.join("/"), token: rest[1]})
+    }
     if (rest[0] === "feed") return rest.length === 1 ? to("/feed") : fail()
     return to(screenTail(rest, FORUM_SCREENS))
 }

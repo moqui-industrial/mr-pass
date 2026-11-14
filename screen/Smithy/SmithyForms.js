@@ -1633,6 +1633,7 @@ const DO = {
             (result.alreadyInvited ? "; " + result.alreadyInvited + " had an invitation already" : "") +
             (result.invalidCount ? "; " + result.invalidCount + " were not addresses" : "") +
             (result.unsent ? "; " + result.unsent + " could not be mailed" : "") +
+            (result.limitedCount ? "; " + result.limitedCount + " were not sent: the day's limit" : "") +
             "."
     },
     // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)

@@ -138,16 +138,20 @@ function hideLink(shell) {
 }
 /* A review of a group or a repository itself (a report; design §12.3), on the scope's ReviewDetail: where the target is
  * (getReview's target, for one the caller may view) and what each decision does. */
-function reviewTarget(target, bases) {
+function reviewTarget(target, bases, siteId) {
     if (!target?.path) return ""
     const root = (bases.smithy || "") + "/" + enc(target.path)
     const word = target.targetType === "group" ? "group" : "repository"
-    return h`<section class="card" id="SmithyReviewTarget"><h2>Reported ${word}</h2><p><a href="${root}">${target.name || target.path}</a> <small>${target.path} · ${
-        target.visibility || ""
-    }</small>${target.hidden ? h` <small class="smithy-chip">Hidden</small>` : ""}</p>${
-        target.hidden && target.hideReason ? h`<p class="smithy-pre">${target.hideReason}</p>` : ""
+    // the site's staff decide a report on what they may not view (design §12.3): its page is not linked for them
+    const viewable = !!bases.smithy && !!maybe("resolveSmithyPath", {siteId, path: target.path})
+    return h`<section class="card" id="SmithyReviewTarget"><h2>Reported ${word}</h2><p>${
+        viewable ? h`<a href="${root}">${target.name || target.path}</a>` : h`<strong>${target.name || target.path}</strong>`
+    } <small>${target.path} · ${target.visibility || ""}</small>${
+        target.hidden ? h` <small class="smithy-chip">Hidden</small>` : ""
+    }</p>${target.hidden && target.hideReason ? h`<p class="smithy-pre">${target.hideReason}</p>` : ""}${
+        viewable ? "" : h`<p id="SmithyReviewTargetClosed">You decide this report, but this ${word} is not one you may open.</p>`
     }<p>The decision <strong>rejected</strong> hides this ${word}: it is then Not Found to everyone but its owners and the site's moderators, and nothing is deleted. <strong>dismissed</strong> leaves it as it is. ${
-        target.hidden ? h`<a href="${root}/-/moderation/hide">Show it again</a>` : ""
+        target.hidden && viewable ? h`<a href="${root}/-/moderation/hide">Show it again</a>` : ""
     }</p></section>`.html
 }
 
@@ -184,15 +188,18 @@ function forumSettings(shell, head, bases, siteInfo, self) {
             : shell.repository
               ? "This repository has no forum of its own: its issues and merge requests are discussed in its group's category. Turning it on makes a subcategory for it."
               : "This group's forum is off: its category is not shown. Turning it on publishes the category."
-    }</p><p id="SmithyForumReaders">Its category is read by ${visibilityText(visibility)}: it follows the ${t.word}'s visibility, and is never wider.</p>${
-        on
+    }</p><p id="SmithyForumReaders">Its category is read by ${visibilityText(visibility)}: it follows the ${t.word}'s visibility.</p>${
+        // linking a category of the site in place of the scope's own is for the site's owners and operators
+        on || !siteInfo?.capabilities?.canManageSite
             ? ""
             : input(f, "contactListId", "Link an existing category (optional)", {
                   maxlength: 40,
                   hint:
-                      "The id of a category of this site that you own and that is no wider than this, in place of the " +
+                      "The id of a category of this site that no group or repository has, in place of the " +
                       t.word +
-                      "'s own."
+                      "'s own. Its topics are then read by who reads the " +
+                      t.word +
+                      "; a category that this would open to more readers is refused."
               })
     }${submit(on ? "Turn the forum off" : "Turn the forum on")}`
     const report = shell.group ? securityAddress(c, shell, siteId, siteInfo) : ""
@@ -379,20 +386,6 @@ function listInvitations(c, scope, siteId, self) {
  * the site's shell, and never kept by a cache. */
 function heldReport(siteId, token, bases, siteInfo, self) {
     ec.web.response.setHeader("Cache-Control", "no-store")
-    const c = contextOf(bases, siteInfo, self, smithy.takeFlash())
-    const f = formOf(c, "claimHeldReport")
-    const back = encodeURIComponent(self)
-    const body = !c.signedIn
-        ? h`<p class="card" id="SmithySignIn">Your report is waiting. To file it, sign in with the address you sent it from, or register with that address and come back to this link. <a href="${c.account}/Login?returnTo=${back}">Sign in</a>${
-              siteInfo?.site?.registrationMode === "open"
-                  ? h` · <a href="${c.account}/Register?returnTo=${back}">Register</a>`
-                  : ""
-          }</p>`
-        : h`${open(c, f)}${hidden("token", token)}${hidden("operationId", portal.operationId())}<p>Your message is filed as a confidential issue, which only the owners of the project and you read. It is filed as your account, so the address you sent it from must be this account's confirmed address.</p>${
-              f.error?.notFound
-                  ? h`<p id="SmithyHeldGone">This link was used already or has expired. A held message is kept for 30 days.</p>`
-                  : ""
-          }${submit("File my report")}`
     const context = {
         siteInfo,
         passBases: bases,
@@ -406,9 +399,27 @@ function heldReport(siteId, token, bases, siteInfo, self) {
     response.setContentType("text/html")
     response.write(
         String(ec.resource.template("component://mr-pass/screen/Shared/Header.html.fancy", context)) +
-            h`<h1>Your report</h1>${banner(c)}${body}`.html +
+            heldReportBody(token, bases, siteInfo, self, smithy.takeFlash()) +
             String(ec.resource.template("component://mr-pass/screen/Shared/Footer.html.fancy", context))
     )
+}
+/* The held report page's content inside the shell: Sign in (and Register) for a visitor, the claim's form for an account. */
+function heldReportBody(token, bases, siteInfo, self, flash) {
+    const c = contextOf(bases, siteInfo, self, flash)
+    const f = formOf(c, "claimHeldReport")
+    const back = encodeURIComponent(self)
+    const body = !c.signedIn
+        ? h`<p class="card" id="SmithySignIn">Your report is waiting. To file it, sign in with the address you sent it from, or register with that address and come back to this link. <a href="${c.account}/Login?returnTo=${back}">Sign in</a>${
+              siteInfo?.site?.registrationMode === "open"
+                  ? h` · <a href="${c.account}/Register?returnTo=${back}">Register</a>`
+                  : ""
+          }</p>`
+        : h`${open(c, f)}${hidden("token", token)}${hidden("operationId", portal.operationId())}<p>Your message is filed as a confidential issue, which only the owners of the project and you read. It is filed as your account, so the address you sent it from must be this account's confirmed address.</p>${
+              f.error?.notFound
+                  ? h`<p id="SmithyHeldGone">This link was used already or has expired. A held message is kept for 30 days.</p>`
+                  : ""
+          }${submit("File my report")}`
+    return h`<h1>Your report</h1>${banner(c)}${body}`.html
 }
 
 /* "Make an issue" (design §12.5) under a topic shown in a group's or a repository's forum, for a role that may triage: the
@@ -471,4 +482,4 @@ function discussionCard(shell, discussion, bases, siteInfo) {
         base ? h`<a href="${base}/t/${encodeURIComponent(discussion.rootCommEventId)}">${title}</a>` : title
     }</p></section>`
 }
-;({moderation, report, hide, hideLink, reviewTarget, forumSettings, heldReport, topicTools, discussionCard, targetOf, mayHide})
+;({moderation, report, hide, hideLink, reviewTarget, forumSettings, heldReport, heldReportBody, topicTools, discussionCard, targetOf, mayHide})

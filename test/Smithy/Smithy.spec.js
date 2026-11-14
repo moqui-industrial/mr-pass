@@ -208,6 +208,10 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             forumCompose: parse("moqui/mr-moqui/-/forum/Compose.qvue"),
             forumPublish: parse("moqui/-/forum/Compose/publish"),
             forumFeed: parse("moqui/-/forum/feed"),
+            // a held list message's link of a list in the scope, and its claim
+            forumHeld: parse("moqui/mr-moqui/-/forum/held-mail/abcDEF_123-456"),
+            forumHeldClaim: parse("moqui/-/forum/held-mail/abcDEF_123-456/claim"),
+            forumHeldBad: parse("moqui/-/forum/held-mail/abcDEF_123-456/post"),
             // the forum's pages that have no scope stay the site's own
             forumSettings: parse("moqui/-/forum/Settings/Mail"),
             forumMessages: parse("moqui/-/forum/Messages"),
@@ -362,6 +366,10 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.forumCompose.screenPath === "/Smithy/RepositoryDetail/Forum/Compose.qvue"
         out.forumPublish.screenPath === "/Smithy/GroupDetail/Forum/Compose/publish"
         out.forumFeed.screenPath === "/Smithy/GroupDetail/Forum/feed"
+        out.forumHeld.screenPath === "/Smithy/RepositoryDetail/Forum/HeldMail"
+        out.forumHeld.screenParameters.token === "abcDEF_123-456"
+        out.forumHeldClaim.screenPath === "/Smithy/GroupDetail/Forum/HeldMail/claim"
+        out.forumHeldBad.kind === "NotFound"
         out.forumSettings.kind === "NotFound"
         out.forumMessages.kind === "NotFound"
         out.forumModeration.kind === "NotFound"
@@ -1176,9 +1184,16 @@ feature(
                 true
             )
             const page = f.render(SITE, HOST, path, "Smithy/Do/heldReport", {token})
-            logout()
-            const visitor = f.render(SITE, HOST, path, "Smithy/Do/heldReport", {token})
-            login("john.doe")
+            // a visitor's content, through the page's own function (the page is rendered once, signed in)
+            const visitor = ec.resource
+                .script("component://mr-pass/screen/Smithy/SmithyScope.js")
+                .heldReportBody(
+                    token,
+                    {smithy: "/code", account: "/account"},
+                    {authenticated: false, site: {registrationMode: "closed"}},
+                    path,
+                    {}
+                )
             // a report that waits for its sender (mail to a report address from an address that had no account), with its
             // link's token known here: the account whose confirmed address sent it files it
             const sent = "pass-smg-held-token"
@@ -1212,7 +1227,7 @@ feature(
                 routed: f.route(SITE, HOST, path),
                 claim,
                 page,
-                visitor: visitor.html,
+                visitor,
                 token,
                 filed,
                 number,

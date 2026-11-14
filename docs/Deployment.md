@@ -446,6 +446,10 @@ Or under a path beside another root app: `<mount path="/code" screen="Smithy"/>`
 site's own mount rows (`mantle.public.SiteServices.store#Mounts`, `{app: 'smithy', pathPrefix: '/'}` or `'/code'`) must
 name the same path, as for every app.
 
+Smithy decides whether a pipeline run may start, so a hidden repository (or one in a hidden group, or a fork of a hidden
+one) runs no CI: Mantle's `MoquiConf.xml` names `<git-ci run-check-service="mantle.smithy.SmithyServices.check#PipelineRun"/>`,
+and a runtime conf that sets `git-ci`'s `run-check-service` itself must name the same service.
+
 - **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
   `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
   `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/issues`, `/-/issues/new`,
@@ -552,8 +556,10 @@ name the same path, as for every app.
   group's or the repository's page with the Forum tab: the topic list, a topic (`…/-/forum/t/<id>/<slug>`), the
   categories, tags, search, the composer (a new topic starts in the scope's category) and the feed
   (`…/-/forum/feed`). `/forum`, where the site mounts it, stays the whole site's forum, and a topic's canonical address
-  is the one there; a site need not mount `/forum` for the groups' forums to work, but Messages, Drafts, Bookmarks and
-  the forum's own settings are pages of that mount only. A topic there has "Make an issue" for a Reporter of a
+  is the one there; a site need not mount `/forum` for the groups' forums to work (their mailing lists included: a
+  list's links are in its group's or repository's forum), but Messages, Drafts, Bookmarks and the forum's own settings
+  are pages of that mount only. Linking an existing category of the site in place of a group's or a repository's own
+  is for the site's owners, and is refused when it would open the category to more readers than it has. A topic there has "Make an issue" for a Reporter of a
   repository: the issue quotes the chosen posts and each links the other.
 - **Moderation in a group and a repository.** Smithy has no moderation of its own: what a public account writes (a
   topic, an issue, a comment, a merge request) passes the forum's gate, and what is held or reported waits in the
@@ -641,9 +647,10 @@ topics and accepts replies; an address without a category accepts replies only. 
 carries a reply address with a hashed, expiring token in its plus tag, issued to that recipient for
 that thread. Point the route addresses at a hosted or shared mail account behind the trusted edge
 gateway (`docs/interfaces/Mail-Inbound.md` in mr-moqui) or at a synced account; the `ForumInbound` email ECA
-handles each stored message. Set the gateway's `smtp_authserv_id` so only its
-`Authentication-Results` are kept: a sender must be one verified account address with DMARC, or
-aligned DKIM, passing there. Nothing creates accounts from mail, and unknown senders get no reply.
+handles each stored message. Set `smtp_authserv_id` on the authority to the gateway's authserv-id (comma-separated
+for several gateways): mail counts as authenticated by the gateway only in an `Authentication-Results` field with that
+id, and with none set no mail counts, so nothing is posted or filed by mail. A sender must be one verified account
+address with DMARC, or aligned DKIM, passing there. Nothing creates accounts from mail, and unknown senders get no reply.
 Automatic replies and the forum's own mail are ignored, delivery reports mark hard bounces and
 stop that member's email, and a failed message can be retried from the Mail screen. A mailing list's address and a
 security report address answer an unknown sender once and hold the message (Mailing lists, below, and the Smithy
@@ -667,7 +674,8 @@ the address, and the group's or the repository's Owner imports the archive and i
    request's mail carries `List-Id: <repository path with dots>.<host>`.
 3. **Posting by mail** needs an account with a confirmed address, as on the pages. A message from an address that is
    no account's is not posted: it is held for 30 days, its sender gets one reply a day with a link
-   (`<forum>/held-mail/<token>`) to sign in or register with that address and post it, and it is posted by itself when
+   (`<forum>/held-mail/<token>`, in the forum the list is read in: `/forum`, or for a list of a group or a repository
+   `/<group>[/<repository>]/-/forum`) to sign in or register with that address and post it, and it is posted by itself when
    an account verifies that address. The list's moderators see it waiting in the review queue and may drop it.
 4. **Spam.** Mail the gateway marked as spam (the listener's Junk folder, or `X-Spam-Flag`, `X-Spam-Status` or `X-Spam`
    on the message) is never posted and its sender is not answered: from an account it is held in the review queue with
@@ -683,6 +691,8 @@ the address, and the group's or the repository's Owner imports the archive and i
    gets one invitation by mail, which needs outbound mail configured; its link is the Account app's Invitation page,
    where the person signs in or registers with that address and accepts, and is then sent every post of the list.
    Nobody is subscribed without it. An invitation lasts 14 days; an address with an open one is not mailed again.
+   A scope's Owner who is no owner of the site invites a day's allowance by trust level, for the inviter and for the
+   list; the notice says how many were not sent for it. The site's owners and operators have no such limit.
 7. **Cutover.** Import the archive, invite the members, send a last message to the old list with the new address, and
    make the old list read only. Import the archive once more afterwards to carry what arrived in between.
 

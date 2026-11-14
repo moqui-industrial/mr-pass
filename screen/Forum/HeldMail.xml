@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
-<!-- HeldMail (Dogfood §6.3, D17), at held-mail/<token> under the forum's mount: the page of the link a mailing list
+<!-- HeldMail (Dogfood §6.3, D17), at held-mail/<token> in the forum the list is read in (under the forum's mount, or a
+    group's or a repository's /-/forum for a list of a category bound to it, where the topic it goes to after a claim is in
+    that scope's pages too): the page of the link a mailing list
     answers with when a message came from an address that is no account's. Such a message is never posted as it is: it is
     held, its sender gets this link once, and the list's moderators see it waiting in the review queue. The page writes
     nothing: a visitor is asked to sign in or register with that address and comes back; an account posts the message
@@ -16,7 +18,7 @@
         if(!ec.user.userId){ec.web.response.sendRedirect((passBases.account ?? '/account')+'/Login?returnTo='+encodeURIComponent(back));return}
         const out=ec.resource.script('component://mr-pass/screen/Shared/Portal.js').attempt('claimHeldMail',{siteId:resolvedSiteId,token:String(token || ''),operationId:ec.web.parameters.operationId || ec.user.randomString(32)},{newTransaction:true})
         if(out.error)ec.web.response.sendRedirect(back+'?refused='+(out.error.kind==='NotFound'?'gone':out.error.kind==='Unauthorized'?'address':'other'))
-        else ec.web.response.sendRedirect((passBases.forum || '')+'/t/'+encodeURIComponent(out.result.rootCommEventId)+(out.result.state==='pending'?'?held=review':''))
+        else ec.web.response.sendRedirect((forumScope ? forumScope.base : passBases.forum || '')+'/t/'+encodeURIComponent(out.result.rootCommEventId)+(out.result.state==='pending'?'?held=review':''))
     ]]></script>
     </actions>
     <default-response type="none"/>
@@ -29,7 +31,7 @@
   </actions>
   <widgets>
     <render-mode>
-      <text type="html"><![CDATA[<h1>Your message to the list</h1>
+      <text type="html"><![CDATA[<#if forumScope??><h2>Your message to the list</h2><#else><h1>Your message to the list</h1></#if>
 <#if heldRefused == 'gone'><p role="alert" class="error" id="PassHeldGone">This link was used already or has expired. A held message is kept for 30 days; send it again from your account's address.</p></#if>
 <#if heldRefused == 'address'><p role="alert" class="error" id="PassHeldAddress">Sign in with the account whose confirmed address sent the message, or confirm that address in your account's settings.</p></#if>
 <#if heldRefused == 'other'><p role="alert" class="error" id="PassHeldRefused">The message could not be posted now. Try again later.</p></#if>

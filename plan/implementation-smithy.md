@@ -251,3 +251,34 @@ Not built: a render of the scope's moderation pages and of the settings' Forum t
 scratch spec, which is not kept); the phone width of the moderation, Report, Hide and settings pages; a group's or a
 repository's forum on a remote PASS frontend (D1: Smithy runs where the git data is); `SmithyAccessWalk` and
 `SmithyPhone` as specs of their own.
+
+### DG6 review fixes
+
+Matching Mantle's fixes of its DG6 review:
+
+- `Shared/Portal.js` has the reason `repositoryHidden` (a hidden repository is not forked: "This repository is hidden."),
+  last as in Mantle's `PassAuthority.js`; ShopAccess's parity check covers it.
+- Mail counts as authenticated by the gateway only in an `Authentication-Results` field whose authserv-id is in
+  `smtp_authserv_id`: `InboundMail.spec.js` sets it to its fixture mail's `gw.example.test`. No other spec posts by mail.
+- A held list message's link is in the forum its list is read in: `SmithyRoutes.js` `forumSection` maps
+  `held-mail/<token>[/claim]` under a scope's `/-/forum` to the forum's own `HeldMail` (mounted under the shell with the
+  rest of the forum), and `<forum mount>/held-mail/<token>` stays. After a claim `HeldMail` goes to the topic in the
+  scope's base, or the forum mount's; its title is an `h2` inside a shell.
+- Scoped results: a scope's `MemberDetail` asks `getMember` with the scope's category (or a category of its subtree,
+  checked); for a caller who moderates only as a scope's Owner it shows the posts there and the moderation there
+  (`scopeActivity`), no site-wide membership or trust, and no trust form (a sanction's form has the category). A
+  review's reports are listed (`Page.html.fancy`, "Reports"); a report whose reporter is withheld reads "by a member",
+  else it links the reporter's member page. The reported group or repository is shown on a review in the site's queue
+  too (`reviewTarget`), and linked, with "Show it again", only when the caller may open it (`resolveSmithyPath`): the
+  site's staff decide reports on what they may not view. `inviteListMembers`' notice says how many were not sent for
+  the day's limit (`limitedCount`). The Forum tab's "Link an existing category" is shown to the site's owners and
+  operators alone (`canManageSite`), and its hint says a category that would open to more readers is refused.
+  `convertTopicToIssue`'s refusal of a topic read by fewer than the repository's issues shows its own text in the form.
+- `Smithy.spec.js` renders `Smithy/Do/heldReport` once (signed in); the visitor's content is checked through
+  `SmithyScope.js` `heldReportBody`, the page's content without the site's shell. The grammar test has the scoped
+  `held-mail` paths.
+- `docs/Deployment.md`: Smithy's `git-ci` `run-check-service` (`mantle.smithy.SmithyServices.check#PipelineRun`, named
+  by Mantle's `MoquiConf.xml`: a hidden repository runs no CI), `smtp_authserv_id` on the authority for any mail to
+  count, a list's links in its group's or repository's forum with no `/forum` mount, linking a category being the
+  site's owners', and the invitations' day limit.
+- The registries (`Schema.js`, `SmithySchema.js`, `Routes.js`) are unchanged copies of Mantle's (compared with `cmp`).
