@@ -66,9 +66,9 @@ carries and the authority renews when it rotates the session.
 
 A business whose authority (its BOSS server) runs in the office, behind a firewall, serves its sites from an edge
 node: a small cloud server the authority dials out to and keeps one link open with (mr-moqui `docs/Run-Deploy.md`,
-"A local server with an edge node", and `plans/archive/Edge-Node.md` §5.5). The edge node
-runs mr-pass with `pass_backend_url=edge:` (set in its `MoquiEdgeConf.xml`), so it calls the authority over gRPC down
-the link, and the authority needs no public address, open port or client secret for it.
+"A local server with an edge node", and `plans/archive/Edge-Node.md` §5.5). The edge node runs mr-pass with
+`pass_backend_url=edge:` (set in mr-moqui's `runtime/conf/edge/MoquiEdgeConf.xml`), so it calls the authority over gRPC
+down the link, and the authority needs no public address, open port or client secret for it.
 
 1. Pair the authority with the edge node: on the edge node, System › Edge Clients, make a pairing code; on the
    authority, System › Edge Node, Pair with an edge node, with the edge node's address and the code.
@@ -112,6 +112,43 @@ handoffs use the exact registered callback, browser state, a server-held verifie
 single-use exchange code. Configure allowed provider IDs in `pass_sso_flows`; they reuse the
 framework OIDC/OAuth facilities and account/second-factor policy. SAML remains unavailable where
 the framework package does not provide it.
+
+## Several sites by host name
+
+A server can give each PASS app a host of its own, such as the Forum at `forum.example.org` and the Shop at
+`shop.example.com`, beside the business's own host with the apps under `webroot.xml` (mr-moqui `docs/Run-Deploy.md`,
+"Several sites by host name", and its example `runtime/conf/MoquiSitesConf.xml`). Each such host has two elements in
+the runtime's conf:
+
+```xml
+<webapp-list><webapp name="webroot">
+    <root-screen host="forum\.example\.org" location="component://mr-pass/screen/Pass.xml" framework-routes="refuse"/>
+    <public-site host="forum.example.org" site-id="OPERATOR_ASSIGNED_SITE_ID"
+            screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Forum"/>
+        <mount path="/account" screen="Account"/>
+    </public-site>
+</webapp></webapp-list>
+```
+
+- **The host's root** is `Pass.xml`, PASS's site root, for every app: there is no wrapper screen per app. The app at the
+  host's root is the `public-site`'s mount at `/` (Forum or Shop), with Account and any other app on its own path, as
+  the authority's mounts for the site say (`store#Mounts`, with the host among the site's hosts).
+- **The site** is bound by the `public-site`, the operator's conf, and never by a request: a `siteId` or
+  `resolvedSiteId` a request sends does not change it, and a path no site route takes has no site.
+- **`framework-routes="refuse"`** keeps the framework off the host: `/Login`, `/apps`, `/qapps`, `/rest`, the token
+  routes, the servlets, the sockets, `/dav`, `/health`, `/metrics` and the HTTPS listener's gRPC services (the PASS
+  authority among them) are Not Found there, and the shared `/js`, `/css`,
+  `/libs` and `/images` are served. People sign in through the site's Account (`/account/Login`). A page the site does
+  not have shows the framework's Not Found page.
+- **On the business's host** stay what the framework serves: the apps, the authority's REST (`/rest/s1/pass`) for a
+  remote PASS server, payment providers' webhooks and SSO callbacks. Point them at that host, not a site's.
+- **Sessions.** Each host's session cookie is its own. PASS's Account is the sign-in across a deployment's sites (SSO
+  through the authority); a person who signs in to a site is not signed in to the business's host.
+- **Links** a site's pages make are paths on its host. Mail links come from the site's canonical host
+  (`PublicSiteHost`), set at the authority; a framework link made in a request to the host (`getWebappRootUrl`) is the
+  business host's, where the apps are.
+- **An edge node** gives each host web access as an `EdgeHost` of the pairing, with a certificate for the name.
 
 ## Billing and Supplier apps
 
@@ -765,7 +802,7 @@ node's certificate by WebPKI, so its runtime needs a certificate for a public na
 ```sh
 ./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
     -D pass_client_edge_sites=PASS_AUTH,PASS_HTTP -D pass_client_edge_callback=https://frontend.example.test/account/Sso
-# the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, node_role=edge,
+# the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, node_role=front_edge,
 #   webapp_https_listen_port=18443 (no pass_client_id or secret: the link is the client)
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
 # on the frontend, signed in as john.doe: System › Edge Clients, make a pairing code; on the authority

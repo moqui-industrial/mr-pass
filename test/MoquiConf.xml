@@ -54,6 +54,19 @@
       <public-site host="preview.shop.zizi.localhost" site-id="ZIZI_SHOP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route" host-check-service="mantle.public.ThemeServices.get#PreviewHost">
         <mount path="/" screen="Shop"/>
       </public-site>
+      <!-- Several sites by host name (docs/Deployment.md; the framework's plans/Edge-Node2.md §4.2, E14): the Forum at the root
+          of its own host (SITES_FORUM, test/acceptance/SiteHostsFixtures) and ZIZI_SHOP's Shop at the root of a second host of
+          the site. Pass.xml is each host's root screen, with the framework's routes refused there; the public-site binds the
+          site. client/SiteHostsHttp walks them. -->
+      <root-screen host="forum\.sites\.localhost|shop\.sites\.localhost" location="component://mr-pass/screen/Pass.xml" framework-routes="refuse"/>
+      <public-site host="forum.sites.localhost" site-id="SITES_FORUM" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Forum"/>
+        <mount path="/account" screen="Account"/>
+      </public-site>
+      <public-site host="shop.sites.localhost" site-id="ZIZI_SHOP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Shop"/>
+        <mount path="/account" screen="Account"/>
+      </public-site>
     </webapp>
   </webapp-list>
 </moqui-conf>
