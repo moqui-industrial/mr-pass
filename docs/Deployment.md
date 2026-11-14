@@ -681,7 +681,7 @@ node's certificate by WebPKI, so its runtime needs a certificate for a public na
 ```sh
 ./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
     -D pass_client_edge_sites=PASS_AUTH,PASS_HTTP -D pass_client_edge_callback=https://frontend.example.test/account/Sso
-# the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, node_role=edge,
+# the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, node_role=front_edge,
 #   webapp_https_listen_port=18443 (no pass_client_id or secret: the link is the client)
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
 # on the frontend, signed in as john.doe: System › Edge Clients, make a pairing code; on the authority
