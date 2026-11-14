@@ -199,12 +199,32 @@ function openMergeRequestCount(siteId, repositoryId) {
     const counts = maybe("findMergeRequests", {siteId, repositoryId, state: "open", limit: 1})?.counts
     return counts && Number.isFinite(Number(counts.open)) ? Number(counts.open) : null
 }
+/* The scopes of a group or a repository (design §12.3, §12.5; Dogfood §6.1), from the read's forum view. forumScope: the
+ * category whose subtree the forum's pages inside the shell are limited to and the link base that takes the forum base's
+ * place there; it is there when the forum is on (enabled) or the caller owns the scope. moderationScope: the category
+ * whose review queue and log the scope's moderation pages show, for its Owners and the site's staff (a repository with
+ * no category of its own has its group's). Both are plain data, kept in the screen's context. */
+function scopesOf(found, record, root) {
+    const forum = found.forum || {}
+    const base = root + "/-/forum"
+    const moderationBase = root + "/-/moderation"
+    const enabled = !!forum.enabled
+    const canModerate = !!forum.moderationContactListId
+    const scope = contactListId => ({contactListId: String(contactListId), enabled, base, moderationBase, canModerate, name: record.name || ""})
+    return {
+        forumScope: forum.contactListId ? scope(forum.contactListId) : null,
+        moderationScope: canModerate ? scope(forum.moderationContactListId) : null
+    }
+}
 /* A group's shell (design §1): its record, breadcrumb, visibility and the tabs the caller may use. */
 function groupShell(siteId, groupId, base, path) {
     const found = need("getGroup", {siteId, groupId})
     const group = found.group
     const root = (base || "") + "/" + enc(group.groupPath)
     const word = sectionWord(path)
+    const {forumScope, moderationScope} = scopesOf(found, group, root)
+    // the forum's pages of a group that shows no forum are Not Found
+    if (word === "forum" && !forumScope?.enabled) fail()
     return {
         group,
         siteId,
@@ -212,6 +232,17 @@ function groupShell(siteId, groupId, base, path) {
         capabilities: found.capabilities || {},
         myRole: found.myRole || null,
         root,
+        section: word,
+        forumScope,
+        moderationScope,
+        // the issue repository's address for security reports, for its Owners (design §12.4)
+        issueMailRoute: found.forum?.issueMailRoute || null,
+        // hidden by a moderator (design §12.3): Not Found to everyone else, and marked for those who still see it
+        hidden: !!group.hidden,
+        // Report, for a signed-in account (whose page no cache keeps)
+        reportHref: ec.user.userId ? root + "/-/moderation/report" : null,
+        // Hide or show again, for who may (the site's staff, an Owner of a group above)
+        hideHref: found.capabilities?.canHide ? root + "/-/moderation/hide" : null,
         flash: takeFlash(),
         visibility: visibilityOf(group),
         crumbs: crumbsOf(base, group.groupPath, group.name),
@@ -226,7 +257,10 @@ function groupShell(siteId, groupId, base, path) {
                 current: word === "issues",
                 count: openIssueCount(siteId, {groupId: group.groupId})
             },
+            ...(forumScope?.enabled ? [{label: "Forum", href: forumScope.base, current: word === "forum"}] : []),
             {label: "Members", href: root + "/-/members", current: word === "members"},
+            // the scope's moderation is its Owners' (and the site's staff's)
+            ...(moderationScope ? [{label: "Moderation", href: moderationScope.moderationBase, current: word === "moderation"}] : []),
             ...(holds(found.myRole, "owner")
                 ? [{label: "Settings", href: root + "/-/settings", current: word === "settings"}]
                 : [])
@@ -363,8 +397,17 @@ function repositoryShell(siteId, repositoryId, base, path) {
     const repository = found.repository
     const u = urls(base, repository.repositoryPath)
     const clone = found.cloneUrls || {}
+    const {forumScope, moderationScope} = scopesOf(found, repository, u.root)
+    // the forum's pages of a repository that has no forum are Not Found
+    if (word === "forum" && !forumScope?.enabled) fail()
     return {
         repository,
+        section: word,
+        forumScope,
+        moderationScope,
+        hidden: !!repository.hidden,
+        reportHref: found.capabilities?.signedIn ? u.section("moderation") + "/report" : null,
+        hideHref: found.capabilities?.canHide ? u.section("moderation") + "/hide" : null,
         // the repository's group (null in a personal namespace): what is inside it is no wider than it
         group: found.group || null,
         siteId,
@@ -426,6 +469,8 @@ function repositoryShell(siteId, repositoryId, base, path) {
                       }
                   ]
                 : []),
+            ...(forumScope?.enabled ? [{label: "Forum", href: forumScope.base, current: word === "forum"}] : []),
+            ...(moderationScope ? [{label: "Moderation", href: moderationScope.moderationBase, current: word === "moderation"}] : []),
             // a tab the caller may not use is absent: Settings is a Maintainer's
             ...(holds(found.capabilities?.role, "maintainer")
                 ? [{label: "Settings", href: u.section("settings"), current: word === "settings"}]

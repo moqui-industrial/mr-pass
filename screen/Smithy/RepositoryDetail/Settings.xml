@@ -4,15 +4,22 @@
     else: General (updateRepository), Members (findRepositoryMembers; an Owner changes them, setRepositoryMember), Branch
     rules (getBranchRules, storeBranchRule, deleteBranchRule), Webhooks (findWebhooks, storeWebhook, deleteWebhook,
     testWebhook, findWebhookDeliveries) and, for an Owner, Archive (setRepositoryVisibility, renameRepository,
-    transferRepository, setRepositoryArchived, deleteRepository, each ending action asked again on its own page). Mirrors,
-    Pipelines, Agreement and Forum come with their phases. The forms post to Smithy/Do. -->
+    transferRepository, setRepositoryArchived, deleteRepository, each ending action asked again on its own page; Hide for
+    who may hide), Agreement (DG4) and Forum (DG6, Smithy/SmithyScope.js forumSettings: the repository's subcategory on or
+    off, its mailing list). Mirrors and Pipelines come with their phases. The forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Settings">
   <parameter name="tab"/>
+  <pre-actions>
+    <script><![CDATA[
+        // built before anything renders, so who may not see the page gets the framework's Not Found, not a part of the shell
+        smithySettings=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').repositorySettings(smithyRepository,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+    ]]></script>
+  </pre-actions>
   <actions>
     <script><![CDATA[
-        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').repositorySettings(smithyRepository,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+        view=smithySettings
     ]]></script>
   </actions>
   <widgets>

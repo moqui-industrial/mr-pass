@@ -314,6 +314,7 @@ export interface OperationInputs {
         siteId: string
         limit?: number
         cursor?: Cursor
+        scopeContactListId?: string
     }
     getCategory: {
         siteId: string
@@ -358,10 +359,12 @@ export interface OperationInputs {
         tag?: string
         solved?: string
         period?: string
+        scopeContactListId?: string
     }
     getTopic: {
         siteId: string
         rootCommEventId?: string
+        scopeContactListId?: string
     }
     getPosts: {
         siteId: string
@@ -379,6 +382,7 @@ export interface OperationInputs {
         limit?: number
         cursor?: Cursor
         scope?: string
+        scopeContactListId?: string
     }
     storeDraft: {
         siteId: string
@@ -451,6 +455,7 @@ export interface OperationInputs {
         contactListId?: string
         limit?: number
         cursor?: Cursor
+        scopeContactListId?: string
     }
     getReview: {
         siteId: string
@@ -491,6 +496,7 @@ export interface OperationInputs {
         contactListId?: string
         limit?: number
         cursor?: Cursor
+        scopeContactListId?: string
     }
     setSanction: {
         siteId: string
@@ -639,6 +645,7 @@ export interface OperationInputs {
     getFeed: {
         siteId: string
         format?: string
+        scopeContactListId?: string
     }
     getPostLocation: {
         siteId: string
@@ -686,6 +693,7 @@ export interface OperationInputs {
         query?: string
         limit?: number
         cursor?: Cursor
+        scopeContactListId?: string
     }
     storeTag: {
         siteId: string
@@ -1051,6 +1059,29 @@ export interface OperationInputs {
     getImport: {
         siteId: string
         importId?: string
+    }
+    // Dogfood DG6: mailing lists (an mbox archive into a list category, its members' invitations, a held message's claim)
+    importMbox: {
+        siteId: string
+        contactListId?: string
+        archiveName?: string
+        checksum?: string
+        sourceName?: string
+    }
+    getMboxImport: {
+        siteId: string
+        importId?: string
+    }
+    inviteListMembers: {
+        siteId: string
+        contactListId?: string
+        addresses?: string[]
+        operationId?: string
+    }
+    claimHeldMail: {
+        siteId: string
+        token?: string
+        operationId?: string
     }
     runImport: {
         siteId: string

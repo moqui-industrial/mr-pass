@@ -4,7 +4,7 @@
   <transition name="feed" method="get" read-only="true">
     <actions>
       <script><![CDATA[
-        const result=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getFeed',input:{siteId:resolvedSiteId,format:ec.web.parameters.format || 'rss'}}).call().result
+        const result=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getFeed',input:ec.resource.script('component://mr-pass/screen/Shared/View.js').inputFor('getFeed',resolvedSiteId,{format:ec.web.parameters.format || 'rss',...(forumScope?{scopeContactListId:forumScope.contactListId}:{})})}).call().result
         ec.web.response.setContentType(result.contentType);ec.web.response.write(result.body)
     ]]></script>
     </actions>
@@ -14,7 +14,7 @@
   <transition name="legacy" method="get" read-only="true">
     <actions>
       <script><![CDATA[
-        const url=ec.resource.script('component://mr-pass/screen/Shared/View.js').legacyUrl(resolvedSiteId,String(ec.web.parameters.path || ''),passBases)
+        const url=ec.resource.script('component://mr-pass/screen/Shared/View.js').legacyUrl(resolvedSiteId,String(ec.web.parameters.path || ''),passBases,forumScope)
         if(url) ec.web.response.sendRedirect(url)
         else {ec.web.response.setStatus(404);ec.web.response.setContentType('text/plain');ec.web.response.write('Not found')}
     ]]></script>
@@ -23,6 +23,15 @@
   </transition>
   <subscreens default-item="Topics"/>
   <widgets>
+    <!-- inside a group's or a repository's shell (Smithy's GroupDetail and RepositoryDetail mount this screen; Dogfood
+        §6.1): the forum's own navigation, limited to the scope and built from its link base -->
+    <section name="PassForumScopeNav" condition="forumScope">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[<nav aria-label="Forum" class="card smithy-tabs" id="PassForumScopeNav"><a href="${forumScope.base}">Topics</a><a href="${forumScope.base}/Categories">Categories</a><a href="${forumScope.base}/Tags">Tags</a><a href="${forumScope.base}/Search">Search</a><#if siteInfo.authenticated && !passPublicPage><a href="${forumScope.base}/Compose">New topic</a></#if><#if forumScope.canModerate><a href="${forumScope.moderationBase}">Moderation</a></#if><a href="${forumScope.base}/feed">RSS</a></nav>]]></text>
+        </render-mode>
+      </widgets>
+    </section>
     <subscreens-active/>
   </widgets>
 </screen>

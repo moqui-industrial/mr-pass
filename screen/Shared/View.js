@@ -1192,8 +1192,26 @@ function inputFor(op, siteId, parameters) {
         if (typeof input[key] === 'string') input[key] = JSON.parse(input[key])
     return input
 }
-function load(name, siteId, parameters, bases, identity) {
+/* scope (Dogfood §6.1, design-smithy §12.5): null on the site's own forum; inside a group's or a repository's shell the
+ * category whose subtree the page is limited to (contactListId), the link base that takes the forum base's place (base) and
+ * the base of the scope's moderation pages (moderationBase). */
+function load(name, siteId, parameters, bases, identity, scope) {
     if (!definitions[name]) throw new Error('Unknown PASS screen')
+    const forumBase = scope ? scope.base : bases.forum
+    const moderationBase = scope
+        ? scope.moderationBase
+        : bases.forum + '/Moderation'
+    // the reads that take a scope answer its subtree only; the scope is the page's, never the request's. The review
+    // queue and the log take a category or a scope, not both: one category of the scope is asked for by itself
+    if (scope) {
+        const oneCategory =
+            ['ReviewQueue', 'Log'].includes(name) && parameters.contactListId
+        if (oneCategory) requireInScope(siteId, scope, parameters.contactListId)
+        parameters = {
+            ...parameters,
+            scopeContactListId: oneCategory ? null : scope.contactListId,
+        }
+    }
     const def = { ...definitions[name] },
         view = {
             ...def,
@@ -1248,6 +1266,7 @@ function load(name, siteId, parameters, bases, identity) {
         return view
     }
     if (name === 'CategoryDetail') {
+        if (scope) requireInScope(siteId, scope, parameters.contactListId)
         view.category = call('getCategory', {
             siteId,
             contactListId: parameters.contactListId,
@@ -1287,12 +1306,10 @@ function load(name, siteId, parameters, bases, identity) {
         ]
     if (name === 'TopicDetail' || name === 'ConversationDetail') {
         // The screen's pre-actions already read the topic for its canonical URL.
+        // inside a scope a topic of another category is Not Found (getTopic with the scope)
         const metadata =
             parameters.topicMetadata ||
-            call('getTopic', {
-                siteId,
-                rootCommEventId: parameters.rootCommEventId,
-            }).topic
+            call('getTopic', inputFor('getTopic', siteId, parameters)).topic
         view.title = metadata.title
         view.topic = metadata
         view.canReply = metadata.capabilities.canReply
@@ -1338,7 +1355,7 @@ function load(name, siteId, parameters, bases, identity) {
                 siteId,
                 rootCommEventId: parameters.rootCommEventId,
             })
-            view.links = links.linkList
+            view.links = (links.linkList || []).map(linkCard)
             const linkForms = {
                 createCaseFromTopic: links.capabilities.canCreateCase,
                 previewCaseReply: links.capabilities.canReplyFromCase,
@@ -1430,6 +1447,42 @@ function load(name, siteId, parameters, bases, identity) {
               )
             : []
         view.notes = name === 'ReviewDetail' ? data.notes : []
+        if (name === 'ReviewDetail') {
+            // a reported group or repository (its path and whether it is hidden), for what a scope's page adds
+            view.target = data.target || null
+            // mail held from an address that is no account's: who sent it and until when it waits; its text is the
+            // item's detail
+            if (data.held) {
+                const held = data.held
+                const until = Number.isFinite(Number(held.expiresAt))
+                    ? Number(held.expiresAt)
+                    : String(held.expiresAt)
+                view.details = view.details.concat(
+                    [
+                        [
+                            'Held mail',
+                            held.targetType === 'issue'
+                                ? 'a report'
+                                : 'a message to the list',
+                        ],
+                        [
+                            'From',
+                            (held.senderName ? held.senderName + ' ' : '') +
+                                '<' +
+                                held.senderAddress +
+                                '>',
+                        ],
+                        ['Subject', held.subject],
+                        [
+                            'Waits until',
+                            held.expiresAt
+                                ? ec.l10n.format(new Date(until), 'MMM d, yyyy')
+                                : null,
+                        ],
+                    ].filter(([, value]) => value != null && value !== ''),
+                )
+            }
+        }
         view.context = name === 'ReviewDetail' ? data.context || null : null
         if (name === 'ReviewDetail' && !view.context)
             view.forms = view.forms.filter((f) => f.op !== 'escalateReview')
@@ -1478,6 +1531,7 @@ function load(name, siteId, parameters, bases, identity) {
                 ...parameters,
             })
             delete params.siteId
+            if (scope) delete params.scopeContactListId
             delete params.cursor
             delete params.around
             const query = Object.entries(params)
@@ -1621,8 +1675,7 @@ function load(name, siteId, parameters, bases, identity) {
             view.formValues.restorePostRevision = {
                 expectedRevision: data.revision,
             }
-            view.backHref =
-                bases.forum + '/p/' + encodeURIComponent(data.postId)
+            view.backHref = forumBase + '/p/' + encodeURIComponent(data.postId)
             if (parameters.fromRevision && parameters.toRevision)
                 view.diffHtml = call('comparePostRevisions', {
                     siteId,
@@ -1653,7 +1706,7 @@ function load(name, siteId, parameters, bases, identity) {
                 continue
             }
             if (def.link === 'tag')
-                row.href = bases.forum + '?tag=' + encodeURIComponent(row.name)
+                row.href = forumBase + '?tag=' + encodeURIComponent(row.name)
             if (name === 'ReviewQueue')
                 row.title =
                     row.reasonFamily +
@@ -1666,7 +1719,7 @@ function load(name, siteId, parameters, bases, identity) {
                 row.poll = call('getPoll', { siteId, pollId: row.pollId }).poll
             if (def.link === 'topic')
                 row.href =
-                    bases.forum +
+                    forumBase +
                     '/t/' +
                     encodeURIComponent(row.rootCommEventId) +
                     '/' +
@@ -1678,7 +1731,7 @@ function load(name, siteId, parameters, bases, identity) {
                     )
             // A notification opens its post, which resolves the topic and position after a fresh access check.
             if (def.link === 'post' && row.postId)
-                row.href = bases.forum + '/p/' + encodeURIComponent(row.postId)
+                row.href = forumBase + '/p/' + encodeURIComponent(row.postId)
             if (name === 'Notifications')
                 row.state =
                     (row.read ? 'Read' : 'Unread') +
@@ -1702,7 +1755,7 @@ function load(name, siteId, parameters, bases, identity) {
                 }
             if (def.link === 'category')
                 row.href =
-                    bases.forum +
+                    forumBase +
                     '/Categories/CategoryDetail?contactListId=' +
                     encodeURIComponent(row.contactListId)
             if (def.link === 'conversation')
@@ -1719,8 +1772,8 @@ function load(name, siteId, parameters, bases, identity) {
                     encodeURIComponent(row.draftId)
             if (def.link === 'review')
                 row.href =
-                    bases.forum +
-                    '/Moderation/ReviewDetail?reviewId=' +
+                    moderationBase +
+                    '/ReviewDetail?reviewId=' +
                     encodeURIComponent(row.reviewId)
             if (def.link === 'site') row.href = bases.sites + '/SiteDetail'
             if (row.entryDate)
@@ -1748,6 +1801,54 @@ function load(name, siteId, parameters, bases, identity) {
         }
     }
     return view
+}
+/* The categories of a scope's subtree (findCategories with the scope), by id. */
+function scopeCategories(siteId, scope) {
+    const ids = new Set([String(scope.contactListId)])
+    let cursor = null
+    for (let page = 0; page < 20; page++) {
+        const found = call('findCategories', {
+            siteId,
+            scopeContactListId: scope.contactListId,
+            limit: 100,
+            ...(cursor ? { cursor } : {}),
+        })
+        for (const c of found.categoryList || [])
+            ids.add(String(c.contactListId))
+        cursor = found.nextCursor
+        if (!cursor) break
+    }
+    return ids
+}
+/* A topic or a category of another category asked for inside a scope is Not Found there (design-smithy §12.5). */
+function requireInScope(siteId, scope, contactListId) {
+    if (
+        contactListId &&
+        scopeCategories(siteId, scope).has(String(contactListId))
+    )
+        return
+    const e = new Error('Page not found')
+    e.moquiErrorKind = 'NotFound'
+    throw e
+}
+/* A topic's related record as its card shows it: what it is and, for a record another app has a page of (an issue the
+ * topic was made into, a merge request it discusses, a release it announces), that page's path on this site, which the
+ * authority gives for a record the reader may see. */
+function linkCard(link) {
+    const kinds = {
+        case: 'Support case',
+        product: 'Product',
+        article: 'Article',
+        issue: 'Issue',
+        mergeRequest: 'Merge request',
+        release: 'Release',
+    }
+    return {
+        ...link,
+        kindLabel: kinds[link.sourceType] || 'Article',
+        href: /^\/(?![/\\])/.test(String(link.path || '')) ? link.path : null,
+        label: link.title || link.sourceId,
+    }
 }
 function save(name, siteId, parameters) {
     const def = definitions[name]
@@ -1963,7 +2064,7 @@ function operationPreview(result, back) {
     )
 }
 /* Where an old URL of an imported community points now, or null when it names nothing this reader may see. */
-function legacyUrl(siteId, path, bases) {
+function legacyUrl(siteId, path, bases, scope) {
     let found
     try {
         found = call('resolvePermalink', { siteId, path })
@@ -1971,7 +2072,7 @@ function legacyUrl(siteId, path, bases) {
         ec.message.clearErrors()
         return null
     }
-    const forum = bases.forum || ''
+    const forum = scope ? scope.base : bases.forum || ''
     if (found.kind === 'category')
         return (
             forum +
@@ -2004,6 +2105,7 @@ function invitationResult(result, bases, origin) {
 }
 ;({
     legacyUrl,
+    requireInScope,
     load,
     save,
     inputFor,

@@ -144,6 +144,33 @@ function issue(siteId, repositoryId, fields) {
         input: {siteId, repositoryId, sourceFormat: "markdown", operationId: ec.user.randomString(32), ...fields}
     }).result
 }
+/* Turns the forum of a group ({groupId}) or a repository ({repositoryId}) on, as the current user (its Owner), through the
+ * facade's setScopeForum: the scope's category. */
+function forumOn(siteId, target) {
+    const read = target.groupId
+        ? operation("getGroup", {siteId, ...target}).group
+        : operation("getRepository", {siteId, ...target}).repository
+    const out = operation("setScopeForum", {siteId, ...target, enabled: true, expectedRevision: read.revision})
+    if (!out.contactListId) throw new Error("Smithy fixture setScopeForum failed: " + (out.message || "no category"))
+    return out.contactListId
+}
+/* A topic the current user starts in a category (the forum's publishPost), in Markdown: its rootCommEventId. */
+function topic(siteId, contactListId, title, body) {
+    // the forum asks ten seconds between two posts of an account, and a fixture's posts are not that far apart
+    const partyId = ec.user.userAccount.partyId
+    if (ec.entity.find("mantle.forum.ForumMemberState").condition({siteId, partyId}).disableAuthz().one())
+        run("update#mantle.forum.ForumMemberState", {siteId, partyId, lastPostedAt: null})
+    const out = operation("publishPost", {
+        siteId,
+        contactListId,
+        title,
+        body,
+        sourceFormat: "markdown",
+        operationId: ec.user.randomString(32)
+    })
+    if (!out.rootCommEventId) throw new Error("Smithy fixture publishPost failed: " + (out.message || "no topic"))
+    return out.rootCommEventId
+}
 /* One operation through the facade as the current user: its result, or {kind, message} of its refusal. */
 function operation(name, input) {
     try {
@@ -172,7 +199,8 @@ function render(siteId, host, path, screenPath, parameters, requestHeaders) {
     }
 }
 /* A form's post to its transition of Smithy/Do, with the session token unless token is false: {status, location, cache,
- * errors} and the flash it left for the next page, taken as that page would unless keep is true. */
+ * errors} and the flash it left for the next page, taken as that page would unless keep is true (it is then left in the
+ * session, for a render of that page). */
 function post(siteId, host, name, fields, token, keep) {
     const test = ec.screen.makeTest().rootScreen("component://mr-pass/screen/Pass.xml")
     const rendered = test.render(
@@ -205,10 +233,17 @@ function route(siteId, hostname, path) {
             .name("pass.RouteServices.resolve#Route")
             .parameters({siteId, hostname, path})
             .call()
-        return {screenPath: out.screenPath, screenParameters: out.screenParameters || {}}
+        return {
+            screenPath: out.screenPath,
+            screenParameters: out.screenParameters || {},
+            // a topic or a post of the forum inside a group's or a repository's shell, named as the forum's own are
+            topicId: out.topicId || null,
+            topicSlug: out.topicSlug || null,
+            postId: out.postId || null
+        }
     } catch (error) {
         ec.message.clearErrors()
         return {kind: error.moquiErrorKind || "Error", message: String(error.message).split("\n")[0]}
     }
 }
-;({run, site, account, role, group, repository, commit, issuesOn, issue, operation, render, post, route})
+;({run, site, account, role, group, repository, commit, issuesOn, issue, forumOn, topic, operation, render, post, route})

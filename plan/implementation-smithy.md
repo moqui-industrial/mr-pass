@@ -118,7 +118,7 @@ Differences from the design:
 - A group's "New issue in" lists a hundred repositories by name, with a text filter for a group that has more.
 
 Not built: attachments on an issue or a comment; a post's history page and bookmarks in Smithy; `markRead`; the linked
-discussion (DG6); the group's issue repository in GroupSettings; a sort or filter by reaction; `SmithyAccessWalk` and
+discussion (built in DG6); the group's issue repository in GroupSettings; a sort or filter by reaction; `SmithyAccessWalk` and
 `SmithyPhone`.
 
 
@@ -187,3 +187,67 @@ Differences from the design:
 Not built: `signAgreement`'s form; the forum's post stream island on Overview; thread excerpts in the conversation; the
 file tree (`m-file-tree`) on Changes; attachments; a group's merge request list; `SmithyAccessWalk` and `SmithyPhone`
 as specs of their own (`SmithyContribution` checks this phase's pages at 390 px).
+
+## DG6: the forum inside Smithy, the lists, moderation in a scope
+
+| Area | Implementation |
+| --- | --- |
+| Scope and link base | `Shared/View.js` `load` takes a **scope** (`{contactListId, base, moderationBase, enabled, canModerate, name}`; null on the site's own forum) after the identity. With a scope, links are built from `scope.base` where they were built from `bases.forum` (a topic, a post, a tag, a category, a draft, a post's history) and a review's from `scope.moderationBase`, and the reads that take one are given `scopeContactListId` (`findTopics`, `findCategories`, `searchForum`, `findTags`, `getTopic`, `findReviews`, `findActions`; `inputFor` sends it to the operations whose schema has it). A category asked for inside a scope must be in its subtree (`requireInScope`, by `findCategories` with the scope), and a topic of another category is Not Found there (`getTopic` with the scope). `Page.html.fancy` and `TopicEnhance.html.fancy` take the link base from the screen's `forumScope` (the enhanced stream's `forumBase` too), `Post.xml` and `TopicDetail.xml` redirect within it, Compose's `state` offers the scope's categories with the scope's own chosen for a new topic, and the feed is the scope's (`getFeed` with the scope). `Pass.xml` sets `forumScope` to null for every request; the shell that mounts the forum sets it |
+| The forum in a shell | `GroupDetail.xml` and `RepositoryDetail.xml` mount the forum's own root screen (`Forum.xml`) as their `Forum` subscreen, so `/<group>/-/forum[/…]` and `/<group>/<repo>/-/forum[/…]` are the forum's own screens (Topics, a topic with its enhanced stream and its forms, Categories, a category, Tags, Search, Compose with its island, a post's permalink, a post's history, the feed), with every transition at its own place, inside the group's or the repository's shell with the Forum tab. `Forum.xml` shows the forum's navigation for the scope (Topics, Categories, Tags, Search, New topic, Moderation, RSS). The page's title is an `h2` there, under the shell's `h1`. A group or a repository whose forum is off has no Forum tab and its forum pages are Not Found. `/forum` is unchanged |
+| Routes | `SmithyRoutes.js` `forumSection` maps the rest of the path after `-/forum` as the forum's own resolver maps a path after its mount: `t/<id>/<slug>[.qvue][/<transition>]` (with `topicId` and `topicSlug` as the resolver's own outputs), `p/<id>` (`postId`), `feed`, and a screen of the forum that has a scope (Topics, Topics/List, Topics/TopicDetail, Topics/PostHistory, Categories, Categories/List, Categories/CategoryDetail, Tags, Search, Compose), then at most a transition's name. The forum's other screens (Messages, Drafts, Bookmarks, Guidelines, Settings, Moderation, Reports) stay the site's and are Not Found under a scope. `moderationSection` maps `-/moderation[/ReviewQueue|ReviewDetail|MemberDetail|Log[/<transition>]]`, `-/moderation/report` and `-/moderation/hide`. `-/held-report/<token>` is `Smithy/Do/heldReport`. The Forum tab of a group's and a repository's Settings is routed. `pass.RouteServices.resolve#Route` also routes the forum's `held-mail/<token>[/claim]` |
+| Canonical | A topic read inside a scope has the site forum's address as its one canonical (`<link rel="canonical">` to `/forum/t/<id>/<slug>`) where the site mounts the forum; the scoped page is not redirected there, and a wrong slug redirects within the scope. On a site with no forum mount the canonical is the scope's own address |
+| Shells | `Smithy.js` `scopesOf`: `forumScope` (the read's `forum.contactListId` and `enabled`) and `moderationScope` (`forum.moderationContactListId`, for the scope's Owners and the site's staff; a repository with no category of its own has its group's). Tabs: Forum when it is on; Moderation for who has the moderation scope. A hidden group or repository has a Hidden chip and a sentence for those who still see it (everyone else gets Mantle's Not Found). A signed-in account has "Report this group/repository", and who may hide (`capabilities.canHide`) "Hide it" or "Show it again" beside it |
+| Settings: Forum | The `forum` tab of `GroupDetail/Settings` and `RepositoryDetail/Settings` for an Owner (`SmithyScope.js` `forumSettings`): the forum on or off (`setScopeForum`; a repository's makes its subcategory), linking an existing category by its id, and the sentence that the category's readers follow the group's or the repository's visibility. Once on: the mailing list (below). For a group: the address for security reports (`storeIssueMailRoute`: the address, the repository that takes the reports, on or off for the site's staff; the present route from `getGroup`'s `forum.issueMailRoute`) |
+| Mailing lists | On the Forum tab of a scope whose forum is on. For an owner of the site: the category's mode (`storeCategory` `mode`: discussion, questions, list) and the list's address (`findRoutes`, `storeRoute` with the category); a scope's Owner who is no owner of the site reads which it is. For a list: **Import an archive** (`importMbox` by the name and SHA-256 of an mbox file in the server's import directory; the start leads to `?importId=`, which shows the run's stage and its report from `getMboxImport`: messages, topics, replies, already there, attachments left out, unknown character set, too long, empty, unreadable, failed; starting the same file again resumes it) and **Invite the list's members** (`inviteListMembers` with addresses pasted, up to 500; the answer's counts are the notice). The held-message sentence names the review queue |
+| Invitation and held mail | A list invitation's link is `Account/Invitation` (Mantle's `redeemInvitation` subscribes the account to the list); for a visitor the page now says to sign in with the invited address, or to register with it, and accept. `Forum/HeldMail` (`<forum>/held-mail/<token>`) is the page of a held list message's link: a visitor is asked to sign in or register and come back, an account posts the message with a form (`claim`, `claimHeldMail`), and a used or expired link says so |
+| Moderation in a scope | `Smithy/Moderation.xml` mounts the forum's own `ReviewQueue`, `ReviewDetail`, `MemberDetail` and `Log` screens, in the group's or the repository's shell, with the moderation scope and its link base, for who has the scope (`SmithyScope.js` `moderation`); anyone else gets Not Found. `View.js` gives the review queue and the log the scope, or one category of it (`?contactListId=`, checked to be in the scope). A review of a reported repository or group shows where it is and what each decision does (`getReview`'s `target`; rejected hides it); a held message's review shows who sent it, its subject and until when it waits (`held`), with its text in the item's detail |
+| Report and Hide | `Smithy/Moderation/Report` (`-/moderation/report`): a confirmed account reports the group or the repository with a reason and a note (`reportSmithyTarget`), and returns to its page. `Smithy/Moderation/Hide` (`-/moderation/hide`): the confirmation of Hide and of showing again, which names the target and what follows and takes a reason (`hideSmithyTarget`, refused by its transition without that page's answer); Not Found for who may not hide. Linked from the shell, a repository's Archive tab and a group's Delete tab |
+| Held report | `-/held-report/<token>` is the GET transition `heldReport` of `Smithy/Do`: a whole page in the site's shell (the shared header and footer templates), `no-store`, that writes nothing. A visitor gets Sign in (and Register where registration is open) with the link as the return address; an account gets a form that posts `claimHeldReport` with the session token and goes to the confidential issue; a refused claim returns to the page, which says a link is used or gone |
+| A topic made an issue | A topic shown in a scope has "Make an issue" for a role that may triage (`SmithyScope.js` `topicTools`, a section of `Forum/Topics/TopicDetail.xml` shown in a scope alone): the repository (the scope's, or the group's repositories with issues on), the title, the posts to quote, Confidential; `convertTopicToIssue` goes to the new issue. The topic's Related card shows the issue as a link (`getTopicLinks`' `path`), and the issue's page a Discussion card (`issue.discussion`) |
+| Link cards | A topic's Related lists an issue, a merge request and a release with its page's link where the read gives one. A merge request's Overview has the Discussion card when `getMergeRequest` gives a `discussion`. Releases have no page yet (DG7) |
+| Forms | `Do.xml` has 10 more `post` transitions (70): `setScopeForum`, `reportSmithyTarget`, `hideSmithyTarget` (confirmed), `convertTopicToIssue`, `storeIssueMailRoute`, `claimHeldReport`, and the forum's `storeCategory`, `storeRoute`, `importMbox` and `inviteListMembers`; and the one GET, `heldReport`. A form's `done` is given the operation's input |
+| Caching | `Shared/Headers.js`: the forum's pages inside a shell and the scope's moderation pages are `no-store` for a visitor too, as the forum's own are |
+| Not Found | A group's and a repository's Settings, Report and Hide build their page in `pre-actions`, and Moderation checks its caller in `always-actions`: who may not see one gets the framework's Not Found (404) before any of the shell is written. Until now a Settings page refused in `actions`, after the shell, and the answer was an error page with the shell's start |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's with the 6 DG6 operations (95 Smithy operations), `Schema.js` of `ForumSchema.js` with `scopeContactListId` and the four list operations |
+| Tests | `test/Smithy/Smithy.spec.js` (the DG6 paths; one render of the forum's topic list inside a group's shell; a held report's page, a refused claim and the sender's claim through `Do`; Report and Hide through `Do`; a topic made an issue through `Do` and the issue's Discussion card; the registries and the cache policy), `SmithyAccess.spec.js` (moderation in a scope is its Owners': the page's own rule and the queue's read, with no screen rendered). Acceptance: `SmithyWalk` has a second feature (below) |
+
+Differences from the design:
+
+- The forum's screens are mounted under the shells, so a scoped page's screen path is
+  `/Smithy/GroupDetail/Forum/<the forum's own screen path>` (the design has one screen `Smithy/GroupDetail/Forum` with
+  `forumPath`); `forumPath` is still a screen parameter. `Smithy/Moderation` is likewise the shell with the forum's
+  moderation screens under it.
+- `-/moderation/report` and `-/moderation/hide` are added to the grammar (the design names no path for Report's form and
+  Hide's confirmation). Report and Hide are links under the shell's tabs, not an overflow menu. Hide is not a control of
+  ReviewDetail itself: the decision "rejected" hides, as Mantle's `decideReview` does it, and the page says so.
+- A group's tabs have Moderation (the design has it under no tab), for who moderates the scope; a repository's too.
+- `heldReport` is a GET that shows a page and writes nothing; the claim is the page's form (the design's link "files the
+  report"). So a mail scanner that follows the link files nothing, and the claim has the session token.
+- The archive is not uploaded on the page: as the Discourse import does, the operator puts the file in
+  `pass_import_dir` and the page names it with its checksum (Mantle's `importMbox`). Resume is starting the same file
+  again; there is no list of a category's past runs (Mantle has no read of them), so a run is reached by its start's
+  redirect or its `?importId=` address.
+- Invitations: addresses are pasted, 500 at a time, with no file upload; there are no standing counts of invited and
+  confirmed and no "send again" (Mantle's `inviteListMembers` answers the counts of one call and skips an address with
+  an open invitation; an invitation lasts 14 days, after which the same address is invited again).
+- The invitation is not one click for a new person: the link leads to `Account/Invitation`, where the person signs in
+  or registers with the invited address and accepts.
+- A list's mode and address are set by an owner of the site (Mantle's `storeCategory` and `storeRoute`), not by a
+  scope's Owner who is only that; the import and the invitations are the scope Owner's.
+- One canonical a topic only where the site mounts the forum. With no `/forum` mount a topic of a repository's
+  subcategory is read at the repository's and at its group's forum address, each its own canonical: Mantle does not
+  say which scope is a topic's nearest.
+- The scope's forum has no page for Messages, Drafts, Bookmarks and Guidelines; those are the site forum's, and are
+  reached only where the site mounts it.
+
+Acceptance: `SmithyWalk`'s second feature, at 390 px on `SmithyWalkFixtures`' group with its forum on: the group's
+forum and a topic are read (the enhanced stream takes the server's posts' place, its links the scope's, its canonical
+the site forum's, no sideways scroll); an account with a confirmed address and no role writes a topic in the scope's
+composer, which has the group's category chosen and no other, and lands on the scope's topic page; it opens the report
+form from the repository's page; and it gets Not Found for the scope's moderation and the Forum tab of the settings.
+The report's post is the server spec's: an account's posts are ten seconds apart, and a walk does not wait.
+
+Not built: a render of the scope's moderation pages and of the settings' Forum tab in a spec (checked by hand in a
+scratch spec, which is not kept); the phone width of the moderation, Report, Hide and settings pages; a group's or a
+repository's forum on a remote PASS frontend (D1: Smithy runs where the git data is); `SmithyAccessWalk` and
+`SmithyPhone` as specs of their own.

@@ -48,9 +48,12 @@ const ROUTES = [
     // only for a signed-in account, whose pages no cache keeps: Smithy/Smithy.js openIssueCount.)
     // Smithy DG4: a merge request's pages (one may be held for review, and Not Found to others), the pages that edit a
     // file and the fork pages are never kept by a cache either.
+    // Smithy DG6: nor the forum's pages inside a group's or a repository's shell (the forum's own are not kept either: a
+    // topic may be hidden or moved, and its page carries the session's token for the reader's own controls) and the
+    // scope's moderation pages.
     {
         app: 'smithy',
-        path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks)(?:\/|$)/,
+        path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks|forum|moderation)(?:\/|$)/,
     },
     {
         app: 'smithy',

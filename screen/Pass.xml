@@ -4,6 +4,9 @@
   <always-actions>
     <script><![CDATA[
         if (!resolvedSiteId) { const e=new Error('Site not found');e.moquiErrorKind='NotFound';throw e }
+        // the forum's pages inside a group's or a repository's shell (Dogfood §6.1) have a scope and a link base, which
+        // that shell sets; everywhere else there is none
+        forumScope=null
         // the headers are per route (Shared/Headers.js): no-store and the shell's CSP until the route is known, and by default
         const headers=ec.resource.script('component://mr-pass/screen/Shared/Headers.js')
         headers.apply(null,'')

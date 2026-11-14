@@ -627,6 +627,11 @@ function issueDetail(shell, issueNumber, bases, siteInfo, self, asked) {
             )
         )
     }
+    // DG6 (design §8.2 discussion): the forum topic the issue was made from, or that discusses it (a link card)
+    const discussion = ec.resource
+        .script("component://mr-pass/screen/Smithy/SmithyScope.js")
+        .discussionCard(shell, issue.discussion, bases, siteInfo)
+    if (discussion) blocks.push(discussion)
     const commits = issue.linkedCommits || []
     const requests = issue.linkedMergeRequests || []
     const refs = issue.linkedRefs || []

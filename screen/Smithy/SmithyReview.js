@@ -539,6 +539,11 @@ function overview(shell, request, bases, siteInfo, self, asked) {
             }</p>${blockers.length ? h`<ul id="SmithyMergeBlockers">${blockers.map(line => h`<li class="wrap">${line}</li>`)}</ul>` : ""}${mergeForm}</section>`
         )
     }
+    // DG6: the forum topic that discusses the merge request, where the read gives one (a link card)
+    const discussion = ec.resource
+        .script("component://mr-pass/screen/Smithy/SmithyScope.js")
+        .discussionCard(shell, found.discussion || m.discussion, bases, siteInfo)
+    if (discussion) blocks.push(discussion)
     const issues = found.linkedIssues || []
     if (issues.length)
         blocks.push(

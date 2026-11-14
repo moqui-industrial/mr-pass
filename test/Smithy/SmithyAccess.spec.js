@@ -9,7 +9,8 @@
 // (setIssueLabels, setIssueState; Mantle's SmithyConfidential and SmithyIssues). DG4's rules: a private repository's merge
 // request and one held for review are Not Found on their page to a stranger, whose review form has no approval, and the
 // page of a Developer has no merge form for a protected branch (the rules are Mantle's SmithyMergeRequests; here the
-// page's own view by caller, with no screen rendered).
+// page's own view by caller, with no screen rendered). DG6's rule: a scope's moderation is its Owners' (the page's own
+// rule, with no screen rendered, and the queue's read with the scope; Mantle's SmithyModerationTargets has the rest).
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_ACCESS"
 const HOST = "smithy-access.example.test"
@@ -90,6 +91,8 @@ spec({
                 .mergeRequest.topic.rootCommEventId,
             visibility: "pending"
         })
+        // DG6: the group's category, the scope of its moderation
+        t.category = ec.entity.find("mantle.smithy.SmithyGroup").condition("groupId", t.group).disableAuthz().one().contactListId
     },
     cleanup() {
         login("john.doe")
@@ -382,6 +385,63 @@ feature("a merge request's page: no merge form for a Developer of a protected br
         viewer.held.kind === "NotFound"
         viewer.concealed.kind === "NotFound"
         author.head.includes('id="SmithyMergeRequestPending"')
+    }
+})
+feature("moderation in a scope is its Owners': the queue for an Owner, Not Found for a Maintainer and a stranger", {
+    when() {
+        const f = fixtures()
+        const scope = ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js")
+        const path = "/code/pass-sma/-/moderation"
+        // the page's own rule for a caller, with no screen rendered: its scope, or its refusal
+        const page = () => {
+            try {
+                const found = scope.moderation(SITE, t.group, "", {smithy: "/code", account: "/account"}, path, "")
+                return {
+                    scope: found.scope.contactListId,
+                    base: found.scope.moderationBase,
+                    tab: found.shell.tabs.some(tab => tab.label === "Moderation"),
+                    queue:
+                        f.operation("findReviews", {siteId: SITE, scopeContactListId: found.scope.contactListId}).kind || "read"
+                }
+            } catch (error) {
+                ec.message.clearErrors()
+                return {kind: error.moquiErrorKind, message: String(error.message)}
+            }
+        }
+        const missing = () => {
+            try {
+                scope.moderation(SITE, "NO_SUCH_GROUP", "", {smithy: "/code", account: "/account"}, path, "")
+            } catch (error) {
+                ec.message.clearErrors()
+                return String(error.message)
+            }
+        }
+        return {
+            owner: page(),
+            ...as(MAINTAINER, () => ({
+                maintainer: page(),
+                missing: missing(),
+                tab: ec.resource
+                    .script("component://mr-pass/screen/Smithy/Smithy.js")
+                    .groupShell(SITE, t.group, "/code", "/code/pass-sma")
+                    .tabs.some(tab => tab.label === "Moderation"),
+                queue: f.operation("findReviews", {siteId: SITE, scopeContactListId: t.category}).kind
+            })),
+            stranger: as(STRANGER, page)
+        }
+    },
+    then({owner, maintainer, missing, tab, queue, stranger}) {
+        owner.kind == null
+        owner.scope === t.category
+        owner.base === "/code/pass-sma/-/moderation"
+        owner.tab === true
+        owner.queue === "read"
+        // exactly as a group that does not exist, with no tab that leads there, and the read refuses too
+        maintainer.kind === "NotFound"
+        maintainer.message === missing
+        tab === false
+        queue != null
+        stranger.kind === "NotFound"
     }
 })
 feature("no Smithy write is a bearer link's: none is among the writes a link's token authorizes", {

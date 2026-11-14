@@ -128,6 +128,46 @@ on the desktop; RemoteHttp's portal feature through a frontend with only framewo
 features need an image-enabled build); Forum, ForumAccess, Media, Integrations, Outbox, PublicIdentity, Operations and
 SsoHandoff unchanged (73/73 with the portal specs).
 
+## Dogfood DG6: a scope and a link base, and mailing lists
+
+The forum's pages also render inside a group's and a repository's shell of the Smithy app (Dogfood §6.1,
+[design-smithy](design-smithy.md) §12.5; what Smithy adds around them is in
+[implementation-smithy](implementation-smithy.md), DG6). `/forum` is the whole site's forum as before.
+
+- **Scope.** `Shared/View.js` `load(name, siteId, parameters, bases, identity, scope)`: `scope` is null on the site's own
+  forum, and inside a shell `{contactListId, base, moderationBase, enabled, canModerate, name}`: a category whose
+  subtree the page is limited to. The reads that take one get `scopeContactListId`, which is the page's and never the
+  request's: `findTopics`, `findCategories`, `searchForum`, `findTags`, `getTopic`, `getFeed`, and for the moderation
+  screens `findReviews` and `findActions`. A category of another subtree is Not Found there (`requireInScope`), and so
+  is a topic (`getTopic` with the scope). The review queue and the log take a category or a scope, not both: one
+  category of the scope (`?contactListId=`) is checked to be in it and asked for by itself.
+- **Link base.** With a scope every link the forum's pages built from the forum's base is built from `scope.base`: a
+  topic, a post's permalink, a tag, a category, a draft, a post's edit and history, Reply, the topic views, the
+  redirect of a wrong slug and of a permalink, and the enhanced stream's `forumBase`; a review's is built from
+  `scope.moderationBase`. `Page.html.fancy` and `TopicEnhance.html.fancy` read the screen context's `forumScope`, which
+  `Pass.xml` sets to null for every request and the shell that mounts the forum sets. Messages, Drafts, Bookmarks,
+  Guidelines and the forum's Settings and Reports have no scope and keep the forum's base.
+- **Screens.** The screens that pass their scope on: Topics/List, Topics/TopicDetail, Topics/PostHistory,
+  Categories/List, Categories/CategoryDetail, Tags, Search, Compose, Post, and Moderation's ReviewQueue, ReviewDetail,
+  MemberDetail and Log; `Forum.xml` has the scope's navigation and the scope's feed. A topic's page has one canonical
+  address, the site forum's, where the site mounts the forum.
+- **Related records.** A topic's Related card lists an issue, a merge request and a release with a link to its page,
+  where `getTopicLinks` gives its `path`.
+- **Mailing lists** (Dogfood §6.3). A list is a category whose mode is `list` (Categories settings; the mode is
+  `storeCategory`'s) with a route address of its own (Mail settings). `Forum/HeldMail` (`<forum>/held-mail/<token>`,
+  routed by `pass.RouteServices.resolve#Route`) is the page of the link a list answers with when a message came from
+  an address that is no account's: it writes nothing for a visitor, and an account posts the message with its form
+  (`claimHeldMail`). `Account/Invitation` tells a visitor to sign in or register with the invited address; accepting
+  a list's invitation subscribes the account to every post of the list (Mantle's `redeemInvitation`). The archive
+  import (`importMbox`, `getMboxImport`) and the invitations (`inviteListMembers`) have their forms on the Forum tab of
+  a group's or a repository's Settings in Smithy; the site forum's own Settings have no form for them yet.
+- **Registry.** `Schema.js` is a copy of Mantle's `ForumSchema.js` with `scopeContactListId` and the operations
+  `importMbox`, `getMboxImport`, `inviteListMembers` and `claimHeldMail`.
+
+Checked by the forum specs unchanged (Forum, ForumAccess, Participation, Conversations, Moderation, Import, InboundMail,
+Outbox, Media, Operations, Integrations), and by Smithy's spec for the scoped render. Not built: the list's import and
+invitation forms on the site forum's own Settings; a render of `Forum/HeldMail` in a spec.
+
 ## Screens
 
 All 27 S1 screen definitions have their functional core in the dedicated public shell:

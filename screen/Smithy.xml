@@ -10,7 +10,10 @@
     Members' forms, a repository's Settings, creating and deleting a branch or tag, and Account's Git access; every form posts
     to a transition of Smithy/Do (Smithy/SmithyForms.js). DG3 adds issues (Smithy/SmithyIssues.js): a repository's and a
     group's Issues, NewIssue, IssueDetail with its conversation (the forum's posts of the issue's record topic), Labels and
-    Milestones, and Islands, whose Composer is the text editor of their forms where JavaScript runs. The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
+    Milestones, and Islands, whose Composer is the text editor of their forms where JavaScript runs. DG6 adds the forum inside a
+    group's and a repository's shell (the forum's own screens, Forum.xml, mounted under GroupDetail and RepositoryDetail and
+    rendered with the shell's scope and link base), Moderation (the forum's moderation screens in a scope, with Report and
+    Hide), the Forum tab of the settings and the page of a held report's link (Smithy/SmithyScope.js). The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
     path): 301 to a path on this site, with the request's query. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"

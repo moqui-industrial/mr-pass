@@ -509,8 +509,8 @@ function groupMembers(shell, view, bases, siteInfo, self) {
                 : ""
     }
 }
-/* GroupSettings (design §6): General (name, description, the issue repository; visibility; the path), Quota and Delete, for
- * an Owner; Not Found for anyone else. */
+/* GroupSettings (design §6): General (name, description, the issue repository; visibility; the path), Agreement, Forum
+ * (DG6), Quota and Delete (with Hide, for who may hide), for an Owner; Not Found for anyone else. */
 function groupSettings(shell, bases, siteInfo, self, tab) {
     if (!holds(shell.myRole, "owner")) fail()
     const c = contextOf(bases, siteInfo, self, shell.flash)
@@ -522,6 +522,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
         [
             ["general", "General", root],
             ["agreement", "Agreement", root + "/agreement"],
+            ["forum", "Forum", root + "/forum"],
             ["quota", "Quota", root + "/quota"],
             ["delete", "Delete", root + "/delete"]
         ],
@@ -533,6 +534,9 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
         return ec.resource
             .script("component://mr-pass/screen/Smithy/SmithyReview.js")
             .agreementSettings({siteId: shell.siteId, groupId: g.groupId}, g.groupPath, head.html, bases, siteInfo, self, shell.flash, shell.capabilities.confirmed)
+    // DG6: the group's forum, its mailing list and its address for security reports (SmithyScope.js)
+    if (current === "forum")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
     if (current === "quota") {
         const found = portal.attempt("getQuotaUsage", {siteId: shell.siteId, groupId: g.groupId})
         return {
@@ -559,7 +563,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
                 button: "Delete group",
                 cancelHref: root,
                 successTo: c.base + "/explore"
-            })}`.html
+            })}${ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").hideLink(shell)}`.html
         }
     const wanted = param("confirm") === "visibility" ? param("visibility") : null
     if (wanted && VISIBILITY.some(([value]) => value === wanted) && wanted !== g.visibility) {
@@ -688,7 +692,7 @@ function settingsAccess(shell) {
     const role = shell.capabilities.role
     if (!holds(role, "maintainer")) fail()
     const owner = holds(role, "owner")
-    return {tabs: ["general", "members", "branch-rules", "webhooks", ...(owner ? ["agreement", "archive"] : [])], changesMembers: owner}
+    return {tabs: ["general", "members", "branch-rules", "webhooks", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
 }
 /* RepositorySettings (design §11): General, Members, Branch rules and Webhooks for a Maintainer, Archive for an Owner; a tab
  * the caller's role does not reach is Not Found, as the whole page is for less than a Maintainer. */
@@ -713,6 +717,7 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
             ...(owner
                 ? [
                       ["agreement", "Agreement", at("agreement")],
+                      ["forum", "Forum", at("forum")],
                       ["archive", "Archive", at("archive")]
                   ]
                 : [])
@@ -725,6 +730,9 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
         return ec.resource
             .script("component://mr-pass/screen/Smithy/SmithyReview.js")
             .agreementSettings({siteId, repositoryId: id}, r.repositoryPath, head.html, bases, siteInfo, self, shell.flash, shell.capabilities.confirmed)
+    // DG6: the repository's forum (its subcategory) and its mailing list, an Owner's (SmithyScope.js)
+    if (current === "forum")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
     const page = body => ({html: h`${head}${body}`.html})
     const common = h`${hidden("repositoryId", id)}`
     if (current === "members") {
@@ -948,7 +956,9 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
                 r.archived ? "Unarchive" : "Archive",
                 h`<p>${r.archived ? "This repository is archived: it is read only." : "An archived repository is read only."}</p>`,
                 r.archived ? "Unarchive" : "Archive"
-            )}${ask("delete", "Delete", h`<p>Deleting a repository cannot be undone.</p>`, "Delete this repository")}`
+            )}${ask("delete", "Delete", h`<p>Deleting a repository cannot be undone.</p>`, "Delete this repository")}${ec.resource
+                .script("component://mr-pass/screen/Smithy/SmithyScope.js")
+                .hideLink(shell)}`
         )
     }
     const f = formOf(c, "updateRepository")
@@ -1166,7 +1176,8 @@ function gitAccess(siteId, bases, siteInfo, self) {
  * edit may clear one), optional the texts sent only when filled, flags its checkboxes (optionalFlags: sent only when
  * checked), numbers and mib its numbers (mib a size in MiB, sent in bytes), lists its repeated values joined with commas,
  * arrays its repeated or comma-separated values as a list (optionalArrays: sent only when there is one). done answers the page after a success when it
- * is not the form's own; confirm marks an action that is asked again first; account one of Account's Git access. */
+ * is not the form's own (given the result, the bases, the form's own page and the operation's input); confirm marks an
+ * action that is asked again first; account one of Account's Git access. */
 const groupPage = (result, c) => (result.groupPath ? c.base + "/" + enc(result.groupPath) : null)
 const repositoryPage = (result, c) => (result.repositoryPath ? c.base + "/" + enc(result.repositoryPath) : null)
 const DO = {
@@ -1547,6 +1558,83 @@ const DO = {
         numbers: ["mergeRequestNum", "expectedRevision"],
         notice: () => "The bot's operator was confirmed."
     },
+    // DG6 (design §12.3 to §12.5, §15.7): the forum of a group or a repository, Report and Hide, a held report, a topic
+    // made an issue
+    setScopeForum: {
+        optional: ["repositoryId", "groupId", "contactListId"],
+        flags: ["enabled"],
+        numbers: ["expectedRevision"],
+        notice: result => (result.enabled ? "The forum is on." : "The forum is off.")
+    },
+    reportSmithyTarget: {
+        fields: ["targetType", "targetId", "reason", "note", "operationId"],
+        notice: () => "Your report was sent to the moderators."
+    },
+    hideSmithyTarget: {
+        fields: ["targetType", "targetId", "reason"],
+        flags: ["hidden"],
+        numbers: ["expectedRevision"],
+        // asked again on its own page, which names the target and what follows
+        confirm: true,
+        notice: result => (result.hidden ? "It is hidden: Not Found to everyone but its owners and the site's moderators." : "It is shown again.")
+    },
+    convertTopicToIssue: {
+        fields: ["repositoryId", "rootCommEventId", "title", "operationId"],
+        arrays: ["postIds"],
+        optionalFlags: ["confidential"],
+        // the new issue's page, in the repository that was chosen
+        done: (result, c, back, input) => {
+            const path = result.repositoryPath || maybe("getRepository", {siteId: input.siteId, repositoryId: input.repositoryId})?.repository?.repositoryPath
+            return path && result.issueNumber ? c.base + "/" + enc(path) + "/-/issues/" + result.issueNumber : null
+        },
+        notice: result => "Issue #" + result.issueNumber + " was made from the topic."
+    },
+    storeIssueMailRoute: {
+        fields: ["groupId", "address"],
+        optional: ["repositoryId"],
+        flags: ["enabled"],
+        numbers: ["expectedRevision"],
+        notice: () => "The address for security reports was saved."
+    },
+    claimHeldReport: {
+        fields: ["token", "operationId"],
+        // the confidential issue the report became
+        done: (result, c) =>
+            result.repositoryPath && result.issueNumber ? c.base + "/" + enc(result.repositoryPath) + "/-/issues/" + result.issueNumber : null,
+        notice: result => "Your report was filed as the confidential issue #" + result.issueNumber + "."
+    },
+    // the forum's own operations a scope's Owner uses on the Forum tab: the category's mode and its list address
+    storeCategory: {
+        fields: ["contactListId", "mode"],
+        numbers: ["expectedRevision"],
+        notice: () => "The forum's mode was saved."
+    },
+    storeRoute: {
+        fields: ["contactListId", "address"],
+        optional: ["routeId", "operationId"],
+        flags: ["active"],
+        numbers: ["expectedRevision"],
+        notice: () => "The list's address was saved."
+    },
+    // a mailing list's archive and its members' invitations (Dogfood §6.3)
+    importMbox: {
+        fields: ["contactListId", "archiveName", "checksum"],
+        optional: ["sourceName"],
+        // the run's page
+        done: (result, c, back) => (result.importId ? back.split(/[?#]/)[0] + query({importId: result.importId}) + "#SmithyListImport" : null),
+        notice: () => "The import was started. This page shows its progress."
+    },
+    inviteListMembers: {
+        fields: ["contactListId", "operationId"],
+        arrays: ["addresses"],
+        notice: result =>
+            "Invited " +
+            (Number(result.invited) || 0) +
+            (result.alreadyInvited ? "; " + result.alreadyInvited + " had an invitation already" : "") +
+            (result.invalidCount ? "; " + result.invalidCount + " were not addresses" : "") +
+            (result.unsent ? "; " + result.unsent + " could not be mailed" : "") +
+            "."
+    },
     // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
     previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
@@ -1689,7 +1777,7 @@ function run(name, siteId, bases) {
         ...(spec.token && result.token ? {token: {name: input.name || "", token: String(result.token)}} : {})
     })
     smithy.seeOther(
-        (spec.done && spec.done(result, c, back)) || (spec.account ? gitAccessPage : under(c.base, param("successTo")) || back)
+        (spec.done && spec.done(result, c, back, {siteId, ...input})) || (spec.account ? gitAccessPage : under(c.base, param("successTo")) || back)
     )
 }
 /* editFile (design §9.5): one step of a file's edit to the next. What was typed is kept in the session for the one next page

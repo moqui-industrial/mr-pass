@@ -5,7 +5,7 @@
     (Smithy/SmithyForms.js run, which has each form's fields) and answers 303: to the page of what was made or changed, or
     back to the form's returnTo, a path under this mount, with the refusal's text. previewPost writes nothing: it answers a
     form's text as the authority renders it, to the form's next page or as JSON to the composer's island. Nothing here is
-    kept by a cache. -->
+    kept by a cache. heldReport alone is a GET: the page of the link a held report's sender got, which writes nothing. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Do">
@@ -363,6 +363,75 @@
   <transition name="confirmBotOperator" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('confirmBotOperator',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setScopeForum" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setScopeForum',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="reportSmithyTarget" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('reportSmithyTarget',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="hideSmithyTarget" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('hideSmithyTarget',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="convertTopicToIssue" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('convertTopicToIssue',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeIssueMailRoute" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeIssueMailRoute',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="claimHeldReport" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('claimHeldReport',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeCategory" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeCategory',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeRoute" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeRoute',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="importMbox" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('importMbox',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="inviteListMembers" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('inviteListMembers',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- DG6 (design-smithy §4.4, §12.4): the page of a held report's link, -/held-report/<token>. It reads and writes
+      nothing: a visitor is asked to sign in, an account gets the form that posts claimHeldReport -->
+  <transition name="heldReport" method="get" read-only="true">
+    <parameter name="token"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyScope.js').heldReport(resolvedSiteId,String(token || ''),passBases,siteInfo,String(publicPath || ''))</script>
     </actions>
     <default-response type="none"/>
   </transition>

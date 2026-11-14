@@ -8,13 +8,19 @@
 // Issues, IssueDetail (the conversation's rendered Markdown, cleaned; the reactions and the forms by capability) and
 // NewIssue, and an issue filed through Smithy/Do, its refusal and its preview. Mantle's SmithyIssues, SmithyIssueProjection
 // and SmithyConfidential specs cover the rules behind them. DG4 (§9): the paths of the merge request, fork and edit pages and
-// their cache policy; the pages themselves are SmithyReview's spec.
+// their cache policy; the pages themselves are SmithyReview's spec. DG6 (§4.4, §12.3 to §12.5; Dogfood §6): the paths of the
+// forum inside a group's and a repository's shell, of the scope's moderation pages and of a held report's link; one render
+// of the forum's topic list inside a group's shell (the scope's topics alone, links from the scoped base, the shell's tabs);
+// a held report's page and its claim through Smithy/Do; Report and Hide through Smithy/Do; a topic made an issue. Mantle's
+// SmithyForumScope, SmithyModerationTargets and SmithyHeldReports specs cover the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const routes = () => ec.resource.script("component://mr-pass/service/pass/SmithyRoutes.js")
 const SITE = "PASS_SMITHY"
 const HOST = "smithy.example.test"
 const KEYS = "pass.smithy.keys"
 const PLAIN = "pass.smithy.plain"
+const REPORTS = "pass.smithy.reports"
+const SENDER = "pass.smithy.sender"
 const state = {}
 // what the authority would answer for a lowered name path
 const NAMES = {
@@ -89,6 +95,15 @@ spec({
             commitId: state.second
         })
         f.account(SITE, PLAIN)
+        // DG6: the group's forum on, with a topic in its category; a second group with a topic of its own
+        state.category = f.forumOn(SITE, {groupId: state.group})
+        state.topic = f.topic(SITE, state.category, "Scoped <hello>", "Inside the *group*.")
+        state.other = f.group(SITE, "pass-smo", "public")
+        f.topic(SITE, f.forumOn(SITE, {groupId: state.other}), "Elsewhere", "Another group's topic.")
+        // an account with a confirmed address whose first posts are past, which reports a repository
+        f.account(SITE, REPORTS, {confirmed: true, settled: true})
+        // and one whose confirmed address sent a report by mail before it had the account
+        f.account(SITE, SENDER, {confirmed: true, settled: true})
     }
 })
 feature("the grammar: names, then a section after /-/, with the authority telling a group, a repository and an account apart", {
@@ -181,7 +196,30 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             formBad: parse("-/do/Create-repository"),
             groupSettings: parse("moqui/-/settings/delete"),
             repositorySettings: parse("moqui/mr-moqui/-/settings/branch-rules"),
-            repositorySettingsBad: parse("moqui/mr-moqui/-/settings/nothing")
+            repositorySettingsBad: parse("moqui/mr-moqui/-/settings/nothing"),
+            // DG6: the forum inside a group's and a repository's shell, mapped as the forum's own paths are; the scope's
+            // moderation pages; a held report's link
+            forum: parse("moqui/-/forum"),
+            forumTopic: parse("moqui/-/forum/t/T_100/hello-world"),
+            forumTopicState: parse("moqui/mr-moqui/-/forum/t/T_100/hello-world.qvue/state"),
+            forumTopicBad: parse("moqui/-/forum/t/bad%20id/x"),
+            forumPost: parse("moqui/-/forum/p/P_9"),
+            forumCategory: parse("moqui/-/forum/Categories/CategoryDetail"),
+            forumCompose: parse("moqui/mr-moqui/-/forum/Compose.qvue"),
+            forumPublish: parse("moqui/-/forum/Compose/publish"),
+            forumFeed: parse("moqui/-/forum/feed"),
+            // the forum's pages that have no scope stay the site's own
+            forumSettings: parse("moqui/-/forum/Settings/Mail"),
+            forumMessages: parse("moqui/-/forum/Messages"),
+            forumModeration: parse("moqui/-/forum/Moderation/ReviewQueue"),
+            moderation: parse("moqui/-/moderation"),
+            moderationSave: parse("moqui/mr-moqui/-/moderation/ReviewDetail/save"),
+            moderationReport: parse("moqui/mr-moqui/-/moderation/report"),
+            moderationHide: parse("moqui/-/moderation/hide"),
+            moderationBad: parse("moqui/-/moderation/Settings"),
+            forumTab: parse("moqui/-/settings/forum"),
+            heldReport: parse("-/held-report/abcDEF_123-456"),
+            heldReportBad: parse("-/held-report/a/b")
         }
         return {out, asked: asked.slice(), built: routes().BUILT}
     },
@@ -307,6 +345,37 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.repositorySettings.screenParameters.repositoryId === "R1"
         out.repositorySettings.screenParameters.tab === "branch-rules"
         out.repositorySettingsBad.kind === "NotFound"
+        out.forum.screenPath === "/Smithy/GroupDetail/Forum"
+        out.forum.screenParameters.groupId === "G1"
+        out.forumTopic.screenPath === "/Smithy/GroupDetail/Forum/Topics/TopicDetail"
+        out.forumTopic.topicId === "T_100"
+        out.forumTopic.topicSlug === "hello-world"
+        out.forumTopic.screenParameters.forumPath === "t/T_100/hello-world"
+        // a render mode on the slug and a transition after it, as on the forum's own topic
+        out.forumTopicState.screenPath === "/Smithy/RepositoryDetail/Forum/Topics/TopicDetail.qvue/state"
+        out.forumTopicState.topicSlug === "hello-world"
+        out.forumTopicState.screenParameters.repositoryId === "R1"
+        out.forumTopicBad.kind === "NotFound"
+        out.forumPost.screenPath === "/Smithy/GroupDetail/Forum/Post"
+        out.forumPost.postId === "P_9"
+        out.forumCategory.screenPath === "/Smithy/GroupDetail/Forum/Categories/CategoryDetail"
+        out.forumCompose.screenPath === "/Smithy/RepositoryDetail/Forum/Compose.qvue"
+        out.forumPublish.screenPath === "/Smithy/GroupDetail/Forum/Compose/publish"
+        out.forumFeed.screenPath === "/Smithy/GroupDetail/Forum/feed"
+        out.forumSettings.kind === "NotFound"
+        out.forumMessages.kind === "NotFound"
+        out.forumModeration.kind === "NotFound"
+        out.moderation.screenPath === "/Smithy/Moderation"
+        out.moderation.screenParameters.groupId === "G1"
+        out.moderationSave.screenPath === "/Smithy/Moderation/ReviewDetail/save"
+        out.moderationSave.screenParameters.repositoryId === "R1"
+        out.moderationReport.screenPath === "/Smithy/Moderation/Report"
+        out.moderationHide.screenPath === "/Smithy/Moderation/Hide"
+        out.moderationBad.kind === "NotFound"
+        out.forumTab.screenParameters.tab === "forum"
+        out.heldReport.screenPath === "/Smithy/Do/heldReport"
+        out.heldReport.screenParameters.token === "abcDEF_123-456"
+        out.heldReportBad.kind === "NotFound"
     }
 })
 feature("the resolver routes a Smithy mount by segment, so compare's ... passes and .. does not, here or in another app", {
@@ -785,9 +854,10 @@ feature("a form's post answers 303: to its page after a write, back to the form 
         unasked.status === 303
         unasked.location === "/code/"
         unasked.flash.error.message === "Confirm this change on its own page first."
-        transitions === 60
-        posts === 60
-        forms === 60
+        // DG6's heldReport alone is a GET: the page of a held report's link, which writes nothing
+        transitions === 71
+        posts === 70
+        forms === 70
         optOut === false
     }
 })
@@ -1042,6 +1112,243 @@ feature("a post of another conversation is not edited on an issue's page", {
         other === "NotFound"
     }
 })
+feature("the forum's topic list inside a group's shell: the scope's topics alone, links from the scoped base, the shell's tabs", {
+    when() {
+        const f = fixtures()
+        const path = "/code/pass-smg/-/forum"
+        const page = f.render(SITE, HOST, path, "Smithy/GroupDetail/Forum", {
+            groupId: state.group,
+            namePath: "pass-smg",
+            forumPath: ""
+        })
+        return {
+            html: page.html,
+            errors: page.errors,
+            // a topic and a post of the scope are the forum's own screens under the shell, named as the forum's own are
+            topic: f.route(SITE, HOST, path + "/t/" + state.topic + "/scoped-hello"),
+            post: f.route(SITE, HOST, path + "/p/" + state.topic),
+            unscoped: f.route(SITE, HOST, path + "/Settings/Mail"),
+            // a repository that has no forum has no forum pages
+            off: f.render(SITE, HOST, "/code/pass-smg/web/-/forum", "Smithy/RepositoryDetail/Forum", {
+                repositoryId: state.repo,
+                namePath: "pass-smg/web",
+                forumPath: ""
+            }).errors
+        }
+    },
+    then({html, errors, topic, post, unscoped, off}) {
+        errors.length === 0
+        // the group's shell, with the Forum tab
+        html.includes('<a href="/code/pass-smg/-/forum" aria-current="page">Forum</a>')
+        html.includes('<a href="/code/pass-smg/-/repositories">Repositories</a>')
+        // the forum's own page: its navigation and the topic, each link from the scope's base
+        html.includes('id="PassForumScopeNav"')
+        html.includes('<a href="/code/pass-smg/-/forum/Categories">Categories</a>')
+        html.includes('<a href="/code/pass-smg/-/forum/t/' + state.topic + '/scoped-hello">Scoped &lt;hello&gt;</a>')
+        html.includes('<a href="/code/pass-smg/-/forum?view=top">Top</a>')
+        // the scope filters: another group's topic is not listed, and no link is the site forum's
+        !html.includes("Elsewhere")
+        !html.includes('href="/forum')
+        topic.screenPath === "/Smithy/GroupDetail/Forum/Topics/TopicDetail"
+        topic.topicId === state.topic
+        topic.topicSlug === "scoped-hello"
+        topic.screenParameters.groupId === state.group
+        post.screenPath === "/Smithy/GroupDetail/Forum/Post"
+        post.postId === state.topic
+        unscoped.kind === "NotFound"
+        off.join(" ").includes("Page not found")
+    }
+})
+feature(
+    "a held report's link: a visitor is asked to sign in, its sender's account files it, and a link that is used or gone says so",
+    {
+        when() {
+            const f = fixtures()
+            const token = "pass-smg-no-such-token"
+            const path = "/code/-/held-report/" + token
+            // the claim of a link that names nothing returns to the link's page, which says so
+            const claim = f.post(
+                SITE,
+                HOST,
+                "claimHeldReport",
+                {token, operationId: "pass-smg-held-1", returnTo: path},
+                true,
+                true
+            )
+            const page = f.render(SITE, HOST, path, "Smithy/Do/heldReport", {token})
+            logout()
+            const visitor = f.render(SITE, HOST, path, "Smithy/Do/heldReport", {token})
+            login("john.doe")
+            // a report that waits for its sender (mail to a report address from an address that had no account), with its
+            // link's token known here: the account whose confirmed address sent it files it
+            const sent = "pass-smg-held-token"
+            f.run("create#mantle.forum.ForumHeldMail", {
+                heldId: "PASS_SMG_HELD",
+                siteId: SITE,
+                contactListId: state.category,
+                targetType: "issue",
+                targetId: state.repo,
+                senderAddress: SENDER + "@example.test",
+                subject: "A hole in the wall",
+                body: "<p>Where the hole is.</p>",
+                tokenHash: ec.user.singleUseCodeHash(sent),
+                state: "held",
+                createdAt: Date.now(),
+                expiresAt: Date.now() + 86400000
+            })
+            login(SENDER, "moqui1!!")
+            const filed = f.post(SITE, HOST, "claimHeldReport", {
+                token: sent,
+                operationId: "pass-smg-held-2",
+                returnTo: "/code/-/held-report/" + sent
+            })
+            login("john.doe")
+            const number = Number(
+                String(filed.location || "")
+                    .split("/")
+                    .pop()
+            )
+            return {
+                routed: f.route(SITE, HOST, path),
+                claim,
+                page,
+                visitor: visitor.html,
+                token,
+                filed,
+                number,
+                issue: f.operation("getIssue", {siteId: SITE, repositoryId: state.repo, issueNumber: number}).issue
+            }
+        },
+        then({routed, claim, page, visitor, token, filed, number, issue}) {
+            routed.screenPath === "/Smithy/Do/heldReport"
+            routed.screenParameters.token === token
+            claim.status === 303
+            claim.location === "/code/-/held-report/" + token
+            claim.cache === "no-store"
+            claim.flash.error.notFound === true
+            // a whole page in the site's shell, never kept by a cache, whose form posts the claim with the session token
+            page.header("Cache-Control") === "no-store"
+            page.html.includes("Sign out")
+            page.html.includes('id="Smithy_claimHeldReport" action="/code/-/do/claimHeldReport"')
+            page.html.includes('name="token" value="' + token + '"')
+            page.html.includes('id="SmithyHeldGone"')
+            // a visitor is sent to sign in and back, with no form
+            visitor.includes('href="/account/Login?returnTo=%2Fcode%2F-%2Fheld-report%2F' + token + '"')
+            !visitor.includes("claimHeldReport")
+            // the sender's claim goes to the confidential issue the report became
+            filed.status === 303
+            filed.location === "/code/pass-smg/web/-/issues/" + number
+            filed.flash.notice === "Your report was filed as the confidential issue #" + number + "."
+            issue.confidential === true
+            issue.title === "A hole in the wall"
+        }
+    }
+)
+feature(
+    "Report files an item in the scope's queue; Hide is asked again, and what is hidden is Not Found to others and marked for its Owner",
+    {
+        when() {
+            const f = fixtures()
+            const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+            const spare = f.repository(SITE, state.group, "spare", "public")
+            const target = {targetType: "repository", targetId: spare.repositoryId}
+            const root = "/code/pass-smg/spare"
+            // a confirmed account that has no role reports the repository
+            login(REPORTS, "moqui1!!")
+            const reported = f.post(SITE, HOST, "reportSmithyTarget", {
+                ...target,
+                reason: "spam",
+                note: "Advertising",
+                operationId: "pass-smg-report-1",
+                returnTo: root + "/-/moderation/report",
+                successTo: root
+            })
+            login("john.doe")
+            const queue = f.operation("findReviews", {siteId: SITE, scopeContactListId: state.category})
+            const hide = confirm =>
+                f.post(SITE, HOST, "hideSmithyTarget", {
+                    ...target,
+                    hidden: "true",
+                    reason: "Spam",
+                    expectedRevision: f.operation("getRepository", {siteId: SITE, repositoryId: spare.repositoryId}).repository
+                        .revision,
+                    returnTo: root + "/-/moderation/hide",
+                    successTo: root,
+                    ...(confirm ? {confirm: "yes"} : {})
+                })
+            const unasked = hide(false)
+            const hidden = hide(true)
+            const shell = smithy.repositoryShell(SITE, spare.repositoryId, "/code", root)
+            login(REPORTS, "moqui1!!")
+            const other = f.operation("getRepository", {siteId: SITE, repositoryId: spare.repositoryId})
+            login("john.doe")
+            return {
+                reported,
+                queued: (queue.reviewList || []).some(
+                    item => item.targetType === "repository" && item.targetId === spare.repositoryId
+                ),
+                unasked,
+                hidden,
+                marked: shell.hidden,
+                other
+            }
+        },
+        then({reported, queued, unasked, hidden, marked, other}) {
+            reported.status === 303
+            reported.location === "/code/pass-smg/spare"
+            reported.flash.notice === "Your report was sent to the moderators."
+            // the report waits in the queue of the group above the repository
+            queued === true
+            unasked.flash.error.message === "Confirm this change on its own page first."
+            hidden.status === 303
+            hidden.location === "/code/pass-smg/spare"
+            hidden.flash.notice.startsWith("It is hidden")
+            marked === true
+            other.kind === "NotFound"
+        }
+    }
+)
+feature(
+    "a topic of the scope is made an issue through Smithy/Do, and the issue's page links its discussion in the group's forum",
+    {
+        when() {
+            const f = fixtures()
+            const scope = ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js")
+            const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+            const made = f.post(SITE, HOST, "convertTopicToIssue", {
+                repositoryId: state.repo,
+                rootCommEventId: state.topic,
+                postIds: state.topic,
+                title: "From the forum",
+                operationId: "pass-smg-convert-1",
+                returnTo: "/code/pass-smg/-/forum/t/" + state.topic + "/scoped-hello"
+            })
+            const number = Number(
+                String(made.location || "")
+                    .split("/")
+                    .pop()
+            )
+            const issue = f.operation("getIssue", {siteId: SITE, repositoryId: state.repo, issueNumber: number}).issue
+            const shell = smithy.repositoryShell(SITE, state.repo, "/code", "/code/pass-smg/web/-/issues/" + number)
+            return {
+                made,
+                number,
+                card: String(
+                    scope.discussionCard(shell, issue?.discussion, {smithy: "/code", forum: "/forum"}, {mounts: []}).html || ""
+                ),
+                links: f.operation("getTopicLinks", {siteId: SITE, rootCommEventId: state.topic}).linkList || []
+            }
+        },
+        then({made, number, card, links}) {
+            made.status === 303
+            made.location === "/code/pass-smg/web/-/issues/" + number
+            made.flash.notice === "Issue #" + number + " was made from the topic."
+            // the site mounts no forum, so the discussion is in the group's
+            card.includes('<a href="/code/pass-smg/-/forum/t/' + state.topic + '">')
+            links.some(link => link.sourceType === "issue")
+        }
+    }
+)
 feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operations, their routes, and the cache policy", {
     when() {
         const text = location => String(ec.resource.getLocationText(location) || "")
@@ -1070,15 +1377,19 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
             // nor a merge request's pages (one may be held for review), a file's edit or the fork pages (DG4)
             reviewPages: ["/moqui/mr-moqui/-/merge-requests", "/moqui/mr-moqui/-/merge-requests/7/changes", "/moqui/mr-moqui/-/edit/main/a.md", "/moqui/mr-moqui/-/fork"]
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
+                .join(" "),
+            // nor the forum's pages inside a shell (the forum's own are not) and the scope's moderation pages (DG6)
+            scopePages: ["/moqui/-/forum", "/moqui/mr-moqui/-/forum/t/T1/hello", "/moqui/-/moderation"]
+                .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" ")
         }
     },
-    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList}) {
+    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList, scopePages}) {
         app.screen === "Smithy"
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 89
+        count === 95
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"
@@ -1088,6 +1399,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         issuePages === "no-store no-store no-store no-store no-store"
         commitsList === "public, max-age=60"
         reviewPages === "no-store no-store no-store no-store"
+        scopePages === "no-store no-store no-store"
     }
 })
 feature("every app's default base is refused as a group's path, so a group never takes a mount's place", {
