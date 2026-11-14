@@ -66,9 +66,9 @@ carries and the authority renews when it rotates the session.
 
 A business whose authority (its BOSS server) runs in the office, behind a firewall, serves its sites from an edge
 node: a small cloud server the authority dials out to and keeps one link open with (mr-moqui `docs/Run-Deploy.md`,
-"A local server with an edge node", and `plans/archive/Edge-Node.md` §5.5). The edge node
-runs mr-pass with `pass_backend_url=edge:` (set in its `MoquiEdgeConf.xml`), so it calls the authority over gRPC down
-the link, and the authority needs no public address, open port or client secret for it.
+"A local server with an edge node", and `plans/archive/Edge-Node.md` §5.5). The edge node runs mr-pass with
+`pass_backend_url=edge:` (set in mr-moqui's `runtime/conf/edge/MoquiEdgeConf.xml`), so it calls the authority over gRPC
+down the link, and the authority needs no public address, open port or client secret for it.
 
 1. Pair the authority with the edge node: on the edge node, System › Edge Clients, make a pairing code; on the
    authority, System › Edge Node, Pair with an edge node, with the edge node's address and the code.
@@ -137,7 +137,8 @@ the runtime's conf:
 - **The site** is bound by the `public-site`, the operator's conf, and never by a request: a `siteId` or
   `resolvedSiteId` a request sends does not change it, and a path no site route takes has no site.
 - **`framework-routes="refuse"`** keeps the framework off the host: `/Login`, `/apps`, `/qapps`, `/rest`, the token
-  routes, the servlets, the sockets, `/dav`, `/health` and `/metrics` are Not Found there, and the shared `/js`, `/css`,
+  routes, the servlets, the sockets, `/dav`, `/health`, `/metrics` and the HTTPS listener's gRPC services (the PASS
+  authority among them) are Not Found there, and the shared `/js`, `/css`,
   `/libs` and `/images` are served. People sign in through the site's Account (`/account/Login`). A page the site does
   not have shows the framework's Not Found page.
 - **On the business's host** stay what the framework serves: the apps, the authority's REST (`/rest/s1/pass`) for a
@@ -145,7 +146,8 @@ the runtime's conf:
 - **Sessions.** Each host's session cookie is its own. PASS's Account is the sign-in across a deployment's sites (SSO
   through the authority); a person who signs in to a site is not signed in to the business's host.
 - **Links** a site's pages make are paths on its host. Mail links come from the site's canonical host
-  (`PublicSiteHost`), set at the authority.
+  (`PublicSiteHost`), set at the authority; a framework link made in a request to the host (`getWebappRootUrl`) is the
+  business host's, where the apps are.
 - **An edge node** gives each host web access as an `EdgeHost` of the pairing, with a certificate for the name.
 
 ## Billing and Supplier apps
