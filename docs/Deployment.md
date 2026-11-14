@@ -321,6 +321,41 @@ has the app, a quote goes out with no link and customers cannot accept online (S
   `TOKEN_WRITES` write a link's token authorizes, accepted from a registered deployment without a member session. The order
   operations (`findSalesOrders`, `getSalesOrder`, `getSalesOrderDocument`) are reads only.
 
+## Marketing app
+
+The Marketing app (`screen/Marketing.xml`, the `marketing` mount) is IronStone Marketing's public subscription pages for one
+organization, its mount's target: `{"app": "marketing", "pathPrefix": "/marketing", "targetId": "ORG_ID"}`, and `/marketing` in the
+runtime's `<public-site>` mounts (screen `Marketing`). Its pages are Subscribe and VerifySubscription; unsubscribing and changing
+topics are the Account app's Email preferences page, so mount Account too. Readiness adds the app's checks: the target is an
+internal organization, a list is offered on the site (a mount with nothing published is named), the organization has a ready
+sending profile, each offered list's policy names a published confirmation template, and the site has a canonical host.
+
+- **Publishing a list.** A list is offered only by its subscription policy (BOSS Marketing › Audiences › a list › Subscription
+  policy): Public offer, this site, and the interval it is open. The list's legacy public flag offers nothing. Each offer shows
+  the policy's own wording beside its consent box.
+- **The sending profile.** The verification message is a transactional delivery of Comms' ledger from a ready sending profile of
+  the organization for transactional mail (purpose Transactional, or none; a promotional profile never sends it. BOSS Marketing ›
+  Settings › Sending profiles: an approved relay, a sender, a bounce domain with its hosted bounces@ account), with the
+  confirmation template the policy names (a published Comms template of the organization: Marketing › Sends › Message templates).
+  Without either, requests are kept, no message goes out and the app's readiness names what is missing. The message is attempted
+  once the request commits (the ledger's job retries it); a profile's quiet hours delay it.
+- **Requests.** Subscribe takes an address, an optional name, the offered lists the visitor ticks and the consent box, with PASS's
+  request key. The answer is the same receipt whatever happened: the address's directory contact or a new person is filed pending
+  (which one is never said), a member already, a refusal, a repeat of the key, a limit reached. Limits: 30 requests in ten minutes
+  from a client, 1,000 an hour on a site, 5 an hour for an address (over any: the receipt, nothing recorded), and 3 verification
+  messages a day to an address (over: the request kept, no message). The visitor's name is never put in the message.
+- **Confirmation.** Each verification message carries its own link (`/marketing/VerifySubscription?token=`), seven days; only the
+  token's digest is kept. Opening it changes nothing, so a mail scanner confirms nothing; the Confirm button accepts exactly the
+  topics asked for that address, once, and a second click shows the first result. A withdrawal after the request is never
+  undone by its link. Every link lookup counts against the requester's limit (100 in ten minutes).
+- **Email preferences.** On the Account app's Email preferences page, by a list mail's link or signed in, the organization's lists
+  offered on the site show with the recipient's state: turning one off unsubscribes it (with an optional reason, kept on the
+  withdrawal), turning one on sends a verification message first (a signed-in account's verified address is accepted at once), and
+  "No more email from" the organization leaves all its lists and withdraws its marketing email for that organization alone.
+- **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` (an
+  anonymous write the transport lets through, bounded by the request key and the limits) and `verifySubscription` (a link's token)
+  are `TOKEN_WRITES`, accepted from a registered deployment without a member session.
+
 ## Shop app
 
 Shop is a ProductStore's storefront (`screen/Shop.xml`, app `shop`; [design](../plan/design-shop.md),

@@ -303,7 +303,7 @@ feature('PASS and the authority register the same apps, and only Billing, Sales,
     },
     then({ pass, mantle, targeted, route }) {
         pass === mantle
-        targeted === 'billing,sales,shop,supplier,support'
+        targeted === 'billing,marketing,sales,shop,supplier,support'
         route === '/Billing/InvoicePay/return'
     },
 })

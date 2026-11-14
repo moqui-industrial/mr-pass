@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Subscribe (design-marketing §13 Subscribe; IronStone impl-marketing P7): SubscriptionRequest, the lists the site offers
+    (getMarketingPublication; ?list= names one), each an unchecked choice, the address, an optional name, the consent box in the
+    offer's own words and a request key; and SubscriptionReceipt, the same neutral answer whatever happened (no address or
+    membership echoed). A site without the mount, or a list it does not offer, shows the same "not available". Plain HTML. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Subscribe">
+  <transition name="request" method="post">
+    <actions>
+      <script><![CDATA[
+        const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
+        const page=marketing.base(publicPath,'request')
+        const list=marketing.param('list')
+        marketing.post('requestSubscription',{siteId:resolvedSiteId,emailAddress:marketing.param('emailAddress'),
+            displayName:marketing.param('displayName'),contactListIds:marketing.params('contactListId'),consent:marketing.param('consent'),
+            operationId:marketing.param('operationId')},{path:page,params:{list}},{path:page,params:{list,sent:'1'}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
+        flash=marketing.take()
+        listId=marketing.param('list')
+        view=null;failure=null
+        const found=marketing.portal.attempt('getMarketingPublication',{siteId:resolvedSiteId,...(listId ? {contactListId:listId} : {})})
+        if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'There is nothing to subscribe to here. The offer may have ended.'}:found.error
+        else view=found.result
+        // the receipt shows after a post, never on a plain visit (a refreshed page asks again)
+        receipt=marketing.param('sent') ? flash.receipt : null
+        requestOperationId=marketing.portal.operationId()
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/Subscribe.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
