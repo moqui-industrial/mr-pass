@@ -150,6 +150,37 @@ the runtime's conf:
   business host's, where the apps are.
 - **An edge node** gives each host web access as an `EdgeHost` of the pairing, with a certificate for the name.
 
+## Full stack
+
+A higher-volume shop or other public site runs on three tiers (mr-moqui `docs/Run-Deploy.md`, "Full stack", its example
+confs in `runtime/conf/full-stack/`, and `plans/Edge-Node2.md` §3, §4.7):
+
+```
+ visitors --https--> front node         per-app hosts: forum.example.org, shop.example.com, as terminate hosts
+                         |  balanced over the edge members, sticky by the session cookie
+                     edge cluster       the PASS servers: mr-pass with pass_backend_url=edge:
+                         |  each edge member calls the authority down its own link
+                     local cluster      the authority: BOSS with Mantle, the business database
+```
+
+- **Per-app hosts on the front.** Each app has a host of its own, as in [Several sites by host name](#several-sites-by-host-name):
+  `Pass.xml` is the host's root with `framework-routes="refuse"`, and a `public-site` puts the app at `/`. The bindings
+  are in the edge members' conf (mr-moqui's `runtime/conf/full-stack/MoquiEdgeConf.xml`), not the front's: the front
+  runs no mr-pass. Each edge member gives the front its sites' hosts as terminate hosts, so the front ends their TLS
+  with its certificates for them (in its `runtime/cert`, or System › Certificates with ACME) and keeps a browser on one
+  edge member by the session cookie.
+- **The edge cluster as the PASS servers.** Every edge member runs mr-pass with `pass_backend_url=edge:` and the same
+  bindings; the frontend's session is a row in the edge cluster's database, so a browser that moves to another member
+  stays signed in. `pass_backend_web_url` is the authority's web address through the stack (one of the local
+  cluster's host names), for the SSO front channel.
+- **The local cluster as the authority.** It pairs with the edge cluster once; the Edge Node wizard's PASS step writes
+  `pass_edge_client` (`edge`), `pass_client_edge_sites` and `pass_client_edge_callback` to its `.env`, copied to every
+  local member. Each edge member calls it down its own link, over gRPC with no client secret, balanced over the local
+  cluster's live members (sticky by the sign-in in progress). Create the sites and bind their hosts and mounts there
+  (`create#Site`, `store#Mounts`), the hosts the edge members' `public-site` bindings name.
+- **Stopping any one node below the front** leaves the sites up: the front sends their requests to the other edge
+  members, and each edge member calls the other local members.
+
 ## Billing and Supplier apps
 
 Billing (an organization's customer invoices and their pay links) and Supplier (a supplier's quotes, purchase orders and
