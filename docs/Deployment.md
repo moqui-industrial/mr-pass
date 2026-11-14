@@ -306,7 +306,8 @@ has the app, a quote goes out with no link and customers cannot accept online (S
   quote) carries the recipient's own link (`/sales/CustomerOrder?token=`), the order's `ExternalAccessCapability` (OrderView,
   for a year), made for that mail. It shows that one order read only: lines and totals, promised dates, the accepted quote,
   shipments with their tracking (a carrier's https link), invoices with their open amount, and the confirmation's PDF; there
-  is no edit, cancel, reorder or payment on it. A signed-in contact sees the customer's placed orders under My orders. A store's
+  is no edit, cancel, reorder or payment on it. A cancelled order stays reachable by its link and under My orders, marked
+  Cancelled and read only, with Support's ask page alone. A signed-in contact sees the customer's placed orders under My orders. A store's
   orders keep Shop's page (a store order's link opens the store's Shop site); CustomerOrders never lists them. Where the site
   mounts Support for the same organization, an order offers its Support pages (ask or change, request cancellation, request a
   return), which take the link for that order from the session; where it mounts Billing for it, a signed-in account's invoice

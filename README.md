@@ -67,7 +67,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, SalesQuoteScenarios, SalesQuoteHttp, SalesOrderScenarios, SalesOrderHttp, MarketingSubscribeHttp, MarketingRemoteHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, SalesQuoteScenarios, SalesQuoteHttp, SalesOrderScenarios, SalesOrderHttp, SalesPhonePages, MarketingSubscribeHttp, MarketingRemoteHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -93,7 +93,8 @@ framework's git-client tests cover), its payment, order and subscription scenari
 on the server (`ShopPaymentScenarios`, `ShopOrderScenarios`, `ShopSubscriptionScenarios`; design-shop §18.1 maps each
 scenario to its test in impl-shop §8), PASS Sales' quote scenarios (`SalesQuoteScenarios`, standalone) and walk (`SalesQuoteHttp`, with `SalesQuoteFixtures`, at 390 px
 and with plain requests that run the same through a remote frontend) and its order scenarios (`SalesOrderScenarios`, standalone)
-and walk (`SalesOrderHttp`, with `SalesOrderFixtures`), PASS Marketing's subscription walk (`MarketingSubscribeHttp`, with
+and walk (`SalesOrderHttp`, with `SalesOrderFixtures`), its pages at 390 px (`SalesPhonePages`, with `SalesPhoneFixtures`: My quotes, a quote, a
+receipt, My orders and an order, signed in and by a link, none scrolling sideways), PASS Marketing's subscription walk (`MarketingSubscribeHttp`, with
 `MarketingSubscribeFixtures`, plain requests, and `MarketingRemoteHttp` through a remote frontend), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
