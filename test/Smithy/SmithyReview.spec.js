@@ -7,7 +7,8 @@
 // Mantle's (SmithyMergeRequests, SmithyAgreement, SmithyForks, SmithyEdit). DG5 (§10, §11): one render of a running job's
 // page (its log escaped and without terminal escapes, a failed test linked to the file at the run's commit, an artifact's
 // download, the run waiting with Approve and run for its Owner, the log's island), the same run's page as a viewer through
-// its page function (no Approve), and Run pipeline through Smithy/Do with its refusal on the form. The run and its job are
+// its page function (no Approve), and Run pipeline through Smithy/Do with its refusal on the form; the log's JSON rendered
+// once, its refusals and an upload's through the page functions, a test's path and plain text. The run and its job are
 // rows made here, since a spec cannot play the engine's runner; Mantle's SmithyPipelines covers the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_REVIEW"
@@ -460,7 +461,7 @@ feature("a save through Smithy/Do goes to the branch, to a new branch with a mer
         proposed.targetRef === "main"
     }
 })
-feature("page rules: a merge and a close ask again, a check's target is a link only when it is https, and Sign's link encodes its branch", {
+feature("page rules: a merge and a close ask again, a check's target is a link only when it is https and a ci/ check's only to its run, and Sign's link encodes its branch", {
     when() {
         const f = fixtures()
         const {smithy, review} = scripts()
@@ -481,7 +482,8 @@ feature("page rules: a merge and a close ask again, a check's target is a link o
                     checkList: [
                         {context: "ci/a", state: "success", targetUrl: "javascript:alert(1)"},
                         {context: "ci/b", state: "success", targetUrl: "http://example.test/b"},
-                        {context: "ci/c", state: "success", targetUrl: "https://example.test/c"}
+                        {context: "ci/c", state: "success", targetUrl: "https://example.test/c"},
+                        {context: "deploy/d", state: "success", targetUrl: "https://example.test/d"}
                     ]
                 }
             }).html,
@@ -496,7 +498,10 @@ feature("page rules: a merge and a close ask again, a check's target is a link o
         state === "open"
         !checks.includes("javascript:")
         !checks.includes('href="http://')
-        checks.includes('<a href="https://example.test/c" rel="nofollow noopener">ci/c</a>')
+        // a ci/ check links to its own run on this site or to nothing, never to the address its writer gave
+        !checks.includes("https://example.test/c")
+        checks.includes(" · ci/c</p>")
+        checks.includes('<a href="https://example.test/d" rel="nofollow noopener">deploy/d</a>')
         sign === R + "/-/edit/fix%231%252/AUTHORS.md?sign=" + s.odd.mergeRequestNum
     }
 })
@@ -567,16 +572,24 @@ feature("a running job's page: its log escaped, a failed test linked, an artifac
         shown.includes('<option value="check" selected>check</option>')
     }
 })
-feature("pipeline page rules: the log's JSON is no-store and Not Found with pipelines off, an upload too; Cancel asks again; a refused secret keeps no value; the runners form holds the group's own values", {
+feature("pipeline page rules: the log's JSON is no-store and Not Found with pipelines off, an upload too; Cancel asks again; a refused secret keeps no value; the runners form holds the group's own values; a test's path stays in the repository; control characters are taken out", {
     when() {
         const f = fixtures()
+        const {smithy, pipelines} = scripts()
         const job = "PSMR_JOB41"
         const page = R + "/-/pipelines/41"
-        const log = jobRunId =>
-            f.render(SITE, HOST, page + "/jobs/" + jobRunId + "/log", "Smithy/PipelineDetail/log", {repositoryId: s.repo, namePath: "pass-smr/review", runNum: "41", jobRunId})
-        const upload = () =>
-            f.render(SITE, HOST, R + "/-/artifacts/PSMR_ART41/results.tar.gz", "Smithy/PipelineDetail/artifact", {repositoryId: s.repo, namePath: "pass-smr/review", artifactId: "PSMR_ART41"})
-        const on = log(job)
+        // the log's JSON rendered once; its refusals through the page functions (they refuse before anything is written)
+        const on = f.render(SITE, HOST, page + "/jobs/" + job + "/log", "Smithy/PipelineDetail/log", {repositoryId: s.repo, namePath: "pass-smr/review", runNum: "41", jobRunId: job})
+        const refusal = work => {
+            try {
+                work()
+                return "none"
+            } catch (error) {
+                ec.message.clearErrors()
+                return error.moquiErrorKind || String(error.message)
+            }
+        }
+        const log = jobRunId => refusal(() => pipelines.logJson(SITE, s.repo, "41", jobRunId))
         const other = log("PSMR_NONE")
         // Cancel without its confirmation page's answer is not run
         const cancel = f.post(SITE, HOST, "cancelPipelineRun", {repositoryId: s.repo, runNum: 41, returnTo: page})
@@ -593,10 +606,9 @@ feature("pipeline page rules: the log's JSON is no-store and Not Found with pipe
         // with pipelines off, the log's JSON and an upload are Not Found
         f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "N"})
         const off = log(job)
-        const fileOff = upload()
+        const fileOff = refusal(() => pipelines.artifact(SITE, s.repo, "PSMR_ART41"))
         f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "Y"})
         // the group's runners form holds its own values, each sent only when changed, with the value in effect as its hint
-        const {smithy, pipelines} = scripts()
         const groupPage = "/code/pass-smr/-/settings/pipelines"
         const runners = pipelines.groupSettings(smithy.groupShell(SITE, s.group, "/code", groupPage), "", BASES, INFO, groupPage).html
         let lines = null
@@ -605,20 +617,38 @@ feature("pipeline page rules: the log's JSON is no-store and Not Found with pipe
         } catch (error) {
             lines = null
         }
-        return {on, lines, other, cancel, state, secret, off, fileOff, runners}
+        return {
+            on,
+            lines,
+            other,
+            cancel,
+            state,
+            secret,
+            off,
+            fileOff,
+            runners,
+            // a failed test's file: a relative path of the repository only
+            paths: ["/abs/a.js", "C:/a.js", "a/../b.js", "a//b.js", "a\\b.js", "a\u0001b.js", "", "./src/main.js", "src/a.js"]
+                .map(path => pipelines.testPath(path) || "-")
+                .join(" "),
+            // C0 but tab and newline, DEL, C1, the bidirectional overrides and isolates, and terminal escapes
+            shown: smithy.plain("a\u0000b\u0085c\u009bd\u202ee\u2067f\u007fg\u001b[31mh\u001b[0m\ti\nj")
+        }
     },
-    then({on, lines, other, cancel, state, secret, off, fileOff, runners}) {
+    then({on, lines, other, cancel, state, secret, off, fileOff, runners, paths, shown}) {
         on.header("Cache-Control") === "no-store"
         Array.isArray(lines) && lines.length >= 2
-        other.errors.some(error => error.includes("Page not found"))
+        other === "NotFound"
         cancel.flash.error.message === "Confirm this change on its own page first."
         state === "waiting"
         secret.status === 303
         !!secret.flash.error
         secret.flash.values.name === "bad name!"
         !Object.hasOwn(secret.flash.values, "value")
-        off.errors.some(error => error.includes("Page not found"))
-        fileOff.errors.some(error => error.includes("Page not found"))
+        off === "NotFound"
+        fileOff === "NotFound"
+        paths === "- - - - - - - src/main.js src/a.js"
+        shown === "abcdefgh\ti\nj"
         runners.includes('<input type="hidden" name="was_runnerPoolId" value="">')
         runners.includes("In effect now:")
         runners.includes('<option value="" selected>As the group above says</option>')

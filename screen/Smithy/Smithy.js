@@ -110,6 +110,16 @@ function expireFlash() {
     if (!(Date.now() - at < FLASH_LIFE)) attributes.remove(FLASH)
 }
 const shortId = id => String(id || "").slice(0, 8)
+/* Terminal escapes (colors, cursor moves, a title), which a job's log and its names may hold. */
+// eslint-disable-next-line no-control-regex
+const ANSI = /\u001b(?:\[[0-?]*[ -\/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|[@-Z\\-_])/g
+/* The control characters taken out of a text a page shows as it was written by a job, a ci.xml, a component.xml or a search
+ * index (a log, a job's or a pipeline's name, a test, a component's description, a search result): C0 but tab and newline,
+ * DEL, C1, and the bidirectional overrides and isolates (U+202A to U+202E, U+2066 to U+2069), which would make a line read
+ * otherwise than it is. */
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g
+const plain = text => String(text ?? "").replace(ANSI, "").replace(CONTROL, "")
 function sizeText(size) {
     const n = Number(size)
     if (!Number.isFinite(n)) return ""
@@ -376,7 +386,7 @@ function explore(siteId, base) {
                       dependsOn: c.dependsOn || [],
                       path: c.repositoryPath,
                       href: u.root,
-                      description: c.description || "",
+                      description: plain(c.description),
                       latestTag: c.latestTag || "",
                       releaseHref: c.latestTag ? u.section("releases", c.latestTag) : null
                   }
@@ -688,8 +698,13 @@ function files(shell, refPath) {
             tree.ref?.kind === "branch" && shell.capabilities.signedIn && !shell.repository.archived
                 ? u.section("upload", joinRef(ref, treePath))
                 : null,
-        // the whole tree at this ref as a file, for a signed-in account (the authority serves no archive to a visitor)
-        archives: (shell.capabilities.signedIn || publicRepository(shell.repository)) && !treePath ? archiveLinks(u, ref) : null,
+        // the whole tree at this ref as a file, for a signed-in account; for a visitor of a public repository at a branch or a
+        // tag only (the authority serves a visitor no archive of a commit id)
+        archives:
+            !treePath &&
+            (shell.capabilities.signedIn || (publicRepository(shell.repository) && ["branch", "tag"].includes(tree.ref?.kind)))
+                ? archiveLinks(u, ref)
+                : null,
         // the page's own address is built from what was read, never from the request's path
         moreHref: tree.hasMore ? u.tree(ref, treePath) + query({offset: offset + entries.length}) : null,
         readme: tree.readme?.html ? {path: tree.readme.path, html: rewriteLinks(tree.readme.html, u, ref, treePath)} : null
@@ -1039,10 +1054,12 @@ function commit(shell, commitId) {
             href: u.section("merge-requests") + "/" + encodeURIComponent(request.mergeRequestNum)
         })),
         statuses: (found.statusList || []).map(s => ({
-            context: s.context || "default",
+            context: plain(s.context) || "default",
             state: s.state || "",
-            description: s.description || "",
-            href: runLink(s)
+            description: plain(s.description),
+            // a ci/ check links to its own run or to nothing (never to an address its writer chose); another context to its
+            // https target
+            href: String(s.context || "").startsWith("ci/")
                 ? runLink(s)
                 : /^https:\/\//.test(String(s.targetUrl || ""))
                   ? s.targetUrl
@@ -1050,7 +1067,7 @@ function commit(shell, commitId) {
         })),
         runs: runs.map(run => ({
             number: run.runNum,
-            name: run.pipelineName || "",
+            name: plain(run.pipelineName),
             state: run.state || "",
             href: (shell.base || "") + run.path
         })),
@@ -1166,15 +1183,28 @@ function seeOther(location) {
 }
 /* Whether a location is an https address of one of the site's own hosts (the authority answers getSiteInfo for a host of the
  * site alone): a target of the site's table of old paths may be one, for a move between its hosts. */
+// eslint-disable-next-line no-control-regex
+const ADDRESS = /^https:\/\/([A-Za-z0-9.-]+(?::[0-9]{1,5})?)(\/[^\s\\<>"'`\u0000-\u001f\u007f]*)?$/
 function ownAddress(siteId, location) {
-    const found = /^https:\/\/([A-Za-z0-9.-]+(?::[0-9]{1,5})?)(?:\/[^\s\\<>"'`]*)?$/.exec(String(location || ""))
-    return !!found && !!siteId && !portal.attempt("getSiteInfo", {siteId, hostname: found[1].toLowerCase()}).error
+    const found = ADDRESS.exec(String(location || ""))
+    if (!found || !siteId) return false
+    const hostname = found[1].toLowerCase()
+    // as Mantle's siteTarget: the site's own hosts, not its theme preview host (which serves nothing else)
+    if (ec.resource.script("component://mr-pass/screen/Shop/ShopPreview.js").isPreviewHost(siteId, hostname)) return false
+    return !portal.attempt("getSiteInfo", {siteId, hostname}).error
+}
+/* A location with the request's query added: after the location's own query and before its #fragment. */
+function withQuery(location, asked) {
+    const text = String(location || "")
+    if (!asked) return text
+    const at = text.indexOf("#")
+    const head = at >= 0 ? text.slice(0, at) : text
+    return head + (head.includes("?") ? "&" : "?") + asked + (at >= 0 ? text.slice(at) : "")
 }
 /* The resolver's redirect (Smithy.xml redirect): 301 to its location with the request's query; a path on this site, or (an
  * old path of the site's table, DG7) an https address of one of its hosts. */
 function redirectRoute(location, siteId) {
-    const asked = ec.web.request.getQueryString?.()
-    const to = String(location || "") + (asked ? (String(location || "").includes("?") ? "&" : "?") + asked : "")
+    const to = withQuery(location, ec.web.request.getQueryString?.())
     if (siteLocal(location) || !ownAddress(siteId, location)) return redirect(to, 301)
     const response = ec.web.response
     response.setHeader("Cache-Control", "no-store")
@@ -1207,7 +1237,25 @@ function movedPath(siteId, host, path) {
         ec.message.popErrors()
     }
     const target = String(found?.targetPath || "")
-    return target && (siteLocal(target) || ownAddress(siteId, target)) ? target : null
+    if (!target || !(siteLocal(target) || ownAddress(siteId, target))) return null
+    // never back to the path asked for (on this host): resolve#Redirect would answer it with the same row, a loop
+    const whole = ADDRESS.exec(target)
+    const sameHost = !whole || whole[1].toLowerCase().replace(/:[0-9]+$/, "") === String(host || "").toLowerCase().replace(/:[0-9]+$/, "")
+    return sameHost && samePath(whole ? whole[2] || "/" : target, path) ? null : target
+}
+/* Whether two paths are one as resolve#Redirect looks a path up: without the query and the fragment, a trailing slash, the
+ * percent-encoding of a character and the case. */
+function samePath(one, other) {
+    const normal = value => {
+        let text = String(value || "").replace(/[?#].*$/, "")
+        try {
+            text = decodeURIComponent(text)
+        } catch (error) {
+            // as it is
+        }
+        return (text.length > 1 ? text.replace(/\/+$/, "") : text).toLowerCase() || "/"
+    }
+    return normal(one) === normal(other)
 }
 ;({
     portal,
@@ -1256,7 +1304,11 @@ function movedPath(siteId, host, path) {
     redirect,
     redirectBefore,
     redirectRoute,
+    withQuery,
     movedPath,
+    plain,
+    ANSI,
+    CONTROL,
     rooted,
     publicRepository,
     siteLocal,

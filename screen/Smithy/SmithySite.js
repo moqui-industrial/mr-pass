@@ -10,7 +10,7 @@
  * Smithy/Do with the session token. CC0 plus patent grant. */
 const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
 const forms = ec.resource.script("component://mr-pass/screen/Smithy/SmithyForms.js")
-const {portal, fail, need, maybe, param, enc, query, dateText, sizeText, shortId, rooted} = smithy
+const {portal, fail, need, maybe, param, enc, query, dateText, sizeText, shortId, rooted, plain} = smithy
 const {Markup, h, attributes, hidden, contextOf, banner, gate, formOf, open, input, textarea, select, check, submit, hint, confirmCard} =
     forms
 const issues = () => ec.resource.script("component://mr-pass/screen/Smithy/SmithyIssues.js")
@@ -68,9 +68,11 @@ function search(siteId, bases, siteInfo, self) {
     const row = result => {
         const href = rooted(result.path)
         const facts = [result.repositoryPath && result.type !== "repository" ? result.repositoryPath : null, dateText(result.date)].filter(Boolean)
-        return h`<li class="wrap smithy-row">${href ? h`<a href="${href}">${result.title}</a>` : result.title}${
+        // a title and a snippet are text of an index (a docs page, a topic, a component.xml): escaped, and plain text
+        const title = plain(result.title)
+        return h`<li class="wrap smithy-row">${href ? h`<a href="${href}">${title}</a>` : title}${
             facts.length ? h` <small>${facts.join(" · ")}</small>` : ""
-        }${result.snippet ? h`<br><small>${result.snippet}</small>` : ""}</li>`
+        }${result.snippet ? h`<br><small>${plain(result.snippet)}</small>` : ""}</li>`
     }
     return {
         html: h`${head}${
@@ -95,7 +97,8 @@ const docsRoot = path =>
         .filter(segment => segment && segment !== "." && segment !== "..")
         .join("/") || "docs"
 /* Docs (design §13.2), at -/docs/<refPath>: a page of the repository's docs directory at a branch, a tag or a commit
- * (getDocsPage), with the ref picker (a GET form whose choice is redirected: {redirect}), the table of contents (beside
+ * (getDocsPage), with the ref picker (a GET form whose choice, a branch or a tag the read named, is redirected: {redirect};
+ * any other choice is not taken), the table of contents (beside
  * the page; a drawer above it on a phone), the page's headings, "Edit this page" at a branch, and the docs search box. A
  * relative link to a Markdown file of the directory is its Docs page, another file of the repository its Blob page, an
  * image its raw file; a link that leaves the repository has no address. Not Found where docs are off. */
@@ -104,10 +107,12 @@ function docs(shell, refPath, bases, siteInfo, self) {
     const c = contextOf(bases, siteInfo, self, shell.flash)
     const r = shell.repository
     const u = smithy.urls(c.base, r.repositoryPath)
-    const picked = param("ref")
-    if (picked) return {redirect: u.section("docs", picked)}
     const found = need("getDocsPage", {siteId: shell.siteId, repositoryId: r.repositoryId, refPath: refPath || ""})
     const ref = found.ref?.kind === "commit" ? found.ref.commitId : found.ref?.name || ""
+    const picked = param("ref")
+    // the picker's choice: a branch or a tag of the list it was made from (or the ref shown), never a path of the parameter's
+    if (picked && (picked === ref || (found.refList || []).some(row => ["branch", "tag"].includes(row.kind) && row.name === picked)))
+        return {redirect: u.section("docs", picked)}
     const root = docsRoot(r.docsPath)
     const page = String(found.path || "")
     const href = path => u.section("docs", ref + "/" + path)
@@ -227,7 +232,7 @@ function runFiles(shell, tag) {
     return jobs.flatMap(job =>
         (maybe("getJobRun", {...key, runNum: run.runNum, jobRunId: job.jobRunId})?.artifactList || [])
             .filter(artifact => artifact.artifactKind !== "report")
-            .map(artifact => ({artifactId: artifact.artifactId, label: artifact.name + " (" + job.jobName + ", run #" + run.runNum + ")"}))
+            .map(artifact => ({artifactId: artifact.artifactId, label: plain(artifact.name) + " (" + plain(job.jobName) + ", run #" + run.runNum + ")"}))
     )
 }
 /* ReleaseDetail (design §13.3), at -/releases/<tag>, in the repository's shell: the release (getRelease) with its state, day,
@@ -321,7 +326,8 @@ function releaseDetail(shell, tag, bases, siteInfo, self) {
             : ""
     }`
     if (!editable) return {html: h`${head}${body}`.html}
-    return {html: h`${head}${body}${maintainerForms(c, shell, release, key, page, siteInfo)}`.html}
+    // the notes as stored, which the authority gives a Maintainer for the edit form
+    return {html: h`${head}${body}${maintainerForms(c, shell, {...release, notes: found.notes ?? release.notes}, key, page, siteInfo)}`.html}
 }
 /* A Maintainer's forms of a release (design §13.3). */
 function maintainerForms(c, shell, release, key, page, siteInfo) {
@@ -339,9 +345,13 @@ function maintainerForms(c, shell, release, key, page, siteInfo) {
               )}<p>A topic in the news category of the nearest group that has one, with the release's notes.</p>${submit("Announce the release")}`
             : ""
     const edit = formOf(c, "storeRelease", "edit")
+    // an unnamed release (the authority names it by its tag) has an empty field, and the name is sent only when changed
+    // (was_name), so a save of its notes does not make the tag its name
     const editForm = h`${open(c, edit, {title: "Name and notes"})}${key}${hidden("expectedRevision", release.revision)}${input(edit, "name", "Name", {
-        value: release.name || release.tag,
-        maxlength: 250
+        value: release.name && release.name !== release.tag ? release.name : "",
+        was: true,
+        maxlength: 250,
+        hint: "Empty: the tag's name."
     })}${issues().textField(edit, "Notes", {required: false, rows: 10, island: true, value: release.notes || ""})}${hint(
         release.notes == null && release.notesHtml ? "The notes are replaced by what you write here; empty keeps them as they are." : ""
     )}${issues().textButtons(c, edit, "Save")}${issues().island(c, siteInfo, edit, "Notes")}`

@@ -1756,6 +1756,8 @@ const DO = {
         optional: ["published", "sourceFormat", "operationId"],
         optionalFlags: ["announce"],
         numbers: ["expectedRevision"],
+        // the name of a release's edit form is sent only when changed (an unnamed release's empty field stays unnamed)
+        changed: ["name"],
         confirm: posted => posted.has("expectedRevision") && posted.has("published"),
         adjust: input => {
             if (input.body) input.notes = input.body
@@ -1774,6 +1776,14 @@ const DO = {
         fields: ["repositoryId", "tag", "operationId"],
         optional: ["name", "artifactId", "imageName"],
         upload: true,
+        // before a file is staged: only who may change the release (its capabilities), so a refused upload stores nothing
+        uploadCheck: (input, siteId) => {
+            const found = portal.attempt("getRelease", {siteId, repositoryId: input.repositoryId || "", tag: input.tag || ""})
+            if (found.result?.capabilities?.canEdit) return null
+            return found.error?.kind === "NotFound"
+                ? {message: found.error.message || "This release was not found.", field: null, notFound: true}
+                : {message: "Only a Maintainer of this repository adds files to its releases.", field: null, reason: "accessDenied"}
+        },
         notice: () => "The file was added to the release."
     },
     removeReleaseAsset: {fields: ["repositoryId", "assetId"], confirm: true, notice: () => "The file was removed from the release."},
@@ -1926,7 +1936,10 @@ function run(name, siteId, bases) {
     if (confirm && param("confirm") !== "yes") return refuse({message: "Confirm this change on its own page first.", field: null})
     // DG7: a form whose fields are not the operation's one to one (adjust), and a release's file uploaded with its form
     if (spec.adjust) spec.adjust(input, posted)
+    let stagedId = null
     if (spec.upload && ec.web.multiPartParameters?.file) {
+        const checked = spec.uploadCheck ? spec.uploadCheck(input, siteId) : null
+        if (checked) return refuse(checked)
         const staged = portal.attempt(
             "stageAttachment",
             {siteId, purpose: "repositoryFile", repositoryId: input.repositoryId || "", file: ec.web.multiPartParameters.file},
@@ -1937,9 +1950,12 @@ function run(name, siteId, bases) {
         if (attachment.scanState && attachment.scanState !== "clean")
             return refuse({message: "The file was held by the scanner and was not added.", field: "file"})
         input.attachmentId = attachment.attachmentId
+        stagedId = attachment.attachmentId
     }
     // in its own transaction, so a refusal does not undo this transition's answer
     const out = portal.attempt(name, {siteId, ...input}, {newTransaction: true})
+    // a file staged for a write that was refused is not kept
+    if (out.error && stagedId) portal.attempt("removeStagedAttachment", {siteId, attachmentId: stagedId}, {newTransaction: true})
     // a change of the account's git access asks for the password again: that refusal is not a sign-in's
     if (out.error && spec.account && out.error.kind === "AuthenticationRequired") {
         // the password (and the second factor's code) again; or, for an account that has no password, a fresh sign-in

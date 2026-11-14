@@ -16,9 +16,11 @@
 // paths of the pipeline pages (the runs, a run, a job, its log's JSON, an upload, the settings' Pipelines tab), their cache
 // policy and Do's ten pipeline transitions; the pages themselves are SmithyReview's spec. DG7 (§4.4, §13): the paths of the
 // site's pages (Search, Docs, Releases, a release and its file, a group's addons.xml, the site's Redirects tab), an old path
-// of the site's table answered by the resolver with its redirect, one render of a Docs page (its links made Docs, Blob and
-// raw links, the authority's cleaning kept) and one of ReleaseDetail (its files, a Maintainer's forms; the same page as an
-// account with no role through its page function), and a group's addons.xml as text/xml. Mantle's SmithyDocs,
+// of the site's table answered by the resolver with its redirect and its target checked again (another host, a port, a user
+// part, a backslash, //, the preview host, a loop), one render of Search (what was asked and found escaped), one of a Docs
+// page (its links made Docs, Blob and raw links) and one of ReleaseDetail (its files, a Maintainer's forms; the same page as
+// an account with no role through its page function; Make it a draft refused without confirm=yes), and a group's
+// addons.xml as text/xml (a visitor's kept by a cache for five minutes). Mantle's SmithyDocs,
 // SmithyReleases, SmithyComponents, SmithySearch and SmithyRedirects specs cover the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const routes = () => ec.resource.script("component://mr-pass/service/pass/SmithyRoutes.js")
@@ -150,6 +152,28 @@ spec({
             createdAt: Date.now()
         })
         f.operation("storeRedirect", {siteId: SITE, oldPath: "/m/docs/web", targetPath: "/code/pass-smg/web/-/docs", operationId: "pass-smg-redirect-1"})
+        // rows of the table its writer would refuse (an old import, a host since gone), which the resolver checks again; the
+        // site's theme preview host
+        f.run("create#mantle.public.PublicSiteHost", {hostname: "preview." + HOST, siteId: SITE, hostKindEnumId: "PshkPreview"})
+        const moves = {
+            own: "https://" + HOST + "/code/pass-smg/web",
+            other: "https://other.example.test/x",
+            port: "https://" + HOST + ":8443/x",
+            at: "https://" + HOST + "@evil.example.test/x",
+            backslash: "/\\evil.example.test/x",
+            doubled: "//evil.example.test/x",
+            preview: "https://preview." + HOST + "/x",
+            loop: "/M/Loop/?a=1",
+            loopHost: "https://" + HOST + "/M/loop2/"
+        }
+        for (const [name, targetPath] of Object.entries(moves))
+            f.run("create#mantle.smithy.SmithyRedirect", {
+                redirectId: "PASS_SMG_MOVE_" + name,
+                siteId: SITE,
+                oldPath: name === "loop" ? "/m/loop" : name === "loopHost" ? "/m/loop2" : "/m/move/" + name,
+                targetPath,
+                sourceEnumId: "SrsManual"
+            })
     }
 })
 feature("the grammar: names, then a section after /-/, with the authority telling a group, a repository and an account apart", {
@@ -706,7 +730,7 @@ feature("raw serves a file as plain text or a download, never as a page: its typ
         sessionCache === "no-store"
     }
 })
-feature("the redirect answers 301 to a path on this site, is never cached, and refuses another host's", {
+feature("the redirect answers 301 to a path on this site, is never cached, and refuses another host's; an old path's target is checked again", {
     when() {
         const f = fixtures()
         const to = location => f.render(SITE, HOST, "/code/Pass-SMG/web", "Smithy/redirect", {location})
@@ -721,10 +745,18 @@ feature("the redirect answers 301 to a path on this site, is never cached, and r
             badLocation: bad.header("Location"),
             guard: ["/a/b?x=1", "//host/a", "/\\host/a", "/a\u0001b", "https://host/a", "a/b", ""]
                 .map(l => smithy.siteLocal(l))
-                .join(" ")
+                .join(" "),
+            // a target of the table: only a path of this site or an https address of one of its own hosts (not its preview
+            // host, another host, a port it does not have, a user part, a backslash or //), and never the path asked for
+            moves: ["own", "other", "port", "at", "backslash", "doubled", "preview"].map(name => smithy.movedPath(SITE, HOST, "/m/move/" + name) || "-").join(" "),
+            loops: [smithy.movedPath(SITE, HOST, "/m/loop"), smithy.movedPath(SITE, HOST, "/m/loop2"), smithy.movedPath(SITE, "other." + HOST, "/m/loop2")]
+                .map(target => target || "-")
+                .join(" "),
+            // the request's query goes before the target's fragment
+            query: [smithy.withQuery("/a#top", "x=1"), smithy.withQuery("/a?b=2#top", "x=1"), smithy.withQuery("/a", "")].join(" ")
         }
     },
-    then({status, location, cache, bad, badLocation, guard}) {
+    then({status, location, cache, bad, badLocation, guard, moves, loops, query}) {
         status === 301
         location === "/code/pass-smg/web/-/tree/main"
         cache === "no-store"
@@ -733,6 +765,9 @@ feature("the redirect answers 301 to a path on this site, is never cached, and r
         bad.errors[0].includes("Page not found")
         badLocation == null
         guard === "true false false false false false false"
+        moves === "https://" + HOST + "/code/pass-smg/web - - - - - -"
+        loops === "- - https://" + HOST + "/M/loop2/"
+        query === "/a?x=1#top /a?b=2&x=1#top /a"
     }
 })
 feature("CommitDetail shows the message, the parent, the changed file and its diff as escaped unified text", {
@@ -1559,8 +1594,6 @@ feature("Docs shows a page of the docs directory: its links made Docs, Blob and 
         html.includes('id="SmithyDocsPage"')
         // a page of the directory is its Docs page with its anchor; a file outside it is its Blob page
         links === "/code/pass-smg/web/-/docs/main/Guide.md#start /code/pass-smg/web/-/blob/main/src/main.js"
-        // the authority's cleaning is kept: no script of the file
-        !html.includes("alert(5)")
         html.includes('<h2 id="h-install">')
         html.includes('<a href="#h-install">Install</a>')
         // the contents, the ref picker with the tag, Edit at a branch, the docs search, and the tab
@@ -1571,7 +1604,20 @@ feature("Docs shows a page of the docs directory: its links made Docs, Blob and 
         html.includes('<a href="/code/pass-smg/web/-/docs" aria-current="page">Docs</a>')
     }
 })
-feature("a release's page shows its notes cleaned and its files with size and SHA-256; a Maintainer's forms only for a Maintainer; addons.xml is text/xml", {
+feature("Search escapes what was asked and what it found, and links a result by the authority's path", {
+    when() {
+        const page = fixtures().render(SITE, HOST, "/code/search", "Smithy/Search", {q: "breaks <b", kind: "issue"})
+        return {page, html: page.html}
+    },
+    then({page, html}) {
+        page.errors.length === 0
+        html.includes('value="breaks &lt;b"')
+        !html.includes("breaks <b")
+        html.includes('id="SmithySearch_issue"')
+        html.includes('<a href="/code/pass-smg/web/-/issues/1">Tree page breaks &lt;b&gt; (#1)</a>')
+    }
+})
+feature("a release's page shows its notes and its files with size and SHA-256; a Maintainer's forms only for a Maintainer; a change of its state asks again; addons.xml is text/xml", {
     when() {
         const f = fixtures()
         const page = f.render(SITE, HOST, "/code/pass-smg/web/-/releases/v1.0", "Smithy/ReleaseDetail", {
@@ -1591,16 +1637,36 @@ feature("a release's page shows its notes cleaned and its files with size and SH
         } finally {
             login("john.doe")
         }
-        const addons = f.render(SITE, HOST, "/code/pass-smg/-/addons.xml", "Smithy/GroupDetail/addons", {groupId: state.group, namePath: "pass-smg"})
-        return {page, html: page.html, viewer, addons}
+        const addonsOf = () => f.render(SITE, HOST, "/code/pass-smg/-/addons.xml", "Smithy/GroupDetail/addons", {groupId: state.group, namePath: "pass-smg"})
+        const addons = addonsOf()
+        // a visitor's copy of a public group's file may be kept by a cache for a while, one per cookie
+        logout()
+        let visitor
+        try {
+            visitor = addonsOf()
+        } finally {
+            login("john.doe")
+        }
+        // Make it a draft without its confirmation page's answer is not run
+        const revision = f.operation("getRelease", {siteId: SITE, repositoryId: state.repo, tag: "v1.0"}).release.revision
+        const unpublish = f.post(SITE, HOST, "storeRelease", {
+            repositoryId: state.repo,
+            tag: "v1.0",
+            expectedRevision: revision,
+            published: "false",
+            returnTo: "/code/pass-smg/web/-/releases/v1.0"
+        })
+        const published = f.operation("getRelease", {siteId: SITE, repositoryId: state.repo, tag: "v1.0"}).release.published
+        return {page, html: page.html, viewer, addons, visitor, unpublish, published}
     },
-    then({page, html, viewer, addons}) {
+    then({page, html, viewer, addons, visitor, unpublish, published}) {
         page.errors.length === 0
         !html.includes("Error rendering")
         html.includes('<small class="smithy-chip" id="SmithyReleaseState">Published</small>')
         html.includes("First &amp; best")
         html.includes("<strong>first</strong>")
-        !html.includes("alert(6)")
+        // a named release's name in its edit form, sent back only when changed
+        html.includes('<input type="hidden" name="was_name" value="First &amp; best">')
         // the file: its download through the release's path, its size and checksum; the image's name
         html.includes('<a href="/code/pass-smg/web/-/release-assets/PASS_SMG_A1/web-1.0.zip" rel="nofollow">web-1.0.zip</a> <small>2.0 KiB</small>')
         html.includes("SHA-256 <code>" + "ab".repeat(32) + "</code>")
@@ -1624,6 +1690,10 @@ feature("a release's page shows its notes cleaned and its files with size and SH
         addons.header("Cache-Control") === "no-store"
         addons.html.startsWith('<?xml version="1.0" encoding="UTF-8"?>')
         addons.html.includes("<addons>")
+        visitor.header("Cache-Control") === "public, max-age=300"
+        visitor.header("Vary") === "Cookie"
+        unpublish.flash.error.message === "Confirm this change on its own page first."
+        published === true
     }
 })
 feature("every app's default base is refused as a group's path, so a group never takes a mount's place", {

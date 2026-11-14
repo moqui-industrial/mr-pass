@@ -12,7 +12,7 @@
 const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
 const forms = ec.resource.script("component://mr-pass/screen/Smithy/SmithyForms.js")
 const issuePages = ec.resource.script("component://mr-pass/screen/Smithy/SmithyIssues.js")
-const {portal, fail, need, maybe, param, enc, query, dateText, holds} = smithy
+const {portal, fail, need, maybe, param, enc, query, dateText, holds, plain} = smithy
 const {Markup, h, attributes, hidden, contextOf, gate, formOf, open, input, textarea, select, check, submit, hint, tabsOf, confirmCard} =
     forms
 const {clean, person, textField, textButtons, postRow, side, WATCH} = issuePages
@@ -362,7 +362,7 @@ function agreementBox(c, shell, request) {
     }</section>`
 }
 /* The checks of the head: each status by context, a ci/ check linked to the run it came from on this site (DG5, the
- * authority's path) or else to its https target, the required ones marked (one not reported yet is "expected"), whether
+ * authority's path) or to nothing, another one to its https target, the required ones marked (one not reported yet is "expected"), whether
  * the head changes ci.xml, and what keeps it from merging; with runs (the Overview's box) the head's runs as links. */
 const checksHtml = (found, id, base, runs) => {
     const list = found.checkList || []
@@ -370,14 +370,19 @@ const checksHtml = (found, id, base, runs) => {
     return h`<section class="card" id="${id}" aria-label="Checks"><p><strong>Checks</strong></p>${
         list.length ? "" : h`<p>No check has reported on the head commit.</p>`
     }${list.map(item => {
-        const href = item.path ? (base || "") + item.path : httpsOf(item.targetUrl)
+        const href = item.path
+            ? (base || "") + item.path
+            : String(item.context || "").startsWith("ci/")
+              ? null
+              : httpsOf(item.targetUrl)
+        const context = plain(item.context)
         return h`<p class="wrap"><strong>${checkText(item.state)}</strong> · ${
-            href ? h`<a href="${href}"${attributes({rel: item.path ? null : "nofollow noopener"})}>${item.context}</a>` : item.context
-        }${item.required ? h` <small class="smithy-chip">Required</small>` : ""}${item.description ? " · " + item.description : ""}</p>`
+            href ? h`<a href="${href}"${attributes({rel: item.path ? null : "nofollow noopener"})}>${context}</a>` : context
+        }${item.required ? h` <small class="smithy-chip">Required</small>` : ""}${item.description ? " · " + plain(item.description) : ""}</p>`
     })}${
         runList.length
             ? h`<p id="SmithyChecksRuns"><small>Runs: ${runList.map(
-                  (run, i) => h`${i ? ", " : ""}<a href="${(base || "") + run.path}">#${run.runNum} ${run.pipelineName}</a> ${run.state}`
+                  (run, i) => h`${i ? ", " : ""}<a href="${(base || "") + run.path}">#${run.runNum} ${plain(run.pipelineName)}</a> ${run.state}`
               )}</small></p>`
             : ""
     }${

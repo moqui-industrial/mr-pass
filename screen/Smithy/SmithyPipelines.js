@@ -10,7 +10,7 @@
  * job's new lines. None of these pages is kept by a cache (Shared/Headers.js). CC0 plus patent grant. */
 const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
 const forms = ec.resource.script("component://mr-pass/screen/Smithy/SmithyForms.js")
-const {portal, fail, need, maybe, param, enc, query, dateText, sizeText, shortId} = smithy
+const {portal, fail, need, maybe, param, enc, query, dateText, sizeText, shortId, plain, ANSI, CONTROL} = smithy
 const {Markup, h, attributes, hidden, contextOf, gate, formOf, open, input, select, check, submit, hint, confirmCard} = forms
 
 /* A job's or a run's states that are final: nothing more is written to its log. */
@@ -80,12 +80,12 @@ function durationText(seconds) {
     if (n < 3600) return Math.floor(n / 60) + " min " + Math.round(n % 60) + " s"
     return Math.floor(n / 3600) + " h " + Math.floor((n % 3600) / 60) + " min"
 }
-/* A ref as the pages write it: a branch's name, "tag v1" for a tag. */
+/* A ref as the pages write it: a branch's name, "tag v1" for a tag; plain text. */
 function refText(refName) {
     const ref = String(refName || "")
-    if (ref.startsWith("refs/heads/")) return ref.slice(11)
-    if (ref.startsWith("refs/tags/")) return "tag " + ref.slice(10)
-    return ref
+    if (ref.startsWith("refs/heads/")) return plain(ref.slice(11))
+    if (ref.startsWith("refs/tags/")) return "tag " + plain(ref.slice(10))
+    return plain(ref)
 }
 /* The words of a run's message without the refusal's code in front (quotaExceeded: ...). */
 const messageText = message => plain(String(message || "").replace(/^[a-z][A-Za-z]{2,40}: /, ""))
@@ -108,7 +108,7 @@ function runLine(c, repositoryPath, run, more) {
             ? run.failedTestCount + (Number(run.failedTestCount) === 1 ? " test failed" : " tests failed")
             : null
     ].filter(fact => fact != null && fact !== "")
-    return h`<article class="card smithy-row" id="SmithyRun_${run.runNum}"><h3 class="wrap"><a href="${pu.run(run.runNum)}">#${run.runNum} ${run.pipelineName}</a> ${chip(
+    return h`<article class="card smithy-row" id="SmithyRun_${run.runNum}"><h3 class="wrap"><a href="${pu.run(run.runNum)}">#${run.runNum} ${plain(run.pipelineName)}</a> ${chip(
         run.state
     )}${run.trusted === false ? h` <small class="smithy-chip">Outside run</small>` : ""}</h3><p><small>${facts.map((fact, i) => h`${i ? " · " : ""}${fact}`)}</small></p>${
         run.message ? h`<p class="wrap"><small>${messageText(run.message)}</small></p>` : ""
@@ -171,7 +171,7 @@ function runForm(c, shell, found) {
         f,
         "pipelineName",
         "Pipeline",
-        names.map(name => [name, name])
+        names.map(name => [name, plain(name)])
     )}${input(f, "refName", "Branch or tag", {
         value: shell.repository.defaultBranch || "main",
         required: true,
@@ -200,18 +200,12 @@ function stagesOf(jobs) {
     }
     return stages.filter(Boolean)
 }
-const jobName = job => job.jobName + (job.matrixKey ? " (" + job.matrixKey + ")" : "")
+/* A job's name as a page shows it, from the ci.xml: its matrix key after it, both plain text (Smithy.js plain). */
+const jobName = job => plain(job.jobName) + (job.matrixKey ? " (" + plain(job.matrixKey) + ")" : "")
 
 /* A job's log, from the text a job printed, as the lines a page shows: each line's terminal escapes (colors, cursor moves)
- * and other control characters taken out, and of a line rewritten by carriage returns (a progress bar) its last text. */
-// eslint-disable-next-line no-control-regex
-const ANSI = /\u001b(?:\[[0-?]*[ -\/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|[@-Z\\-_])/g
-/* The control characters taken out of what a job wrote (its log, a test's name and message, a step's name and command, a
- * message): C0 but tab and newline, DEL, C1, and the bidirectional overrides and isolates (U+202A to U+202E, U+2066 to
- * U+2069), which would make a line read otherwise than it is. */
-// eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g
-const plain = text => String(text ?? "").replace(ANSI, "").replace(CONTROL, "")
+ * and other control characters taken out (Smithy.js plain), and of a line rewritten by carriage returns (a progress bar)
+ * its last text. */
 function logLines(text) {
     const lines = String(text ?? "").split("\n")
     if (lines.length && lines[lines.length - 1] === "") lines.pop()
@@ -230,24 +224,11 @@ const logHtml = (lines, first) =>
     )
 /* The UTF-8 length of a text in bytes. */
 const utf8Length = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
-/* The bytes of a job's log a page or one of the island's reads holds at most, about: a page is 500 chunks or this. */
-const LOG_PAGE_BYTES = 262144
-/* The longest start of a text that is at most bytes long in UTF-8. */
-function cutBytes(text, bytes) {
-    let used = 0
-    let at = 0
-    for (const c of text) {
-        const size = utf8Length(c)
-        if (used + size > bytes) break
-        used += size
-        at += c.length
-    }
-    return text.slice(0, at)
-}
 /* A piece of a job's log (getJobLog): while it runs the chunks after after, once it has ended the stored log from offset.
  * {lines, after, offset, more, finished, state, pollSeconds, notification}: after and offset are where the next read
- * starts (both are passed back, so no line is lost when the job ends between two reads), more that the log has more past
- * this piece. An ended log's piece ends at its last whole line. */
+ * starts, as the authority gives them (both are passed back, so no line is lost when the job ends between two reads), more
+ * that the log has more past this piece: the authority's more (its chunk limit or its byte bound, about 256 KB, cut the
+ * answer), or an ended log's offset short of its length. An ended log's piece with more ends at its last whole line. */
 function readLog(input, at, watch) {
     const found = portal.attempt("getJobLog", {...input, afterChunkSeq: at.after, offset: at.offset, limit: 500, watch: !!watch})
     if (found.error)
@@ -256,47 +237,21 @@ function readLog(input, at, watch) {
             found.error.kind === "NotFound" ? null : found.error.message
         )
     const out = found.result
+    let offset = out.nextOffset != null ? Number(out.nextOffset) : at.offset
+    let more = out.more === true
     let text
-    let offset = out.nextOffset ?? at.offset
-    let more
-    let after = null
     if (out.finished) {
         text = String(out.text ?? "")
-        more = out.nextOffset != null && out.logBytes != null && Number(out.nextOffset) < Number(out.logBytes)
+        if (!more) more = out.nextOffset != null && out.logBytes != null && Number(out.nextOffset) < Number(out.logBytes)
         const cut = text.lastIndexOf("\n")
-        if (more && cut >= 0) {
+        if (more && cut >= 0 && cut < text.length - 1) {
             text = text.slice(0, cut + 1)
             offset = at.offset + utf8Length(text)
         }
-        // a page holds about LOG_PAGE_BYTES: an ended log's piece is cut at its last whole line within it
-        if (utf8Length(text) > LOG_PAGE_BYTES) {
-            const within = cutBytes(text, LOG_PAGE_BYTES)
-            const end = within.lastIndexOf("\n")
-            text = end >= 0 ? within.slice(0, end + 1) : within
-            offset = at.offset + utf8Length(text)
-            more = true
-        }
-    } else {
-        // the chunks of a running job up to about LOG_PAGE_BYTES (the first always); the rest is the next read's
-        const chunks = out.chunkList || []
-        const kept = []
-        let bytes = 0
-        for (const chunk of chunks) {
-            const size = utf8Length(String(chunk.text || ""))
-            if (kept.length && bytes + size > LOG_PAGE_BYTES) break
-            bytes += size
-            kept.push(chunk)
-        }
-        text = kept.map(chunk => chunk.text || "").join("")
-        more = chunks.length >= 500 || kept.length < chunks.length
-        if (kept.length < chunks.length) {
-            const last = kept[kept.length - 1]
-            if (last?.chunkSeq != null) after = Math.max(Number(last.chunkSeq), at.after)
-        }
-    }
+    } else text = (out.chunkList || []).map(chunk => chunk.text || "").join("")
     return {
         lines: logLines(text),
-        after: after != null ? after : out.nextChunkSeq != null ? Math.max(Number(out.nextChunkSeq) - 1, at.after) : at.after,
+        after: out.nextChunkSeq != null ? Math.max(Number(out.nextChunkSeq) - 1, at.after) : at.after,
         offset: Number(offset) || 0,
         more,
         finished: !!out.finished,
@@ -335,7 +290,7 @@ function runPage(shell, runNum, jobRunId, bases, siteInfo, self) {
                     "This stops run #" +
                         run.runNum +
                         " of " +
-                        run.pipelineName +
+                        plain(run.pipelineName) +
                         ": its running jobs are stopped and the jobs that have not started do not run.",
                     "Its checks are reported as cancelled. A run that was cancelled can be run again."
                 ],
@@ -380,7 +335,7 @@ function runPage(shell, runNum, jobRunId, bases, siteInfo, self) {
                                       job.testFailedCount +
                                       (Number(job.testFailedCount) === 1 ? " test failed" : " tests failed")
                                     : ""
-                            }${(job.needs || []).length ? h` <small>after ${job.needs.join(", ")}</small>` : ""}</li>`
+                            }${(job.needs || []).length ? h` <small>after ${job.needs.map(plain).join(", ")}</small>` : ""}</li>`
                     )}</ul>`
             )}</section>`.html
         }
@@ -397,7 +352,7 @@ function runPage(shell, runNum, jobRunId, bases, siteInfo, self) {
             ? h`${open(c, formOf(c, "retryJobRun"), {plain: true})}${runKey}${hidden("jobRunId", job.jobRunId)}${hidden("operationId", portal.operationId())}<p><button>Retry this job</button></p></form>`
             : ""
     const facts = [
-        job.image ? "image " + job.image : null,
+        job.image ? "image " + plain(job.image) : null,
         job.attempt > 1 ? "attempt " + job.attempt : null,
         job.exitCode != null ? "exit code " + job.exitCode : null,
         job.startedAt ? "started " + dateText(job.startedAt) : null,
@@ -456,7 +411,7 @@ function runHead(c, pu, run) {
         run.trusted ? "trusted" : "outside run: no secrets, its own pool",
         run.definitionSource === "builtin" ? "the built-in pipeline" : null
     ].filter(Boolean)
-    return h`<article id="SmithyRun" class="wrap"><h2>${run.pipelineName} <small>#${run.runNum}</small></h2><p>${chip(run.state, "SmithyRunState")} ${eventText(run.event)} · ${
+    return h`<article id="SmithyRun" class="wrap"><h2>${plain(run.pipelineName)} <small>#${run.runNum}</small></h2><p>${chip(run.state, "SmithyRunState")} ${eventText(run.event)} · ${
         run.mergeRequestNum
             ? h`<a href="${pu.u.section("merge-requests")}/${encodeURIComponent(run.mergeRequestNum)}">!${run.mergeRequestNum}</a>`
             : refText(run.refName)
@@ -527,7 +482,7 @@ function artifacts(pu, detail) {
     if (!list.length) return ""
     return h`<section class="card" id="SmithyArtifacts" aria-label="Artifacts"><h3>Artifacts and reports</h3><ul>${list.map(
         a =>
-            h`<li class="wrap"><a href="${pu.artifact(a.artifactId, a.fileName || a.name)}" rel="nofollow">${a.name}</a> <small>${
+            h`<li class="wrap"><a href="${pu.artifact(a.artifactId, a.fileName || a.name)}" rel="nofollow">${plain(a.name)}</a> <small>${
                 a.artifactKind === "report" ? "report" : "artifact"
             }${a.sizeBytes != null ? " · " + sizeText(a.sizeBytes) : ""}${a.sha256 ? h` · SHA-256 <code>${String(a.sha256).slice(0, 12)}</code>` : ""}${
                 a.expiresAt ? " · until " + dateText(a.expiresAt) : ""
@@ -886,6 +841,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
     stateText,
     durationText,
     logLines,
+    testPath,
     runLine,
     pipelines,
     runPage,

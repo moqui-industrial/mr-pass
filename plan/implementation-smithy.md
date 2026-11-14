@@ -400,8 +400,8 @@ Differences from the design:
 - The Search page's place is `?in=<path>` (the design's "scope"), and the kinds are one select, not several filters.
 - Docs search is the Search page with `kind=docs` and the repository, not a box of its own results.
 - The ref picker goes to the directory's index at the chosen ref, not to the same page there (which may not be).
-- A release's notes are rendered by the authority and shown; the edit form starts empty unless the read gives the notes'
-  source (`release.notes`), which `getRelease` does not yet: what is written replaces them, an empty field keeps them.
+- A release's notes are rendered by the authority and shown; the edit form holds the notes' source, which `getRelease`
+  gives a Maintainer (`notes`, since the review); what is written replaces them, an empty field keeps them.
 - Publishing and making a draft again are asked on a page of their own (the design says nothing of it); Announce is
   offered there and on a published release.
 - A release's file download is `no-store` for a public repository too (the facade's rule; a release may be withdrawn).
@@ -412,13 +412,56 @@ Differences from the design:
 
 Findings for other lanes:
 
-- Mantle: `get#Release` answers the notes rendered (`notesHtml`) but not their source, so a page cannot fill the notes'
-  editor; `getGroup` or `getGroupLanding` does not answer the group's `newsContactListId` (nor its landing file when the
-  file is gone), so the Landing form cannot show them.
-- Mantle: a release's name with `<` or `>` is refused by `mantle.work.ProjectServices.create#Release` ("HTML not allowed"
-  on the description) with the service's own message, not a field refusal of `storeRelease`.
+- Mantle: `getGroup` or `getGroupLanding` does not answer the group's `newsContactListId` (nor its landing file when the
+  file is gone), so the Landing form cannot show them. (The notes' source and a field refusal of a name with `<` or `>`
+  are Mantle's since its review.)
 
 Not built: the acceptance walks of the site (the old links of the inventory landing where they should; `component-get`
 from the staging host); the 390 px check of these pages in a browser (the Docs contents drawer and the Overview's one
 column are CSS, not checked in a browser); an edit of a redirect; a group's Releases page (`findReleases` by `groupId`); a
 docs page cached by PASS (Mantle caches the rendering by blob id).
+
+### DG7 review fixes
+
+From the review of the DG7 pages (760173c), matching Mantle's fixes of its review:
+
+- **Archives.** Files links a visitor of a public repository to the archive at a branch or a tag only (`tree.ref.kind`),
+  not at a commit id, which Mantle serves a signed-in account alone; Tags and a release link a tag's.
+- **A job's log.** `readLog` takes Mantle's bounds as they are: `more` is `getJobLog`'s `more` (its chunk limit or its
+  byte bound cut the answer), or an ended log's `nextOffset` short of `logBytes`; `after` and `offset` are the answer's
+  `nextChunkSeq` and `nextOffset`, which Mantle moves back over what it left out. PASS's own byte cut of a running job's
+  chunks (`LOG_PAGE_BYTES`, which kept `after` but not `offset`, so a job that ended between two reads lost the chunks
+  past the cut) is gone; an ended log's piece with more still ends at its last whole line, with `offset` moved to it. So
+  Load more appears on a running job whose log is longer than one read (it did not: the page counted 500 chunks of a
+  read that holds 100).
+- **A ci/ check's link.** CommitDetail and a merge request's checks link a `ci/` status to its own run on this site (the
+  run and job its target names, or the authority's `path`) or to nothing, never to its https target; a status of another
+  context keeps its https target.
+- **Redirects.** `redirectRoute` puts the request's query before the target's `#fragment` (`withQuery`). `ownAddress`
+  refuses the site's theme preview host (`ShopPreview.js` `isPreviewHost`), as Mantle's `siteTarget` does. `movedPath`
+  refuses a target that is the path asked for on the same host, as `resolve#Redirect` looks a path up (no query or
+  fragment, no trailing slash, percent-decoded, lower case), so a row cannot answer itself in a loop.
+- **Plain text.** `plain` (and its `ANSI` and `CONTROL`) moved to `Smithy.js`, and is used also on a job's name and matrix
+  key, its image and its needs, a pipeline's name (run lists, a run's head, Cancel, Run pipeline's choices, Checks, a
+  commit's runs), an artifact's name (a job's artifacts, Attach a pipeline run's file), a run's ref text, a search result's
+  title and snippet, a component's description in Explore, and a check's context and description.
+- **Docs ref picker.** The choice is redirected only when it is a branch or a tag of the page's `refList` (or the ref shown);
+  any other value is not taken, so the parameter cannot name a path. The page is read first.
+- **A release's file upload.** `run` asks `getRelease` first (`uploadCheck`) and stages the file only for
+  `capabilities.canEdit`; a release that is not there is Not Found's refusal, anyone else's is refused before anything
+  is stored. A file staged for a write that is then refused is removed (`removeStagedAttachment`).
+- **An unnamed release.** Mantle names an unnamed release by its tag, so the edit form's Name is empty when the name is the
+  tag, and is sent only when changed (`was_name`; `storeRelease` `changed`): a save of the notes leaves the release
+  unnamed. The notes' editor is filled from `getRelease`'s `notes` (Mantle now gives a Maintainer the stored text).
+- **Tests.** Smithy: an old path's target checked again (rows the writer would refuse: another host, a port, a user part,
+  a backslash, `//`, the preview host; a loop on the same host, the same row from another host kept); `withQuery`; one
+  render of Search (the query and a result's title escaped); a visitor's `addons.xml` (`public, max-age=300`,
+  `Vary: Cookie`); Make it a draft without `confirm=yes` refused; the release's `was_name`; the Docs and ReleaseDetail
+  renders no longer check Mantle's cleaning again. SmithyReview: the checks with a `ci/` status that has an https target
+  (no link) and another context's (linked); the log's JSON rendered once, its Not Found cases (another job, pipelines
+  off) and an upload's with pipelines off through `logJson` and `artifact`; `testPath`'s refusals; `plain` on C0, C1, DEL,
+  bidi and terminal escapes. Load more on a running job is not checked by a render: it needs Mantle's `more`.
+- **Registries.** Not copied again: Mantle's working `SmithySchema.js` and `PassRoutes.js` now hold DG8's operations
+  (`resolveRedirect` and the GitHub import's), whose `cancelImport` is also the forum's mbox `cancelImport`
+  (`ForumSchema.js`), so one facade could not hold both. PASS keeps the DG7 copies (130 operations) until Mantle renames
+  it; the registries' check of Smithy's spec fails until then.
