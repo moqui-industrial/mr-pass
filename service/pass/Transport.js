@@ -120,6 +120,9 @@ const TOKEN_WRITES = [
     // and its confirmation link's POST (input.token)
     'requestSubscription',
     'verifySubscription',
+    // IronStone Marketing P12: a form's answer (anonymous for a public publication: PASS's request key, its limits and the neutral
+    // receipt bound it; an invitation's link with input.token)
+    'submitMarketingForm',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -220,6 +223,8 @@ function routeOf(operation, input) {
         operation !== 'getCart' &&
         // IronStone Marketing P7: a visitor's subscription request has no token (PASS's request key and the authority's limits)
         operation !== 'requestSubscription' &&
+        // IronStone Marketing P12: a visitor's answer to a public form has no token (PASS's request key and the authority's limits)
+        operation !== 'submitMarketingForm' &&
         // a link's or cart's token, or (Shop P5) a checkout's return key or a guest's order link
         !(
             TOKEN_WRITES.includes(operation) &&

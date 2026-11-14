@@ -326,10 +326,11 @@ has the app, a quote goes out with no link and customers cannot accept online (S
 
 The Marketing app (`screen/Marketing.xml`, the `marketing` mount) is IronStone Marketing's public subscription pages for one
 organization, its mount's target: `{"app": "marketing", "pathPrefix": "/marketing", "targetId": "ORG_ID"}`, and `/marketing` in the
-runtime's `<public-site>` mounts (screen `Marketing`). Its pages are Subscribe and VerifySubscription; unsubscribing and changing
-topics are the Account app's Email preferences page, so mount Account too. Readiness adds the app's checks: the target is an
-internal organization, a list is offered on the site (a mount with nothing published is named), the organization has a ready
-sending profile, each offered list's policy names a published confirmation template, and the site has a canonical host.
+runtime's `<public-site>` mounts (screen `Marketing`). Its pages are Subscribe, VerifySubscription and SubmitForm (a published
+survey's form); unsubscribing and changing topics are the Account app's Email preferences page, so mount Account too. Readiness
+adds the app's checks: the target is an internal organization, a list is offered or a form publication open on the site (a mount
+with nothing published is named), the organization has a ready transactional sending profile, each offered list's policy names a
+published confirmation template, and the site has a canonical host.
 
 - **Publishing a list.** A list is offered only by its subscription policy (BOSS Marketing › Audiences › a list › Subscription
   policy): Public offer, this site, and the interval it is open. The list's legacy public flag offers nothing. Each offer shows
@@ -353,9 +354,23 @@ sending profile, each offered list's policy names a published confirmation templ
   offered on the site show with the recipient's state: turning one off unsubscribes it (with an optional reason, kept on the
   withdrawal), turning one on sends a verification message first (a signed-in account's verified address is accepted at once), and
   "No more email from" the organization leaves all its lists and withdraws its marketing email for that organization alone.
-- **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` (an
-  anonymous write the transport lets through, bounded by the request key and the limits) and `verifySubscription` (a link's token)
-  are `TOKEN_WRITES`, accepted from a registered deployment without a member session.
+- **Forms (SubmitForm).** A survey, lead form or registration questions built in BOSS Marketing › Surveys is answered here once a
+  content author publishes it in Distribution with this site: to anyone (`/marketing/SubmitForm?publication=ID`, the link and QR
+  Distribution shows), to signed-in accounts (the visitor signs in first), or by invitation (each recipient of an invitation send
+  gets a link of their own, `/marketing/SubmitForm?token=`, which answers once; only the token's digest is kept, and the link ends
+  with the publication or after 30 days). The page asks the form's published questions as of now with their show and require rules
+  (the framework's `/js/moqui-form-when.js`; without it every question shows and the server checks the rules again), and the
+  publication's subscription choice as a separate box with its own address, which files a pending request with its own
+  verification message, as Subscribe does; an answer never subscribes anyone. A draft, closed or another site's form and a wrong
+  link show the same "not available". An answer is checked on the server (only the form's questions, each value of its type, a
+  question its rules hide refused) and kept once per request key; the receipt is the publication's own words, the same whatever was
+  kept. Limits: 30 answers in ten minutes from a client and 1,000 an hour on a site; over either, an answer over 64 KB, or one naming
+  a field the page never offered, gets the same receipt and nothing is kept. Responses are read in BOSS Marketing › Surveys ›
+  Responses, never on PASS.
+- **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` and
+  `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
+  answer carries its link's token) and `verifySubscription` (a link's token) are `TOKEN_WRITES`, accepted from a registered
+  deployment without a member session.
 
 ## Shop app
 
