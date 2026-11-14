@@ -6,10 +6,16 @@
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Files">
+  <pre-actions>
+    <script><![CDATA[
+        // read before anything renders: the ref picker's choice and a path that is a file are answered by a redirect
+        smithyFiles=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').files(smithyRepository,String(refPath || ''))
+        if(smithyFiles.redirect){ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').redirectBefore(sri,smithyFiles.redirect);return}
+    ]]></script>
+  </pre-actions>
   <actions>
     <script><![CDATA[
-        view=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').files(smithyRepository,String(refPath || ''))
-        if(view.redirect)sri.sendRedirectAndStopRender(view.redirect)
+        view=smithyFiles
     ]]></script>
   </actions>
   <widgets>

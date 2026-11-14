@@ -11,7 +11,7 @@
     <script><![CDATA[
         // the choice of "New issue in" goes to that repository's form, before anything renders
         const chosen=ec.resource.script('component://mr-pass/screen/Smithy/SmithyIssues.js').groupNewIssue(resolvedSiteId,String(groupId || ''),passBases.smithy)
-        if(chosen){sri.sendRedirectAndStopRender(chosen);return}
+        if(chosen){ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').redirectBefore(sri,chosen);return}
     ]]></script>
   </pre-actions>
   <actions>

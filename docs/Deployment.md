@@ -392,7 +392,7 @@ preview host's name apart from the BOSS host's all the same.
 ## Smithy app
 
 Smithy (`screen/Smithy.xml`; [design](../plan/design-smithy.md)) is public git hosting over the framework's git host and
-Mantle's `mantle.smithy` services: groups, repositories, their code and their issues. It runs where the git data is, so mount it on the
+Mantle's `mantle.smithy` services: groups, repositories, their code, their issues and their merge requests. It runs where the git data is, so mount it on the
 authority's own instance. It is bound to no business record (no target), a site has one Smithy mount, and it may be the
 site's root app:
 
@@ -412,7 +412,9 @@ name the same path, as for every app.
 - **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
   `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
   `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/issues`, `/-/issues/new`,
-  `/-/issues/<n>`, `/-/labels`, `/-/milestones`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`, `/-/members`,
+  `/-/issues/<n>`, `/-/labels`, `/-/milestones`, `/-/merge-requests`, `/-/merge-requests/new`, `/-/merge-requests/<n>` (and its
+  `/commits`, `/changes`, `/checks`), `/-/fork`, `/-/forks`, `/-/edit/<ref>/<path>` (and `/-/new/…`, `/-/upload/…`,
+  `/-/delete/…`), `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`, `/-/members`,
   `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
   the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
   and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
@@ -428,12 +430,18 @@ name the same path, as for every app.
   sees public repositories alone, and that answer has `Vary: Cookie`; every other request, and every answer to a form's
   post, is `no-store` (`screen/Shared/Headers.js`). An issue page (`/-/issues…`, `/-/labels`, `/-/milestones…`) and a commit's page
   (`/-/commit/<id>`, which names its issues) are `no-store` for a visitor too: an issue may be made confidential, and no
-  cache should still have its page. The Issues tab shows its count to a signed-in account only. A raw file is served as
+  cache should still have its page. A merge request's pages (`/-/merge-requests…`; one may be held for review), the pages
+  that edit a file and the fork pages are `no-store` for a visitor as well. The Issues and Merge requests tabs show their
+  counts to a signed-in account only. A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
 - **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
   The one exception is a form with a text on an issue page (a new issue, a comment, an edit), shown to a signed-in
   account: it loads the framework's Vue scripts for the editor (`/-/island/Composer.qvue`, Markdown or rich text with a
-  preview in the page). Without JavaScript the form is a Markdown textarea with a Preview button.
+  preview in the page). Without JavaScript the form is a Markdown textarea with a Preview button. Two more pages load
+  them, with the framework's code widgets (`/js/WebrootCode.js`, which loads CodeMirror from `/libs/codemirror` when an
+  editor mounts): a merge request's Changes (`/-/island/DiffReview.qvue`: a line's comment form opened in place, a file
+  side by side) and a file's edit page (`/-/island/Editor.qvue`: the code editor over the plain textarea). Both pages
+  work without them: the diff is escaped text with an anchor and a comment link for each line, the editor a textarea.
 - **Issues.** A repository's Maintainer turns issues on in its Settings (General); the repository then has the Issues
   tab, Labels and Milestones, and its project in Projects holds the tasks. An issue's conversation is posts of the
   forum's engine, so the site's posting policy, trust levels, word rules, review queue and notification mail apply to
@@ -441,6 +449,37 @@ name the same path, as for every app.
   issue is read by the Owners of the repository and of the groups above it, the site's operators, and its reporter
   (what was filed and the answers); for everyone else its number is Not Found. An Owner makes it public, or a public one
   confidential, on the issue's page, which asks again first.
+- **Merge requests.** A repository has them unless its Maintainer turns them off (Settings, General). One is opened from a
+  branch (Branches, Compare, or `/-/merge-requests/new`), from a fork's branch (`<group>/<repository>:<branch>` as the
+  source), by a push to `refs/for/<branch>` from any account that may view the repository, or by an edit on a file's
+  page. Its conversation is posts of the forum's engine, as an issue's is, so the site's posting policy applies: one
+  that is held shows "Waiting for review" to its author and is Not Found to everyone else until a moderator approves
+  it. A merge and a close are asked again on a page of their own; who may merge, the allowed methods, the approvals and
+  the required checks come from the branch rules (Settings, Branch rules). `git fetch origin refs/merge-requests/<n>/head`
+  fetches one. These are set in mr-mantle's `MoquiConf.xml` on the `git-server` element, and must be kept when a
+  runtime's conf replaces it: `review-start-hidden="true"` (a merge request from a push for review, a proposal or a
+  fork is not readable until Smithy's handler has passed its text through the post gate),
+  `reserved-status-contexts="agreement/,ci/"` (no user reports those checks; the agreement check and the CI engine
+  do) and `merge-request-url` (the page a push's answer names). Mantle sets it to
+  `/{repositoryPath}/-/merge-requests/{mergeRequestNum}`, which is right only where Smithy is the site's root app: with
+  Smithy under a path, set it in the runtime's conf with that prefix (`/code/{repositoryPath}/-/merge-requests/{mergeRequestNum}`). The
+  framework's `review-push`, `review-max-push-bytes` and `review-max-account-bytes` bound pushes for review
+  ([Git-Hosting](../../../../../docs/interfaces/Git-Hosting.md)).
+- **Forks.** Site settings say who may fork (`/-/site`, with who may create). A fork goes to the account's own namespace,
+  so the account needs a handle (its profile in the Account app), or to a group where it is a Maintainer; it is no
+  wider than its parent, and a parent with forks is not deleted.
+- **Editing a file.** A signed-in account with a confirmed address edits a text file on its page (Edit, New file,
+  Upload, Delete; a rename is an edit of the path), up to the site's edit size (`/-/site`, "maxEditBytes", 1 MiB by
+  default) and not a file in Git LFS. The save is a commit by the account: to the branch where it may push, to a new
+  branch with a merge request (the default on a protected branch), or as a proposal with no fork when it may only
+  view. The text of an unfinished edit is kept in the server session for the one next page (the save step, a preview,
+  a conflict), up to two minutes. An upload (any type of file, at most the edit size and 10 MiB) is staged and scanned as a forum
+  attachment is, so the media scanner must be configured for uploads to be accepted.
+- **The contributor agreement.** Off by default. An Owner turns it on for a group or a repository (Settings, Agreement:
+  inherit, off or required, and the file, `AUTHORS.md` by default, which must be in the repository first). Mantle then
+  requires the check `agreement/authors` in the branch rules, computes it for every merge request, and the merge
+  request's page says who is missing what, with a link that opens the file's edit page so the account adds its own
+  line under both lists. An account is matched to a commit's author by its confirmed addresses.
 - **Who may create.** The site's owners and operators set it on `/-/site` under the mount (Site settings in the header):
   who may create a group, a repository of their own and a fork (operators only; by request, which an operator approves or
   refuses on `/-/site/requests`; any account with a confirmed address), the kind of a repository made on a page (`db`, or

@@ -32,7 +32,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1 to DG3); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG4); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -60,10 +60,26 @@ const BUILT = [
     "/Smithy/RepositoryDetail/Settings",
     "/Smithy/NewIssue",
     "/Smithy/IssueDetail",
+    // DG4: merge requests, forks and editing a file on its page
+    "/Smithy/RepositoryDetail/MergeRequests",
+    "/Smithy/NewMergeRequest",
+    "/Smithy/MergeRequestDetail/Overview",
+    "/Smithy/MergeRequestDetail/Commits",
+    "/Smithy/MergeRequestDetail/Changes",
+    "/Smithy/MergeRequestDetail/Checks",
+    "/Smithy/RepositoryDetail/Fork",
+    "/Smithy/RepositoryDetail/Edit",
     // the composer's island (DG3), in each form the client asks a screen's component by
     "/Smithy/Islands/Composer.qvue",
     "/Smithy/Islands/Composer.qvt",
     "/Smithy/Islands/Composer.qjs",
+    // the diff's and the editor's islands (DG4)
+    "/Smithy/Islands/DiffReview.qvue",
+    "/Smithy/Islands/DiffReview.qvt",
+    "/Smithy/Islands/DiffReview.qjs",
+    "/Smithy/Islands/Editor.qvue",
+    "/Smithy/Islands/Editor.qvt",
+    "/Smithy/Islands/Editor.qjs",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
     "/Smithy/redirect"
@@ -71,8 +87,8 @@ const BUILT = [
 /* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
 const BUILT_TABS = {
     "/Smithy/Site": ["settings", "requests", "quotas"],
-    "/Smithy/GroupDetail/Settings": ["general", "quota", "delete"],
-    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "archive"]
+    "/Smithy/GroupDetail/Settings": ["general", "agreement", "quota", "delete"],
+    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "agreement", "archive"]
 }
 const bytes = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
 /* Step 1: the segments of a path, each percent-decoded once. A segment that is . or .., holds a slash or a control

@@ -260,7 +260,33 @@ const ISLAND_SCRIPTS = [
     "/js/WebrootPublic.qvt.js"
 ]
 const COMPOSER = "SmithyComposer"
-function island(c, siteInfo, f, label) {
+/* One island's config and, unless another island of the page has them already, the scripts (more: the widgets an island
+ * needs, loaded before WebrootPublic.qvt.js mounts it). */
+function islandOf(mount, name, c, siteInfo, context, o = {}) {
+    const config = {
+        shell: "island",
+        sessionToken: ec.web.sessionToken,
+        locale: siteInfo.site?.locale || "en",
+        timeZone: siteInfo.site?.timeZone || "UTC",
+        quasar: {dark: "auto"},
+        quasarLang: "enUS",
+        qvt: {build: "compiler", handles: ["merged-fragment", "static-template"]},
+        route: {name: "smithy-" + name.toLowerCase(), basePath: c.base + "/-/island/" + name, title: name, renderModes: ["qvue"]},
+        context,
+        labels: {loading: o.loading || "Loading", notFound: ""}
+    }
+    const scripts = ISLAND_SCRIPTS.slice(0, -1).concat(o.scripts || [], ISLAND_SCRIPTS.slice(-1))
+    return new Markup(
+        '<script type="application/json" data-moqui-island="' +
+            mount +
+            '">' +
+            JSON.stringify(config).split("<").join("\\u003c") +
+            "</script>" +
+            (o.noScripts ? "" : scripts.map(src => '<script src="' + src + '"></script>').join(""))
+    )
+}
+function island(c, siteInfo, f, label, o) {
+    if (o) return islandOf(COMPOSER, "Composer", c, siteInfo, {formId: f.id, previewOf: f.name, previewUrl: c.base + "/-/do/previewPost", label}, o)
     const config = {
         shell: "island",
         sessionToken: ec.web.sessionToken,
@@ -610,8 +636,9 @@ function issueDetail(shell, issueNumber, bases, siteInfo, self, asked) {
                 const u = smithy.urls(c.base, commit.repositoryPath || shell.repository.repositoryPath)
                 return h`<p class="wrap"><a href="${u.commit(commit.commitId)}"><code>${String(commit.commitId).slice(0, 8)}</code></a> ${commit.summary}</p>`
             })}${requests.map(
-                // a merge request's page comes with DG4
-                request => h`<p class="wrap">!${request.mergeRequestNum} ${request.title} <small>${request.state}</small></p>`
+                // one of another repository links there
+                request =>
+                    h`<p class="wrap"><a href="${smithy.urls(c.base, request.repositoryPath || shell.repository.repositoryPath).section("merge-requests")}/${request.mergeRequestNum}">!${request.mergeRequestNum}</a> ${request.title} <small>${request.state}</small></p>`
             )}${refs.map(ref => {
                 const name = String(ref.refName || "").replace(/^refs\/(?:heads|tags)\//, "")
                 return h`<p class="wrap"><a href="${iu.u.tree(name, "")}">${name}</a> <small>${ref.refType}</small></p>`
@@ -763,4 +790,25 @@ function milestones(shell, milestoneId, bases, siteInfo, self) {
         }`.html
     }
 }
-;({issues, groupIssues, groupNewIssue, newIssue, issueDetail, labels, milestones, urlsOf})
+;({
+    issues,
+    groupIssues,
+    groupNewIssue,
+    newIssue,
+    issueDetail,
+    labels,
+    milestones,
+    urlsOf,
+    // what SmithyReview.js builds a merge request's conversation with
+    clean,
+    person,
+    box,
+    island,
+    islandOf,
+    ISLAND_SCRIPTS,
+    textField,
+    textButtons,
+    postRow,
+    side,
+    WATCH
+})

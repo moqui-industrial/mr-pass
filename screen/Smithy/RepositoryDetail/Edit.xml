@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Edit (design-smithy §9.5, §9 Edit), at -/edit/<refPath>, -/new/<refPath>, -/upload/<refPath> and -/delete/<refPath>: a
+    file's text in a plain textarea (the Editor island makes it a code editor), a preview for Markdown, then the save step
+    on a page of its own: the commit message and where the commit goes (getEditContext's destinations: the branch, a new
+    branch with a merge request, a proposal). The steps post to Smithy/Do (editFile, previewPost, commitFile); a conflict
+    shows both texts and asks. The agreement's file has the instructions for signing it. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Edit">
+  <parameter name="editAction"/>
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').edit(smithyRepository,String(refPath || ''),String(editAction || ''),passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- MergeRequestDetail (design-smithy §9), at -/merge-requests/<n> and its /commits, /changes and /checks, in its
+    repository's shell: the merge request for this caller (getMergeRequest), its title, state, source and target (with a
+    fork's path) and the tabs Overview, Commits, Changes and Checks. One the caller may not see (a private repository's,
+    one held for review) is Not Found; its author sees it marked as waiting for review. Never kept by a cache. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Merge request">
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <parameter name="mergeRequestNum"/>
+  <always-actions>
+    <script><![CDATA[
+        smithyRepository=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
+        smithyRequest=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').requestShell(smithyRepository,String(mergeRequestNum || ''),passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </always-actions>
+  <subscreens default-item="Overview"/>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+    </render-mode>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(smithyRequest.headHtml)}]]></text>
+    </render-mode>
+    <subscreens-active/>
+  </widgets>
+</screen>

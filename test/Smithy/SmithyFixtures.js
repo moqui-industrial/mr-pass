@@ -44,7 +44,7 @@ function site(siteId, host) {
     })
 }
 /* A public account that is an active member of the site: its partyId. options.confirmed gives it a confirmed address (design
- * §5.5), options.role a role (SmrReporter, ...) on options.groupId or options.repositoryId. */
+ * §5.5), options.handle a profile with that handle, options.settled a forum state past its first posts, options.role a role (SmrReporter, ...) on options.groupId or options.repositoryId. */
 function account(siteId, username, options) {
     const partyId = run("mantle.party.PartyServices.create#Person", {firstName: username, lastName: "Smithy"}).partyId
     run("mantle.party.PartyServices.create#PartyUserAccount", {
@@ -70,6 +70,27 @@ function account(siteId, username, options) {
             verifiedAt: ec.user.nowTimestamp
         })
     }
+    // a handle is the account's namespace (its own repositories and forks)
+    if (options?.handle)
+        run("create#mantle.public.PublicSiteProfile", {
+            siteId,
+            partyId,
+            handle: options.handle,
+            displayName: username,
+            discoverability: "public",
+            revision: 1
+        })
+    // an account whose first posts are past: the post gate neither holds its text as a first one nor asks it to wait
+    if (options?.settled)
+        run("create#mantle.forum.ForumMemberState", {
+            siteId,
+            partyId,
+            trustLevel: "basic",
+            approvedContributions: 5,
+            dailyTopics: 0,
+            dailyReplies: 0,
+            revision: 1
+        })
     if (options?.role)
         role(siteId, options.groupId ? {groupId: options.groupId} : {repositoryId: options.repositoryId}, partyId, options.role)
     return partyId

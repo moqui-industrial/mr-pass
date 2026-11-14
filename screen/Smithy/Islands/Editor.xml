@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Editor (design-smithy §9 Edit): the island over the Edit page's plain textarea (Editor.qvue): the framework's code
+    editor (m-code-editor), which keeps the textarea in step, so the form is posted as the plain page posts it. The screen
+    shows nothing of its own. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Editor">
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[<p>The editor is part of a file's edit page.</p>]]></text>
+      <text type="qvue" location="component://mr-pass/screen/Smithy/Islands/Editor.qvue" template="false"/>
+    </render-mode>
+  </widgets>
+</screen>

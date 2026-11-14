@@ -121,3 +121,69 @@ Not built: attachments on an issue or a comment; a post's history page and bookm
 discussion (DG6); the group's issue repository in GroupSettings; a sort or filter by reaction; `SmithyAccessWalk` and
 `SmithyPhone`.
 
+
+## DG4: merge requests, forks, editing, the agreement
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes a repository's `-/merge-requests`, `-/merge-requests/new`, `-/merge-requests/<n>` and its `/commits`, `/changes`, `/checks`, `-/fork` and `-/forks`, `-/edit/<refPath>`, `-/new/<refPath>`, `-/upload/<refPath>`, `-/delete/<refPath>`, the Agreement tab of a group's and a repository's Settings, and the islands `-/island/DiffReview.qvue` and `-/island/Editor.qvue` (`.qvt`, `.qjs`). The grammar had them; `compare/<base>...<fork-path>:<ref>` was DG1's |
+| Pages | `screen/Smithy/SmithyReview.js` builds them as escaped markup with `SmithyForms.js`'s helpers and `SmithyIssues.js`'s conversation: `RepositoryDetail/MergeRequests`, `NewMergeRequest` (in the repository's shell), `MergeRequestDetail` (the shell, the merge request's head and its tabs) with `Overview`, `Commits`, `Changes` and `Checks`, `RepositoryDetail/Fork`, `RepositoryDetail/Edit`, and the Agreement tab. A repository with merge requests off has none of the merge request pages and no tab |
+| MergeRequests | Open, Merged and Closed with the counts `findMergeRequests` answers, a GET form of filters (text, author, reviewer, target branch, drafts only), More by cursor. A row has the number, title, state, source (a fork's path before its branch, or "pushed for review") and target, the checks' state, approvals, the agreement's mark and comments |
+| NewMergeRequest | A GET form of the target branch and the source (`group/repository:branch` for a fork's), then `getCompare`'s commits, file count and whether it merges cleanly, and the form: title (the oldest commit's summary), a Markdown text with a preview and the composer's island, draft, and reviewers for who may review. A fork's page points to its parent's form with the fork's branch as the source. Opened from Compare ("Open a merge request" when the head is ahead) and from a branch's row |
+| Overview | `getMergeRequest`, then the conversation as on an issue (`getPosts` of its record topic; reply, edit, report, reactions, the watch level). The review form (Comment; Approve and Request changes by `canApprove`) is `submitReview`. Beside them: the title and Draft (`updateMergeRequest`), reviewers and their decisions (`setMergeRequestReviewers`), the checks of the head with links and "Required", the agreement box (Signed, or who is missing what, the file's Contributing section, Sign, Check again, a bot's operator), linked issues, the fetch line, and the merge box. Close is asked again on `?confirm=close`, Reopen is not |
+| Merge box | For `canMerge`: the methods the branch rule allows, a message and "Delete the source branch" (a branch of this repository only), a GET form to `?confirm=merge`, which names the target branch, the method, what happens to the source branch and what is not ready, and posts `mergeMergeRequest` with the head it saw. For anyone else a sentence. Both list why a merge would be refused: a draft, conflicts (with the paths) and the authority's reasons (`missingList`: required checks not passed, approvals missing, the agreement not signed); the squash that would fold a signature is said under the method and refused by the authority on the post. Who may not merge reads the role the branch asks for (`branchRules.mergeRole`) |
+| Changes | `getMergeRequestChanges` with diffs, rendered here: each file's diff as escaped lines (from the host's hunks, which are data; its own markup is not used), every line with its number, an anchor (`F<file>R<new line>` or `L<old line>`) and, for who may comment, the number as a link (`?line=`) that shows that line's comment form under it (`createReviewComment`). A thread is under its line with its posts cleaned, a reply form and Resolve or Reopen (`resolveReviewThread`); an outdated or resolved thread is folded (a `details`); an outdated one, and one whose line is not in the shown diff, is above its file's diff. A large diff shows a file's changes on `?path=`. The review form is here too |
+| DiffReview island | `Islands/DiffReview.qvue`, with `/js/WebrootCode.js` in the page's scripts before `WebrootPublic.qvt.js`: a click on a line's number opens the comment form in place (an ordinary form, posted as the plain one), and "Side by side" shows a file in `m-diff-view` from its raw texts at the merge base and the head (`-/raw/<commit>/<path>`) |
+| Fork | `-/fork`: namespace (the account's own, or a group of `findGroups` `mine`), path, name and visibility no wider than the parent; the page names the source and is the confirmation (`forkRepository`). `-/forks`: `findForks`, each with Compare. The shell has Fork for a signed-in account, the forks count and "Forked from"; Compare links a fork to its parent's comparison |
+| Edit | `getEditContext`, then three views of one page, chosen by what the last step left in the session (the flash): the editor (the path, which renames when changed, and the text in a textarea; Preview for Markdown through `previewPost`), the save step (the commit message with a default by action, the destinations with the default first, the new branch's name, the merge request's title; the text and the blob it started from carried in the form), and the conflict of an edit (the file now beside the caller's text; keep editing, save over it, or discard). A new file at a path that has a file is told so on the save step; an upload to such a path says it replaces the file and names the blob that is there. A flash is the page's only when its repository, branch and path are the page's; the step reads `getEditContext` first, so it keeps nothing for who may not edit there, and refuses a text over the site's edit size without keeping it. Every textarea writes a newline after its tag, so a text's own first newline survives the HTML parser. `editFile` is the step between them: a transition of `Do` that is no operation and stores nothing but the flash. `commitFile` saves, and answers the file's page or the new merge request. Delete is the save step alone. Upload stages its file in the step (`stageAttachment` with the purpose `repositoryFile` and the repository) and names the attachment in the save; an empty path, or one ending in a slash, takes the file's own name. A file that is not editable says why in words (`getEditContext`'s `reason`) |
+| Editor island | `Islands/Editor.qvue`: `m-code-editor` over the plain textarea, which stays the form's field, with the language of the path |
+| Sign | The agreement box's Sign opens the edit page of the agreement's file with `?sign=<n>`: the page `getMergeRequest`'s `signPath` names for the caller: the source branch (a fork's too) for the author who may commit there, so the signature is a commit of the merge request, else the target branch, where the save of an account that may not push is a proposal (the author's own goes to the same merge request, another account's opens one). The box says what each author is missing in words, and where a bot's operator stands. The page shows how to sign when it is reached so or when `getEditContext` says `agreementFile`: the account's own line under both lists, with the handle shown and no legal name written |
+| Settings | Agreement tab of `GroupDetail/Settings` and `RepositoryDetail/Settings` for an Owner (`getAgreement`, `setAgreement`): inherit, off or required, the file, what is in effect and from where, and how many branch rules change. Merge requests on or off was already General's (DG2) |
+| Commit pages | CommitDetail shows "Contained in" (`getCommit.refList`), the merge requests of the commit when the read gives them, and the author's handle where `commit.authorHandle` is given (Commits, Compare and a merge request's Commits too). A merge request on an issue is a link |
+| Forms | `Do.xml` has 15 more `post` transitions (60): `createMergeRequest`, `updateMergeRequest`, `setMergeRequestReviewers`, `submitReview`, `createReviewComment`, `resolveReviewThread`, `setMergeRequestState` (a close confirmed), `mergeMergeRequest` (confirmed), `forkRepository`, `editFile` (a step), `commitFile`, `setAgreement`, `recheckAgreement`, `declareBotOperator`, `confirmBotOperator` |
+| Redirects | A page's redirect is answered in `pre-actions`, before the shell is written: Files' ref picker and a tree path that is a file (`RepositoryDetail/Files.xml`), and Compare's form (`Compare.xml`), as the group's New issue was in DG3. In `actions` the shell had been written already, so the redirect did not reach the browser |
+| Caching | The merge request, edit and fork pages are `no-store` for a visitor too (`Shared/Headers.js`); the Merge requests tab has its count only for a signed-in account |
+| Compare | DG1's Compare shows a comparison's diff again: the host gives it as hunks, not as unified text, and `Smithy.js` `changedFiles` writes the unified text from them |
+| Markup | `SmithyForms.js` `h` knows the markup it built by a symbol (`Symbol.for`), not by its class: each page script loads its own copy of `SmithyForms.js`, so markup made in `SmithyIssues.js` was escaped as text when `SmithyReview.js` wrote it |
+| Tests | `test/Smithy/SmithyReview.spec.js` (one render each of MergeRequests, Overview, Changes, Edit and its save step; a save through `Do` to the branch, to a new branch with a merge request, as a proposal, the conflict, and a staged upload), `Smithy.spec.js` (the DG4 paths, with a fork's head whose ref has a slash; the registries), `SmithyAccess.spec.js` (the DG4 rules). Acceptance: `test/acceptance/client/SmithyContribution.spec.js` with `test/acceptance/SmithyContributionFixtures.spec.js` (below) |
+
+Differences from the design:
+
+- A new line comment works without JavaScript (the design gives it to the island alone): a line's number links to the
+  page with that line's form.
+- The DiffReview island is not a second rendering of the diff on the model of Projects' `Changes.qvue`. It works on the
+  server's diff: the comment form in place and one file side by side. It has no file tree and no pending review that is
+  submitted at once (`submitReview`'s `commentList` is not sent); a line comment is posted when written. A phone has the
+  same unified diff.
+- Signing is the file's edit (§9.5) with instructions, not `signAgreement`: the account types its line. `signAgreement`
+  has no form.
+- The save is two pages without JavaScript and with it (the island is the editor only, not a dialog), and the text
+  between them is kept in the session, as a preview is.
+- A merge request's text is edited as its first post is (the conversation's Edit); `updateMergeRequest` here changes
+  the title and Draft. The target branch is not changed on the page.
+- Close is confirmed as a merge is; "delete the source branch" is part of the merge's confirmation, not a step of its
+  own.
+- Rename has no path of its own: it is Edit with the path changed.
+- MergeRequestChecks shows the statuses alone until DG5 (no pipeline runs).
+- The review form's summary is a plain Markdown textarea with no preview: a page has one composer island, and the
+  comment form has it.
+
+- `SmithyContribution` makes no `git push`, to a fork or to `refs/for/`: a client spec is a pure client with no git.
+  What it shows instead: the fork's commits are saves on the fork's own pages (an edit, an upload and the signature,
+  each `commitFile` to the branch, which is the framework's `commit#GitFiles`), and the merge request "pushed for
+  review" is made by the fixtures through `commitFile` with the proposal destination (`commit#GitFiles` `asProposal`).
+  A real push to a fork and to `refs/for/<branch>` is covered by the framework's git-client tests only
+  (`crates/moqui-git`), not by anything in mr-pass. The outside accounts have a forum state past their first posts,
+  so the post gate does not hold their merge requests; a held one's page is SmithyAccess's.
+- What the walk does show, in a browser: fork on the page; an edit, an upload and Sign in the fork; the merge request
+  from the fork; "Not signed" and then "Signed"; a line comment opened in place and a file side by side (DiffReview);
+  a Maintainer's merge after the confirmation; the fixtures' merge request listed as pushed for review with its fetch
+  line; a third account's edit in the code editor (Editor) saved as a proposal; and the redirects of Files and Compare
+  over HTTP, with `no-store`. Its 390 px check covers, as that third account (a viewer with no role): the merge request
+  list, one merge request's Overview, Commits, Changes and Checks, the new merge request form, Fork, Forks, and the
+  Edit, New file, Upload and Delete pages. It does not cover the settings' Agreement tab, the merge and close
+  confirmations, or any page as a Maintainer at that width.
+
+Not built: `signAgreement`'s form; the forum's post stream island on Overview; thread excerpts in the conversation; the
+file tree (`m-file-tree`) on Changes; attachments; a group's merge request list; `SmithyAccessWalk` and `SmithyPhone`
+as specs of their own (`SmithyContribution` checks this phase's pages at 390 px).

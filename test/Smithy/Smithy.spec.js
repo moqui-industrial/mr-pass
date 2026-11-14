@@ -7,7 +7,8 @@
 // cover the rules behind the reads, and its DG2 specs those behind the writes. DG3 (§8): the issue paths, one render each of
 // Issues, IssueDetail (the conversation's rendered Markdown, cleaned; the reactions and the forms by capability) and
 // NewIssue, and an issue filed through Smithy/Do, its refusal and its preview. Mantle's SmithyIssues, SmithyIssueProjection
-// and SmithyConfidential specs cover the rules behind them.
+// and SmithyConfidential specs cover the rules behind them. DG4 (§9): the paths of the merge request, fork and edit pages and
+// their cache policy; the pages themselves are SmithyReview's spec.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const routes = () => ec.resource.script("component://mr-pass/service/pass/SmithyRoutes.js")
 const SITE = "PASS_SMITHY"
@@ -117,7 +118,23 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             compareHead: parse("moqui/mr-moqui/-/compare/topic"),
             branches: parse("moqui/mr-moqui/-/branches"),
             // a later phase's section is in the grammar, and not routed until its screen is built
+            pipeline: parse("moqui/mr-moqui/-/pipelines/7"),
+            // DG4: merge requests, a fork's head with a slash in its ref, the fork pages, a file's edit and the islands
+            mergeRequests: parse("moqui/mr-moqui/-/merge-requests"),
+            mergeRequestNew: parse("moqui/mr-moqui/-/merge-requests/new"),
             mergeRequest: parse("moqui/mr-moqui/-/merge-requests/7"),
+            mergeRequestChanges: parse("moqui/mr-moqui/-/merge-requests/7/changes"),
+            mergeRequestBad: parse("moqui/mr-moqui/-/merge-requests/7/files"),
+            compareForkSlash: parse("moqui/mr-moqui/-/compare/release/1.x...jane/mr-moqui:fix/tree-page"),
+            fork: parse("moqui/mr-moqui/-/fork"),
+            forks: parse("moqui/mr-moqui/-/forks"),
+            edit: parse("moqui/mr-moqui/-/edit/feature/login/docs/Guide.md"),
+            newFile: parse("moqui/mr-moqui/-/new/main/docs"),
+            upload: parse("moqui/mr-moqui/-/upload/main"),
+            remove: parse("moqui/mr-moqui/-/delete/main/AUTHORS.md"),
+            editBare: parse("moqui/mr-moqui/-/edit"),
+            diffIsland: parse("-/island/DiffReview.qvue"),
+            agreementTab: parse("moqui/mr-moqui/-/settings/agreement"),
             // DG3: the issue pages of a repository and of a group, and the composer's island
             issues: parse("moqui/mr-moqui/-/issues"),
             issueNew: parse("moqui/mr-moqui/-/issues/new"),
@@ -205,8 +222,31 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.compareHead.screenParameters.base === ""
         out.compareHead.screenParameters.head === "topic"
         out.branches.screenPath === "/Smithy/RepositoryDetail/Branches"
+        out.pipeline.screenPath === "/Smithy/PipelineDetail"
+        !built.includes("/Smithy/PipelineDetail")
+        out.mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
+        out.mergeRequestNew.screenPath === "/Smithy/NewMergeRequest"
         out.mergeRequest.screenPath === "/Smithy/MergeRequestDetail/Overview"
-        !built.includes("/Smithy/MergeRequestDetail/Overview")
+        out.mergeRequest.screenParameters.mergeRequestNum === "7"
+        out.mergeRequestChanges.screenPath === "/Smithy/MergeRequestDetail/Changes"
+        built.includes(out.mergeRequestChanges.screenPath)
+        out.mergeRequestBad.kind === "NotFound"
+        // the base and the fork's ref keep their slashes; the fork's path is before the colon
+        out.compareForkSlash.screenParameters.base === "release/1.x"
+        out.compareForkSlash.screenParameters.headRepositoryPath === "jane/mr-moqui"
+        out.compareForkSlash.screenParameters.head === "fix/tree-page"
+        out.fork.screenPath === "/Smithy/RepositoryDetail/Fork"
+        out.forks.screenPath === "/Smithy/RepositoryDetail/Fork"
+        out.edit.screenPath === "/Smithy/RepositoryDetail/Edit"
+        out.edit.screenParameters.editAction === "edit"
+        out.edit.screenParameters.refPath === "feature/login/docs/Guide.md"
+        out.newFile.screenParameters.editAction === "new"
+        out.upload.screenParameters.editAction === "upload"
+        out.remove.screenParameters.editAction === "delete"
+        built.includes(out.remove.screenPath)
+        out.editBare.kind === "NotFound"
+        built.includes(out.diffIsland.screenPath)
+        out.agreementTab.screenParameters.tab === "agreement"
         out.issues.screenPath === "/Smithy/RepositoryDetail/Issues"
         out.issueNew.screenPath === "/Smithy/NewIssue"
         out.issue.screenPath === "/Smithy/IssueDetail"
@@ -279,7 +319,10 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
             group: f.route(SITE, HOST, "/code/pass-smg/-/members"),
             stored: f.route(SITE, HOST, "/code/Pass-SMG/web.git"),
             slashes: f.route(SITE, HOST, "/code//pass-smg/web/"),
-            later: f.route(SITE, HOST, "/code/pass-smg/web/-/merge-requests"),
+            later: f.route(SITE, HOST, "/code/pass-smg/web/-/pipelines"),
+            // DG4's pages are routed
+            mergeRequests: f.route(SITE, HOST, "/code/pass-smg/web/-/merge-requests"),
+            agreement: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/agreement"),
             issue: f.route(SITE, HOST, "/code/pass-smg/web/-/issues/3"),
             dotDot: f.route(SITE, HOST, "/code/pass-smg/web/-/tree/main/../x"),
             unknown: f.route(SITE, HOST, "/code/pass-smg/nothing"),
@@ -302,6 +345,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         stored,
         slashes,
         later,
+        mergeRequests,
+        agreement,
         issue,
         dotDot,
         unknown,
@@ -336,6 +381,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         slashes.screenPath === "/Smithy/redirect"
         slashes.screenParameters.location === "/code/pass-smg/web"
         later.kind === "NotFound"
+        mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
+        agreement.screenParameters.tab === "agreement"
         // DG3's pages are routed (the page answers Not Found for a number the repository does not have)
         issue.screenPath === "/Smithy/IssueDetail"
         issue.screenParameters.issueNumber === "3"
@@ -738,9 +785,9 @@ feature("a form's post answers 303: to its page after a write, back to the form 
         unasked.status === 303
         unasked.location === "/code/"
         unasked.flash.error.message === "Confirm this change on its own page first."
-        transitions === 45
-        posts === 45
-        forms === 45
+        transitions === 60
+        posts === 60
+        forms === 60
         optOut === false
     }
 })
@@ -1019,15 +1066,19 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
             // an issue page is kept by no cache, for a visitor either (an issue may become confidential)
             issuePages: ["/moqui/mr-moqui/-/issues", "/moqui/mr-moqui/-/issues/12", "/moqui/-/issues", "/moqui/mr-moqui/-/labels", "/moqui/mr-moqui/-/commit/0123abc"]
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
+                .join(" "),
+            // nor a merge request's pages (one may be held for review), a file's edit or the fork pages (DG4)
+            reviewPages: ["/moqui/mr-moqui/-/merge-requests", "/moqui/mr-moqui/-/merge-requests/7/changes", "/moqui/mr-moqui/-/edit/main/a.md", "/moqui/mr-moqui/-/fork"]
+                .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" ")
         }
     },
-    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, commitsList}) {
+    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList}) {
         app.screen === "Smithy"
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 68
+        count === 89
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"
@@ -1036,6 +1087,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         // and so is a commit's page, which names its issues; the list of commits is not
         issuePages === "no-store no-store no-store no-store no-store"
         commitsList === "public, max-age=60"
+        reviewPages === "no-store no-store no-store no-store"
     }
 })
 feature("every app's default base is refused as a group's path, so a group never takes a mount's place", {

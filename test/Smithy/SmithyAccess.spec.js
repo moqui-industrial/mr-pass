@@ -6,7 +6,10 @@
 // (setRepositoryVisibility, and the Members' forms and the Archive tab), and no Smithy write is a bearer link's. The rule
 // behind each role is Mantle's (SmithyVisibility, SmithyRoles, SmithyMembers). DG3's rules: a confidential issue is Not Found
 // on its page for a stranger and a Maintainer and shown to its reporter and an Owner, and triage needs a Reporter
-// (setIssueLabels, setIssueState; Mantle's SmithyConfidential and SmithyIssues).
+// (setIssueLabels, setIssueState; Mantle's SmithyConfidential and SmithyIssues). DG4's rules: a private repository's merge
+// request and one held for review are Not Found on their page to a stranger, whose review form has no approval, and the
+// page of a Developer has no merge form for a protected branch (the rules are Mantle's SmithyMergeRequests; here the
+// page's own view by caller, with no screen rendered).
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_ACCESS"
 const HOST = "smithy-access.example.test"
@@ -15,6 +18,7 @@ const REPORTER = "pass.smithy.reporter"
 const DEVELOPER = "pass.smithy.developer"
 const MAINTAINER = "pass.smithy.maintainer"
 const GUEST = "pass.smithy.guest"
+const VIEWER = "pass.smithy.viewer"
 const t = {}
 const FILES = {"README.md": "# Access\n", "src/a.txt": "one\n"}
 const as = (username, work) => {
@@ -53,6 +57,39 @@ spec({
         t.secret = as(DEVELOPER, () =>
             f.issue(SITE, t.work.repositoryId, {title: "A hole in the wall", body: "Details", confidential: true})
         ).issueNumber
+        // DG4: a viewer with a confirmed address and no role; main is protected; a merge request in the public repository,
+        // one in the private one, and one whose text is held for review
+        f.account(SITE, VIEWER, {confirmed: true})
+        const request = (repositoryId, branch) => {
+            f.run("org.moqui.git.GitServices.create#GitRef", {repositoryId, refName: branch, refType: "branch"})
+            f.run("org.moqui.git.GitServices.commit#GitFiles", {repositoryId, branch, message: "Change " + branch, fileMap: {"src/a.txt": branch + "\n"}})
+            return f.operation("createMergeRequest", {
+                siteId: SITE,
+                repositoryId,
+                sourceRef: branch,
+                targetRef: "main",
+                title: "Merge " + branch,
+                body: "Text",
+                sourceFormat: "markdown",
+                operationId: "pass-sma-" + repositoryId + "-" + branch
+            }).mergeRequestNum
+        }
+        f.operation("storeBranchRule", {
+            siteId: SITE,
+            repositoryId: t.work.repositoryId,
+            branchRuleId: "",
+            refPattern: "main",
+            requireMergeRequest: true,
+            operationId: "pass-sma-rule-1"
+        })
+        t.request = request(t.work.repositoryId, "topic-a")
+        t.privateRequest = request(t.private.repositoryId, "topic-a")
+        t.held = request(t.work.repositoryId, "topic-b")
+        f.run("update#mantle.forum.ForumPostState", {
+            communicationEventId: f.operation("getMergeRequest", {siteId: SITE, repositoryId: t.work.repositoryId, mergeRequestNum: t.held})
+                .mergeRequest.topic.rootCommEventId,
+            visibility: "pending"
+        })
     },
     cleanup() {
         login("john.doe")
@@ -199,11 +236,11 @@ feature("a tab is shown to the role that may use it, and Settings is Not Found f
     },
     then({reporter, maintainer, unmounted}) {
         // a Reporter has no Settings tab, and the page is as one that does not exist
-        reporter.tabs === "Files Commits Branches Tags Issues"
+        reporter.tabs === "Files Commits Branches Tags Issues Merge requests"
         reporter.kind === "NotFound"
         reporter.settings == null
         // a Maintainer has Settings with Branch rules, reads the members without changing them, and has no Archive
-        maintainer.tabs === "Files Commits Branches Tags Issues Settings"
+        maintainer.tabs === "Files Commits Branches Tags Issues Merge requests Settings"
         maintainer.kind == null
         maintainer.settings === "general members branch-rules webhooks"
         maintainer.changesMembers === false
@@ -303,6 +340,48 @@ feature("triage needs a Reporter: a Reporter labels and closes an issue, a Guest
         reporterClose === "done"
         after.state === "closed"
         after.stateReason === "completed"
+    }
+})
+feature("a merge request's page: no merge form for a Developer of a protected branch, no approval for a stranger, Not Found when held or private", {
+    when() {
+        // the page's own view for a caller, with no screen rendered; the rules behind it are Mantle's (SmithyMergeRequests)
+        const bases = {smithy: "/code", account: "/account"}
+        const page = (repository, slug, number) => {
+            const path = "/code/pass-sma/" + slug + "/-/merge-requests/" + number
+            try {
+                const pages = ec.resource.script("component://mr-pass/screen/Smithy/SmithyReview.js")
+                const shell = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js").repositoryShell(SITE, repository, "/code", path)
+                const request = pages.requestShell(shell, String(number), bases, {authenticated: true}, path)
+                return {html: pages.overview(shell, request, bases, {authenticated: true}, path, {}).html, head: request.headHtml}
+            } catch (error) {
+                ec.message.clearErrors()
+                return {kind: error.moquiErrorKind || "Error"}
+            }
+        }
+        const work = t.work.repositoryId
+        return {
+            developer: as(DEVELOPER, () => page(work, "work", t.request)),
+            viewer: as(VIEWER, () => ({
+                open: page(work, "work", t.request),
+                held: page(work, "work", t.held),
+                concealed: page(t.private.repositoryId, "secret", t.privateRequest)
+            })),
+            author: page(work, "work", t.held)
+        }
+    },
+    then({developer, viewer, author}) {
+        // main has a rule: a Developer's page has no merge form, and may approve
+        developer.html.includes('id="SmithyMergeWho"')
+        !developer.html.includes('id="SmithyMerge"')
+        developer.html.includes('value="approve"')
+        // a stranger with a confirmed address comments and reviews with a comment, never an approval
+        viewer.open.html.includes('id="Smithy_publishPost"')
+        viewer.open.html.includes('value="comment"')
+        !viewer.open.html.includes('value="approve"')
+        // one held for review is Not Found to a stranger, as a private repository's is; its author sees it marked
+        viewer.held.kind === "NotFound"
+        viewer.concealed.kind === "NotFound"
+        author.head.includes('id="SmithyMergeRequestPending"')
     }
 })
 feature("no Smithy write is a bearer link's: none is among the writes a link's token authorizes", {

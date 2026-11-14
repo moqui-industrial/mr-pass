@@ -29,9 +29,11 @@ page editors are [IronStone Commerce](../mr-boss/plan/design-commerce.md)'s; pub
 Its Smithy app ([design](plan/design-smithy.md), `screen/Smithy.xml`) is public git hosting, mounted at `/code` or a
 site's root: groups, repositories and their code (files, a file with line anchors, raw, commits, branches, tags, a commit
 and a comparison), a repository's issues (the public view of its project's tasks, confidential ones for its Owners and
-their reporter, with labels, milestones and a conversation of forum posts written in Markdown), and for an account with a confirmed address creating groups and repositories, their settings and
+their reporter, with labels, milestones and a conversation of forum posts written in Markdown), its merge requests (from a
+branch, a fork or a push for review, with line comments on the diff, reviews, the checks, the contributor agreement and
+the merge), forks, editing a file on its page with the save as a commit, and for an account with a confirmed address creating groups and repositories, their settings and
 members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript
-(a text's editor is an island over the plain form),
+(a text's editor, the diff's line comments and the code editor are islands over the plain pages),
 over Mantle's `mantle.smithy` services and the framework's git host. What a visitor may not view is Not Found.
 [Deployment](docs/Deployment.md) "Smithy app" has its setup; [the implementation record](plan/implementation-smithy.md)
 what is built.
@@ -54,11 +56,11 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyAccess --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyAccess --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -75,7 +77,11 @@ operations (`ShopOperationsScenarios`: a legacy store's adoption preview and app
 attempt reconciled, a remote frontend's outage), Shop's checkout in the browser (`ShopCheckoutHttp`) and its
 accessibility and device checks (`ShopAccessibilityHttp`: a keyboard-only checkout at 390 px with announced totals and a
 labelled, focused refusal, reduced motion, the account pages at 390 px), Smithy's golden-path walk (`SmithyWalk`, with
-`SmithyWalkFixtures`: browsing, then a signed-in account creating a repository, and the pages that write at 390 px), its payment, order and subscription scenarios
+`SmithyWalkFixtures`: browsing, then a signed-in account creating a repository, and the pages that write at 390 px) and its
+contribution walk (`SmithyContribution`, with `SmithyContributionFixtures`: a fork, a merge request, signing the agreement on
+the page, a Maintainer's merge, a merge request of the kind a push for review opens, and a file fixed on its page; the fork's
+commits and that merge request are made through page saves and the proposal service, with no `git push`, which the
+framework's git-client tests cover), its payment, order and subscription scenarios
 on the server (`ShopPaymentScenarios`, `ShopOrderScenarios`, `ShopSubscriptionScenarios`; design-shop §18.1 maps each
 scenario to its test in impl-shop §8), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use

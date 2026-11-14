@@ -46,9 +46,11 @@ const ROUTES = [
     // and a commit's page, which lists the titles of the issues it names, are never kept by a cache, for a visitor either:
     // an issue may become confidential, and a page a cache kept would still show it. (The shells' Issues tab has its count
     // only for a signed-in account, whose pages no cache keeps: Smithy/Smithy.js openIssueCount.)
+    // Smithy DG4: a merge request's pages (one may be held for review, and Not Found to others), the pages that edit a
+    // file and the fork pages are never kept by a cache either.
     {
         app: 'smithy',
-        path: /\/-\/(?:issues|labels|milestones|commit)(?:\/|$)/,
+        path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks)(?:\/|$)/,
     },
     {
         app: 'smithy',
