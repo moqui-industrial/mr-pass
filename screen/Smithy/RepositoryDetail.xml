@@ -2,7 +2,8 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- RepositoryDetail (design-smithy §1, §7): a repository's shell, the breadcrumb, the chips, the clone box (HTTPS and SSH) and
     the tabs, over getRepository; a repository the caller may not view is Not Found. Tabs: Files (with Blob), Commits,
-    Branches, Tags. The raw transition serves a file at -/raw/<refPath> (downloadBlob), never as a page of the site. -->
+    Branches, Tags and, for a Maintainer, Settings. The raw transition serves a file at -/raw/<refPath> (downloadBlob), never as a page of the site; the archive
+    transition the tree at a ref as a zip or tar.gz at -/archive/<ref>.<format> (downloadArchive), to a signed-in account. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Repository">
@@ -19,6 +20,15 @@
     <parameter name="refPath"/>
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').raw(resolvedSiteId,String(repositoryId || ''),String(refPath || ''))</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="archive" method="get" read-only="true">
+    <parameter name="repositoryId"/>
+    <parameter name="ref"/>
+    <parameter name="format"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').archive(resolvedSiteId,String(repositoryId || ''),String(ref || ''),String(format || ''),passBases.smithy,passBases.account)</script>
     </actions>
     <default-response type="none"/>
   </transition>

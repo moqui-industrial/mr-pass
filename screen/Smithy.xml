@@ -6,7 +6,9 @@
     DG1 is public, read-only browsing: Home, Explore, AccountDetail, GroupDetail (Overview, Repositories, Members),
     RepositoryDetail (Files, Blob, raw, Commits, Branches, Tags), CommitDetail and Compare. Every page calls the authority
     through pass.Facade.call#Operation only (Smithy/Smithy.js, Shared/Portal.js); what it conceals is the framework's Not
-    Found. The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
+    Found. DG2 adds the pages that write: New (a group, a repository), Site (the site's settings), a group's Settings and its
+    Members' forms, a repository's Settings, creating and deleting a branch or tag, and Account's Git access; every form posts
+    to a transition of Smithy/Do (Smithy/SmithyForms.js). The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
     path): 301 to a path on this site, with the request's query. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"

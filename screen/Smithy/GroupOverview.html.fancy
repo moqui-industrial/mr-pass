@@ -1,4 +1,4 @@
-<#if smithyHome><h1 class="wrap">${smithyGroup.group.name}</h1></#if>
+<#if smithyHome><h1 class="wrap">${smithyGroup.group.name}</h1><#if smithyGroup.flash.notice><p role="status" class="card" id="SmithyNotice">${smithyGroup.flash.notice}</p></#if></#if>
 <#if overviewView.description><section class="card" id="SmithyGroupAbout"><p class="smithy-pre">${overviewView.description}</p></section></#if>
 <#if overviewView.pinned.length><section id="SmithyPinned" aria-label="Pinned repositories"><h2>Pinned repositories</h2>
 ${raw(ec.resource.template('component://mr-pass/screen/Smithy/RepositoryRows.html.fancy', {rows: overviewView.pinned}))}</section></#if>

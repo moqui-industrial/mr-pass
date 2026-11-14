@@ -1,4 +1,5 @@
-/* Smithy's pages (Dogfood DG1; plan/design-smithy.md §1, §6, §7): the public, read-only browsing of groups and repositories.
+/* Smithy's pages (Dogfood DG1, DG2; plan/design-smithy.md §1, §6, §7): the browsing of groups and repositories. The pages
+ * that write (DG2: new, settings, members, Git access) and the forms' transitions are SmithyForms.js, which uses this.
  * Each page's view is built here from the authority's reads, every one through pass.Facade.call#Operation (Shared/Portal.js
  * attempt), with the ids the route resolver gave (service/pass/SmithyRoutes.js). What the authority answers Not Found (a path
  * with no row, and what the caller may not view) is the framework's Not Found, the same for both. A page is plain HTML with
@@ -15,7 +16,11 @@ function fail(kind, message) {
 /* A read the page cannot be shown without: its result, or the framework's page for its refusal (Not Found says no more). */
 function need(operation, input) {
     const out = portal.attempt(operation, input)
-    if (out.error) fail(out.error.kind === "NotFound" ? "NotFound" : out.error.kind, out.error.kind === "NotFound" ? null : out.error.message)
+    if (out.error)
+        fail(
+            out.error.kind === "NotFound" ? "NotFound" : out.error.kind,
+            out.error.kind === "NotFound" ? null : out.error.message
+        )
     return out.result
 }
 /* A read a page shows without when it is refused. */
@@ -46,7 +51,8 @@ const query = values => {
         .join("&")
     return text ? "?" + text : ""
 }
-/* A date as the pages show it (the day, UTC), from a time in milliseconds, an ISO text or a timestamp. */
+/* A date as the pages show it: the day in the signed-in account's time zone, or the site's for a visitor (whose page a cache
+ * may keep), from a time in milliseconds, an ISO text or a timestamp. */
 function dateText(value) {
     if (value == null || value === "") return ""
     const time =
@@ -56,8 +62,49 @@ function dateText(value) {
               ? value.getTime()
               : /^[0-9]{9,}$/.test(String(value))
                 ? Number(value)
-                : Date.parse(String(value))
-    return Number.isFinite(time) ? new Date(time).toISOString().slice(0, 10) : String(value)
+                : (ec.user.timestampMillis(value) ?? Date.parse(String(value)))
+    if (!Number.isFinite(time)) return String(value)
+    const zone = ec.user.userId ? null : ec.context.get("siteInfo")?.site?.timeZone || null
+    return String(ec.l10n.format(new Date(time), "yyyy-MM-dd", null, zone))
+}
+/* A role's rank (design §5.1), so a page shows a tab to the roles that may use it; the authority checks every write. */
+const RANK = {guest: 10, reporter: 20, developer: 30, maintainer: 40, owner: 50}
+const holds = (role, minimum) => (RANK[role] || 0) >= RANK[minimum]
+/* What a form's transition leaves for the next page of the session (SmithyForms.js run): a notice, or a refusal with what
+ * was typed, read once and dropped after two minutes. Only a signed-in request has one, so a visitor's page starts no
+ * session and stays one a shared cache may keep. */
+const FLASH = "passSmithyFlash"
+const FLASH_LIFE = 120000
+function setFlash(value) {
+    ec.web.sessionAttributes[FLASH] = JSON.stringify({...value, at: Date.now()})
+}
+function takeFlash() {
+    if (!ec.user.userId || !ec.web) return {}
+    const attributes = ec.web.sessionAttributes
+    const kept = attributes[FLASH]
+    if (!kept) return {}
+    attributes.remove(FLASH)
+    try {
+        const value = JSON.parse(String(kept))
+        return value && Date.now() - Number(value.at) < FLASH_LIFE ? value : {}
+    } catch (error) {
+        return {}
+    }
+}
+/* Drops what a form's transition left when no page took it within two minutes (a redirect that was not followed), so a new
+ * token does not stay in the session. Pass.xml calls this on every request of a signed-in account, in any app. */
+function expireFlash() {
+    if (!ec.user.userId || !ec.web) return
+    const attributes = ec.web.sessionAttributes
+    const kept = attributes[FLASH]
+    if (!kept) return
+    let at = 0
+    try {
+        at = Number(JSON.parse(String(kept)).at)
+    } catch (error) {
+        // not ours to keep
+    }
+    if (!(Date.now() - at < FLASH_LIFE)) attributes.remove(FLASH)
 }
 const shortId = id => String(id || "").slice(0, 8)
 function sizeText(size) {
@@ -78,6 +125,8 @@ function urls(base, repositoryPath) {
         root,
         section,
         tree: (ref, path) => section("tree", joinRef(ref, path)),
+        blame: (ref, path) => section("blame", joinRef(ref, path)),
+        archive: (ref, format) => section("archive", ref + "." + format),
         blob: (ref, path) => section("blob", joinRef(ref, path)),
         raw: (ref, path) => section("raw", joinRef(ref, path)),
         commits: (ref, path) => section("commits", joinRef(ref, path)),
@@ -111,7 +160,9 @@ const repositoryRow = (base, r) => ({
     visibility: visibilityOf(r),
     archived: !!r.archived,
     mirror: !!r.mirror,
-    forkOf: r.forkOf?.repositoryPath ? {path: r.forkOf.repositoryPath, href: (base || "") + "/" + enc(r.forkOf.repositoryPath)} : null,
+    forkOf: r.forkOf?.repositoryPath
+        ? {path: r.forkOf.repositoryPath, href: (base || "") + "/" + enc(r.forkOf.repositoryPath)}
+        : null,
     forkCount: Number(r.forkCount) || 0,
     pushed: dateText(r.lastPushAt)
 })
@@ -136,15 +187,22 @@ function groupShell(siteId, groupId, base, path) {
     const word = sectionWord(path)
     return {
         group,
+        siteId,
+        base: base || "",
         capabilities: found.capabilities || {},
         myRole: found.myRole || null,
         root,
+        flash: takeFlash(),
         visibility: visibilityOf(group),
         crumbs: crumbsOf(base, group.groupPath, group.name),
+        // a tab the caller may not use is absent: Settings is an Owner's
         tabs: [
             {label: "Overview", href: root, current: !word},
             {label: "Repositories", href: root + "/-/repositories", current: word === "repositories"},
-            {label: "Members", href: root + "/-/members", current: word === "members"}
+            {label: "Members", href: root + "/-/members", current: word === "members"},
+            ...(holds(found.myRole, "owner")
+                ? [{label: "Settings", href: root + "/-/settings", current: word === "settings"}]
+                : [])
         ]
     }
 }
@@ -171,11 +229,14 @@ function home(siteId, base) {
 function explore(siteId, base) {
     const path = (base || "") + "/explore"
     const q = param("q")
+    const flash = takeFlash()
     const kind = ["groups", "repositories"].includes(param("kind")) ? param("kind") : "all"
     const groupCursor = param("gc")
     const repositoryCursor = param("rc")
     const groups =
-        kind === "repositories" ? null : need("findGroups", {siteId, limit: 30, ...(q ? {query: q} : {}), ...(groupCursor ? {cursor: groupCursor} : {})})
+        kind === "repositories"
+            ? null
+            : need("findGroups", {siteId, limit: 30, ...(q ? {query: q} : {}), ...(groupCursor ? {cursor: groupCursor} : {})})
     const repositories =
         kind === "groups"
             ? null
@@ -189,6 +250,7 @@ function explore(siteId, base) {
     const filters = {q, kind: kind === "all" ? null : kind}
     return {
         action: path,
+        notice: flash.notice || null,
         q: q || "",
         kind,
         groups: groups ? groups.groupList.map(g => groupRow(base, g)) : null,
@@ -205,14 +267,28 @@ function groupRepositories(siteId, shell, base) {
     const sort = param("sort") === "pushed" ? "pushed" : "name"
     const cursor = param("cursor")
     const subgroups = cursor ? null : maybe("findGroups", {siteId, parentGroupId: groupId, limit: 100})
-    const found = need("findRepositories", {siteId, groupId, sort, limit: 30, ...(q ? {query: q} : {}), ...(cursor ? {cursor} : {})})
+    const found = need("findRepositories", {
+        siteId,
+        groupId,
+        sort,
+        limit: 30,
+        ...(q ? {query: q} : {}),
+        ...(cursor ? {cursor} : {})
+    })
     return {
         action: path,
         q: q || "",
         sort,
         subgroups: (subgroups?.groupList || []).map(g => groupRow(base, g)),
         repositories: found.repositoryList.map(r => repositoryRow(base, r)),
-        moreHref: found.nextCursor ? path + query({q, sort: sort === "name" ? null : sort, cursor: found.nextCursor}) : null
+        moreHref: found.nextCursor ? path + query({q, sort: sort === "name" ? null : sort, cursor: found.nextCursor}) : null,
+        // New repository and New subgroup, by capability
+        newRepositoryHref: shell.capabilities.canCreateRepository
+            ? (base || "") + "/new/repository" + query({namespace: shell.group.groupPath})
+            : null,
+        newSubgroupHref: shell.capabilities.canCreateSubgroup
+            ? (base || "") + "/new/group" + query({parent: shell.group.groupPath})
+            : null
     }
 }
 /* GroupMembers (design §6): the members the caller may see, with the role and where it comes from. */
@@ -227,6 +303,9 @@ function groupMembers(siteId, shell, base) {
             displayName: m.displayName || m.handle || "Member",
             role: m.role,
             fromPath: m.fromPath && m.fromPath !== shell.group.groupPath ? m.fromPath : null,
+            // a role of this group itself is the one its Owner changes here
+            own: !m.fromPath || m.fromPath === shell.group.groupPath,
+            revision: m.revision,
             since: dateText(m.fromDate),
             until: dateText(m.thruDate)
         })),
@@ -259,10 +338,13 @@ function repositoryShell(siteId, repositoryId, base, path) {
     const clone = found.cloneUrls || {}
     return {
         repository,
+        // the repository's group (null in a personal namespace): what is inside it is no wider than it
+        group: found.group || null,
         siteId,
         // plain data only: the shell is kept in the screen's context between the shell's script and the page's
         base: base || "",
         capabilities: found.capabilities || {},
+        flash: takeFlash(),
         visibility: visibilityOf(repository),
         crumbs: crumbsOf(base, repository.repositoryPath, repository.name),
         forkOf: repository.forkOf?.repositoryPath
@@ -276,17 +358,33 @@ function repositoryShell(siteId, repositoryId, base, path) {
         ]
             .filter(([, url]) => url)
             .map(([label, url]) => ({label, url})),
+        // the addresses a first commit is pushed to (the page's own only where there is no other HTTPS one)
+        pushUrls: [
+            ["HTTPS", clone.https || clone.page],
+            ["SSH", clone.ssh]
+        ]
+            .filter(([, url]) => url)
+            .map(([label, url]) => ({label, url})),
         tabs: [
             {label: "Files", href: u.root, current: ["", "tree", "blob"].includes(word)},
             {label: "Commits", href: u.section("commits"), current: ["commits", "commit"].includes(word)},
             {label: "Branches", href: u.section("branches"), current: word === "branches"},
-            {label: "Tags", href: u.section("tags"), current: word === "tags"}
+            {label: "Tags", href: u.section("tags"), current: word === "tags"},
+            // a tab the caller may not use is absent: Settings is a Maintainer's
+            ...(holds(found.capabilities?.role, "maintainer")
+                ? [{label: "Settings", href: u.section("settings"), current: word === "settings"}]
+                : [])
         ]
     }
 }
 /* The branches and tags of the ref picker (a GET form; the Files page redirects its choice to the tree's address). */
 function refChoices(shell) {
-    const found = maybe("findRefs", {siteId: shell.siteId, repositoryId: shell.repository.repositoryId, namesOnly: true, limit: 100})
+    const found = maybe("findRefs", {
+        siteId: shell.siteId,
+        repositoryId: shell.repository.repositoryId,
+        namesOnly: true,
+        limit: 100
+    })
     const list = found?.refList || []
     return {
         branches: list.filter(r => r.refType === "branch").map(r => r.name),
@@ -307,7 +405,11 @@ function rewriteLinks(html, u, ref, directory) {
             .replace(/&gt;/g, ">")
             .replace(/&amp;/g, "&")
     const resolve = target => {
-        const parts = target.startsWith("/") ? [] : String(directory || "").split("/").filter(Boolean)
+        const parts = target.startsWith("/")
+            ? []
+            : String(directory || "")
+                  .split("/")
+                  .filter(Boolean)
         for (const part of target.split("/")) {
             if (part === "" || part === ".") continue
             if (part === "..") {
@@ -339,7 +441,8 @@ function rewriteLinks(html, u, ref, directory) {
                 ? "#"
                 : isImage
                   ? u.raw(ref, path)
-                  : (!path || /\/$/.test(cut < 0 ? target : target.slice(0, cut)) ? u.tree(ref, path) : u.blob(ref, path)) + (rest.startsWith("#") ? rest : "")
+                  : (!path || /\/$/.test(cut < 0 ? target : target.slice(0, cut)) ? u.tree(ref, path) : u.blob(ref, path)) +
+                    (rest.startsWith("#") ? rest : "")
         return "<" + tag + before + " " + attribute + '="' + esc(address) + '"'
     })
 }
@@ -350,7 +453,10 @@ function pathCrumbs(u, ref, path, repositoryLabel) {
         .filter(Boolean)
     return [
         {label: repositoryLabel, href: u.tree(ref, "")},
-        ...parts.map((part, i) => ({label: part, href: i === parts.length - 1 ? null : u.tree(ref, parts.slice(0, i + 1).join("/"))}))
+        ...parts.map((part, i) => ({
+            label: part,
+            href: i === parts.length - 1 ? null : u.tree(ref, parts.slice(0, i + 1).join("/"))
+        }))
     ]
 }
 /* Files (design §7): the tree at a ref and a path, its last commit and the directory's rendered README; an empty repository's
@@ -392,6 +498,8 @@ function files(shell, refPath) {
         entries,
         lastCommit: tree.lastCommit ? commitRow(u, shell.base, tree.lastCommit) : null,
         historyHref: u.commits(ref, treePath),
+        // the whole tree at this ref as a file, for a signed-in account (the authority serves no archive to a visitor)
+        archives: shell.capabilities.signedIn && !treePath ? archiveLinks(u, ref) : null,
         // the page's own address is built from what was read, never from the request's path
         moreHref: tree.hasMore ? u.tree(ref, treePath) + query({offset: offset + entries.length}) : null,
         readme: tree.readme?.html ? {path: tree.readme.path, html: rewriteLinks(tree.readme.html, u, ref, treePath)} : null
@@ -402,7 +510,18 @@ function codeHtml(text) {
     const lines = String(text ?? "").split("\n")
     if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop()
     return lines
-        .map((line, i) => '<span id="L' + (i + 1) + '"><a class="n" href="#L' + (i + 1) + '">' + (i + 1) + "</a>" + esc(line.replace(/\r$/, "")) + "</span>")
+        .map(
+            (line, i) =>
+                '<span id="L' +
+                (i + 1) +
+                '"><a class="n" href="#L' +
+                (i + 1) +
+                '">' +
+                (i + 1) +
+                "</a>" +
+                esc(line.replace(/\r$/, "")) +
+                "</span>"
+        )
         .join("\n")
 }
 const IMAGE = /\.(?:png|jpe?g|gif|webp)$/i
@@ -439,9 +558,89 @@ function blob(shell, refPath) {
         renderedHref: u.blob(ref, filePath),
         crumbs: pathCrumbs(u, ref, filePath, shell.repository.slug || shell.repository.name),
         rawHref: u.raw(ref, filePath),
+        // each line's commit, for a file shown as text
+        blameHref: !found.binary && !found.lfs && !found.tooLarge ? u.blame(ref, filePath) : null,
         historyHref: u.commits(ref, filePath),
         permalink: found.ref?.commitId ? u.blob(found.ref.commitId, filePath) : null,
         lastCommit: found.lastCommit ? commitRow(u, shell.base, found.lastCommit) : null
+    }
+}
+/* The downloads of the tree at a ref (design §7): a zip and a tar.gz. */
+const archiveLinks = (u, ref) => [
+    {label: "zip", href: u.archive(ref, "zip")},
+    {label: "tar.gz", href: u.archive(ref, "tar.gz")}
+]
+/* Blame (design §7): a file's lines, each run of them with the commit that last changed it (getBlame's hunks). A file that
+ * has no blame (binary, in Git LFS, too large, a history past the limit) shows the refusal's text. */
+function blame(shell, refPath) {
+    const u = urls(shell.base, shell.repository.repositoryPath)
+    const found = portal.attempt("getBlame", {siteId: shell.siteId, repositoryId: shell.repository.repositoryId, refPath})
+    if (found.error) {
+        if (!["Unprocessable", "Conflict"].includes(found.error.kind))
+            fail(found.error.kind === "NotFound" ? "NotFound" : found.error.kind, found.error.message)
+        // the file is there (the refusal is of its blame): the page says why, with the way back to the file
+        return {failure: found.error.message, fileHref: u.section("blob", refPath), lines: [], crumbs: []}
+    }
+    const b = found.result
+    const ref = refName(b.ref)
+    const filePath = b.path || ""
+    const texts = String(b.text ?? "").split("\n")
+    if (texts.length > 1 && texts[texts.length - 1] === "") texts.pop()
+    const starts = new Map((b.hunkList || []).map(hunk => [Number(hunk.startLine), hunk]))
+    return {
+        failure: null,
+        ref,
+        path: filePath,
+        name: filePath.split("/").pop(),
+        crumbs: pathCrumbs(u, ref, filePath, shell.repository.slug || shell.repository.name),
+        fileHref: u.blob(ref, filePath),
+        historyHref: u.commits(ref, filePath),
+        // a line that starts a run carries the run's commit
+        lines: texts.map((line, i) => {
+            const hunk = starts.get(i + 1)
+            return {
+                number: i + 1,
+                text: line.replace(/\r$/, ""),
+                commit: hunk
+                    ? {
+                          shortId: shortId(hunk.commitId),
+                          href: u.commit(hunk.commitId),
+                          summary: hunk.summary || "",
+                          authorName: hunk.authorName || "",
+                          date: dateText(hunk.date)
+                      }
+                    : null
+            }
+        })
+    }
+}
+/* archive (design §7): the tree at a branch, a tag or a commit as a zip or a tar.gz (downloadArchive), streamed by the
+ * facade as PASS's other downloads are, as an attachment with a safe name and never kept by a cache. The authority serves it
+ * to a signed-in account: a visitor who may view the repository is sent to sign in, and one who may not gets Not Found. */
+function archive(siteId, repositoryId, ref, format, base, accountBase) {
+    const repository = need("getRepository", {siteId, repositoryId}).repository
+    const u = urls(base, repository.repositoryPath)
+    if (!["zip", "tar.gz"].includes(format) || !ref) fail()
+    if (!ec.user.userId)
+        return redirect((accountBase ?? "/account") + "/Login?returnTo=" + encodeURIComponent(u.archive(ref, format)))
+    // the headers go before the body: an attachment with a safe name, never kept by a cache
+    const name = (repository.slug || "repository") + "-" + String(ref).replace(/[^A-Za-z0-9._-]+/g, "-") + "." + format
+    try {
+        ec.resource
+            .script("component://mr-pass/service/pass/Facade.js")
+            .downloadFile(
+                siteId,
+                "downloadArchive",
+                {repositoryId, refPath: ref, format},
+                {disposition: disposition(false, name), streamed: true}
+            )
+    } catch (error) {
+        ec.message.clearErrors()
+        // what is not there (a ref the repository does not have) and what is refused (a tree too large) are both no file
+        fail(
+            error.moquiErrorKind === "NotFound" ? "NotFound" : error.moquiErrorKind || "NotFound",
+            portal.refusal(error.message).text
+        )
     }
 }
 /* The Content-Disposition of a file: an ASCII fallback name and the name itself, percent-encoded (RFC 6266), with no
@@ -467,7 +666,9 @@ function raw(siteId, repositoryId, refPath) {
         .toLowerCase()
     const inline = declared === "text/plain" || /^image\/(?:png|jpeg|gif|webp)$/.test(declared)
     const response = ec.web.response
-    response.setContentType(inline ? (declared === "text/plain" ? "text/plain; charset=utf-8" : declared) : "application/octet-stream")
+    response.setContentType(
+        inline ? (declared === "text/plain" ? "text/plain; charset=utf-8" : declared) : "application/octet-stream"
+    )
     response.setHeader("X-Content-Type-Options", "nosniff")
     response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox")
     response.setHeader("Content-Disposition", disposition(inline, file.filename))
@@ -526,11 +727,12 @@ function refs(shell, refType) {
         date: dateText(r.date),
         ahead: r.aheadBy,
         behind: r.behindBy,
-        compareHref: refType === "branch" && defaultBranch && r.name !== defaultBranch ? u.compare(defaultBranch, r.name) : null
+        compareHref: refType === "branch" && defaultBranch && r.name !== defaultBranch ? u.compare(defaultBranch, r.name) : null,
+        archives: refType === "tag" && shell.capabilities.signedIn ? archiveLinks(u, r.name) : null
     }))
     // the default branch first
     rows.sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
-    return {rows, moreHref: found.nextCursor ? path + query({cursor: found.nextCursor}) : null}
+    return {rows, path, defaultBranch, moreHref: found.nextCursor ? path + query({cursor: found.nextCursor}) : null}
 }
 /* A unified diff's lines as escaped markup, each marked added, deleted or a hunk header. */
 function diffHtml(unifiedDiff) {
@@ -538,7 +740,13 @@ function diffHtml(unifiedDiff) {
     if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop()
     return lines
         .map(line => {
-            const mark = line.startsWith("@@") ? "h" : line.startsWith("+") && !line.startsWith("+++") ? "a" : line.startsWith("-") && !line.startsWith("---") ? "d" : ""
+            const mark = line.startsWith("@@")
+                ? "h"
+                : line.startsWith("+") && !line.startsWith("+++")
+                  ? "a"
+                  : line.startsWith("-") && !line.startsWith("---")
+                    ? "d"
+                    : ""
             return mark ? '<span class="' + mark + '">' + esc(line) + "</span>" : esc(line)
         })
         .join("\n")
@@ -596,7 +804,13 @@ function compare(shell, base, head, headRepositoryPath) {
     const formHead = param("to")
     if (formHead) return {redirect: formBase ? u.compare(formBase, formHead) : u.section("compare", formHead)}
     const headText = (headRepositoryPath ? headRepositoryPath + ":" : "") + (head || "")
-    const view = {action: u.section("compare"), base: base || shell.repository.defaultBranch || "", head: headText, result: null, failure: null}
+    const view = {
+        action: u.section("compare"),
+        base: base || shell.repository.defaultBranch || "",
+        head: headText,
+        result: null,
+        failure: null
+    }
     if (!head) return view
     const found = portal.attempt("getCompare", {
         siteId: shell.siteId,
@@ -610,7 +824,10 @@ function compare(shell, base, head, headRepositoryPath) {
     })
     if (found.error) {
         // the repository is viewable (the shell read it); a ref it does not have is said on the page
-        view.failure = found.error.kind === "NotFound" ? "One of these branches, tags or commits was not found in this repository." : found.error.message
+        view.failure =
+            found.error.kind === "NotFound"
+                ? "One of these branches, tags or commits was not found in this repository."
+                : found.error.message
         return view
     }
     const r = found.result
@@ -642,6 +859,15 @@ function redirect(location, status) {
         response.write("")
     } else response.sendRedirect(location)
 }
+/* The answer to a form's post (303 See Other), never kept by a cache; only to a path on this site. */
+function seeOther(location) {
+    if (!siteLocal(location)) fail()
+    const response = ec.web.response
+    response.setHeader("Cache-Control", "no-store")
+    response.setStatus(303)
+    response.setHeader("Location", location)
+    response.write("")
+}
 /* The resolver's redirect (Smithy.xml redirect): 301 to its location with the request's query. */
 function redirectRoute(location) {
     const asked = ec.web.request.getQueryString?.()
@@ -654,8 +880,16 @@ function redirectRoute(location) {
     param,
     esc,
     enc,
+    query,
     urls,
     dateText,
+    sizeText,
+    holds,
+    setFlash,
+    takeFlash,
+    expireFlash,
+    maybe,
+    seeOther,
     codeHtml,
     diffHtml,
     groupShell,
@@ -669,6 +903,8 @@ function redirectRoute(location) {
     files,
     blob,
     raw,
+    blame,
+    archive,
     commits,
     refs,
     commit,

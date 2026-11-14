@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- GitAccess (design-smithy §11 GitAccess): the signed-in account's SSH keys and access tokens (findGitAccess), with Add and
+    Remove; a new token is shown once, on the page after its form. Smithy's page in the Account app: its forms post to
+    Smithy/Do, and it is Not Found on a site that mounts no Smithy. Never kept by a cache. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Git access">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').gitAccess(resolvedSiteId,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

@@ -8,6 +8,8 @@
         const headers=ec.resource.script('component://mr-pass/screen/Shared/Headers.js')
         headers.apply(null,'')
         publicHost=String(publicHost || "").toLowerCase()
+        // what a Smithy form left for its next page (a new access token) does not outlive two minutes unread, in any app
+        if(ec.user.userId && ec.web?.sessionAttributes?.passSmithyFlash)ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').expireFlash()
         siteId=resolvedSiteId
         // a site's theme preview host (Commerce P5, F54) serves only the preview render (ShopPreview.xml, with its own
         // headers), whatever the site's state: no site info, no shell

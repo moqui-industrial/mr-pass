@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- RepositorySettings (design-smithy §11 RepositorySettings), at -/settings/<tab>, for a Maintainer and Not Found for anyone
+    else: General (updateRepository), Members (findRepositoryMembers; an Owner changes them, setRepositoryMember), Branch
+    rules (getBranchRules, storeBranchRule, deleteBranchRule), Webhooks (findWebhooks, storeWebhook, deleteWebhook,
+    testWebhook, findWebhookDeliveries) and, for an Owner, Archive (setRepositoryVisibility, renameRepository,
+    transferRepository, setRepositoryArchived, deleteRepository, each ending action asked again on its own page). Mirrors,
+    Pipelines, Agreement and Forum come with their phases. The forms post to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Settings">
+  <parameter name="tab"/>
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').repositorySettings(smithyRepository,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

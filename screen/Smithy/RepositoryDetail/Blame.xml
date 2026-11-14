@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Blame (design-smithy §7 Blame): a file's lines with the commit that last changed each run of them (getBlame), as a table
+    of escaped text with the commits linked; a file with no blame (binary, in Git LFS, too large, a history past the limit)
+    shows the refusal's text. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Blame">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').blame(smithyRepository,String(refPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/Blame.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

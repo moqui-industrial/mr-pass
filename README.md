@@ -28,8 +28,11 @@ page editors are [IronStone Commerce](../mr-boss/plan/design-commerce.md)'s; pub
 
 Its Smithy app ([design](plan/design-smithy.md), `screen/Smithy.xml`) is public git hosting, mounted at `/code` or a
 site's root: groups, repositories and their code (files, a file with line anchors, raw, commits, branches, tags, a commit
-and a comparison), read-only and without JavaScript, over Mantle's `mantle.smithy` services and the framework's git host.
-What a visitor may not view is Not Found. [Deployment](docs/Deployment.md) "Smithy app" has its setup.
+and a comparison), and for an account with a confirmed address creating groups and repositories, their settings and
+members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript,
+over Mantle's `mantle.smithy` services and the framework's git host. What a visitor may not view is Not Found.
+[Deployment](docs/Deployment.md) "Smithy app" has its setup; [the implementation record](plan/implementation-smithy.md)
+what is built.
 
 ## Starting a community
 
@@ -53,7 +56,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -69,7 +72,8 @@ subscription operations over a Shop subscription (`ShopSubscriptionsInCommerce`;
 operations (`ShopOperationsScenarios`: a legacy store's adoption preview and approved proposal, a withdrawn mount with an
 attempt reconciled, a remote frontend's outage), Shop's checkout in the browser (`ShopCheckoutHttp`) and its
 accessibility and device checks (`ShopAccessibilityHttp`: a keyboard-only checkout at 390 px with announced totals and a
-labelled, focused refusal, reduced motion, the account pages at 390 px), its payment, order and subscription scenarios
+labelled, focused refusal, reduced motion, the account pages at 390 px), Smithy's golden-path walk (`SmithyWalk`, with
+`SmithyWalkFixtures`: browsing, then a signed-in account creating a repository, and the pages that write at 390 px), its payment, order and subscription scenarios
 on the server (`ShopPaymentScenarios`, `ShopOrderScenarios`, `ShopSubscriptionScenarios`; design-shop §18.1 maps each
 scenario to its test in impl-shop §8), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use

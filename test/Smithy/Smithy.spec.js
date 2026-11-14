@@ -1,11 +1,15 @@
 // Smithy (Dogfood DG1; plan/design-smithy.md §4.4, §7, §19.1): the route resolver's grammar (service/pass/SmithyRoutes.js, the
 // smithy branch of pass.RouteServices.resolve#Route) with the name lookup stubbed, then through the resolver on a site with a
 // group and a repository; one render each of Files, Blob and CommitDetail with its checks; and the operations PASS registers
-// against Mantle's. Mantle's SmithyPaths, SmithyVisibility and SmithyRoles specs cover the rules behind the reads.
+// against Mantle's. DG2 (§4.4, §11): the paths of the pages that write, one render of a repository's Settings and one of
+// Account's Git access, and a form's post through Smithy/Do: the redirect after a write, a refusal shown on its form, the
+// confirmation an ending action needs, and the session token. Mantle's SmithyPaths, SmithyVisibility and SmithyRoles specs
+// cover the rules behind the reads, and its DG2 specs those behind the writes.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const routes = () => ec.resource.script("component://mr-pass/service/pass/SmithyRoutes.js")
 const SITE = "PASS_SMITHY"
 const HOST = "smithy.example.test"
+const KEYS = "pass.smithy.keys"
 const state = {}
 // what the authority would answer for a lowered name path
 const NAMES = {
@@ -39,9 +43,12 @@ spec({
         const f = fixtures()
         f.site(SITE, HOST)
         state.group = f.group(SITE, "pass-smg", "public")
+        // a public account with a confirmed address, for its own git access
+        f.account(SITE, KEYS, {confirmed: true})
         const made = f.repository(SITE, state.group, "web", "public", {
             "README.md": "# Web sample\n\nThe *web* repository.\n\n<script>alert(1)</script>\n",
-            "docs/Guide.md": "# Guide\n\n[Up](../README.md) [Out](../../../etc/passwd) [Site](https://example.test/a) ![Logo](img/logo.png)\n",
+            "docs/Guide.md":
+                "# Guide\n\n[Up](../README.md) [Out](../../../etc/passwd) [Site](https://example.test/a) ![Logo](img/logo.png)\n",
             'docs/n\u00e9"w.txt': "plain <b>text</b>\n",
             "src/main.js": "const a = 1\nif (a < 2) console.log('<script>alert(1)</script>')\n"
         })
@@ -49,7 +56,9 @@ spec({
         state.first = made.commitId
         // a branch whose name has a slash, with a second commit on main after it
         f.run("org.moqui.git.GitServices.create#GitRef", {repositoryId: state.repo, refName: "feature/login", refType: "branch"})
-        state.second = f.commit(state.repo, "Greet everyone & all\n\nA longer note.", {"src/main.js": "const a = 1\nconsole.log('hello')\n"})
+        state.second = f.commit(state.repo, "Greet everyone & all\n\nA longer note.", {
+            "src/main.js": "const a = 1\nconsole.log('hello')\n"
+        })
     }
 })
 feature("the grammar: names, then a section after /-/, with the authority telling a group, a repository and an account apart", {
@@ -105,7 +114,18 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             badName: parse("-moqui"),
             sixNames: parse("a1/b1/c1/d1/e1/f1"),
             reserved: parse("explore/moqui"),
-            newThing: parse("new/thing")
+            newThing: parse("new/thing"),
+            // DG2: the create pages, the site's settings, a form's transition, and the settings of a group and a repository
+            newGroup: parse("new/group"),
+            newRepository: parse("new/repository"),
+            site: parse("-/site"),
+            siteTab: parse("-/site/requests"),
+            siteBad: parse("-/site/nothing"),
+            form: parse("-/do/createRepository"),
+            formBad: parse("-/do/Create-repository"),
+            groupSettings: parse("moqui/-/settings/delete"),
+            repositorySettings: parse("moqui/mr-moqui/-/settings/branch-rules"),
+            repositorySettingsBad: parse("moqui/mr-moqui/-/settings/nothing")
         }
         return {out, asked: asked.slice(), built: routes().BUILT}
     },
@@ -179,6 +199,21 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.reserved.kind === "NotFound"
         out.newThing.kind === "NotFound"
         !asked.some(name => /^(?:explore|new|-moqui)/.test(name))
+        out.newGroup.screenPath === "/Smithy/New/Group"
+        out.newRepository.screenPath === "/Smithy/New/Repository"
+        out.site.screenPath === "/Smithy/Site"
+        out.site.screenParameters.tab == null
+        out.siteTab.screenParameters.tab === "requests"
+        out.siteBad.kind === "NotFound"
+        out.form.screenPath === "/Smithy/Do/createRepository"
+        out.formBad.kind === "NotFound"
+        out.groupSettings.screenPath === "/Smithy/GroupDetail/Settings"
+        out.groupSettings.screenParameters.groupId === "G1"
+        out.groupSettings.screenParameters.tab === "delete"
+        out.repositorySettings.screenPath === "/Smithy/RepositoryDetail/Settings"
+        out.repositorySettings.screenParameters.repositoryId === "R1"
+        out.repositorySettings.screenParameters.tab === "branch-rules"
+        out.repositorySettingsBad.kind === "NotFound"
     }
 })
 feature("the resolver routes a Smithy mount by segment, so compare's ... passes and .. does not, here or in another app", {
@@ -194,10 +229,45 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
             later: f.route(SITE, HOST, "/code/pass-smg/web/-/issues"),
             dotDot: f.route(SITE, HOST, "/code/pass-smg/web/-/tree/main/../x"),
             unknown: f.route(SITE, HOST, "/code/pass-smg/nothing"),
-            account: f.route(SITE, HOST, "/account/../code/explore")
+            account: f.route(SITE, HOST, "/account/../code/explore"),
+            // DG2's pages are routed; a settings tab of a later phase is not
+            created: f.route(SITE, HOST, "/code/new/repository"),
+            form: f.route(SITE, HOST, "/code/-/do/createRepository"),
+            site: f.route(SITE, HOST, "/code/-/site/quotas"),
+            siteLater: f.route(SITE, HOST, "/code/-/site/redirects"),
+            groupSettings: f.route(SITE, HOST, "/code/pass-smg/-/settings"),
+            webhooks: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/webhooks"),
+            mirrors: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/mirrors")
         }
     },
-    then({repository, tree, compare, group, stored, slashes, later, dotDot, unknown, account}) {
+    then({
+        repository,
+        tree,
+        compare,
+        group,
+        stored,
+        slashes,
+        later,
+        dotDot,
+        unknown,
+        account,
+        created,
+        form,
+        site,
+        siteLater,
+        groupSettings,
+        webhooks,
+        mirrors
+    }) {
+        created.screenPath === "/Smithy/New/Repository"
+        form.screenPath === "/Smithy/Do/createRepository"
+        site.screenParameters.tab === "quotas"
+        siteLater.kind === "NotFound"
+        groupSettings.screenPath === "/Smithy/GroupDetail/Settings"
+        groupSettings.screenParameters.groupId === state.group
+        webhooks.screenPath === "/Smithy/RepositoryDetail/Settings"
+        webhooks.screenParameters.tab === "webhooks"
+        mirrors.kind === "NotFound"
         repository.screenPath === "/Smithy/RepositoryDetail/Files"
         repository.screenParameters.repositoryId === state.repo
         repository.screenParameters.namePath === "pass-smg/web"
@@ -254,13 +324,19 @@ feature("Files shows the tree at a branch with a slash, links by the ref's name,
 })
 feature("Blob shows rendered Markdown with its relative links and images made the repository's own pages", {
     when() {
-        const page = fixtures().render(SITE, HOST, "/code/pass-smg/web/-/blob/main/docs/Guide.md", "Smithy/RepositoryDetail/Blob", {
-            repositoryId: state.repo,
-            namePath: "pass-smg/web",
-            refPath: "main/docs/Guide.md"
-        })
+        const page = fixtures().render(
+            SITE,
+            HOST,
+            "/code/pass-smg/web/-/blob/main/docs/Guide.md",
+            "Smithy/RepositoryDetail/Blob",
+            {
+                repositoryId: state.repo,
+                namePath: "pass-smg/web",
+                refPath: "main/docs/Guide.md"
+            }
+        )
         const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
-        const links = (page.html.match(/<(?:a|img)\b[^>]*>(?=Up|Out|Site)|<img\b[^>]*alt="Logo"[^>]*>/g) || [])
+        const links = (page.html.match(/<(?:a|img)\b[^>]*>(?=Up<|Out<|Site<)|<img\b[^>]*alt="Logo"[^>]*>/g) || [])
             .map(tag => /(?:href|src)="([^"]*)"/.exec(tag)?.[1])
             .join(" ")
         return {page, links, html: page.html, code: smithy.codeHtml("const a = 1\nif (a < 2) b('<i>')\n")}
@@ -270,16 +346,19 @@ feature("Blob shows rendered Markdown with its relative links and images made th
         html.includes('id="SmithyRendered"')
         // a relative link is the file's page at the shown ref, resolved against the file's directory; one that would leave
         // the repository's tree has no address; an absolute one is left alone; an image is its raw file
-        links === '/code/pass-smg/web/-/blob/main/README.md # https://example.test/a /code/pass-smg/web/-/raw/main/docs/img/logo.png'
+        links ===
+            "/code/pass-smg/web/-/blob/main/README.md # https://example.test/a /code/pass-smg/web/-/raw/main/docs/img/logo.png"
         // its own links are built from what was read, not from the request's path
         html.includes('<a href="/code/pass-smg/web/-/blob/main/docs/Guide.md?plain=1">Source</a>')
         html.includes('<a href="/code/pass-smg/web/-/raw/main/docs/Guide.md">Raw</a>')
+        html.includes('<a href="/code/pass-smg/web/-/blame/main/docs/Guide.md">Blame</a>')
         html.includes('<a href="/code/pass-smg/web/-/commits/main/docs/Guide.md">History</a>')
         html.includes('href="/code/pass-smg/web/-/blob/' + state.second + '/docs/Guide.md">Permalink</a>')
         html.includes('<a href="/code/pass-smg/web/-/tree/main/docs">docs</a>')
         !html.includes("<script")
         // a file's text is escaped, with a number and an anchor for each line
-        code === '<span id="L1"><a class="n" href="#L1">1</a>const a = 1</span>\n<span id="L2"><a class="n" href="#L2">2</a>if (a &lt; 2) b(&#39;&lt;i&gt;&#39;)</span>'
+        code ===
+            '<span id="L1"><a class="n" href="#L1">1</a>const a = 1</span>\n<span id="L2"><a class="n" href="#L2">2</a>if (a &lt; 2) b(&#39;&lt;i&gt;&#39;)</span>'
     }
 })
 feature("raw serves a file as plain text or a download, never as a page: its type, nosniff, a sandbox and a safe name", {
@@ -309,11 +388,12 @@ feature("raw serves a file as plain text or a download, never as a page: its typ
             csp: raw.header("Content-Security-Policy"),
             disposition: raw.header("Content-Disposition"),
             cache: raw.header("Cache-Control"),
+            vary: raw.header("Vary"),
             sessionCache: session.header("Cache-Control"),
             download: ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js").disposition(false, 'a\r\nb\u00e9".svg')
         }
     },
-    then({raw, type, sniff, csp, disposition, cache, sessionCache, download}) {
+    then({raw, type, sniff, csp, disposition, cache, vary, sessionCache, download}) {
         raw.errors.length === 0
         raw.html === "plain <b>text</b>\n"
         type.startsWith("text/plain")
@@ -323,6 +403,8 @@ feature("raw serves a file as plain text or a download, never as a page: its typ
         download === "attachment; filename=\"ab__.svg\"; filename*=UTF-8''ab%C3%A9%22.svg"
         // public for a minute only for a request with no session cookie and no signed-in user
         cache === "public, max-age=60"
+        // and that answer is for a request with no cookie: after a sign-in the browser asks again
+        vary === "Cookie"
         sessionCache === "no-store"
     }
 })
@@ -339,7 +421,9 @@ feature("the redirect answers 301 to a path on this site, is never cached, and r
             cache: good.header("Cache-Control"),
             bad,
             badLocation: bad.header("Location"),
-            guard: ["/a/b?x=1", "//host/a", "/\\host/a", "/a\u0001b", "https://host/a", "a/b", ""].map(l => smithy.siteLocal(l)).join(" ")
+            guard: ["/a/b?x=1", "//host/a", "/\\host/a", "/a\u0001b", "https://host/a", "a/b", ""]
+                .map(l => smithy.siteLocal(l))
+                .join(" ")
         }
     },
     then({status, location, cache, bad, badLocation, guard}) {
@@ -376,6 +460,230 @@ feature("CommitDetail shows the message, the parent, the changed file and its di
         !html.includes("<script")
     }
 })
+feature(
+    "a repository's Settings shows a Maintainer's tabs and the General form, which posts to Smithy/Do with the session token",
+    {
+        when() {
+            const page = fixtures().render(SITE, HOST, "/code/pass-smg/web/-/settings", "Smithy/RepositoryDetail/Settings", {
+                repositoryId: state.repo,
+                namePath: "pass-smg/web"
+            })
+            return {page, html: page.html, token: ec.web.sessionToken, cache: page.header("Cache-Control")}
+        },
+        then({page, html, token, cache}) {
+            page.errors.length === 0
+            // the shell's tab, and the settings' own: the site's operator is an Owner, so Archive is there
+            html.includes('<a href="/code/pass-smg/web/-/settings" aria-current="page">Settings</a>')
+            html.includes('<a href="/code/pass-smg/web/-/settings" aria-current="page">General</a>')
+            html.includes('<a href="/code/pass-smg/web/-/settings/branch-rules">Branch rules</a>')
+            html.includes('<a href="/code/pass-smg/web/-/settings/archive">Archive</a>')
+            // a plain form: its transition, the session token, where a refusal returns, the revision it edits
+            html.includes('<form method="post" class="card" id="Smithy_updateRepository" action="/code/-/do/updateRepository">')
+            token.length > 0
+            html.includes('<input type="hidden" name="moquiSessionToken" value="' + token + '">')
+            html.includes('<input type="hidden" name="returnTo" value="/code/pass-smg/web/-/settings">')
+            html.includes('name="expectedRevision"')
+            html.includes('<option value="main" selected>main</option>')
+            html.includes('<option value="feature/login">feature/login</option>')
+            html.includes('name="mergeRequestsEnabled" value="true" checked')
+            // the header's signed-in links, and Sign out as a form
+            html.includes('<a href="/code/new/repository">New repository</a>')
+            html.includes('<a href="/account/GitAccess">Git access</a>')
+            html.includes('id="SmithySignOut"')
+            !html.includes("<script")
+            cache === "no-store"
+        }
+    }
+)
+feature("Git access: a public account makes a token through its form, sees it once on the next page, and it is in no address", {
+    when() {
+        const f = fixtures()
+        const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+        login(KEYS, "moqui1!!")
+        try {
+            // the form's post: createAccessToken through Smithy/Do, the password given again; the flash stays for the page
+            const made = f.post(
+                SITE,
+                HOST,
+                "createAccessToken",
+                {name: "spec ci", password: "moqui1!!", operationId: "pass-smg-token-1"},
+                true,
+                true
+            )
+            const token = made.flash.token?.token || ""
+            const page = f.render(SITE, HOST, "/account/GitAccess", "Account/GitAccess", {})
+            return {made, token, page, html: page.html, cache: page.header("Cache-Control"), after: smithy.takeFlash()}
+        } finally {
+            login("john.doe")
+        }
+    },
+    then({made, token, page, html, cache, after}) {
+        made.errors.length === 0
+        made.status === 303
+        made.location === "/account/GitAccess"
+        made.cache === "no-store"
+        token.length >= 20
+        page.errors.length === 0
+        html.includes('id="SmithyNewToken"')
+        html.includes(">" + token + "</code>")
+        html.split(token).length === 2
+        // the page took it: the next page has none
+        after.token == null
+        cache === "no-store"
+        // the token is listed by its name, with Revoke asked again on its own page
+        html.includes('<h3 class="wrap">spec ci</h3>')
+        html.includes('href="/account/GitAccess?confirm=token&amp;id=')
+        // the forms post to Smithy/Do, and the password is asked again
+        html.includes('action="/code/-/do/addSshKey"')
+        html.includes('action="/code/-/do/createAccessToken"')
+        html.includes('name="publicKey"')
+        html.includes('<input type="password" name="password" autocomplete="current-password">')
+        !html.includes("<script")
+    }
+})
+feature("Blame shows each run of lines with the commit that last changed it, as escaped text", {
+    when() {
+        const page = fixtures().render(
+            SITE,
+            HOST,
+            "/code/pass-smg/web/-/blame/main/src/main.js",
+            "Smithy/RepositoryDetail/Blame",
+            {
+                repositoryId: state.repo,
+                namePath: "pass-smg/web",
+                refPath: "main/src/main.js"
+            }
+        )
+        return {page, html: page.html, route: fixtures().route(SITE, HOST, "/code/pass-smg/web/-/blame/main/src/main.js")}
+    },
+    then({page, html, route}) {
+        route.screenPath === "/Smithy/RepositoryDetail/Blame"
+        route.screenParameters.refPath === "main/src/main.js"
+        page.errors.length === 0
+        html.includes('id="SmithyBlame"')
+        // the first line is the first commit's, the second the commit that changed it; each is linked once, where its run starts
+        html.includes('<tr id="L1" class="s"><td><a href="/code/pass-smg/web/-/commit/' + state.first + '" title="First commit">')
+        html.includes(
+            '<tr id="L2" class="s"><td><a href="/code/pass-smg/web/-/commit/' +
+                state.second +
+                '" title="Greet everyone &amp; all">'
+        )
+        html.includes("<pre>console.log(&#39;hello&#39;)</pre>")
+        html.includes('<a href="/code/pass-smg/web/-/blob/main/src/main.js">File</a>')
+        !html.includes("<script")
+    }
+})
+feature("archive serves a ref's tree to a signed-in account as an attachment, never cached; a visitor is sent to sign in", {
+    when() {
+        const f = fixtures()
+        const get = () =>
+            f.render(SITE, HOST, "/code/pass-smg/web/-/archive/feature/login.zip", "Smithy/RepositoryDetail/archive", {
+                repositoryId: state.repo,
+                namePath: "pass-smg/web",
+                ref: "feature/login",
+                format: "zip"
+            })
+        const signedIn = get()
+        logout()
+        let visitor
+        try {
+            visitor = get()
+        } finally {
+            login("john.doe")
+        }
+        return {
+            signedIn,
+            route: f.route(SITE, HOST, "/code/pass-smg/web/-/archive/feature/login.zip"),
+            disposition: signedIn.header("Content-Disposition"),
+            cache: signedIn.header("Cache-Control"),
+            sniff: signedIn.header("X-Content-Type-Options"),
+            visitor,
+            visitorLocation: visitor.header("Location"),
+            visitorCache: visitor.header("Cache-Control")
+        }
+    },
+    then({signedIn, route, disposition, cache, sniff, visitor, visitorLocation, visitorCache}) {
+        route.screenPath === "/Smithy/RepositoryDetail/archive"
+        route.screenParameters.ref === "feature/login"
+        route.screenParameters.format === "zip"
+        signedIn.errors.length === 0
+        signedIn.html.startsWith("PK")
+        disposition === "attachment; filename=\"web-feature-login.zip\"; filename*=UTF-8''web-feature-login.zip"
+        cache === "no-store"
+        sniff === "nosniff"
+        // a visitor who may view the repository gets no file, only the way to sign in and come back
+        !visitor.html.startsWith("PK")
+        visitorLocation === "/account/Login?returnTo=" + encodeURIComponent("/code/pass-smg/web/-/archive/feature/login.zip")
+        visitorCache === "no-store"
+    }
+})
+feature("a form's post answers 303: to its page after a write, back to the form with the refusal; an ending action asks again", {
+    when() {
+        const f = fixtures()
+        const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+        const forms = ec.resource.script("component://mr-pass/screen/Smithy/SmithyForms.js")
+        const branches = "/code/pass-smg/web/-/branches"
+        const create = (name, operationId, keep) =>
+            f.post(
+                SITE,
+                HOST,
+                "createRef",
+                {repositoryId: state.repo, refType: "branch", name, fromRevision: "main", operationId, returnTo: branches},
+                true,
+                keep
+            )
+        const made = create("topic", "pass-smg-ref-1")
+        // the same name again is refused; the flash is kept, as the form's page would find it
+        const again = create("topic", "pass-smg-ref-2", true)
+        const shell = smithy.repositoryShell(SITE, state.repo, "/code", branches)
+        const view = smithy.refs(shell, "branch")
+        const shown = forms.refForms(shell, "branch", view, {smithy: "/code", account: "/account"}, {authenticated: true})
+        // an ending action without its confirmation page's answer is not run, and a return address off the mount is not used
+        const unasked = f.post(SITE, HOST, "deleteRef", {
+            repositoryId: state.repo,
+            refType: "branch",
+            name: "topic",
+            returnTo: "//evil.example/x"
+        })
+        // a test render does not make the framework's request checks, so the session token's is read from the screen: every
+        // transition of Do is a post, and none opts out of the token (SmithyWalk posts without one)
+        const screen = String(ec.resource.getLocationText("component://mr-pass/screen/Smithy/Do.xml") || "")
+        return {
+            made,
+            again,
+            shown: shown.createHtml,
+            names: view.rows.map(row => row.name),
+            deleteHref: view.rows.find(row => row.name === "topic")?.deleteHref,
+            unasked,
+            transitions: (screen.match(/<transition /g) || []).length,
+            posts: (screen.match(/<transition name="[A-Za-z]+" method="post">/g) || []).length,
+            forms: Object.keys(forms.DO).filter(name => screen.includes('<transition name="' + name + '" method="post">')).length,
+            optOut: screen.includes("require-session-token")
+        }
+    },
+    then({made, again, shown, names, deleteHref, unasked, transitions, posts, forms, optOut}) {
+        made.status === 303
+        made.location === "/code/pass-smg/web/-/branches"
+        made.cache === "no-store"
+        made.flash.notice === "Created topic."
+        again.status === 303
+        again.location === "/code/pass-smg/web/-/branches"
+        again.flash.form === "createRef"
+        again.flash.error.message.length > 0
+        // the refusal is on the form, with what was typed
+        shown.includes('<p role="alert" class="error" id="Smithy_createRef_error">')
+        shown.includes('name="name" value="topic"')
+        names.includes("topic")
+        deleteHref === "/code/pass-smg/web/-/branches?delete=topic"
+        unasked.status === 303
+        unasked.location === "/code/"
+        unasked.flash.error.message === "Confirm this change on its own page first."
+        transitions === 29
+        posts === 29
+        forms === 29
+        optOut === false
+    }
+})
 feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operations, their routes, and the cache policy", {
     when() {
         const text = location => String(ec.resource.getLocationText(location) || "")
@@ -403,7 +711,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 16
+        count === 53
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"
@@ -421,7 +729,8 @@ feature("every app's default base is refused as a group's path, so a group never
                 fixtures().run("mantle.smithy.SmithyServices.create#Group", {siteId: SITE, pathSegment, visibility: "public"})
                 taken.push(pathSegment + " was made")
             } catch (error) {
-                if (!/nameTaken|nameInvalid|That name is taken/.test(String(error.message))) taken.push(pathSegment + ": " + String(error.message).slice(0, 120))
+                if (!/nameTaken|nameInvalid|That name is taken/.test(String(error.message)))
+                    taken.push(pathSegment + ": " + String(error.message).slice(0, 120))
             }
         }
         return {taken, count: Object.keys(apps).length}

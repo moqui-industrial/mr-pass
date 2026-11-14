@@ -1,7 +1,8 @@
 /* Smithy's URL grammar (plan/design-smithy.md §4.4), the smithy branch of pass.RouteServices.resolve#Route: the path after
  * the mount's base to a screen path and its screen parameters. parse() is the grammar alone, with the name path's lookup
  * given as a function; route() asks the authority (resolveSmithyPath, which applies the view check, so what the caller may
- * not see is Not Found exactly as a path with no row) and answers Not Found for a screen a later phase builds. A redirect
+ * not see is Not Found exactly as a path with no row) and answers Not Found for a screen, or a settings tab, a later phase
+ * builds. A redirect
  * (a path not in its stored case, a .git suffix, a renamed path, a compatibility form) is the Smithy/redirect transition
  * with its location. CC0 plus patent grant. */
 function fail() {
@@ -20,25 +21,49 @@ const SLUG = /^[a-z0-9_][a-z0-9_.-]{0,99}$/
 const slugValid = slug => SLUG.test(slug) && !slug.includes("..") && !/(?:\.|\.git|\.lock|\.atom)$/.test(slug)
 const SITE_TABS = ["settings", "requests", "quotas", "redirects"]
 const GROUP_TABS = ["general", "agreement", "forum", "pipelines", "quota", "import", "delete"]
-const REPOSITORY_TABS = ["general", "members", "branch-rules", "webhooks", "mirrors", "pipelines", "agreement", "forum", "archive"]
-/* The screens built so far (DG1); a path of the grammar that names another screen is Not Found until its phase. */
+const REPOSITORY_TABS = [
+    "general",
+    "members",
+    "branch-rules",
+    "webhooks",
+    "mirrors",
+    "pipelines",
+    "agreement",
+    "forum",
+    "archive"
+]
+/* The screens built so far (DG1, DG2); a path of the grammar that names another screen is Not Found until its phase. A
+ * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
     "/Smithy/Explore",
+    "/Smithy/New/Group",
+    "/Smithy/New/Repository",
+    "/Smithy/Site",
     "/Smithy/AccountDetail",
     "/Smithy/GroupDetail/Overview",
     "/Smithy/GroupDetail/Repositories",
     "/Smithy/GroupDetail/Members",
+    "/Smithy/GroupDetail/Settings",
     "/Smithy/RepositoryDetail/Files",
     "/Smithy/RepositoryDetail/Blob",
     "/Smithy/RepositoryDetail/raw",
+    "/Smithy/RepositoryDetail/Blame",
+    "/Smithy/RepositoryDetail/archive",
     "/Smithy/RepositoryDetail/Commits",
     "/Smithy/RepositoryDetail/Branches",
     "/Smithy/RepositoryDetail/Tags",
+    "/Smithy/RepositoryDetail/Settings",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
     "/Smithy/redirect"
 ]
+/* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
+const BUILT_TABS = {
+    "/Smithy/Site": ["settings", "requests", "quotas"],
+    "/Smithy/GroupDetail/Settings": ["general", "quota", "delete"],
+    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "archive"]
+}
 const bytes = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
 /* Step 1: the segments of a path, each percent-decoded once. A segment that is . or .., holds a slash or a control
  * character, or is over 255 bytes, and a path of over 40 segments, are Not Found. */
@@ -68,7 +93,11 @@ function fixed(parts) {
     if (first === "explore") return exact(1, "/Smithy/Explore")
     if (first === "search") return exact(1, "/Smithy/Search")
     if (first === "new")
-        return second === "group" ? exact(2, "/Smithy/New/Group") : second === "repository" ? exact(2, "/Smithy/New/Repository") : fail()
+        return second === "group"
+            ? exact(2, "/Smithy/New/Group")
+            : second === "repository"
+              ? exact(2, "/Smithy/New/Repository")
+              : fail()
     if (first === "import")
         return parts.length === 1 ? page("/Smithy/Import") : page("/Smithy/Import", {importId: one(parts.slice(1), ID)})
     if (first === "robots.txt") return exact(1, "/Smithy/robots")
@@ -190,7 +219,9 @@ function repositorySection(section, parameters) {
         case "release-assets":
             return rest.length === 2 && ID.test(rest[0]) ? with_("/Smithy/ReleaseDetail/asset", {assetId: rest[0]}) : fail()
         case "artifacts":
-            return rest.length === 2 && ID.test(rest[0]) ? with_("/Smithy/PipelineDetail/artifact", {artifactId: rest[0]}) : fail()
+            return rest.length === 2 && ID.test(rest[0])
+                ? with_("/Smithy/PipelineDetail/artifact", {artifactId: rest[0]})
+                : fail()
         case "docs":
             return with_(R + "Docs", {refPath})
         case "forum":
@@ -249,7 +280,13 @@ function parse(suffix, base, resolve) {
     // nothing else, and its group and repository at least are names
     if (!named) {
         const lowered = names.map(name => name.toLowerCase())
-        if (dash >= 0 || names.length < 3 || !GROUP_SEGMENT.test(lowered[0]) || !(GROUP_SEGMENT.test(lowered[1]) || slugValid(lowered[1]))) fail()
+        if (
+            dash >= 0 ||
+            names.length < 3 ||
+            !GROUP_SEGMENT.test(lowered[0]) ||
+            !(GROUP_SEGMENT.test(lowered[1]) || slugValid(lowered[1]))
+        )
+            fail()
     }
     const found = resolve(names.join("/"))
     if (!found || !found.kind) fail()
@@ -258,7 +295,8 @@ function parse(suffix, base, resolve) {
     const canonical = String(found.canonicalPath || names.join("/").toLowerCase())
     if (names.join("/") !== canonical) return redirect(canonical)
     if (found.kind === "group") return groupSection(section, {groupId: found.groupId, namePath: canonical})
-    if (found.kind === "account") return section.length ? fail() : page("/Smithy/AccountDetail", {handle: found.handle || canonical})
+    if (found.kind === "account")
+        return section.length ? fail() : page("/Smithy/AccountDetail", {handle: found.handle || canonical})
     if (found.kind === "repository") return repositorySection(section, {repositoryId: found.repositoryId, namePath: canonical})
     return fail()
 }
@@ -279,7 +317,9 @@ function route(siteId, suffix, base) {
         }
     }
     const out = parse(suffix, base, resolve)
-    if (!BUILT.includes(out.screenPath)) fail()
+    if (!BUILT.includes(out.screenPath) && !out.screenPath.startsWith("/Smithy/Do/")) fail()
+    const tab = out.screenParameters.tab
+    if (tab && BUILT_TABS[out.screenPath] && !BUILT_TABS[out.screenPath].includes(tab)) fail()
     return out
 }
-;({parse, route, segments, BUILT})
+;({parse, route, segments, BUILT, BUILT_TABS})

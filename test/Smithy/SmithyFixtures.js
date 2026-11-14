@@ -1,6 +1,7 @@
-/* Smithy's spec fixtures (Dogfood DG1): a published site with Smithy mounted at /code, groups, repositories with a commit
+/* Smithy's spec fixtures (Dogfood DG1, DG2): a published site with Smithy mounted at /code, groups, repositories with a commit
  * (Mantle's create#Group and create#Repository, a db repository committed through
- * org.moqui.git.GitServices.commit#GitFiles) and public accounts. CC0 plus patent grant. */
+ * org.moqui.git.GitServices.commit#GitFiles), public accounts, with a confirmed address and a role when given, and a form's
+ * post to its transition of Smithy/Do. CC0 plus patent grant. */
 function run(name, parameters) {
     const out = ec.service.sync().name(name).parameters(parameters).disableAuthz().call()
     if (ec.message.hasError()) {
@@ -22,7 +23,13 @@ function site(siteId, host) {
         policyRevision: 1,
         generation: 1
     })
-    run("create#mantle.public.PublicSiteParty", {siteId, partyId: ec.user.userAccount.partyId, state: "active", role: "owner", revision: 1})
+    run("create#mantle.public.PublicSiteParty", {
+        siteId,
+        partyId: ec.user.userAccount.partyId,
+        state: "active",
+        role: "owner",
+        revision: 1
+    })
     run("mantle.public.SiteServices.store#Mounts", {
         input: {
             siteId,
@@ -35,8 +42,9 @@ function site(siteId, host) {
         }
     })
 }
-/* A public account that is an active member of the site: its partyId. */
-function account(siteId, username) {
+/* A public account that is an active member of the site: its partyId. options.confirmed gives it a confirmed address (design
+ * §5.5), options.role a role (SmrReporter, ...) on options.groupId or options.repositoryId. */
+function account(siteId, username, options) {
     const partyId = run("mantle.party.PartyServices.create#Person", {firstName: username, lastName: "Smithy"}).partyId
     run("mantle.party.PartyServices.create#PartyUserAccount", {
         partyId,
@@ -45,8 +53,36 @@ function account(siteId, username) {
         newPassword: "moqui1!!",
         newPasswordVerify: "moqui1!!"
     })
-    run("create#mantle.public.PublicSiteParty", {siteId, partyId, state: "active", role: "member", joinedAt: Date.now(), revision: 1})
+    run("create#mantle.public.PublicSiteParty", {
+        siteId,
+        partyId,
+        state: "active",
+        role: "member",
+        joinedAt: Date.now(),
+        revision: 1
+    })
+    if (options?.confirmed) {
+        const userId = ec.entity.find("moqui.security.UserAccount").condition("username", username).disableAuthz().one().userId
+        run("create#moqui.security.public.VerifiedAddress", {
+            userId,
+            emailAddress: username + "@example.test",
+            verifiedAt: ec.user.nowTimestamp
+        })
+    }
+    if (options?.role)
+        role(siteId, options.groupId ? {groupId: options.groupId} : {repositoryId: options.repositoryId}, partyId, options.role)
     return partyId
+}
+/* A role row on a group ({groupId}) or a repository ({repositoryId}). */
+function role(siteId, target, partyId, roleEnumId) {
+    run("create#mantle.smithy." + (target.groupId ? "SmithyGroupParty" : "SmithyRepositoryParty"), {
+        ...target,
+        partyId,
+        siteId,
+        roleEnumId,
+        fromDate: Date.now() - 1000,
+        revision: 1
+    })
 }
 /* An active group through Mantle's create#Group (the current user, the site's owner, becomes its Owner): its groupId.
  * visibility is public, members or private. */
@@ -76,7 +112,8 @@ function commit(repositoryId, message, fileMap) {
 /* One operation through the facade as the current user: its result, or {kind, message} of its refusal. */
 function operation(name, input) {
     try {
-        return ec.service.sync().throwOnError(true).name("pass.Facade.call#Operation").parameters({operation: name, input}).call().result
+        return ec.service.sync().throwOnError(true).name("pass.Facade.call#Operation").parameters({operation: name, input}).call()
+            .result
     } catch (error) {
         ec.message.clearErrors()
         return {kind: error.moquiErrorKind || "Error", message: String(error.message).split("\n")[0]}
@@ -87,7 +124,11 @@ function operation(name, input) {
 function render(siteId, host, path, screenPath, parameters, requestHeaders) {
     const test = ec.screen.makeTest().rootScreen("component://mr-pass/screen/Pass.xml")
     for (const [name, value] of Object.entries(requestHeaders || {})) test.header(name, value)
-    const rendered = test.render(screenPath, {resolvedSiteId: siteId, publicHost: host, publicPath: path, ...(parameters || {})}, null)
+    const rendered = test.render(
+        screenPath,
+        {resolvedSiteId: siteId, publicHost: host, publicPath: path, ...(parameters || {})},
+        null
+    )
     return {
         html: String(rendered.output || ""),
         errors: Array.from(rendered.errorMessages || []),
@@ -95,14 +136,44 @@ function render(siteId, host, path, screenPath, parameters, requestHeaders) {
         header: name => rendered.header(name)
     }
 }
+/* A form's post to its transition of Smithy/Do, with the session token unless token is false: {status, location, cache,
+ * errors} and the flash it left for the next page, taken as that page would unless keep is true. */
+function post(siteId, host, name, fields, token, keep) {
+    const test = ec.screen.makeTest().rootScreen("component://mr-pass/screen/Pass.xml")
+    const rendered = test.render(
+        "Smithy/Do/" + name,
+        {
+            resolvedSiteId: siteId,
+            publicHost: host,
+            publicPath: "/code/-/do/" + name,
+            ...(token === false ? {} : {moquiSessionToken: ec.web.sessionToken}),
+            ...fields
+        },
+        "post"
+    )
+    return {
+        status: rendered.status,
+        location: rendered.header("Location"),
+        cache: rendered.header("Cache-Control"),
+        errors: Array.from(rendered.errorMessages || []),
+        flash: keep
+            ? JSON.parse(String(ec.web.sessionAttributes.passSmithyFlash || "{}"))
+            : ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js").takeFlash()
+    }
+}
 /* The route of a request path on the site: {screenPath, screenParameters}, or {kind} of its refusal. */
 function route(siteId, hostname, path) {
     try {
-        const out = ec.service.sync().throwOnError(true).name("pass.RouteServices.resolve#Route").parameters({siteId, hostname, path}).call()
+        const out = ec.service
+            .sync()
+            .throwOnError(true)
+            .name("pass.RouteServices.resolve#Route")
+            .parameters({siteId, hostname, path})
+            .call()
         return {screenPath: out.screenPath, screenParameters: out.screenParameters || {}}
     } catch (error) {
         ec.message.clearErrors()
         return {kind: error.moquiErrorKind || "Error", message: String(error.message).split("\n")[0]}
     }
 }
-;({run, site, account, group, repository, commit, operation, render, route})
+;({run, site, account, role, group, repository, commit, operation, render, post, route})

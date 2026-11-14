@@ -233,7 +233,7 @@ Billing and Support pages keep the PASS shell with the site's brand values from 
 
 Responses are `no-store` with the shell's CSP unless a route in `screen/Shared/Headers.js` says otherwise. Shop's
 catalog routes (Home, `Categories`, `categories/{id}/{slug}`, `Search`, `products/{id}/{slug}`, `pages/{route}`,
-`sitemap.xml`, `robots.txt`) are `public, max-age=60` with an ETag to a request with no session cookie and no signed-in
+`sitemap.xml`, `robots.txt`) are `public, max-age=60` with an ETag and `Vary: Cookie` to a request with no session cookie and no signed-in
 user, and `no-store` otherwise; a CDN in front may keep them that minute. A withdrawal advances the site's generation and
 reaches visitors within it.
 
@@ -411,8 +411,9 @@ name the same path, as for every app.
 
 - **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
   `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
-  `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, and `/<group>/-/repositories`, `/-/members`; `/explore` lists
-  what the visitor may view. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
+  `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/members`,
+  `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
+  the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
   and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
   (`/<group>/<repository>/blob/main/README.md`) redirect (301) once Mantle has found something the visitor may view.
   Because the first segment of a path is a group or a handle, mount the other apps at their own paths and keep group
@@ -423,9 +424,36 @@ name the same path, as for every app.
 - **Access.** What a visitor may not view (a members-only or private repository, a hidden one, a group not yet active) is
   Not Found on every page and path, the same as what does not exist.
 - **Caching.** A read page is `public, max-age=60` only for a request with no session cookie and no signed-in user, which
-  sees public repositories alone; every other request is `no-store` (`screen/Shared/Headers.js`). A raw file is served as
+  sees public repositories alone, and that answer has `Vary: Cookie`; every other request, and every answer to a form's
+  post, is `no-store` (`screen/Shared/Headers.js`). A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
 - **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
+- **Who may create.** The site's owners and operators set it on `/-/site` under the mount (Site settings in the header):
+  who may create a group, a repository of their own and a fork (operators only; by request, which an operator approves or
+  refuses on `/-/site/requests`; any account with a confirmed address), the kind of a repository made on a page (`db`, or
+  `local` for a directory of the server), the default limits of an account and of a group, and on `/-/site/quotas` the
+  limits of one account or group. Until the settings are saved, a group is by request and a repository of one's own is
+  open to any confirmed account. A site owner's own group is created at once.
+- **Writes.** Every write needs a signed-in account with a confirmed email address, so configure verification mail
+  before opening the site (the Account app's settings are where an account confirms it). A form posts to `/-/do/<name>`
+  under the mount with the session token and is answered by a redirect; an ending action (delete, transfer, archive, a
+  visibility change) is asked again on a page of its own.
+- **Git access.** `<account base>/GitAccess` (linked from the header, the clone box and the Account hub's card) is where
+  an account adds an SSH key and makes an access token; it is Not Found on a site with no Smithy mount. A token is shown
+  once. Over HTTPS git takes the account's username and a token. Git over SSH for a public account needs
+  `<ssh-server git-any-account="true">` in the runtime's conf ([Git-Hosting](../../../../../docs/interfaces/Git-Hosting.md)):
+  git by public key for any account, each repository's own check still deciding. Without it only accounts with the
+  `SSH_GIT` permission use git over SSH, and the page's SSH address does not work for the others. A password login over
+  SSH still needs `SSH_GIT` and `git-password-auth`. `<dav-server sftp-drives>` is a separate setting: look at it too
+  before opening the SSH port of a public site.
+- **Quotas.** A push is checked against the namespace's limits by Mantle's pre-receive rule. Git LFS uploads are checked
+  by `<git-server lfs-upload-check-service>`, which mr-mantle's `MoquiConf.xml` sets; keep it when a runtime's conf
+  replaces the `git-server` element.
+- **Downloads.** A tree's zip or tar.gz (`/-/archive/<ref>.zip`, `.tar.gz`) is served to a signed-in account only; a
+  visitor is sent to sign in. `git-server` `archive-max-bytes` and `archive-max-files` bound it, and `blame-max-bytes` and
+  `blame-max-commits` the Blame page.
+- **Push.** A push needs a role of Developer or higher in the repository and a confirmed address; branch rules and
+  webhooks are a repository's Settings (a Maintainer's), its members, visibility, transfer, archive and delete an Owner's.
 
 ## Adding an app
 

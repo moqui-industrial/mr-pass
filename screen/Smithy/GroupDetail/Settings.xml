@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- GroupSettings (design-smithy §6 GroupSettings), at -/settings/<tab>, for an Owner and Not Found for anyone else: General
+    (updateGroup, the visibility asked again before it changes, renameGroup), Quota (getQuotaUsage) and Delete (deleteGroup,
+    the path typed). Agreement, Pipelines, Forum and Import come with their phases. The forms post to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Settings">
+  <parameter name="tab"/>
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').groupSettings(smithyGroup,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

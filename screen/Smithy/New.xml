@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- New (design-smithy §4.4, §6): the create pages, new/group and new/repository, for a signed-in account with a confirmed
+    address. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="New">
+  <subscreens default-item="Repository"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>

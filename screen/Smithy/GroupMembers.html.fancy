@@ -1,4 +1,5 @@
 <h2>Members</h2>
 <section id="SmithyMemberList" aria-label="Members"><#if !view.members.length><p class="card">No members to show.</p></#if>
-<#list view.members as member><article class="card smithy-row"><h3><#if member.href><a href="${member.href}">${member.displayName}</a><#else>${member.displayName}</#if><#if member.handle> <small>@${member.handle}</small></#if></h3><p><strong>${member.role}</strong><#if member.fromPath> · from ${member.fromPath}</#if><#if member.since> · since ${member.since}</#if><#if member.until> · until ${member.until}</#if></p></article></#list></section>
+<#list view.members as member><article class="card smithy-row"><h3><#if member.href><a href="${member.href}">${member.displayName}</a><#else>${member.displayName}</#if><#if member.handle> <small>@${member.handle}</small></#if></h3><p><strong>${member.role}</strong><#if member.fromPath> · from ${member.fromPath}</#if><#if member.since> · since ${member.since}</#if><#if member.until> · until ${member.until}</#if></p>${raw(member.formsHtml || '')}</article></#list></section>
 <#if view.moreHref><p><a href="${view.moreHref}">More members</a></p></#if>
+${raw(memberForms.addHtml)}${raw(memberForms.leaveHtml)}

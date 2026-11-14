@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Branches (design-smithy §7 Branches): the default branch, then the others (findRefs, refType branch): last commit, ahead
-    and behind, Protected, Compare. Creating and deleting come in DG2. -->
+    and behind, Protected, Compare. A Developer creates a branch from a ref (createRef) and a Maintainer deletes one after
+    confirming (deleteRef); those forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Branches">
@@ -9,6 +10,7 @@
     <script><![CDATA[
         view=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').refs(smithyRepository,'branch')
         refTitle='Branches'
+        refForms=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').refForms(smithyRepository,'branch',view,passBases,siteInfo)
     ]]></script>
   </actions>
   <widgets>

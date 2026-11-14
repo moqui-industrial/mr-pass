@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- NewGroup (design-smithy §6 NewGroup): create or request a top-level group by the site's policy (getSmithySettings,
+    requestGroup), or with ?parent=<groupPath> a subgroup by its Owner (createSubgroup); the page says which policy applies
+    and what happens next. The form posts to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="New group">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').newGroup(resolvedSiteId,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

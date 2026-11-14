@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- SiteSettings (design-smithy §11 SiteSettings), at -/site/<tab>, for the site's owners and operators only and Not Found for
+    anyone else: Settings (who may create a group, a repository and a fork, the kind of a new repository, the default limits;
+    getSmithySettings, storeSmithySettings), Requests (findGroupRequests, decideGroupRequest) and Quotas (getQuotaUsage,
+    setQuota). Redirects come in DG7. The forms post to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Site settings">
+  <parameter name="tab"/>
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').site(resolvedSiteId,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

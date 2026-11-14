@@ -91,11 +91,29 @@ function downloadExport(siteId, exportId) {
     transport().downloadExport(siteId, exportId)
 }
 /* A file an operation answers, rechecked by the authority (the Support app's case file and return label; Customer Service
-   P15): its result's file and, in process, its location. */
-function downloadFile(siteId, operation, input) {
+   P15): its result's file and, in process, its location. options (Smithy's archive): disposition, the whole
+   Content-Disposition in place of the one made from the file's name, and streamed, to read and write the file a window
+   at a time. Every header is set before the body. Through a remote frontend the transport's own answer is forwarded. */
+function downloadFile(siteId, operation, input, options) {
     const backend = System.getProperty('pass_backend_url')
     if (!backend) {
         const result = call(operation, { siteId, ...input })
+        const headers = () => {
+            ec.web.response.setContentType(result.file.mimeType)
+            // Shop P8 (F75): the authority lets a public product image of the current generation be kept a minute; else no-store
+            ec.web.response.setHeader(
+                'Cache-Control',
+                result.file.cacheControl === 'public, max-age=60' ? result.file.cacheControl : 'no-store',
+            )
+            ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
+            ec.web.response.setHeader(
+                'Content-Disposition',
+                options?.disposition ||
+                    'attachment; filename="' +
+                        String(result.file.filename).replace(/["\\\r\n]/g, '_') +
+                        '"',
+            )
+        }
         // the authority checked the asker; the file is read as the authority reads it (a record's content may sit in the
         // database resource store, which a public account may not read itself), before anything is written
         const wasDisabled = ec.artifactExecution.disableAuthz()
@@ -105,6 +123,17 @@ function downloadFile(siteId, operation, input) {
                 .getLocationReference(result.location)
                 .openStream()
             try {
+                if (options?.streamed) {
+                    // a large file (a repository's archive): its headers, then a window at a time
+                    headers()
+                    for (let at = 0; ; ) {
+                        const window = stream.read(at, RANGE_WINDOW)
+                        if (!window.length) break
+                        ec.web.response.write(window)
+                        at += window.length
+                    }
+                    return
+                }
                 bytes = stream.readAllBytes()
             } finally {
                 stream.close()
@@ -112,19 +141,7 @@ function downloadFile(siteId, operation, input) {
         } finally {
             if (!wasDisabled) ec.artifactExecution.enableAuthz()
         }
-        ec.web.response.setContentType(result.file.mimeType)
-        // Shop P8 (F75): the authority lets a public product image of the current generation be kept a minute; else no-store
-        ec.web.response.setHeader(
-            'Cache-Control',
-            result.file.cacheControl === 'public, max-age=60' ? result.file.cacheControl : 'no-store',
-        )
-        ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
-        ec.web.response.setHeader(
-            'Content-Disposition',
-            'attachment; filename="' +
-                String(result.file.filename).replace(/["\\\r\n]/g, '_') +
-                '"',
-        )
+        headers()
         ec.web.response.write(bytes)
         return
     }

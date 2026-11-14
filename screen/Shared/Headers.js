@@ -2,7 +2,8 @@
  * shell's CSP unless a route here says otherwise. A route names its app and a path pattern within the app's mount, and
  * may change `cacheControl` (P3: public caching of the anonymous catalog routes, only for a request with no session or
  * signed-in user) or add a `formAction` source to the CSP (P5: the payment relay route, F37). The first route that
- * matches decides. Pass.xml applies this before any page renders; a page's own headers still win. CC0 plus patent grant.
+ * matches decides. A publicly cached answer varies by Cookie. Pass.xml applies this before any page renders; a page's own
+ * headers still win. CC0 plus patent grant.
  */
 const CSP = {
     'script-src': ["'self'", "'unsafe-eval'"],
@@ -92,6 +93,10 @@ function apply(app, path, logoUrl) {
     const response = ec.web?.response
     if (response) {
         response.setHeader('Cache-Control', policy.cacheControl)
+        // a page a cache may keep is the answer to a request with no cookie only: once a visitor has a session (signing
+        // in), neither the browser's cache nor a shared one answers with the anonymous page
+        if (String(policy.cacheControl).startsWith('public'))
+            response.setHeader('Vary', 'Cookie')
         response.setHeader('Referrer-Policy', 'same-origin')
         response.setHeader('Content-Security-Policy', csp(policy))
     }
