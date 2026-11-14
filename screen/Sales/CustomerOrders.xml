@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CustomerOrders (design-sales §10 CustomerOrders; IronStone impl-sales P17, SAL-R01): MyOrderFind (open or all, the order or
+    your PO) and MyOrders (findSalesOrders): the placed orders of the customers a signed-in account acts for at the organization (a
+    contact invited for the customer, or the customer's own verified account), direct orders and accepted quotes alike: reference,
+    your PO, the customer when the account acts for several, placed, total, state, delivery and billing, 20 to a page. A bearer
+    link never lists; a store's orders are its Shop's. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="My orders">
+  <actions>
+    <script><![CDATA[
+        const sales=ec.resource.script('component://mr-pass/screen/Sales/Sales.js')
+        state=sales.param('state') === 'open' ? 'open' : 'all'
+        reference=(sales.param('reference') || '').slice(0,60)
+        cursor=sales.param('cursor')
+        const found=siteInfo.authenticated ? sales.portal.attempt('findSalesOrders',{siteId:resolvedSiteId,state,reference,cursor}) : {result:null}
+        view=found.result || null
+        const filters={state:state === 'all' ? null : state,reference:reference || null}
+        nextHref=view?.nextCursor ? publicPath + sales.query(Object.assign({},filters,{cursor:view.nextCursor})) : null
+        firstHref=cursor ? publicPath + sales.query(filters) : null
+        failure=found.error || null
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Sales/CustomerOrders.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

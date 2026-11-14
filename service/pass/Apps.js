@@ -13,7 +13,7 @@
     supplier: { screen: 'Supplier', base: '/supplier' },
     // Customer Service P13: the Support app (its Feedback page; P15 the rest)
     support: { screen: 'Support', base: '/support' },
-    // PASS Sales (IronStone impl-sales P13): a seller's customer quotes (orders in P17)
+    // PASS Sales (IronStone impl-sales P13, P17): a seller's customer quotes and orders
     sales: { screen: 'Sales', base: '/sales' },
     // PASS Marketing (IronStone impl-marketing P7): public subscription to an organization's lists and its confirmation
     marketing: { screen: 'Marketing', base: '/marketing' },
