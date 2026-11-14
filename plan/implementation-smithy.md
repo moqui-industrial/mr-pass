@@ -236,8 +236,8 @@ Findings for other lanes:
 Not built: the acceptance walk `SmithyPipeline` (design §19.3: a push runs on the fake host type, the log and a failed
 test on the run's page, a red run blocking the merge); the 390 px check of these pages in a browser (they reuse the
 shell's scrolling tabs and code blocks; `SmithyWalk` was not extended); the Commits list's checks per commit; the
-built-in pipeline named on Pipelines for a component with no `ci.xml` before it has run; a group's list of runs; DG10's
-deploy environments (target, token, required pipeline, deployments).
+built-in pipeline named on Pipelines for a component with no `ci.xml` before it has run; a group's list of runs (DG10's deploy
+environments are built: see DG10 below).
 
 ## DG6: the forum inside Smithy, the lists, moderation in a scope
 
@@ -495,3 +495,14 @@ Differences from the design:
 Not built: `SmithyAccessWalk` and `SmithyPhone` as specs of their own; the phone width of the import and mirror pages
 in a browser. Not shown: an import against GitHub's live API (the pages run on recorded responses), and a mirror
 pushing to a real server.
+
+## DG10: deploy environments and deployments
+
+| Area | Implementation |
+| --- | --- |
+| Environments | Settings › Pipelines (`SmithyPipelines.js` `repositorySettings`): the DG5 environment form extended with the target URL (https, no user part), the token (a password field, sent only when typed, never written back or kept in a flash), the required pipeline and the clone URL, each text sent only when changed; the list shows them, whether a token is set and the last deployment. No approver group (Smithy has none for now). |
+| Deployments | `-/pipelines/deployments` (`RepositoryDetail/Deployments.xml`, `deployments`): `findDeployments` a page at a time, and Request deploy (`requestDeploy`) where `canDeploy`, going to the new deployment's page. Runs and Deployments are two tabs of Pipelines. |
+| A deployment | `-/pipelines/deployments/<deploymentId>` (`DeploymentDetail.xml`, `deploymentPage`): `getDeployment`, its steps with the run linked, the authority's message escaped, the target's result; Approve, Refuse (a reason, `?confirm=refuse`) and Cancel (`?confirm=cancel`) through Do (`decideDeploy`, `cancelDeploy`, Refuse and Cancel refused without `confirm=yes`). |
+| Tests | `SmithyDeploy` (an environment through Do and the token in no page or flash, one render each of Deployments and DeploymentDetail, access, the confirmations); routes and Do's count in `Smithy`. |
+
+Not built: the deploy pages at 390 px in a browser; filters on Deployments.

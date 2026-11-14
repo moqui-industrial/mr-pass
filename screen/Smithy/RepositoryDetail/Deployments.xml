@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Deployments (design-smithy §10 Deploy environments, DG10), at -/pipelines/deployments: a repository's deployments,
+    newest first, a page at a time (findDeployments), and Request deploy for a Developer (requestDeploy: an environment and
+    a branch, whose head is deployed). Not Found where pipelines are off. Never kept by a cache. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Deployments">
+  <pre-actions>
+    <script><![CDATA[
+        // built before anything renders, so who may not read them gets the framework's page, not a part of the shell
+        smithyDeployments=ec.resource.script('component://mr-pass/screen/Smithy/SmithyPipelines.js').deployments(smithyRepository,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        view=smithyDeployments
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

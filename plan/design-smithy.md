@@ -383,6 +383,8 @@ For a repository (`repositoryId` and `namePath` are always given):
 | `fork`, `forks` | `/Smithy/RepositoryDetail/Fork` | |
 | `pipelines` | `/Smithy/RepositoryDetail/Pipelines` | |
 | `pipelines/<n>`, `pipelines/<n>/jobs/<jobRunId>` | `/Smithy/PipelineDetail` | `runNum`, `jobRunId` |
+| `pipelines/deployments` (DG10) | `/Smithy/RepositoryDetail/Deployments` | |
+| `pipelines/deployments/<deploymentId>` (DG10) | `/Smithy/DeploymentDetail` | `deploymentId` |
 | `releases` | `/Smithy/RepositoryDetail/Releases` | |
 | `releases/<tag>` | `/Smithy/ReleaseDetail` | `tag` (every remaining segment, joined with `/`) |
 | `release-assets/<assetId>/<name>` | `/Smithy/ReleaseDetail/asset` (a transition) | `assetId` |
@@ -1287,8 +1289,19 @@ Maintainer's approval is needed. `requestDeploy` (Developer) makes a `GitDeploym
 environment's pipeline with the deploy event, waits for `decideDeploy` when approval is needed, then runs the deploy
 step (Component-Deploy's fetch, preview and deploy on the target). The gate on the target instance, which refuses a
 commit with no passed run of the pipeline, is the framework's. **Operations** `findCiEnvironments`,
-`storeCiEnvironment`, `deleteCiEnvironment`, `findDeployments`, `getDeployment`, `requestDeploy`, `decideDeploy`.
-Refined in DG10.
+`storeCiEnvironment`, `deleteCiEnvironment`, `findDeployments`, `getDeployment`, `requestDeploy`, `decideDeploy`,
+`cancelDeploy`. Refined in DG10.
+
+**Settings › Pipelines › Environments** (Maintainer): each environment's name, target URL, whether it has a token,
+required pipeline, whether a Maintainer's approval is needed, allowed branches, clone URL and last deployment; add and
+edit (an https target and a clone URL with no user part, the token write-only: never echoed, kept after a save left
+empty), Delete asked again. **Deployments** at `B/<repositoryPath>/-/pipelines/deployments` (Developer): the
+deployments, newest first, a page at a time (environment, commit, branch, state, who asked, dates), and Request deploy
+(an environment and a branch, whose head is deployed) where `canDeploy`. **DeploymentDetail** at
+`…/-/pipelines/deployments/<deploymentId>`: the state and its steps (waiting for the pipeline with its run linked,
+waiting for approval, deploying, the end), who asked and who decided, the authority's message when it gives one, the
+target's result; Approve and Refuse (with a reason, asked again) for an approver (`canDecide`), Cancel (asked again)
+where `canCancel`. **Without JavaScript** all of it.
 
 ## 11. Settings, account and import
 

@@ -1725,14 +1725,36 @@ const DO = {
         notice: () => "The secret was saved. Its value is not shown again."
     },
     deleteCiSecret: {fields: ["repositoryId", "secretId"], confirm: true, notice: () => "The secret was deleted."},
+    // DG10: and its deploy target; the token is sent only when typed and never kept for the next page (SECRET), the target's
+    // and the clone's addresses are kept without a user part (inputOf)
     storeCiEnvironment: {
-        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "operationId"],
+        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "targetUrl", "requiredPipeline", "cloneUrl", "operationId"],
+        optional: ["token"],
         flags: ["approvalRequired"],
-        // the branches allowed are sent only when changed (the form shows the value it read beside it)
-        changed: ["allowedRefs"],
+        // the texts are sent only when changed (the form shows the value it read beside each)
+        changed: ["allowedRefs", "targetUrl", "requiredPipeline", "cloneUrl"],
         notice: () => "The environment was saved."
     },
     deleteCiEnvironment: {fields: ["repositoryId", "environmentId"], confirm: true, notice: () => "The environment was deleted."},
+    // DG10 (design §10 Deploy environments): a deployment asked for goes to its page; Refuse and Cancel are asked again on
+    // the deployment's page (?confirm=refuse, ?confirm=cancel), Approve is not
+    requestDeploy: {
+        fields: ["repositoryId", "environmentId", "refName", "operationId"],
+        done: (result, c, back) => {
+            const page = back.split(/[?#]/)[0]
+            return result.deploymentId && /\/-\/pipelines\/deployments$/.test(page) ? page + "/" + encodeURIComponent(result.deploymentId) : null
+        },
+        notice: result =>
+            result.state === "failed"
+                ? "The deployment did not start" + (result.message ? ": " + String(result.message).replace(/^[a-z][A-Za-z]{2,40}: /, "") : ".")
+                : "The deployment was asked for. It waits for the environment's pipeline" + (result.runNum ? ", run #" + result.runNum : "") + "."
+    },
+    decideDeploy: {
+        fields: ["repositoryId", "deploymentId", "decision", "reason"],
+        confirm: () => param("decision") !== "approve",
+        notice: result => (result.state === "refused" ? "The deployment was refused." : "Approved: the deployment goes on.")
+    },
+    cancelDeploy: {fields: ["repositoryId", "deploymentId"], confirm: true, notice: () => "The deployment was cancelled."},
     storePipelineSettings: {
         fields: ["groupId", "runnerPoolId", "outsideRunnerPoolId", "outsideRunApproval"],
         numbers: ["expectedRevision"],
@@ -1872,6 +1894,8 @@ const DO = {
 const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile", "storeRelease"]
 /* What is never written back into a page after a refusal (a form adds its own: notKept). */
 const SECRET = ["password", "code", "secret", "confirmPath", "value", "token"]
+/* The addresses kept for the next page without a user part (a mirror's, and DG10 an environment's target and clone). */
+const ADDRESSES = ["url", "targetUrl", "cloneUrl"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
 function inputOf(spec) {
     const parameters = ec.web.parameters
@@ -1890,7 +1914,7 @@ function inputOf(spec) {
         const text = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
         // leading space is trimmed first, so " https://user:secret@host" keeps no user part either; everything to the
         // last @ goes, so a / or another @ in the password ("https://u:pa/ss@host") is not kept either
-        typed[name] = name === "url" ? text.trimStart().replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/).*@/, "$1") : text
+        typed[name] = ADDRESSES.includes(name) ? text.trimStart().replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/).*@/, "$1") : text
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {

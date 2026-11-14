@@ -8,7 +8,7 @@
     who may hide), Agreement (DG4) and Forum (DG6, Smithy/SmithyScope.js forumSettings: the repository's subcategory on or
     off, its mailing list); DG5: Pipelines, a Maintainer's (Smithy/SmithyPipelines.js repositorySettings: the runner pools,
     when outside runs wait and the month's runner minutes, which a group's Owner changes; the secrets, a value written and
-    never shown again; the environments); DG8: Mirrors, a Maintainer's (Smithy/SmithyImport.js mirrors: the push mirrors,
+    never shown again; the environments, and from DG10 their deploy target, its token written and never shown again); DG8: Mirrors, a Maintainer's (Smithy/SmithyImport.js mirrors: the push mirrors,
     their last push and error, Push now, a secret written and never shown again; a server whose framework has no push mirrors
     says so). The forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

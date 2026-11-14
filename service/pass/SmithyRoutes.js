@@ -34,7 +34,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1 to DG8); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG8, DG10); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -91,6 +91,9 @@ const BUILT = [
     "/Smithy/Islands/JobLog.qvue",
     "/Smithy/Islands/JobLog.qvt",
     "/Smithy/Islands/JobLog.qjs",
+    // DG10: a repository's deployments and a deployment (design §10 Deploy environments)
+    "/Smithy/RepositoryDetail/Deployments",
+    "/Smithy/DeploymentDetail",
     // DG7: the site (design §13): search, a repository's Docs and Releases, a release with its files' download, and a
     // group's addons.xml (a transition of GroupDetail)
     "/Smithy/Search",
@@ -339,6 +342,11 @@ function repositorySection(section, parameters) {
             return exact(R + "Fork")
         case "pipelines":
             if (!rest.length) return with_(R + "Pipelines")
+            // DG10: the repository's deployments and one deployment
+            if (rest[0] === "deployments") {
+                if (rest.length === 1) return with_(R + "Deployments")
+                return with_("/Smithy/DeploymentDetail", {deploymentId: one(rest.slice(1), ID)})
+            }
             if (!NUM.test(rest[0])) fail()
             if (rest.length === 1) return with_("/Smithy/PipelineDetail", {runNum: rest[0]})
             if (rest[1] !== "jobs" || !ID.test(rest[2] || "")) fail()

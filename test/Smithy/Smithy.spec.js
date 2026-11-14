@@ -14,7 +14,8 @@
 // a held report's page and its claim through Smithy/Do; Report and Hide through Smithy/Do; a topic made an issue. Mantle's
 // SmithyForumScope, SmithyModerationTargets and SmithyHeldReports specs cover the rules behind them. DG5 (§4.4, §10): the
 // paths of the pipeline pages (the runs, a run, a job, its log's JSON, an upload, the settings' Pipelines tab), their cache
-// policy and Do's ten pipeline transitions; the pages themselves are SmithyReview's spec. DG7 (§4.4, §13): the paths of the
+// policy and Do's ten pipeline transitions; the pages themselves are SmithyReview's spec. DG10: the paths of the deployments
+// and a deployment, and Do's three deployment transitions; the pages are SmithyDeploy's spec. DG7 (§4.4, §13): the paths of the
 // site's pages (Search, Docs, Releases, a release and its file, a group's addons.xml, the site's Redirects tab), an old path
 // of the site's table answered by the resolver with its redirect and its target checked again (another host, a port, a user
 // part, a backslash, //, the preview host, a loop), one render of Search (what was asked and found escaped), one of a Docs
@@ -212,6 +213,10 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             pipelineLogBad: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1/raw"),
             artifact: parse("moqui/mr-moqui/-/artifacts/A_1/results.tar.gz"),
             pipelinesTab: parse("moqui/-/settings/pipelines"),
+            // DG10: the deployments and a deployment
+            deployments: parse("moqui/mr-moqui/-/pipelines/deployments"),
+            deployment: parse("moqui/mr-moqui/-/pipelines/deployments/D_1"),
+            deploymentBad: parse("moqui/mr-moqui/-/pipelines/deployments/D_1/steps"),
             // DG4: merge requests, a fork's head with a slash in its ref, the fork pages, a file's edit and the islands
             mergeRequests: parse("moqui/mr-moqui/-/merge-requests"),
             mergeRequestNew: parse("moqui/mr-moqui/-/merge-requests/new"),
@@ -369,6 +374,12 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.artifact.screenParameters.artifactId === "A_1"
         built.includes(out.artifact.screenPath)
         out.pipelinesTab.screenParameters.tab === "pipelines"
+        out.deployments.screenPath === "/Smithy/RepositoryDetail/Deployments"
+        built.includes(out.deployments.screenPath)
+        out.deployment.screenPath === "/Smithy/DeploymentDetail"
+        out.deployment.screenParameters.deploymentId === "D_1"
+        built.includes(out.deployment.screenPath)
+        out.deploymentBad.kind === "NotFound"
         out.mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
         out.mergeRequestNew.screenPath === "/Smithy/NewMergeRequest"
         out.mergeRequest.screenPath === "/Smithy/MergeRequestDetail/Overview"
@@ -1019,9 +1030,9 @@ feature("a form's post answers 303: to its page after a write, back to the form 
         unasked.location === "/code/"
         unasked.flash.error.message === "Confirm this change on its own page first."
         // DG6's heldReport alone is a GET: the page of a held report's link, which writes nothing
-        transitions === 95
-        posts === 94
-        forms === 94
+        transitions === 98
+        posts === 97
+        forms === 97
         optOut === false
     }
 })
@@ -1554,7 +1565,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" "),
             // nor a pipeline's pages, a job's log and an upload (DG5): a log holds whatever a job printed
-            pipelinePages: ["/moqui/mr-moqui/-/pipelines", "/moqui/mr-moqui/-/pipelines/3/jobs/J1", "/moqui/mr-moqui/-/pipelines/3/jobs/J1/log", "/moqui/mr-moqui/-/artifacts/A1/x.tar.gz"]
+            pipelinePages: ["/moqui/mr-moqui/-/pipelines", "/moqui/mr-moqui/-/pipelines/3/jobs/J1", "/moqui/mr-moqui/-/pipelines/3/jobs/J1/log", "/moqui/mr-moqui/-/artifacts/A1/x.tar.gz", "/moqui/mr-moqui/-/pipelines/deployments/D1"]
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" "),
             // DG7: Search (it lists issues) and a release's file are kept by no cache; Docs and Releases are read pages
@@ -1579,7 +1590,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         commitsList === "public, max-age=60"
         reviewPages === "no-store no-store no-store no-store"
         scopePages === "no-store no-store no-store"
-        pipelinePages === "no-store no-store no-store no-store"
+        pipelinePages === "no-store no-store no-store no-store no-store"
         sitePages === "no-store no-store public, max-age=60 public, max-age=60"
     }
 })
