@@ -1,6 +1,6 @@
 // Smithy's golden-path walk's data (plan/design-smithy.md §19.1; test/acceptance/client/SmithyWalk): on the HTTP test community
 // (PASS_HTTP, from ClientFixtures), Smithy mounted at /code beside the mounts the other fixtures made, a public group with a
-// repository of two files, and a public account with a confirmed address that is a Maintainer of the group. It runs after
+// repository of two files with issues on, and a public account with a confirmed address that is a Maintainer of the group. It runs after
 // the fixtures that store the site's mounts, which keep only the mounts they name. Each record is made once.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_HTTP"
@@ -45,9 +45,17 @@ feature("provision PASS_HTTP's Smithy with a group, a repository and its Maintai
             })
             f.account(SITE, "pass.smithy.walker", {confirmed: true, role: "SmrMaintainer", groupId})
         }
-        return {mount: mounted(), repository: f.route(SITE, "127.0.0.1", "/code/walk/guide")}
+        // DG3: the guide repository has issues on
+        const guide = ec.entity.find("mantle.smithy.SmithyRepository").condition({siteId: SITE, repositoryPath: "walk/guide"}).one()
+        if (guide.issuesEnabled !== "Y") f.issuesOn(SITE, guide.repositoryId)
+        return {
+            mount: mounted(),
+            repository: f.route(SITE, "127.0.0.1", "/code/walk/guide"),
+            issues: f.route(SITE, "127.0.0.1", "/code/walk/guide/-/issues")
+        }
     },
-    then({mount, repository}) {
+    then({mount, repository, issues}) {
+        issues.screenPath === "/Smithy/RepositoryDetail/Issues"
         mount.pathPrefix === "/code"
         mount.enabled === "Y"
         repository.screenPath === "/Smithy/RepositoryDetail/Files"

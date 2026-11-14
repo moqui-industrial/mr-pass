@@ -32,7 +32,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1, DG2); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG3); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -43,6 +43,7 @@ const BUILT = [
     "/Smithy/AccountDetail",
     "/Smithy/GroupDetail/Overview",
     "/Smithy/GroupDetail/Repositories",
+    "/Smithy/GroupDetail/Issues",
     "/Smithy/GroupDetail/Members",
     "/Smithy/GroupDetail/Settings",
     "/Smithy/RepositoryDetail/Files",
@@ -53,7 +54,16 @@ const BUILT = [
     "/Smithy/RepositoryDetail/Commits",
     "/Smithy/RepositoryDetail/Branches",
     "/Smithy/RepositoryDetail/Tags",
+    "/Smithy/RepositoryDetail/Issues",
+    "/Smithy/RepositoryDetail/Labels",
+    "/Smithy/RepositoryDetail/Milestones",
     "/Smithy/RepositoryDetail/Settings",
+    "/Smithy/NewIssue",
+    "/Smithy/IssueDetail",
+    // the composer's island (DG3), in each form the client asks a screen's component by
+    "/Smithy/Islands/Composer.qvue",
+    "/Smithy/Islands/Composer.qvt",
+    "/Smithy/Islands/Composer.qjs",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
     "/Smithy/redirect"

@@ -1,5 +1,6 @@
 /* Smithy's pages that write (Dogfood DG2; plan/design-smithy.md §1, §4.4, §6, §11): NewGroup, NewRepository, SiteSettings, a
- * group's Settings and Members, a repository's Settings, creating and deleting a branch or tag, and Account's Git access. Each
+ * group's Settings and Members, a repository's Settings, creating and deleting a branch or tag, and Account's Git access; the
+ * forms and transitions of DG3's issue pages (SmithyIssues.js) are made with what is here. Each
  * page is plain HTML whose forms post to a transition of Smithy/Do with the session token (run, below): the transition calls
  * one operation through the facade (Shared/Portal.js attempt), then answers 303, to the canonical page after a write, or back
  * to the form with the refusal's text and what was typed (Smithy.js setFlash). An ending or audience-widening action
@@ -65,6 +66,8 @@ function formOf(c, name, key) {
         key: key || "",
         id: "Smithy_" + name + (key ? "_" + String(key).replace(/[^A-Za-z0-9_-]/g, "_") : ""),
         error,
+        // a text's preview, asked from this form (the previewPost transition): the authority's cleaned markup
+        preview: mine && flash.preview ? String(flash.preview) : null,
         value: (field, fallback) =>
             mine && flash.values && Object.hasOwn(flash.values, field) ? flash.values[field] : (fallback ?? ""),
         invalid: field => !!error && error.field === field
@@ -1140,8 +1143,9 @@ function gitAccess(siteId, bases, siteInfo, self) {
 }
 
 /* The transitions of Smithy/Do: each one operation of the same name. fields are the form's texts (sent when posted, so an
- * edit may clear one), optional the texts sent only when filled, flags its checkboxes, numbers and mib its numbers (mib a
- * size in MiB, sent in bytes), lists its repeated values joined with commas. done answers the page after a success when it
+ * edit may clear one), optional the texts sent only when filled, flags its checkboxes (optionalFlags: sent only when
+ * checked), numbers and mib its numbers (mib a size in MiB, sent in bytes), lists its repeated values joined with commas,
+ * arrays its repeated or comma-separated values as a list (optionalArrays: sent only when there is one). done answers the page after a success when it
  * is not the form's own; confirm marks an action that is asked again first; account one of Account's Git access. */
 const groupPage = (result, c) => (result.groupPath ? c.base + "/" + enc(result.groupPath) : null)
 const repositoryPage = (result, c) => (result.repositoryPath ? c.base + "/" + enc(result.repositoryPath) : null)
@@ -1315,8 +1319,102 @@ const DO = {
         // an emptied limit is sent as an empty text, which gives up the own limit
         emptyText: true,
         notice: () => "The limits were saved."
-    }
+    },
+    // DG3 (design §8, §15.4): issues, their labels and milestones, and the conversation's posts, which are the forum's
+    // operations on the issue's record topic. A form of a text has a Preview button, which posts it to previewPost
+    createIssue: {
+        fields: ["repositoryId", "title", "body", "operationId"],
+        optional: ["sourceFormat", "milestoneId"],
+        flags: ["confidential"],
+        optionalArrays: ["labelIds", "assigneeHandles"],
+        // the new issue's page, beside the form's own
+        done: (result, c, back) =>
+            result.issueNumber && /\/-\/issues\/new$/.test(back) ? back.replace(/new$/, String(result.issueNumber)) : null,
+        notice: result =>
+            result.state === "pending"
+                ? "Waiting for review: your issue is shown to others once a moderator has approved it."
+                : "The issue was filed."
+    },
+    updateIssue: {
+        fields: ["repositoryId", "title"],
+        numbers: ["issueNumber", "expectedRevision"],
+        notice: () => "The title was saved."
+    },
+    setIssueState: {
+        fields: ["repositoryId", "state"],
+        optional: ["reason"],
+        numbers: ["issueNumber", "duplicateOfNumber", "expectedRevision"],
+        notice: result => (result.state === "closed" ? "The issue was closed." : "The issue was reopened.")
+    },
+    setIssueLabels: {
+        fields: ["repositoryId"],
+        numbers: ["issueNumber", "expectedRevision"],
+        arrays: ["labelIds"],
+        notice: () => "The labels were saved."
+    },
+    setIssueAssignees: {
+        fields: ["repositoryId"],
+        numbers: ["issueNumber", "expectedRevision"],
+        arrays: ["assigneeHandles"],
+        notice: () => "The assignees were saved."
+    },
+    setIssueMilestone: {
+        fields: ["repositoryId", "milestoneId"],
+        numbers: ["issueNumber", "expectedRevision"],
+        notice: () => "The milestone was saved."
+    },
+    // who reads the issue changes: asked again on a page of its own
+    setIssueConfidential: {
+        fields: ["repositoryId"],
+        optional: ["title", "body", "sourceFormat", "operationId"],
+        flags: ["confidential", "asNewIssue"],
+        numbers: ["issueNumber", "expectedRevision"],
+        confirm: true,
+        done: (result, c, back) =>
+            result.newIssueNumber ? back.replace(/\/-\/issues\/[0-9]+(?:[?#].*)?$/, "/-/issues/" + result.newIssueNumber) : null,
+        notice: result =>
+            result.newIssueNumber
+                ? "This public issue was made from the confidential one, which stays confidential."
+                : result.confidential
+                  ? "The issue is confidential now."
+                  : "The issue is public now."
+    },
+    storeLabel: {
+        fields: ["repositoryId", "labelId", "name", "color", "description", "operationId"],
+        numbers: ["expectedRevision"],
+        notice: () => "The label was saved."
+    },
+    deleteLabel: {fields: ["repositoryId", "labelId"], confirm: true, notice: () => "The label was deleted."},
+    storeMilestone: {
+        fields: ["repositoryId", "milestoneId", "name", "description", "dueDate", "state", "operationId"],
+        numbers: ["expectedRevision"],
+        notice: () => "The milestone was saved."
+    },
+    publishPost: {
+        fields: ["rootCommEventId", "body", "operationId"],
+        optional: ["sourceFormat"],
+        // an Owner's answer on a confidential issue that its reporter does not read
+        optionalFlags: ["ownersOnly"],
+        notice: result => (result.state === "pending" ? "Waiting for review: your comment is shown once it is approved." : "Your comment was added.")
+    },
+    updatePost: {
+        fields: ["postId", "body", "reason"],
+        optional: ["sourceFormat"],
+        numbers: ["expectedRevision"],
+        notice: () => "The text was saved."
+    },
+    setReaction: {fields: ["postId", "reactionKey"], flags: ["active"], notice: () => null},
+    flagPost: {fields: ["postId", "reason", "operationId"], notice: () => "Your report was sent to the moderators."},
+    setPreferences: {
+        fields: ["scopeType", "scopeId", "watchLevel"],
+        numbers: ["expectedRevision"],
+        notice: () => "Your notifications for this issue were saved."
+    },
+    // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
+    previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
+/* The forms whose text Preview shows. */
+const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential"]
 /* What is never written back into a page after a refusal. */
 const SECRET = ["password", "code", "secret", "confirmPath"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
@@ -1330,8 +1428,9 @@ function inputOf(spec) {
     }
     const input = {}
     const typed = {}
+    // a post's text is kept whole, up to the longest a site allows
     const keep = (name, value) => {
-        if (!SECRET.includes(name) && value != null) typed[name] = String(value).slice(0, 4000)
+        if (!SECRET.includes(name) && value != null) typed[name] = String(value).slice(0, name === "body" ? 100000 : 4000)
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {
@@ -1343,7 +1442,15 @@ function inputOf(spec) {
             input[name] = param(name)
             keep(name, input[name])
         }
-    for (const name of spec.flags || []) input[name] = param(name) === "true"
+    for (const name of spec.flags || []) {
+        input[name] = param(name) === "true"
+        keep(name, input[name])
+    }
+    for (const name of spec.optionalFlags || [])
+        if (param(name) === "true") {
+            input[name] = true
+            keep(name, true)
+        }
     for (const name of spec.numbers || [])
         if (posted.has(name)) {
             const value = param(name)
@@ -1371,6 +1478,21 @@ function inputOf(spec) {
             keep(name, value ?? "")
         }
     for (const name of spec.lists || []) input[name] = many(name).join(",")
+    // a list the operation takes as one: checked boxes, or names typed with commas or spaces between (a handle with its @)
+    const listed = name =>
+        many(name)
+            .flatMap(value => value.split(/[\s,]+/))
+            .map(value => value.replace(/^@/, ""))
+            .filter(Boolean)
+    for (const name of spec.arrays || []) {
+        input[name] = listed(name)
+        keep(name, input[name].join(", "))
+    }
+    for (const name of spec.optionalArrays || []) {
+        const values = listed(name)
+        if (values.length) input[name] = values
+        keep(name, values.join(", "))
+    }
     // a field the form showed with its value (was_<name>) is sent only when that was changed
     for (const name of spec.changed || [])
         if (posted.has("was_" + name) && (param(name) ?? "") === (param("was_" + name) ?? "")) delete input[name]
@@ -1393,6 +1515,7 @@ function run(name, siteId, bases) {
     const gitAccessPage = c.account + "/GitAccess"
     const back = spec.account ? gitAccessPage : under(c.base, param("returnTo")) || c.base + "/"
     if (!ec.user.userId) return smithy.seeOther(c.account + "/Login?returnTo=" + encodeURIComponent(back))
+    if (spec.preview) return preview(siteId, back)
     const {input, typed, posted} = inputOf(spec)
     const refuse = error => {
         smithy.setFlash({form: name, key: param("formKey") || "", error, values: typed})
@@ -1419,8 +1542,28 @@ function run(name, siteId, bases) {
         ...(spec.token && result.token ? {token: {name: input.name || "", token: String(result.token)}} : {})
     })
     smithy.seeOther(
-        (spec.done && spec.done(result, c)) || (spec.account ? gitAccessPage : under(c.base, param("successTo")) || back)
+        (spec.done && spec.done(result, c, back)) || (spec.account ? gitAccessPage : under(c.base, param("successTo")) || back)
     )
+}
+/* previewPost (design §8 NewIssue): the text of a form as the authority would show it, cleaned. A plain form's Preview button
+ * posts here and is answered 303 back to the form, which shows the preview above what was typed; the composer's island asks
+ * for JSON. Nothing is stored but the one next page's flash. */
+function preview(siteId, back) {
+    const of = PREVIEWED.includes(param("previewOf")) ? param("previewOf") : null
+    if (!of) fail()
+    const sourceFormat = param("sourceFormat") === "html" ? "html" : "markdown"
+    // in its own transaction, as a write is: a refusal does not undo this transition's answer
+    const out = portal.attempt("previewPost", {siteId, body: param("body") || "", sourceFormat}, {newTransaction: true})
+    const html = out.error ? null : String(StringUtilities.cleanHtml(out.result.body || ""))
+    if (String(ec.web.request.getHeader("accept") || "").includes("application/json"))
+        return ec.web.sendJsonResponse(out.error ? {error: out.error.message} : {body: html})
+    smithy.setFlash({
+        form: of,
+        key: param("formKey") || "",
+        values: inputOf(DO[of]).typed,
+        ...(out.error ? {error: {message: out.error.message, field: "body"}} : {preview: html || "<p>Nothing to preview.</p>"})
+    })
+    smithy.seeOther(back)
 }
 ;({
     newGroup,
@@ -1434,5 +1577,24 @@ function run(name, siteId, bases) {
     gitAccess,
     run,
     DO,
-    inputOf
+    PREVIEWED,
+    inputOf,
+    // what SmithyIssues.js builds its pages with
+    Markup,
+    h,
+    attributes,
+    hidden,
+    contextOf,
+    banner,
+    gate,
+    formOf,
+    open,
+    input,
+    textarea,
+    select,
+    check,
+    submit,
+    hint,
+    tabsOf,
+    confirmCard
 })

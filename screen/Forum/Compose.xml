@@ -41,7 +41,9 @@
   <transition name="preview">
     <actions>
       <script><![CDATA[
-        ec.web.sendJsonResponse(ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'previewPost',input:{siteId:resolvedSiteId,body:ec.web.parameters.body || ''}}).call().result)
+        // the text as the authority renders it, from rich text or from Markdown (sourceFormat)
+        const input=ec.resource.script('component://mr-pass/screen/Shared/View.js').inputFor('previewPost',resolvedSiteId,ec.web.parameters)
+        ec.web.sendJsonResponse(ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'previewPost',input}).call().result)
     ]]></script>
     </actions>
     <default-response type="none"/>

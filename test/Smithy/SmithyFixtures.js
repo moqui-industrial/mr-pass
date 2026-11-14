@@ -1,7 +1,8 @@
-/* Smithy's spec fixtures (Dogfood DG1, DG2): a published site with Smithy mounted at /code, groups, repositories with a commit
+/* Smithy's spec fixtures (Dogfood DG1 to DG3): a published site with Smithy mounted at /code, groups, repositories with a commit
  * (Mantle's create#Group and create#Repository, a db repository committed through
- * org.moqui.git.GitServices.commit#GitFiles), public accounts, with a confirmed address and a role when given, and a form's
- * post to its transition of Smithy/Do. CC0 plus patent grant. */
+ * org.moqui.git.GitServices.commit#GitFiles), public accounts, with a confirmed address and a role when given, a
+ * repository's issues turned on and an issue filed (Mantle's update#Repository and create#Issue), and a form's post to its
+ * transition of Smithy/Do. CC0 plus patent grant. */
 function run(name, parameters) {
     const out = ec.service.sync().name(name).parameters(parameters).disableAuthz().call()
     if (ec.message.hasError()) {
@@ -109,6 +110,19 @@ function repository(siteId, groupId, slug, visibility, files) {
 function commit(repositoryId, message, fileMap) {
     return run("org.moqui.git.GitServices.commit#GitFiles", {repositoryId, message, fileMap}).commitId
 }
+/* Turns a repository's issues on, as the current user (a Maintainer of it). */
+function issuesOn(siteId, repositoryId) {
+    const revision = operation("getRepository", {siteId, repositoryId}).repository.revision
+    run("mantle.smithy.SmithyServices.update#Repository", {
+        input: {siteId, repositoryId, issuesEnabled: true, expectedRevision: revision}
+    })
+}
+/* An issue the current user files (Mantle's create#Issue), in Markdown: {issueNumber, rootCommEventId, state}. */
+function issue(siteId, repositoryId, fields) {
+    return run("mantle.smithy.SmithyIssueServices.create#Issue", {
+        input: {siteId, repositoryId, sourceFormat: "markdown", operationId: ec.user.randomString(32), ...fields}
+    }).result
+}
 /* One operation through the facade as the current user: its result, or {kind, message} of its refusal. */
 function operation(name, input) {
     try {
@@ -176,4 +190,4 @@ function route(siteId, hostname, path) {
         return {kind: error.moquiErrorKind || "Error", message: String(error.message).split("\n")[0]}
     }
 }
-;({run, site, account, role, group, repository, commit, operation, render, post, route})
+;({run, site, account, role, group, repository, commit, issuesOn, issue, operation, render, post, route})

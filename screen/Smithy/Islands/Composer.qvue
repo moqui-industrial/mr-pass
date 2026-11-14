@@ -1,0 +1,164 @@
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md.
+    The composer of Smithy's issue pages (plan/design-smithy.md §8 NewIssue), the island over a plain form's text
+    (Smithy/SmithyIssues.js): Markdown in a textarea or rich text in m-rich-text, by a toggle, and a preview in the page
+    (Smithy/Do previewPost, as JSON). The plain form's own textarea and its sourceFormat stay the form's fields, kept in
+    step with what is written here, so the form is posted exactly as the plain page posts it; if this does not load, the
+    plain form is unchanged. Rich text needs the framework's stylesheets, which are loaded when it is first chosen, with
+    the page's own type sizes kept. -->
+<template>
+    <div v-if="ready" class="smithy-composer">
+        <fieldset>
+            <legend>Write in</legend>
+            <label><input v-model="format" type="radio" value="markdown" /> Markdown</label>
+            <label><input v-model="format" type="radio" value="html" /> Rich text</label>
+        </fieldset>
+        <label v-if="format === 'markdown'"
+            >{{ label }}
+            <textarea v-model="text" :rows="rows" :required="required" maxlength="100000"></textarea>
+        </label>
+        <m-rich-text v-else v-model="text" :rows="rows" :aria-label="label" :plain-toggle="false"></m-rich-text>
+        <p>
+            <button type="button" :disabled="busy" @click="preview">Preview</button>
+            <span role="status" aria-live="polite"> {{ status }}</span>
+        </p>
+        <section v-if="previewHtml" class="smithy-preview" aria-label="Preview">
+            <h3>Preview</h3>
+            <div class="wrap" v-html="previewHtml"></div>
+        </section>
+    </div>
+</template>
+<script>
+module.exports = {
+    name: 'SmithyComposer',
+    data() {
+        return {
+            ready: false,
+            label: 'Text',
+            format: 'markdown',
+            text: '',
+            rows: 8,
+            required: false,
+            busy: false,
+            status: '',
+            previewHtml: '',
+            token: '',
+            previewUrl: '',
+            previewOf: '',
+        }
+    },
+    mounted() {
+        const config = this.$root.config || {}
+        const context = config.context || {}
+        const form = document.getElementById(context.formId)
+        const area = form && form.querySelector('textarea[name="body"]')
+        const format = form && form.querySelector('input[name="sourceFormat"]')
+        // without the plain fields there is nothing to enhance: the page stays as it is
+        if (!area || !format) return
+        this.fields = { area, format }
+        this.token = config.sessionToken || ''
+        this.previewUrl = context.previewUrl
+        this.previewOf = context.previewOf
+        this.label = context.label || 'Text'
+        this.text = area.value
+        // a text that is rich text already (an edit) starts so, with nothing to convert
+        this.given = format.value === 'html'
+        this.format = this.given ? 'html' : 'markdown'
+        this.rows = Number(area.rows) || 8
+        this.required = area.required
+        // the plain textarea stays the form's field, out of sight; an empty one must not stop the form unseen
+        area.required = false
+        const plainLabel = area.closest('label')
+        // by its style: the page's own rule for a label would show one that is only marked hidden
+        if (plainLabel) plainLabel.style.display = 'none'
+        const plainPreview = form.querySelector('button[name="previewOf"]')
+        if (plainPreview) plainPreview.style.display = 'none'
+        if (this.format === 'html') this.styles()
+        this.ready = true
+    },
+    watch: {
+        text(value) {
+            if (this.fields) this.fields.area.value = value || ''
+        },
+        async format(value, old) {
+            if (!this.fields) return
+            this.fields.format.value = value
+            if (value !== 'html') return
+            this.styles()
+            if (this.given) {
+                this.given = false
+                return
+            }
+            // what was written as Markdown, as the authority renders it; rich text read as Markdown is its own markup
+            if (old === 'markdown' && this.text.trim()) {
+                try {
+                    const html = await this.render('markdown')
+                    if (this.format === 'html') this.text = html
+                } catch (error) {
+                    this.status = error.message
+                }
+            }
+        },
+    },
+    methods: {
+        // m-rich-text is drawn with Quasar: its stylesheets, then the page's own type sizes again
+        styles() {
+            if (document.getElementById('SmithyComposerStyles')) return
+            for (const href of [
+                '/libs/quasar/quasar.prod.css',
+                '/libs/material-icons/material-icons.css',
+                '/libs/material-symbols/outlined.css',
+                '/css/WebrootVue.qvt.css',
+            ]) {
+                const link = document.createElement('link')
+                link.rel = 'stylesheet'
+                link.href = href
+                document.head.appendChild(link)
+            }
+            const keep = document.createElement('style')
+            keep.id = 'SmithyComposerStyles'
+            keep.textContent =
+                'body{font:1rem/1.6 system-ui,sans-serif}' +
+                'h1{font-size:2em;line-height:1.3;font-weight:700;letter-spacing:normal;margin:.67em 0}' +
+                'h2{font-size:1.5em;line-height:1.3;font-weight:700;letter-spacing:normal;margin:.83em 0}' +
+                'h3{font-size:1.17em;line-height:1.3;font-weight:700;letter-spacing:normal;margin:.2rem 0}' +
+                'p{margin:1em 0}.smithy-row p{margin:.2rem 0}'
+            document.head.appendChild(keep)
+        },
+        async render(format) {
+            const response = await fetch(this.previewUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-Token': this.token,
+                },
+                body: JSON.stringify({
+                    body: this.text,
+                    sourceFormat: format,
+                    previewOf: this.previewOf,
+                    moquiSessionToken: this.token,
+                }),
+            })
+            if (!response.ok) throw new Error('The preview is not available. Your text is kept.')
+            const out = await response.json()
+            if (out.error) throw new Error(out.error)
+            return out.body || ''
+        },
+        async preview() {
+            this.busy = true
+            this.status = ''
+            try {
+                this.previewHtml = await this.render(this.format)
+                if (!this.previewHtml) this.status = 'Nothing to preview.'
+                // the plain page's preview, if it showed one, is replaced by this
+                const served = document.getElementById(this.fields.area.form.id + '_preview')
+                if (served) served.style.display = 'none'
+            } catch (error) {
+                this.status = error.message
+            } finally {
+                this.busy = false
+            }
+        },
+    },
+}
+</script>

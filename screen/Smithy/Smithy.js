@@ -179,6 +179,15 @@ const commitRow = (u, base, c) => ({
 /* The section word of a request path (the segment after /-/), or "" for a name's own page. */
 const sectionWord = path => /\/-\/([^/?]+)/.exec(String(path || ""))?.[1] || ""
 
+/* The open issues the caller may see of a repository ({repositoryId}) or of a group's repositories ({groupId}), for the
+ * Issues tab: the count findIssues answers (design §8), which leaves out what the caller may not see; null when it cannot be
+ * read, and for a visitor, whose page a cache may keep for a minute while an issue is made confidential. */
+function openIssueCount(siteId, scope) {
+    // not on a page a shared cache may keep: a visitor's shell has the tab without a count
+    if (!ec.user.userId) return null
+    const counts = maybe("findIssues", {siteId, ...scope, state: "open", limit: 1})?.counts
+    return counts && Number.isFinite(Number(counts.open)) ? Number(counts.open) : null
+}
 /* A group's shell (design §1): its record, breadcrumb, visibility and the tabs the caller may use. */
 function groupShell(siteId, groupId, base, path) {
     const found = need("getGroup", {siteId, groupId})
@@ -199,6 +208,13 @@ function groupShell(siteId, groupId, base, path) {
         tabs: [
             {label: "Overview", href: root, current: !word},
             {label: "Repositories", href: root + "/-/repositories", current: word === "repositories"},
+            // the open issues of its repositories that the caller may see
+            {
+                label: "Issues",
+                href: root + "/-/issues",
+                current: word === "issues",
+                count: openIssueCount(siteId, {groupId: group.groupId})
+            },
             {label: "Members", href: root + "/-/members", current: word === "members"},
             ...(holds(found.myRole, "owner")
                 ? [{label: "Settings", href: root + "/-/settings", current: word === "settings"}]
@@ -370,6 +386,17 @@ function repositoryShell(siteId, repositoryId, base, path) {
             {label: "Commits", href: u.section("commits"), current: ["commits", "commit"].includes(word)},
             {label: "Branches", href: u.section("branches"), current: word === "branches"},
             {label: "Tags", href: u.section("tags"), current: word === "tags"},
+            // a feature turned off has no tab (and its pages are Not Found)
+            ...(repository.features?.issues
+                ? [
+                      {
+                          label: "Issues",
+                          href: u.section("issues"),
+                          current: ["issues", "labels", "milestones"].includes(word),
+                          count: openIssueCount(siteId, {repositoryId: repository.repositoryId})
+                      }
+                  ]
+                : []),
             // a tab the caller may not use is absent: Settings is a Maintainer's
             ...(holds(found.capabilities?.role, "maintainer")
                 ? [{label: "Settings", href: u.section("settings"), current: word === "settings"}]
@@ -790,6 +817,13 @@ function commit(shell, commitId) {
             description: s.description || "",
             href: /^https:\/\//.test(String(s.targetUrl || "")) ? s.targetUrl : null
         })),
+        // the issues it names that the caller may see; one the caller may not see is in the count alone
+        issues: (found.linkedIssues || (c.issueNumbers || []).map(issueNumber => ({issueNumber}))).map(issue => ({
+            number: issue.issueNumber,
+            title: issue.title || "",
+            closed: issue.state === "closed",
+            href: u.section("issues") + "/" + encodeURIComponent(issue.issueNumber)
+        })),
         hiddenItemCount: Number(found.hiddenItemCount) || 0,
         insertions: Number(found.insertions) || 0,
         deletions: Number(found.deletions) || 0,
@@ -889,6 +923,7 @@ function redirectRoute(location) {
     takeFlash,
     expireFlash,
     maybe,
+    openIssueCount,
     seeOther,
     codeHtml,
     diffHtml,

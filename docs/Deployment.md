@@ -392,7 +392,7 @@ preview host's name apart from the BOSS host's all the same.
 ## Smithy app
 
 Smithy (`screen/Smithy.xml`; [design](../plan/design-smithy.md)) is public git hosting over the framework's git host and
-Mantle's `mantle.smithy` services: groups, repositories and their code. It runs where the git data is, so mount it on the
+Mantle's `mantle.smithy` services: groups, repositories, their code and their issues. It runs where the git data is, so mount it on the
 authority's own instance. It is bound to no business record (no target), a site has one Smithy mount, and it may be the
 site's root app:
 
@@ -411,7 +411,8 @@ name the same path, as for every app.
 
 - **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
   `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
-  `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/members`,
+  `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/issues`, `/-/issues/new`,
+  `/-/issues/<n>`, `/-/labels`, `/-/milestones`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`, `/-/members`,
   `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
   the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
   and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
@@ -425,9 +426,21 @@ name the same path, as for every app.
   Not Found on every page and path, the same as what does not exist.
 - **Caching.** A read page is `public, max-age=60` only for a request with no session cookie and no signed-in user, which
   sees public repositories alone, and that answer has `Vary: Cookie`; every other request, and every answer to a form's
-  post, is `no-store` (`screen/Shared/Headers.js`). A raw file is served as
+  post, is `no-store` (`screen/Shared/Headers.js`). An issue page (`/-/issues…`, `/-/labels`, `/-/milestones…`) and a commit's page
+  (`/-/commit/<id>`, which names its issues) are `no-store` for a visitor too: an issue may be made confidential, and no
+  cache should still have its page. The Issues tab shows its count to a signed-in account only. A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
 - **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
+  The one exception is a form with a text on an issue page (a new issue, a comment, an edit), shown to a signed-in
+  account: it loads the framework's Vue scripts for the editor (`/-/island/Composer.qvue`, Markdown or rich text with a
+  preview in the page). Without JavaScript the form is a Markdown textarea with a Preview button.
+- **Issues.** A repository's Maintainer turns issues on in its Settings (General); the repository then has the Issues
+  tab, Labels and Milestones, and its project in Projects holds the tasks. An issue's conversation is posts of the
+  forum's engine, so the site's posting policy, trust levels, word rules, review queue and notification mail apply to
+  issues and comments as they do to topics, and a held one shows "Waiting for review" to its author. A confidential
+  issue is read by the Owners of the repository and of the groups above it, the site's operators, and its reporter
+  (what was filed and the answers); for everyone else its number is Not Found. An Owner makes it public, or a public one
+  confidential, on the issue's page, which asks again first.
 - **Who may create.** The site's owners and operators set it on `/-/site` under the mount (Site settings in the header):
   who may create a group, a repository of their own and a fork (operators only; by request, which an operator approves or
   refuses on `/-/site/requests`; any account with a confirmed address), the kind of a repository made on a page (`db`, or

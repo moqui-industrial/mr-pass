@@ -4,7 +4,9 @@
 // what does not exist. DG2's rules: a write needs a confirmed address (on the form's post), code needs a Developer
 // (createRef), settings need a Maintainer (storeBranchRule, and the Settings tab and page), ownership needs an Owner
 // (setRepositoryVisibility, and the Members' forms and the Archive tab), and no Smithy write is a bearer link's. The rule
-// behind each role is Mantle's (SmithyVisibility, SmithyRoles, SmithyMembers).
+// behind each role is Mantle's (SmithyVisibility, SmithyRoles, SmithyMembers). DG3's rules: a confidential issue is Not Found
+// on its page for a stranger and a Maintainer and shown to its reporter and an Owner, and triage needs a Reporter
+// (setIssueLabels, setIssueState; Mantle's SmithyConfidential and SmithyIssues).
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_ACCESS"
 const HOST = "smithy-access.example.test"
@@ -12,6 +14,7 @@ const STRANGER = "pass.smithy.stranger"
 const REPORTER = "pass.smithy.reporter"
 const DEVELOPER = "pass.smithy.developer"
 const MAINTAINER = "pass.smithy.maintainer"
+const GUEST = "pass.smithy.guest"
 const t = {}
 const FILES = {"README.md": "# Access\n", "src/a.txt": "one\n"}
 const as = (username, work) => {
@@ -43,6 +46,13 @@ spec({
             [MAINTAINER, "SmrMaintainer"]
         ])
             f.account(SITE, username, {confirmed: true, role, groupId: t.group})
+        // DG3: issues on; a Guest; a public issue, and a confidential one its reporter, a Developer, filed
+        f.account(SITE, GUEST, {confirmed: true, role: "SmrGuest", groupId: t.group})
+        f.issuesOn(SITE, t.work.repositoryId)
+        t.issue = f.issue(SITE, t.work.repositoryId, {title: "A public issue", body: "Text"}).issueNumber
+        t.secret = as(DEVELOPER, () =>
+            f.issue(SITE, t.work.repositoryId, {title: "A hole in the wall", body: "Details", confidential: true})
+        ).issueNumber
     },
     cleanup() {
         login("john.doe")
@@ -189,15 +199,110 @@ feature("a tab is shown to the role that may use it, and Settings is Not Found f
     },
     then({reporter, maintainer, unmounted}) {
         // a Reporter has no Settings tab, and the page is as one that does not exist
-        reporter.tabs === "Files Commits Branches Tags"
+        reporter.tabs === "Files Commits Branches Tags Issues"
         reporter.kind === "NotFound"
         reporter.settings == null
         // a Maintainer has Settings with Branch rules, reads the members without changing them, and has no Archive
-        maintainer.tabs === "Files Commits Branches Tags Settings"
+        maintainer.tabs === "Files Commits Branches Tags Issues Settings"
         maintainer.kind == null
         maintainer.settings === "general members branch-rules webhooks"
         maintainer.changesMembers === false
         unmounted === "NotFound"
+    }
+})
+feature("a confidential issue is Not Found on its page for a stranger and a Maintainer, and shown to its reporter and an Owner", {
+    when() {
+        const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+        const issues = ec.resource.script("component://mr-pass/screen/Smithy/SmithyIssues.js")
+        // the page's own view for a caller, with no screen rendered: what it marks and offers, or its refusal
+        const page = number => {
+            const path = "/code/pass-sma/work/-/issues/" + number
+            try {
+                const shell = smithy.repositoryShell(SITE, t.work.repositoryId, "/code", path)
+                const html = issues.issueDetail(
+                    shell,
+                    String(number),
+                    {smithy: "/code", account: "/account"},
+                    {authenticated: true, site: {}},
+                    path
+                ).html
+                return {
+                    marked: html.includes('id="SmithyIssueConfidential"'),
+                    title: html.includes("A hole in the wall"),
+                    labels: html.includes('id="SmithyIssueLabels"'),
+                    audience: html.includes('id="SmithyIssueAudience"'),
+                    reply: html.includes('id="Smithy_publishPost"'),
+                    ownersOnly: html.includes('name="ownersOnly"')
+                }
+            } catch (error) {
+                ec.message.clearErrors()
+                return {kind: error.moquiErrorKind, message: String(error.message)}
+            }
+        }
+        return {
+            stranger: as(STRANGER, () => page(t.secret)),
+            ...as(MAINTAINER, () => ({maintainer: page(t.secret), missing: page(9999)})),
+            reporter: as(DEVELOPER, () => page(t.secret)),
+            owner: page(t.secret)
+        }
+    },
+    then({stranger, maintainer, missing, reporter, owner}) {
+        stranger.kind === "NotFound"
+        maintainer.kind === "NotFound"
+        // exactly as a number the repository does not have
+        maintainer.message === missing.message
+        // its reporter reads what was filed and may answer, with no triage field and no say over who reads it
+        reporter.kind == null
+        reporter.marked === true
+        reporter.title === true
+        reporter.reply === true
+        // "Owners only" is an Owner's mark on an answer, never offered to the reporter
+        reporter.ownersOnly === false
+        owner.ownersOnly === true
+        reporter.labels === false
+        reporter.audience === false
+        // an Owner (the site's operator) reads all of it and may make it public
+        owner.marked === true
+        owner.labels === true
+        owner.audience === true
+    }
+})
+feature("triage needs a Reporter: a Reporter labels and closes an issue, a Guest does neither", {
+    when() {
+        const f = fixtures()
+        const portal = ec.resource.script("component://mr-pass/screen/Shared/Portal.js")
+        const key = {siteId: SITE, repositoryId: t.work.repositoryId, issueNumber: t.issue}
+        const first = f.operation("getIssue", key).issue.revision
+        // each tries to label, then to close: a write that is done answers the revision the next one edits
+        const triage = username =>
+            as(username, () => {
+                const answer = out => (out.error ? out.error.reason || out.error.kind : "done")
+                const labels = portal.attempt("setIssueLabels", {...key, labelIds: [], expectedRevision: first})
+                const close = portal.attempt("setIssueState", {
+                    ...key,
+                    state: "closed",
+                    reason: "completed",
+                    expectedRevision: labels.result?.revision ?? first
+                })
+                return {labels: answer(labels), close: answer(close)}
+            })
+        const guest = triage(GUEST)
+        const reporter = triage(REPORTER)
+        return {
+            guestLabels: guest.labels,
+            reporterLabels: reporter.labels,
+            guestClose: guest.close,
+            reporterClose: reporter.close,
+            after: f.operation("getIssue", key).issue
+        }
+    },
+    then({guestLabels, reporterLabels, guestClose, reporterClose, after}) {
+        guestLabels === "accessDenied"
+        reporterLabels === "done"
+        guestClose === "accessDenied"
+        reporterClose === "done"
+        after.state === "closed"
+        after.stateReason === "completed"
     }
 })
 feature("no Smithy write is a bearer link's: none is among the writes a link's token authorizes", {

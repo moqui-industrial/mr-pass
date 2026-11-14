@@ -3,7 +3,9 @@
 <!-- Do (design-smithy §1, §2, §4.4): transitions only. Every form of Smithy posts to -/do/<name> with the session token, which
     the framework checks before a transition runs; each transition calls the one operation of its name through the facade
     (Smithy/SmithyForms.js run, which has each form's fields) and answers 303: to the page of what was made or changed, or
-    back to the form's returnTo, a path under this mount, with the refusal's text. Nothing here is kept by a cache. -->
+    back to the form's returnTo, a path under this mount, with the refusal's text. previewPost writes nothing: it answers a
+    form's text as the authority renders it, to the form's next page or as JSON to the composer's island. Nothing here is
+    kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Do">
@@ -178,6 +180,104 @@
   <transition name="setQuota" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setQuota',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- DG3 (design-smithy §8): issues, labels and milestones, and the conversation's posts (the forum's operations on an
+      issue's record topic); previewPost stores nothing -->
+  <transition name="createIssue" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('createIssue',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="updateIssue" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('updateIssue',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setIssueState" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setIssueState',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setIssueLabels" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setIssueLabels',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setIssueAssignees" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setIssueAssignees',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setIssueMilestone" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setIssueMilestone',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setIssueConfidential" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setIssueConfidential',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeLabel" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeLabel',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deleteLabel" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('deleteLabel',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeMilestone" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeMilestone',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="publishPost" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('publishPost',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="updatePost" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('updatePost',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setReaction" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setReaction',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="flagPost" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('flagPost',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="setPreferences" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setPreferences',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="previewPost" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('previewPost',resolvedSiteId,passBases)</script>
     </actions>
     <default-response type="none"/>
   </transition>

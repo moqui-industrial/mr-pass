@@ -1,8 +1,9 @@
 // Smithy's golden-path walk (plan/design-smithy.md §19.1), at the desktop width, on SmithyWalkFixtures' group and repository
 // of the HTTP test community: a visitor browses from the home page to a group, its repository, a file and a commit; then a
 // Maintainer of the group signs in, creates a repository in it and sees the empty repository's page, which says how to push
-// a first commit and downloads a tree as a zip. A form's post without the session token is refused, and the pages that write fit a phone's width (390
-// px). It is an acceptance spec: the regression client suite has no room for it in its budget (it takes about five
+// a first commit and downloads a tree as a zip. It then files an issue (DG3): the new-issue form's text is the composer's
+// island, whose preview shows the Markdown rendered, and the issue's page shows it with its conversation. A form's post
+// without the session token is refused, and the pages that write fit a phone's width (390 px). It is an acceptance spec: the regression client suite has no room for it in its budget (it takes about five
 // seconds). The rules are the server specs' (mr-mantle test/smithy, mr-pass Smithy and SmithyAccess).
 const overflow = page => page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
 feature("a visitor browses a group, a repository, a file and a commit; a Maintainer signs in and creates a repository", {
@@ -42,6 +43,46 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
         page.getByRole("button", {name: "Create repository"}).click()
         page.waitForURL("/code/walk/" + slug)
         const created = page.text()
+        // an issue, written in the composer's island over the plain form: its preview in the page, then the issue's page
+        page.goto("/code/walk/guide/-/issues/new")
+        page.waitFor(() => !!document.querySelector(".smithy-composer textarea"), {timeout: 20})
+        const title = "Walk issue " + slug
+        page.getByLabel("Title").fill(title)
+        // the toggle: rich text is m-rich-text, with the form's sourceFormat following and the page's headings kept their size
+        page.locator('.smithy-composer input[value="html"]').click()
+        page.waitFor(() => !!document.querySelector(".smithy-composer .m-rich-text"), {timeout: 20})
+        const rich = page.evaluate(() =>
+            [
+                document.querySelector('#Smithy_createIssue input[name="sourceFormat"]').value,
+                parseFloat(getComputedStyle(document.querySelector("h1")).fontSize) < 40
+            ].join(" ")
+        )
+        page.locator('.smithy-composer input[value="markdown"]').click()
+        page.waitFor(() => !!document.querySelector(".smithy-composer textarea"), {timeout: 15})
+        page.locator(".smithy-composer textarea").fill("The guide **works** for `main`.")
+        page.locator(".smithy-composer").getByRole("button", {name: "Preview"}).click()
+        page.waitFor(() => !!document.querySelector(".smithy-composer .smithy-preview strong"), {timeout: 15})
+        const previewed = page.evaluate(() => document.querySelector(".smithy-composer .smithy-preview").innerHTML)
+        page.getByRole("button", {name: "Create issue"}).click()
+        page.waitForURL(/\/code\/walk\/guide\/-\/issues\/[0-9]+$/)
+        const issue = page.text()
+        const issuePath = page.evaluate(() => location.pathname)
+        const issueBody = page.evaluate(() => document.querySelector("#SmithyConversation .smithy-body")?.innerHTML || "")
+        // the text's edit (its Markdown source comes back to the editor), and Close
+        // the island has taken the plain textarea's place: one editor is shown
+        page.waitFor(() => !!document.querySelector(".smithy-composer textarea"), {timeout: 20})
+        const editors = page.evaluate(() => Array.from(document.querySelectorAll("textarea")).filter(area => area.offsetParent).length)
+        page.locator("#SmithyConversation").getByRole("link", {name: "Edit", exact: true}).first().click()
+        page.waitFor(() => !!document.querySelector(".smithy-composer textarea"), {timeout: 20})
+        const source = page.evaluate(() => document.querySelector(".smithy-composer textarea").value)
+        page.locator(".smithy-composer textarea").fill("The guide **works** for `main` and for tags.")
+        page.getByLabel("Why you changed it").fill("More exact")
+        page.getByRole("button", {name: "Save", exact: true}).click()
+        page.waitFor(() => /for tags/.test(document.querySelector("#SmithyConversation .smithy-body")?.textContent || ""), {timeout: 15})
+        const edited = page.evaluate(() => document.querySelector("#SmithyConversation .post-meta").textContent)
+        page.getByRole("button", {name: "Close as completed"}).click()
+        page.waitFor(() => /Closed/.test(document.querySelector("#SmithyIssueState")?.textContent || ""), {timeout: 15})
+        const closed = page.evaluate(() => document.querySelector("#SmithyIssueState").textContent)
         // the pages that write, at a phone's width: none scrolls sideways
         page.setViewport(390, 844)
         const wide = []
@@ -55,7 +96,13 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
             "/code/walk/guide/-/branches",
             "/code/walk/guide/-/blame/main/README.md",
             "/code/walk/-/members",
-            "/account/GitAccess"
+            "/account/GitAccess",
+            "/code/walk/guide/-/issues",
+            "/code/walk/guide/-/issues/new",
+            issuePath,
+            "/code/walk/guide/-/labels",
+            "/code/walk/guide/-/milestones",
+            "/code/walk/-/issues"
         ]) {
             const shown = page.goto(path)
             if (shown.status !== 200 || overflow(page)) wide.push(path + " " + shown.status)
@@ -87,6 +134,15 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
             file,
             commit,
             created,
+            title,
+            rich,
+            previewed,
+            issue,
+            issueBody,
+            editors,
+            source,
+            edited,
+            closed,
             wide,
             slug,
             untokened: untokened.status,
@@ -94,7 +150,17 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
             visitorArchive: visitorArchive.status + " " + visitorArchive.location
         }
     },
-    then({status, home, group, repository, file, commit, created, wide, slug, untokened, archive, visitorArchive}) {
+    then({status, home, group, repository, file, commit, created, title, rich, previewed, issue, issueBody, editors, source, edited, closed, wide, slug, untokened, archive, visitorArchive}) {
+        rich === "html true"
+        previewed.includes("<strong>works</strong>")
+        issue.includes(title)
+        issue.includes("Open")
+        issueBody.includes("<strong>works</strong>")
+        issueBody.includes("<code>main</code>")
+        editors === 1
+        source === "The guide **works** for `main`."
+        edited.includes("edited")
+        closed === "Closed as completed"
         archive === "200 | attachment; filename=\"guide-main.zip\"; filename*=UTF-8''guide-main.zip | no-store | PK"
         visitorArchive === "302 /account/Login?returnTo=%2Fcode%2Fwalk%2Fguide%2F-%2Farchive%2Fmain.zip"
         wide.join(", ") === ""

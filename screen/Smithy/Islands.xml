@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Islands (design-smithy §4.4): no page of its own. Its subscreens are the .qvue islands a Smithy page mounts where
+    JavaScript runs (WebrootPublic.qvt.js island mode), reached at -/island/<Name>.qvue with ids in the query. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Islands">
+  <subscreens default-item="Composer"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>

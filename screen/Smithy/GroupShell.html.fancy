@@ -1,4 +1,4 @@
 <nav aria-label="Breadcrumb" class="smithy-crumbs"><#list smithyGroup.crumbs as crumb><#if crumb_index><span aria-hidden="true">/</span></#if><#if crumb.href><a href="${crumb.href}">${crumb.label}</a><#else><strong>${crumb.label}</strong></#if></#list></nav>
 <h1 class="wrap">${smithyGroup.group.name}<#if smithyGroup.visibility> <small class="smithy-chip">${smithyGroup.visibility}</small></#if></h1>
-<nav aria-label="Group sections" class="card smithy-tabs"><#list smithyGroup.tabs as tab><a href="${tab.href}"<#if tab.current> aria-current="page"</#if>>${tab.label}</a></#list></nav>
+<nav aria-label="Group sections" class="card smithy-tabs"><#list smithyGroup.tabs as tab><a href="${tab.href}"<#if tab.current> aria-current="page"</#if>>${tab.label}<#if tab.count != null> <small>${tab.count}</small></#if></a></#list></nav>
 <#if smithyGroup.flash.notice><p role="status" class="card" id="SmithyNotice">${smithyGroup.flash.notice}</p></#if>

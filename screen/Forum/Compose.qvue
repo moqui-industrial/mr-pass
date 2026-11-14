@@ -69,7 +69,37 @@
                 Posting is currently unavailable here. Your draft can still be
                 saved.
             </p>
+            <fieldset :key="formatKey">
+                <legend>Write in</legend>
+                <label
+                    ><input
+                        type="radio"
+                        value="html"
+                        :checked="draft.sourceFormat !== 'markdown'"
+                        @change="setFormat('html')"
+                    />
+                    Rich text</label
+                >
+                <label
+                    ><input
+                        type="radio"
+                        value="markdown"
+                        :checked="draft.sourceFormat === 'markdown'"
+                        @change="setFormat('markdown')"
+                    />
+                    Markdown</label
+                >
+            </fieldset>
+            <label v-if="draft.sourceFormat === 'markdown'"
+                >Message (Markdown)<textarea
+                    v-model="draft.body"
+                    name="body"
+                    rows="14"
+                    placeholder="Write your message"
+                ></textarea
+            ></label>
             <m-rich-text
+                v-else
                 v-model="draft.body"
                 name="body"
                 :rows="14"
@@ -192,6 +222,8 @@ module.exports = {
                 contactListId: '',
                 title: '',
                 body: '',
+                // the authoring format: rich text ('html') or Markdown, kept with the post's revision
+                sourceFormat: 'html',
                 rootCommEventId: '',
                 tagsText: '',
                 pollEnabled: false,
@@ -212,6 +244,8 @@ module.exports = {
             dirty: false,
             status: '',
             previewBody: '',
+            // redraws the "Write in" choice when a change of it did not happen
+            formatKey: 0,
             timer: null,
         }
     },
@@ -274,13 +308,20 @@ module.exports = {
                         this.status =
                             'Compare the authority and browser versions before saving.'
                     } else {
-                        this.draft = saved.draft
-                        if (saved.attachments)
-                            this.attachments = saved.attachments
-                        this.operationId = saved.operationId
-                        this.draftId = saved.draftId
-                        this.draftRevision = saved.draftRevision
-                        this.status = 'Recovered your unsent draft.'
+                        const format = this.copyFormat(saved.draft, state.draft)
+                        if (!format) {
+                            localStorage.removeItem(this.recoveryKey)
+                            this.status =
+                                'An older unsent copy of this text was written as rich text and this post is Markdown now: the copy was not kept.'
+                        } else {
+                            this.draft = { ...saved.draft, sourceFormat: format }
+                            if (saved.attachments)
+                                this.attachments = saved.attachments
+                            this.operationId = saved.operationId
+                            this.draftId = saved.draftId
+                            this.draftRevision = saved.draftRevision
+                            this.status = 'Recovered your unsent draft.'
+                        }
                     }
                 }
             }
@@ -342,11 +383,52 @@ module.exports = {
         reload() {
             location.reload()
         },
+        /* Rich text or Markdown. What was written as Markdown becomes the rich text the authority renders from it; rich
+           text read as Markdown is its own markup. */
+        async setFormat(format) {
+            if (format === (this.draft.sourceFormat || 'html')) return
+            if (format === 'html' && (this.draft.body || '').trim()) {
+                try {
+                    this.draft.body = (
+                        await this.request('preview', {
+                            body: this.draft.body,
+                            sourceFormat: 'markdown',
+                        })
+                    ).body
+                } catch (e) {
+                    // the text stays Markdown, and so does the choice shown
+                    this.status = e.message
+                    this.formatKey++
+                    return
+                }
+            }
+            this.draft.sourceFormat = format
+            this.previewBody = ''
+        },
+        /* The format of a browser recovery copy. One kept before the composer had Markdown names none: its text is rich
+           text. It is the authority text's format only when it is that text, unchanged; a rich text copy of what is
+           now a Markdown post cannot be sent as Markdown, and has no format (null: the copy is not used). */
+        copyFormat(copy, authority) {
+            if (copy.sourceFormat) return copy.sourceFormat
+            if ((authority?.sourceFormat || 'html') !== 'markdown') return 'html'
+            return copy.body === authority.body ? 'markdown' : null
+        },
         chooseRecovery(useBrowser) {
             const saved = this.recoveryCandidate
+            const format = useBrowser
+                ? this.copyFormat(saved.draft, this.draft)
+                : null
+            if (useBrowser && !format) {
+                localStorage.removeItem(this.recoveryKey)
+                this.recoveryCandidate = null
+                this.status =
+                    'The browser copy was written as rich text and this post is Markdown now: the authority text is kept.'
+                return
+            }
             if (useBrowser) {
                 this.draft = {
                     ...saved.draft,
+                    sourceFormat: format,
                     ...(this.draft.postRevision
                         ? { postRevision: this.draft.postRevision }
                         : {}),
@@ -514,7 +596,10 @@ module.exports = {
         async preview() {
             try {
                 this.previewBody = (
-                    await this.request('preview', { body: this.draft.body })
+                    await this.request('preview', {
+                        body: this.draft.body,
+                        sourceFormat: this.draft.sourceFormat || 'html',
+                    })
                 ).body
             } catch (e) {
                 this.status = e.message

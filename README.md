@@ -28,8 +28,10 @@ page editors are [IronStone Commerce](../mr-boss/plan/design-commerce.md)'s; pub
 
 Its Smithy app ([design](plan/design-smithy.md), `screen/Smithy.xml`) is public git hosting, mounted at `/code` or a
 site's root: groups, repositories and their code (files, a file with line anchors, raw, commits, branches, tags, a commit
-and a comparison), and for an account with a confirmed address creating groups and repositories, their settings and
-members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript,
+and a comparison), a repository's issues (the public view of its project's tasks, confidential ones for its Owners and
+their reporter, with labels, milestones and a conversation of forum posts written in Markdown), and for an account with a confirmed address creating groups and repositories, their settings and
+members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript
+(a text's editor is an island over the plain form),
 over Mantle's `mantle.smithy` services and the framework's git host. What a visitor may not view is Not Found.
 [Deployment](docs/Deployment.md) "Smithy app" has its setup; [the implementation record](plan/implementation-smithy.md)
 what is built.

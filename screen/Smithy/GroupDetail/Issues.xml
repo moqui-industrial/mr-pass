@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- GroupIssues (design-smithy §6 GroupIssues), at <group>/-/issues: the issues of the group's repositories and its subgroups'
+    that the caller may view (findIssues with groupId), each row with its repository. New issue asks for the repository
+    first (a GET form whose choice the pre-actions redirect to that repository's new-issue page). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Issues">
+  <parameter name="groupId"/>
+  <pre-actions>
+    <script><![CDATA[
+        // the choice of "New issue in" goes to that repository's form, before anything renders
+        const chosen=ec.resource.script('component://mr-pass/screen/Smithy/SmithyIssues.js').groupNewIssue(resolvedSiteId,String(groupId || ''),passBases.smithy)
+        if(chosen){sri.sendRedirectAndStopRender(chosen);return}
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyIssues.js').groupIssues(smithyGroup,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Labels (design-smithy §8 Labels), at -/labels: the labels of the repository's project with their open issue counts
+    (findLabels). A Maintainer makes and changes one (storeLabel) and deletes one after confirming on ?delete=
+    (deleteLabel); the forms post to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Labels">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyIssues.js').labels(smithyRepository,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>
