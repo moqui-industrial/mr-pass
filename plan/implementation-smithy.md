@@ -188,6 +188,57 @@ Not built: `signAgreement`'s form; the forum's post stream island on Overview; t
 file tree (`m-file-tree`) on Changes; attachments; a group's merge request list; `SmithyAccessWalk` and `SmithyPhone`
 as specs of their own (`SmithyContribution` checks this phase's pages at 390 px).
 
+## DG5: pipelines
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes a repository's `-/pipelines`, `-/pipelines/<n>`, `-/pipelines/<n>/jobs/<jobRunId>`, `-/pipelines/<n>/jobs/<jobRunId>/log` (added: the log's JSON), `-/artifacts/<artifactId>/<name>`, the Pipelines tab of a group's and a repository's Settings, and the island `-/island/JobLog.qvue` (`.qvt`, `.qjs`). The rest of the grammar was DG1's |
+| Pages | `screen/Smithy/SmithyPipelines.js` builds them as escaped markup with `SmithyForms.js`'s helpers: `RepositoryDetail/Pipelines` and `PipelineDetail` (in the repository's shell, read in `pre-actions`, so a run the caller may not read is the framework's Not Found before the shell is written), and the settings tabs. The repository's shell has the Pipelines tab where pipelines are on; with them off every pipeline page is Not Found |
+| Pipelines | `findPipelineRuns`: each run with its number and pipeline, state, an Outside run chip, the event, the branch or merge request, the commit, who asked, the day, the duration, the jobs and failed tests, and the run's message; a GET form of filters (branch, event, state), More by cursor. Run pipeline (`canRun`) is a form of the manual pipelines the read names (`pipelineList`) and a branch or tag, or a sentence when the default branch's `ci.xml` has none |
+| PipelineDetail | `getPipelineRun`: the header (state, event, ref or merge request, commit, who, times, trusted or an outside run, the built-in pipeline, the message), the waiting banner with Approve and run (`canApprove`; a sentence for anyone else), Cancel (`canCancel`, asked again on `?confirm=cancel`), Run again (`canRerun`, `rerunPipelineRun`), and the jobs in stages (a job with no `needs` in the first, any other one stage after the latest it needs). With a job (`getJobRun`): the run's jobs as a row of chips (one scrolling row on a phone), the job's facts and Retry (`canRetry`, an ended job; the answer is the new attempt's page), its steps, its log, its failed tests (suite, name, the file and line linked to Blob at the run's commit for a relative path, the time, the message) and its artifacts and reports (a download each, with size, checksum and expiry) |
+| Log | `getJobLog`, a page at a time: while the job runs the chunks after `?after=` (500 at most), once it has ended the stored log from `?offset=`, cut at its last whole line; `?line=` numbers the page's first line. Each line has its number and anchor (`#L10`), is escaped, and has its terminal escapes and other control characters taken out (of a line a carriage return rewrote, its last text). Load more links the next page; a running job's page has Refresh |
+| JobLog island | `Islands/JobLog.qvue` on a running job's page: reads `…/jobs/<id>/log` (the `log` transition of `PipelineDetail`: the next lines as JSON, `getJobLog` with `watch` for a signed-in reader) every `pollSeconds` (2), every 15 s while the notification socket is open, and at once on a message of topic `GitCiJobLog` with the job's id as its sub-topic; appends each line as text (DOM text nodes, never markup), updates the job's state chip, hides Refresh and Load more, and stops when the job has ended. The socket is `moqui.NotificationClient` on `/notws` for a signed-in reader only |
+| Artifacts | The `artifact` transition of `PipelineDetail` (`downloadArtifact`), streamed by `Facade.js` `downloadFile` as an attachment named by the authority, `nosniff`, `no-store`. A visitor who may view the repository downloads too (the operation's need is any) |
+| Checks | A merge request's Checks tab and the Overview's box: a `ci/` check links to its run on this site (`checkList[].path`) or else to its https target, a required context with no status reads "expected", `ciFileChanged` is said ("a Maintainer merges it"), and `missingList` as before; the Overview's box lists the head's runs (`runList`); the Checks tab reads each run again (`getPipelineRun`, ten at most) for its jobs, the failed tests of up to five failed jobs (`getJobRun`), and Approve and run where `canApprove` |
+| Commit | CommitDetail lists the commit's runs (`findPipelineRuns` by `commitId`, where pipelines are on), and a `ci/<pipeline>/<job>` status links to its pipeline's newest run on this site in place of the address the engine wrote |
+| Settings | Repository › Pipelines (a Maintainer's tab): Runners (`getPipelineSettings`: the month's runner minutes of the owner, the allowed pools with their trust and whose they are, the pools chosen and when outside runs wait; the form for the group's Owner, `canStore`, else read only with who changes them), Secrets (`findCiSecrets`: name, scope, environment, added, last used; Add; Replace the value with the scope; Delete asked again on `?delete=<secretId>`) and Environments (`findCiEnvironments`: name, branches allowed, approval required; Add, Edit, Delete asked again on `?deleteEnvironment=<id>`). A secret's value is a password field, never written back, and `value` is in `SmithyForms.js` `SECRET`, so a refusal keeps nothing of it for the next page. Group › Pipelines (an Owner's): the Runners form (`storePipelineSettings`). SiteSettings has "When an outside run waits" (`storeSmithySettings` `outsideRunApproval`) |
+| Forms | `Do.xml` has 10 more `post` transitions (80): `runPipeline` and `rerunPipelineRun` (to the run's page; the notice says a run the check refused, its message without the code, or one that waits), `cancelPipelineRun` (confirmed), `retryJobRun`, `approvePipelineRun`, `storeCiSecret`, `deleteCiSecret` (confirmed), `storeCiEnvironment` (the branches allowed sent only when changed), `deleteCiEnvironment` (confirmed), `storePipelineSettings` |
+| Caching | `Shared/Headers.js`: `-/pipelines…` and `-/artifacts/…` are `no-store` for a visitor too (a log holds whatever a job printed, and a merge request's run is hidden with it) |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's with the 18 DG5 operations (113 Smithy operations), compared with `cmp`; `Shared/Portal.js` reasons unchanged |
+| Tests | `test/Smithy/SmithyReview.spec.js` (one render of a running job's page as the run's Owner: the log escaped with its escapes and a progress bar's earlier text out, a failed test linked to its line at the run's commit, an artifact's link, the waiting banner with Approve and run, the step escaped, the chips, the island, the tab; the run's page as a viewer through `runPage`: no Approve, no Cancel, the jobs in two stages; Run pipeline through `Do` refused with `quotaExceeded` and the refusal on the form, read through `pipelines`). The run and its jobs are rows the feature makes (a spec cannot play the runner); it takes 0.09 s. `Smithy.spec.js` (the DG5 paths, the routes through the resolver, the cache policy, Do's 80 posts, the registries), `SmithyAccess.spec.js` (a Maintainer's settings tabs with Pipelines) |
+
+Differences from the design:
+
+- The grammar has `-/pipelines/<n>/jobs/<jobRunId>/log`, the log's JSON for the island (a transition of `PipelineDetail`, as `artifact` is).
+- The log is read by chunk while a job runs and by byte offset once it has ended (Mantle's `getJobLog` gives both); a page
+  is 500 chunks or 256 KB, and its lines are numbered from the page's first (`?line=`), not from the log's start, when
+  reached by Load more.
+- The island polls as the design says and reads at once on a notification; it opens the socket at `/notws` itself (the
+  public island's config has no notification endpoint). On a host that refuses `/notws`, or for a visitor, it only polls.
+- Run again (`rerunPipelineRun`) is on the run's page; the design's catalog has no re-run. Retry is offered for any ended
+  job.
+- Cancel and the deletes of a secret and of an environment are asked again on a page of their own; Approve is not.
+- A repository's Pipelines tab is one page (Runners, Secrets, Environments). Its runners are the group's: a Maintainer
+  reads them and the group's Owner saves them there or on the group's tab. A personal repository's are read only.
+- `getPipelineSettings` gives the pool and the approval in effect and the group they come from, not the group's own value:
+  the form shows the value in effect, so a save on a subgroup stores an inherited pool as its own.
+- A ci/ status on CommitDetail and the checks links to its run on this site, not to the engine's address on the canonical
+  host.
+- The Checks tab reads each run again for its jobs and failed tests: up to ten `getPipelineRun` and five `getJobRun` calls.
+- With pipelines off the pipeline pages are Not Found, runs from before included.
+
+Findings for other lanes:
+
+- Framework: `org.moqui.git.GitCiServices.find#CiEnvironments` (`crates/moqui-git/src/ci/service.rs`) does not return
+  `allowedRefs`, so Mantle's `findCiEnvironments` answers it empty and the page shows "Protected branches only". The edit
+  form sends the field only when it was changed, so a save does not clear it.
+
+Not built: the acceptance walk `SmithyPipeline` (design §19.3: a push runs on the fake host type, the log and a failed
+test on the run's page, a red run blocking the merge); the 390 px check of these pages in a browser (they reuse the
+shell's scrolling tabs and code blocks; `SmithyWalk` was not extended); the Commits list's checks per commit; the
+built-in pipeline named on Pipelines for a component with no `ci.xml` before it has run; a group's list of runs; DG10's
+deploy environments (target, token, required pipeline, deployments).
+
 ## DG6: the forum inside Smithy, the lists, moderation in a scope
 
 | Area | Implementation |

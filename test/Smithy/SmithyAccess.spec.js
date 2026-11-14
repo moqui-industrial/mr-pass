@@ -242,10 +242,11 @@ feature("a tab is shown to the role that may use it, and Settings is Not Found f
         reporter.tabs === "Files Commits Branches Tags Issues Merge requests"
         reporter.kind === "NotFound"
         reporter.settings == null
-        // a Maintainer has Settings with Branch rules, reads the members without changing them, and has no Archive
+        // a Maintainer has Settings with Branch rules and (DG5) Pipelines, reads the members without changing them, and has
+        // no Archive
         maintainer.tabs === "Files Commits Branches Tags Issues Merge requests Settings"
         maintainer.kind == null
-        maintainer.settings === "general members branch-rules webhooks"
+        maintainer.settings === "general members branch-rules webhooks pipelines"
         maintainer.changesMembers === false
         unmounted === "NotFound"
     }

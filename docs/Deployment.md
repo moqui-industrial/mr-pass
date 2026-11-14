@@ -429,7 +429,7 @@ preview host's name apart from the BOSS host's all the same.
 ## Smithy app
 
 Smithy (`screen/Smithy.xml`; [design](../plan/design-smithy.md)) is public git hosting over the framework's git host and
-Mantle's `mantle.smithy` services: groups, repositories, their code, their issues and their merge requests. It runs where the git data is, so mount it on the
+Mantle's `mantle.smithy` services: groups, repositories, their code, their issues, their merge requests and their pipelines. It runs where the git data is, so mount it on the
 authority's own instance. It is bound to no business record (no target), a site has one Smithy mount, and it may be the
 site's root app:
 
@@ -446,15 +446,18 @@ Or under a path beside another root app: `<mount path="/code" screen="Smithy"/>`
 site's own mount rows (`mantle.public.SiteServices.store#Mounts`, `{app: 'smithy', pathPrefix: '/'}` or `'/code'`) must
 name the same path, as for every app.
 
-Smithy decides whether a pipeline run may start, so a hidden repository (or one in a hidden group, or a fork of a hidden
-one) runs no CI: Mantle's `MoquiConf.xml` names `<git-ci run-check-service="mantle.smithy.SmithyServices.check#PipelineRun"/>`,
-and a runtime conf that sets `git-ci`'s `run-check-service` itself must name the same service.
+Smithy decides whether a pipeline run may start and where a run's page is: Mantle's `MoquiConf.xml` names
+`<git-ci run-check-service="mantle.smithy.SmithyPipelineServices.check#Run" run-url-service="mantle.smithy.SmithyPipelineServices.get#RunUrl"/>`,
+and a runtime conf that sets `git-ci`'s `run-check-service` or `run-url-service` itself must name the same services. The
+check fails closed: a hidden repository (or one in a hidden group, or a fork of a hidden one), a repository with pipelines
+off and an owner with no runner minutes left run nothing (Pipelines, below).
 
 - **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
   `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
   `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/issues`, `/-/issues/new`,
   `/-/issues/<n>`, `/-/labels`, `/-/milestones`, `/-/merge-requests`, `/-/merge-requests/new`, `/-/merge-requests/<n>` (and its
-  `/commits`, `/changes`, `/checks`), `/-/fork`, `/-/forks`, `/-/edit/<ref>/<path>` (and `/-/new/…`, `/-/upload/…`,
+  `/commits`, `/changes`, `/checks`), `/-/pipelines`, `/-/pipelines/<n>`, `/-/pipelines/<n>/jobs/<id>` (and its `/log`, the log's
+  lines as JSON), `/-/artifacts/<id>/<name>`, `/-/fork`, `/-/forks`, `/-/edit/<ref>/<path>` (and `/-/new/…`, `/-/upload/…`,
   `/-/delete/…`), `/-/forum[/…]`, `/-/moderation[/…]`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`,
   `/-/forum[/…]`, `/-/members`, `/-/moderation[/…]`, `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
   the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
@@ -473,7 +476,8 @@ and a runtime conf that sets `git-ci`'s `run-check-service` itself must name the
   (`/-/commit/<id>`, which names its issues) are `no-store` for a visitor too: an issue may be made confidential, and no
   cache should still have its page. A merge request's pages (`/-/merge-requests…`; one may be held for review), the pages
   that edit a file and the fork pages are `no-store` for a visitor as well, and so are the forum's pages inside a group or a
-  repository (`/-/forum…`) and the moderation pages (`/-/moderation…`). The Issues and Merge requests tabs show their
+  repository (`/-/forum…`), the moderation pages (`/-/moderation…`) and the pipeline pages, a job's log and an upload
+  (`/-/pipelines…`, `/-/artifacts/…`: a log holds whatever a job printed). The Issues and Merge requests tabs show their
   counts to a signed-in account only. A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
 - **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
@@ -484,6 +488,10 @@ and a runtime conf that sets `git-ci`'s `run-check-service` itself must name the
   editor mounts): a merge request's Changes (`/-/island/DiffReview.qvue`: a line's comment form opened in place, a file
   side by side) and a file's edit page (`/-/island/Editor.qvue`: the code editor over the plain textarea). Both pages
   work without them: the diff is escaped text with an anchor and a comment link for each line, the editor a textarea.
+  A running job's page loads them for the live log (`/-/island/JobLog.qvue`): it reads the job's new lines from
+  `…/jobs/<id>/log` every two seconds, and at once when the framework's notification socket (`/notws`, a signed-in account
+  only) says the log grew; without it the page has Refresh and Load more. A log is shown as escaped text with its terminal
+  escapes taken out.
 - **Issues.** A repository's Maintainer turns issues on in its Settings (General); the repository then has the Issues
   tab, Labels and Milestones, and its project in Projects holds the tasks. An issue's conversation is posts of the
   forum's engine, so the site's posting policy, trust levels, word rules, review queue and notification mail apply to
@@ -507,6 +515,33 @@ and a runtime conf that sets `git-ci`'s `run-check-service` itself must name the
   Smithy under a path, set it in the runtime's conf with that prefix (`/code/{repositoryPath}/-/merge-requests/{mergeRequestNum}`). The
   framework's `review-push`, `review-max-push-bytes` and `review-max-account-bytes` bound pushes for review
   ([Git-Hosting](../../../../../docs/interfaces/Git-Hosting.md)).
+- **Pipelines.** The engine is the framework's ([Pipelines](../../../../../docs/interfaces/Pipelines.md): a runner
+  machine that is not the server, an `InstanceHost` for it, the `moqui-build` image, `git-ci` `server-url`). A
+  repository's Maintainer turns pipelines on (Settings, General); the repository then has the Pipelines tab, and a push or
+  a merge request runs the pipelines of the `ci.xml` at its commit (a Moqui component with none runs the built-in one).
+  What an operator sets up:
+  - **Pools.** Smithy uses the enabled `GitRunnerPool` rows (System data or `org.moqui.git.GitCiServices.store#RunnerPool`)
+    that have no `ownerId` (shared by the site) or the owner of the runs: `smithy:group:<groupId>` for a top-level group (its
+    subgroups' repositories count under it) and `smithy:account:<siteId>:<partyId>` for an account's own repositories. A pool
+    is `trusted` (runs of the repository's own branches and tags, pushed or asked for by a Developer, which get secrets) or
+    not (outside runs: a fork's merge request, a push for review, an account below Developer; no secrets, a read-only
+    cache). Allow at least one of each to a group, or outside runs have nowhere to run. A group's Owner chooses among the
+    pools it is allowed (the group's Settings, Pipelines); with no choice the engine takes a pool of the job's pool name
+    that takes the run's trust, the owner's before a shared one.
+  - **Runner minutes.** Counted by month for each owner as its jobs end (`GitRunnerUsage`). A group has the site's
+    default for a group (2000 a month until `/-/site` says otherwise, "Default limits of a group"), an account the
+    default for an account (0: a personal repository runs nothing until an operator gives its account minutes on
+    `/-/site/quotas`), each changeable for one group or account on `/-/site/quotas`. A run that would start with the
+    month used up is refused (`quotaExceeded`), and so is a run by hand or a retry; the run's page and its check say why.
+  - **Outside runs.** The first run of a contributor with no merged merge request waits for a Maintainer's "Approve and
+    run" on the run's page or the merge request's Checks (`first`, the default); `/-/site` sets `always` or `never`, and a
+    group's Owner may set its own. The forum's daily limit of pipeline runs (by trust level) bounds the runs an account asks
+    for by hand and its outside runs.
+  - **The run's page.** A status links to its run on the site's canonical host (a `PublicSiteHost` with `canonical`, and
+    the Smithy mount), which `get#RunUrl` builds; a site with no canonical host writes statuses with no link.
+  - **Secrets and environments.** A repository's Maintainer adds them on Settings, Pipelines: a secret's value is written
+    once and never shown or kept for the next page; it is given to a trusted run of a protected branch, of a tag or of an
+    environment the run is allowed.
 - **Forks.** Site settings say who may fork (`/-/site`, with who may create). A fork goes to the account's own namespace,
   so the account needs a handle (its profile in the Account app), or to a group where it is a Maintainer; it is no
   wider than its parent, and a parent with forks is not deleted.

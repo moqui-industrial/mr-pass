@@ -51,9 +51,11 @@ const ROUTES = [
     // Smithy DG6: nor the forum's pages inside a group's or a repository's shell (the forum's own are not kept either: a
     // topic may be hidden or moved, and its page carries the session's token for the reader's own controls) and the
     // scope's moderation pages.
+    // Smithy DG5: nor the pipeline pages, a job's log and its uploads (-/pipelines…, -/artifacts/…): a log can hold
+    // anything a job printed, and a merge request's run is hidden with it.
     {
         app: 'smithy',
-        path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks|forum|moderation)(?:\/|$)/,
+        path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks|forum|moderation|pipelines|artifacts)(?:\/|$)/,
     },
     {
         app: 'smithy',

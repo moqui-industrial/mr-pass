@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Pipelines (design-smithy §10 Pipelines), at -/pipelines: a repository's pipeline runs, newest first, filtered by branch,
+    event and state in a GET form, by cursor (findPipelineRuns), and Run pipeline for a Developer (runPipeline, with the
+    manual pipelines of the default branch's ci.xml). Not Found where pipelines are off. Never kept by a cache. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Pipelines">
+  <pre-actions>
+    <script><![CDATA[
+        // built before anything renders, so a repository with pipelines off is the framework's Not Found, not a part of the shell
+        smithyPipelines=ec.resource.script('component://mr-pass/screen/Smithy/SmithyPipelines.js').pipelines(smithyRepository,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        view=smithyPipelines
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

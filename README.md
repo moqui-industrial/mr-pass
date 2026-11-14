@@ -31,11 +31,12 @@ site's root: groups, repositories and their code (files, a file with line anchor
 and a comparison), a repository's issues (the public view of its project's tasks, confidential ones for its Owners and
 their reporter, with labels, milestones and a conversation of forum posts written in Markdown), its merge requests (from a
 branch, a fork or a push for review, with line comments on the diff, reviews, the checks, the contributor agreement and
-the merge), forks, editing a file on its page with the save as a commit, the forum's own pages inside a group and a
+the merge), its pipelines (the runs, a job's steps, log, failed tests and uploads, Approve and run, secrets, environments
+and the runner pools), forks, editing a file on its page with the save as a commit, the forum's own pages inside a group and a
 repository (limited to its category, with the moderation queue for its Owners, Report and Hide, a mailing list's import
 and invitations, and security reports by mail), and for an account with a confirmed address creating groups and repositories, their settings and
 members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript
-(a text's editor, the diff's line comments and the code editor are islands over the plain pages),
+(a text's editor, the diff's line comments, the code editor and a running job's log are islands over the plain pages),
 over Mantle's `mantle.smithy` services and the framework's git host. What a visitor may not view is Not Found.
 [Deployment](docs/Deployment.md) "Smithy app" has its setup; [the implementation record](plan/implementation-smithy.md)
 what is built.

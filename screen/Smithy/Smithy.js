@@ -469,6 +469,10 @@ function repositoryShell(siteId, repositoryId, base, path) {
                       }
                   ]
                 : []),
+            // DG5: the pipeline runs, where pipelines are on
+            ...(repository.features?.pipelines
+                ? [{label: "Pipelines", href: u.section("pipelines"), current: word === "pipelines" || word === "artifacts"}]
+                : []),
             ...(forumScope?.enabled ? [{label: "Forum", href: forumScope.base, current: word === "forum"}] : []),
             ...(moderationScope ? [{label: "Moderation", href: moderationScope.moderationBase, current: word === "moderation"}] : []),
             // a tab the caller may not use is absent: Settings is a Maintainer's
@@ -921,6 +925,15 @@ function commit(shell, commitId) {
     const c = found.commit
     const message = String(c.message || c.summary || "")
     const body = message.includes("\n") ? message.slice(message.indexOf("\n") + 1).replace(/^\n+/, "") : ""
+    // DG5: the commit's pipeline runs, newest first, where pipelines are on; a check of a ci/<pipeline>/<job> context links to
+    // its pipeline's newest run here, not to the address the engine wrote (the site's canonical host)
+    const runs = shell.repository.features?.pipelines
+        ? maybe("findPipelineRuns", {siteId: shell.siteId, repositoryId: shell.repository.repositoryId, commitId: c.commitId, limit: 20})
+              ?.runList || []
+        : []
+    const newest = new Map()
+    for (const run of runs) if (!newest.has(run.pipelineName)) newest.set(run.pipelineName, run)
+    const runOf = context => (String(context || "").startsWith("ci/") ? newest.get(String(context).split("/")[1]) : null)
     return {
         ...commitRow(u, shell.base, c),
         body,
@@ -947,7 +960,17 @@ function commit(shell, commitId) {
             context: s.context || "default",
             state: s.state || "",
             description: s.description || "",
-            href: /^https:\/\//.test(String(s.targetUrl || "")) ? s.targetUrl : null
+            href: runOf(s.context)?.path
+                ? (shell.base || "") + runOf(s.context).path
+                : /^https:\/\//.test(String(s.targetUrl || ""))
+                  ? s.targetUrl
+                  : null
+        })),
+        runs: runs.map(run => ({
+            number: run.runNum,
+            name: run.pipelineName || "",
+            state: run.state || "",
+            href: (shell.base || "") + run.path
         })),
         // the issues it names that the caller may see; one the caller may not see is in the count alone
         issues: (found.linkedIssues || (c.issueNumbers || []).map(issueNumber => ({issueNumber}))).map(issue => ({

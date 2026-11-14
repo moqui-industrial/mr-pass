@@ -44,7 +44,8 @@ const METHODS = [
     ["fastForward", "Fast-forward"]
 ]
 const methodText = value => METHODS.find(([key]) => key === value)?.[1] || value
-const CHECK_TEXT = {success: "passed", failure: "failed", error: "failed", pending: "running", missing: "missing"}
+// expected: a check a branch rule requires that has not reported on the head (DG5)
+const CHECK_TEXT = {success: "passed", failure: "failed", error: "failed", pending: "running", missing: "missing", expected: "expected"}
 const checkText = state => CHECK_TEXT[state] || state || ""
 /* What an author is missing of the agreement, in words; a word that is not here is shown as it is. */
 const MISSING_TEXT = {
@@ -360,16 +361,30 @@ function agreementBox(c, shell, request) {
             : ""
     }</section>`
 }
-const checksHtml = (found, id) => {
+/* The checks of the head: each status by context, a ci/ check linked to the run it came from on this site (DG5, the
+ * authority's path) or else to its https target, the required ones marked (one not reported yet is "expected"), whether
+ * the head changes ci.xml, and what keeps it from merging; with runs (the Overview's box) the head's runs as links. */
+const checksHtml = (found, id, base, runs) => {
     const list = found.checkList || []
+    const runList = runs ? found.runList || [] : []
     return h`<section class="card" id="${id}" aria-label="Checks"><p><strong>Checks</strong></p>${
         list.length ? "" : h`<p>No check has reported on the head commit.</p>`
-    }${list.map(
-        item =>
-            h`<p class="wrap"><strong>${checkText(item.state)}</strong> · ${httpsOf(item.targetUrl) ? h`<a href="${httpsOf(item.targetUrl)}" rel="nofollow noopener">${item.context}</a>` : item.context}${
-                item.required ? h` <small class="smithy-chip">Required</small>` : ""
-            }${item.description ? " · " + item.description : ""}</p>`
-    )}${(found.missingList || []).length ? h`<ul id="SmithyChecksMissing">${(found.missingList || []).map(reason => h`<li class="wrap">${String(reason?.text || reason?.context || reason)}</li>`)}</ul>` : ""}</section>`
+    }${list.map(item => {
+        const href = item.path ? (base || "") + item.path : httpsOf(item.targetUrl)
+        return h`<p class="wrap"><strong>${checkText(item.state)}</strong> · ${
+            href ? h`<a href="${href}"${attributes({rel: item.path ? null : "nofollow noopener"})}>${item.context}</a>` : item.context
+        }${item.required ? h` <small class="smithy-chip">Required</small>` : ""}${item.description ? " · " + item.description : ""}</p>`
+    })}${
+        runList.length
+            ? h`<p id="SmithyChecksRuns"><small>Runs: ${runList.map(
+                  (run, i) => h`${i ? ", " : ""}<a href="${(base || "") + run.path}">#${run.runNum} ${run.pipelineName}</a> ${run.state}`
+              )}</small></p>`
+            : ""
+    }${
+        found.ciFileChanged
+            ? h`<p class="wrap" id="SmithyCiFileChanged">This merge request changes <code>ci.xml</code>: its required checks ran the jobs it defines, so a Maintainer merges it.</p>`
+            : ""
+    }${(found.missingList || []).length ? h`<ul id="SmithyChecksMissing">${(found.missingList || []).map(reason => h`<li class="wrap">${String(reason?.text || reason?.context || reason)}</li>`)}</ul>` : ""}</section>`
 }
 
 /* MergeRequestOverview (design §9): the conversation with a reply form, the review form, and the side column: reviewers and
@@ -518,7 +533,7 @@ function overview(shell, request, bases, siteInfo, self, asked) {
             )
         )
     }
-    blocks.push(h`${checksHtml(found, "SmithyMergeRequestChecks")}`)
+    blocks.push(h`${checksHtml(found, "SmithyMergeRequestChecks", c.base, true)}`)
     const box = agreementBox(c, shell, request)
     if (box) blocks.push(box)
     // mergeability and the merge box
@@ -603,9 +618,14 @@ function commits(shell, request, bases, siteInfo, self) {
         html: h`<section id="SmithyMergeRequestCommits" aria-label="Commits">${rows.length ? rows : h`<p class="card">No commits to show.</p>`}</section>`.html
     }
 }
-/* MergeRequestChecks (design §9): every status of the head by context, the required ones marked. */
-function checks(shell, request) {
-    return {html: h`${checksHtml(request.found, "SmithyChecks")}`.html}
+/* MergeRequestChecks (design §9): every status of the head by context, the required ones marked, and (DG5) the head's
+ * pipeline runs with their jobs and failed tests, and Approve and run for a run that waits (SmithyPipelines.js). */
+function checks(shell, request, bases, siteInfo, self) {
+    const c = contextOf(bases || {smithy: shell.base}, siteInfo, self || "", shell.flash)
+    const runs = (request.found.runList || []).length
+        ? ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js").requestRuns(c, shell, request)
+        : ""
+    return {html: h`${checksHtml(request.found, "SmithyChecks", shell.base)}${runs}`.html}
 }
 
 /* A unified diff's lines with the line numbers of both sides: {kind: h (a hunk's header), m (the file's header lines), a

@@ -4,7 +4,11 @@
 // a save through Smithy/Do for each destination (the branch, a new branch with a merge request, a proposal) and its
 // conflict (the conflict view, a path that is taken, a text's first newline and its line endings); and the pages' own
 // rules with no screen rendered (the confirmations, a check's target, Sign's link). The routes are in Smithy's spec and the access rules in SmithyAccess; the rules behind the operations are
-// Mantle's (SmithyMergeRequests, SmithyAgreement, SmithyForks, SmithyEdit).
+// Mantle's (SmithyMergeRequests, SmithyAgreement, SmithyForks, SmithyEdit). DG5 (§10, §11): one render of a running job's
+// page (its log escaped and without terminal escapes, a failed test linked to the file at the run's commit, an artifact's
+// download, the run waiting with Approve and run for its Owner, the log's island), the same run's page as a viewer through
+// its page function (no Approve), and Run pipeline through Smithy/Do with its refusal on the form. The run and its job are
+// rows made here, since a spec cannot play the engine's runner; Mantle's SmithyPipelines covers the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_REVIEW"
 const HOST = "smithy-review.example.test"
@@ -26,7 +30,8 @@ const BASES = {smithy: "/code", account: "/account"}
 const INFO = {authenticated: true, site: {}, profile: {}}
 const scripts = () => ({
     smithy: ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js"),
-    review: ec.resource.script("component://mr-pass/screen/Smithy/SmithyReview.js")
+    review: ec.resource.script("component://mr-pass/screen/Smithy/SmithyReview.js"),
+    pipelines: ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js")
 })
 /* The Edit page's own view for the current user, with no screen rendered: it takes what the last step left in the session. */
 function editPage(refPath, action) {
@@ -46,8 +51,11 @@ spec({
             "AUTHORS.md": AUTHORS,
             "docs/Guide.md": "# Guide\n\nRead it.\n",
             "docs/Blank.md": "\nStarts after a blank line\n",
-            "src/main.js": "const a = 1\nconsole.log(a)\n"
+            "src/main.js": "const a = 1\nconsole.log(a)\n",
+            // DG5: a pipeline with the manual event, for Run pipeline
+            "ci.xml": '<ci><pipeline name="check" on="push manual"><job name="unit" image="moqui-build"><step run="true"/></job></pipeline></ci>\n'
         })
+        s.first = made.commitId
         s.repo = made.repositoryId
         // a confirmed account with no role: it may view, comment and propose
         f.account(SITE, VIEWER, {confirmed: true})
@@ -490,5 +498,72 @@ feature("page rules: a merge and a close ask again, a check's target is a link o
         !checks.includes('href="http://')
         checks.includes('<a href="https://example.test/c" rel="nofollow noopener">ci/c</a>')
         sign === R + "/-/edit/fix%231%252/AUTHORS.md?sign=" + s.odd.mergeRequestNum
+    }
+})
+feature("a running job's page: its log escaped, a failed test linked, an artifact, Approve for an Owner only; Run pipeline's refusal on its form", {
+    when() {
+        const f = fixtures()
+        const {smithy, pipelines} = scripts()
+        // a run that waits for approval, with a job that runs (its log in chunks) and one after it: rows as the engine writes
+        // them, since a spec cannot play the runner
+        const run = "PSMR_RUN41"
+        const job = "PSMR_JOB41"
+        const now = ec.user.nowTimestamp
+        f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "Y"})
+        const rows = [
+            ["moqui.resource.GitPipelineRun", {pipelineRunId: run, repositoryId: s.repo, runNum: 41, pipelineName: "check", definitionSource: "file", event: "push", refName: "refs/heads/main", commitId: s.first, trusted: "N", approvalState: "waiting", statusId: "waiting", statusMessage: "Waiting for a Maintainer's approval: a first contribution's runs wait for one", createdDate: now}],
+            ["moqui.resource.GitJobRun", {jobRunId: job, pipelineRunId: run, repositoryId: s.repo, jobName: "unit", attempt: 1, statusId: "running", image: "moqui-build", nextChunkSeq: 3, testCount: 3, testFailedCount: 1, startedDate: now}],
+            ["moqui.resource.GitJobRun", {jobRunId: job + "B", pipelineRunId: run, repositoryId: s.repo, jobName: "report", attempt: 1, needs: "unit", statusId: "waiting"}],
+            ["moqui.resource.GitJobStep", {jobRunId: job, stepSeq: 1, command: "./moq test <web>", statusId: "running"}],
+            ["moqui.resource.GitRunLogChunk", {jobRunId: job, chunkSeq: 1, stepSeq: 1, byteOffset: 0, chunkText: "\u001b[31mFAIL\u001b[0m <script>alert(9)</script>\n"}],
+            ["moqui.resource.GitRunLogChunk", {jobRunId: job, chunkSeq: 2, stepSeq: 1, byteOffset: 45, chunkText: "progress 10%\rprogress 100%\nok\n"}],
+            ["moqui.resource.GitRunTestFailure", {jobRunId: job, testSeq: 1, suiteName: "Main", testName: "greets <all>", filePath: "./src/main.js", lineNumber: 2, message: "expected <b>", durationMillis: 1200}],
+            ["moqui.resource.GitRunArtifact", {artifactId: "PSMR_ART41", jobRunId: job, pipelineRunId: run, repositoryId: s.repo, artifactKind: "artifact", name: "results", sizeBytes: 2048, sha256: "0123456789abcdef0123", createdDate: now}]
+        ]
+        for (const [entity, fields] of rows) f.run("create#" + entity, fields)
+        const self = R + "/-/pipelines/41/jobs/" + job
+        const page = f.render(SITE, HOST, self, "Smithy/PipelineDetail", {repositoryId: s.repo, namePath: "pass-smr/review", runNum: "41", jobRunId: job})
+        // the run's page as a viewer with no role, through its page function: no Approve, and the jobs in stages
+        const viewer = as(VIEWER, () =>
+            pipelines.runPage(smithy.repositoryShell(SITE, s.repo, "/code", R + "/-/pipelines/41"), "41", "", BASES, INFO, R + "/-/pipelines/41").html
+        )
+        // Run pipeline through Do: the group has no runner minutes, so it is refused, and the form shows why
+        f.run("update#mantle.smithy.SmithyGroup", {groupId: s.group, runnerMinutesMonthly: 0})
+        const list = R + "/-/pipelines"
+        const posted = f.post(SITE, HOST, "runPipeline", {repositoryId: s.repo, pipelineName: "check", refName: "main", operationId: id(), returnTo: list}, true, true)
+        const shown = pipelines.pipelines(smithy.repositoryShell(SITE, s.repo, "/code", list), BASES, INFO, list).html
+        return {page, html: page.html, viewer, posted, shown}
+    },
+    then({page, html, viewer, posted, shown}) {
+        page.errors.length === 0
+        page.header("Cache-Control") === "no-store"
+        html.includes('<h2>check <small>#41</small></h2>')
+        html.includes('id="SmithyRunWaiting"')
+        // the log: each line numbered, escaped, its terminal escapes and a progress bar's earlier text taken out
+        html.includes('<span id="L1"><a class="n" href="#L1">1</a>FAIL &lt;script&gt;alert(9)&lt;/script&gt;</span>')
+        html.includes('<span id="L2"><a class="n" href="#L2">2</a>progress 100%</span>')
+        !html.includes("alert(9)</script>")
+        !html.includes("\u001b")
+        !html.includes("progress 10%")
+        // the failed test linked to its line at the run's commit; the artifact's download
+        html.includes('<a href="' + R + "/-/blob/" + s.first + '/src/main.js#L2">./src/main.js:2</a>')
+        html.includes("greets &lt;all&gt;")
+        html.includes('<a href="' + R + '/-/artifacts/PSMR_ART41/results.tar.gz" rel="nofollow">results</a>')
+        // the run's Owner approves it; the jobs as chips; the step's command escaped; the log's island while the job runs
+        html.includes('id="Smithy_approvePipelineRun"')
+        html.includes('id="SmithyJobChips"')
+        html.includes("<code>./moq test &lt;web&gt;</code>")
+        html.includes('data-moqui-island="SmithyJobLogIsland"')
+        html.includes('aria-current="page">Pipelines</a>')
+        !viewer.includes("approvePipelineRun")
+        viewer.includes("A Maintainer of this repository approves it.")
+        viewer.includes("<h4>Stage 2</h4>")
+        !viewer.includes("Cancel run")
+        posted.status === 303
+        posted.location === "/code/pass-smr/review/-/pipelines"
+        posted.flash.error.reason === "quotaExceeded"
+        shown.includes('id="Smithy_runPipeline_error"')
+        shown.includes("no runner minutes")
+        shown.includes('<option value="check" selected>check</option>')
     }
 })

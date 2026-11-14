@@ -320,7 +320,8 @@ function quotaTable(found) {
         String
     )}${row("Repository size", "repositoryBytes", sizeText)}${row("Git LFS", "lfsBytes", sizeText)}${row("Runner minutes this month", "runnerMinutes", String)}</tbody></table></div>`
 }
-/* SiteSettings (design §11): who may create, the kind of a new repository and the default quotas; the group requests and
+/* SiteSettings (design §11): who may create, the kind of a new repository, the default quotas and (DG5) when an outside
+ * pipeline run waits for approval; the group requests and
  * their decision; an account's or a group's limits. The site's owners and operators only; Not Found for anyone else. */
 function site(siteId, bases, siteInfo, self, tab) {
     const settings = need("getSmithySettings", {siteId})
@@ -457,7 +458,20 @@ function site(siteId, bases, siteInfo, self, tab) {
             "groupLfsBytes",
             "Git LFS, MiB",
             mibOf(settings.groupLfsBytes)
-        )}${number("groupRunnerMinutes", "Runner minutes a month", settings.groupRunnerMinutes)}</fieldset>${submit("Save settings")}`
+        )}${number("groupRunnerMinutes", "Runner minutes a month", settings.groupRunnerMinutes)}</fieldset><fieldset><legend>Pipelines</legend>${select(
+            f,
+            "outsideRunApproval",
+            "When an outside run waits",
+            [
+                ["first", "A first contribution's runs wait for a Maintainer's approval"],
+                ["always", "Every outside run waits for a Maintainer's approval"],
+                ["never", "Outside runs start without an approval"]
+            ],
+            {
+                value: settings.outsideRunApproval || "first",
+                hint: "An outside run is one of a fork's merge request, a push for review, or an account below Developer. A group may say otherwise for its repositories."
+            }
+        )}</fieldset>${submit("Save settings")}`
             .html
     }
 }
@@ -510,7 +524,8 @@ function groupMembers(shell, view, bases, siteInfo, self) {
     }
 }
 /* GroupSettings (design §6): General (name, description, the issue repository; visibility; the path), Agreement, Forum
- * (DG6), Quota and Delete (with Hide, for who may hide), for an Owner; Not Found for anyone else. */
+ * (DG6), Pipelines (DG5: the runner pools, when outside runs wait, the month's minutes), Quota and Delete (with Hide, for
+ * who may hide), for an Owner; Not Found for anyone else. */
 function groupSettings(shell, bases, siteInfo, self, tab) {
     if (!holds(shell.myRole, "owner")) fail()
     const c = contextOf(bases, siteInfo, self, shell.flash)
@@ -523,6 +538,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             ["general", "General", root],
             ["agreement", "Agreement", root + "/agreement"],
             ["forum", "Forum", root + "/forum"],
+            ["pipelines", "Pipelines", root + "/pipelines"],
             ["quota", "Quota", root + "/quota"],
             ["delete", "Delete", root + "/delete"]
         ],
@@ -537,6 +553,9 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
     // DG6: the group's forum, its mailing list and its address for security reports (SmithyScope.js)
     if (current === "forum")
         return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
+    // DG5: the runners of the group's repositories (SmithyPipelines.js)
+    if (current === "pipelines")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js").groupSettings(shell, head.html, bases, siteInfo, self)
     if (current === "quota") {
         const found = portal.attempt("getQuotaUsage", {siteId: shell.siteId, groupId: g.groupId})
         return {
@@ -692,9 +711,10 @@ function settingsAccess(shell) {
     const role = shell.capabilities.role
     if (!holds(role, "maintainer")) fail()
     const owner = holds(role, "owner")
-    return {tabs: ["general", "members", "branch-rules", "webhooks", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
+    return {tabs: ["general", "members", "branch-rules", "webhooks", "pipelines", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
 }
-/* RepositorySettings (design §11): General, Members, Branch rules and Webhooks for a Maintainer, Archive for an Owner; a tab
+/* RepositorySettings (design §11): General, Members, Branch rules, Webhooks and (DG5) Pipelines for a Maintainer, Archive for
+ * an Owner; a tab
  * the caller's role does not reach is Not Found, as the whole page is for less than a Maintainer. */
 function repositorySettings(shell, bases, siteInfo, self, tab) {
     const access = settingsAccess(shell)
@@ -714,6 +734,7 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
             ["members", "Members", at("members")],
             ["branch-rules", "Branch rules", at("branch-rules")],
             ["webhooks", "Webhooks", at("webhooks")],
+            ["pipelines", "Pipelines", at("pipelines")],
             ...(owner
                 ? [
                       ["agreement", "Agreement", at("agreement")],
@@ -733,6 +754,9 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
     // DG6: the repository's forum (its subcategory) and its mailing list, an Owner's (SmithyScope.js)
     if (current === "forum")
         return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
+    // DG5: the runners, secrets and environments (SmithyPipelines.js)
+    if (current === "pipelines")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js").repositorySettings(shell, head.html, bases, siteInfo, self)
     const page = body => ({html: h`${head}${body}`.html})
     const common = h`${hidden("repositoryId", id)}`
     if (current === "members") {
@@ -1179,6 +1203,14 @@ function gitAccess(siteId, bases, siteInfo, self) {
  * is not the form's own (given the result, the bases, the form's own page and the operation's input); confirm marks an
  * action that is asked again first; account one of Account's Git access. */
 const groupPage = (result, c) => (result.groupPath ? c.base + "/" + enc(result.groupPath) : null)
+/* DG5: a run's page (the authority's path under the mount), and what the notice says of the run asked for. */
+const runPage = (result, c) => (result.path && smithy.siteLocal(result.path) ? c.base + result.path : null)
+const runNotice = result =>
+    result.state === "error"
+        ? "Run #" + result.runNum + " did not start" + (result.message ? ": " + String(result.message).replace(/^[a-z][A-Za-z]{2,40}: /, "") : ".")
+        : result.state === "waiting"
+          ? "Run #" + result.runNum + " waits for a Maintainer's approval."
+          : "Run #" + result.runNum + " was queued."
 const repositoryPage = (result, c) => (result.repositoryPath ? c.base + "/" + enc(result.repositoryPath) : null)
 const DO = {
     requestGroup: {
@@ -1322,7 +1354,7 @@ const DO = {
     },
     revokeAccessToken: {fields: ["tokenId"], account: true, confirm: true, notice: () => "The token was revoked."},
     storeSmithySettings: {
-        fields: ["homeGroupPath", "groupCreate", "repositoryCreate", "forkCreate", "repositoryKind"],
+        fields: ["homeGroupPath", "groupCreate", "repositoryCreate", "forkCreate", "repositoryKind", "outsideRunApproval"],
         numbers: ["defaultMaxRepositories", "defaultRunnerMinutes", "groupRunnerMinutes", "expectedRevision"],
         mib: ["defaultRepositoryBytes", "defaultLfsBytes", "groupRepositoryBytes", "groupLfsBytes", "maxEditBytes"],
         changed: [
@@ -1636,13 +1668,68 @@ const DO = {
             (result.limitedCount ? "; " + result.limitedCount + " were not sent: the day's limit" : "") +
             "."
     },
+    // DG5 (design §10, §11, §15.6): pipeline runs, a repository's secrets and environments, a group's runners. A run asked for
+    // goes to its page; one the run check refused comes back with its state error and a message, which the notice says
+    runPipeline: {
+        fields: ["repositoryId", "pipelineName", "refName", "operationId"],
+        done: runPage,
+        notice: runNotice
+    },
+    rerunPipelineRun: {
+        fields: ["repositoryId", "operationId"],
+        numbers: ["runNum"],
+        done: runPage,
+        notice: runNotice
+    },
+    // asked again on the run's page (?confirm=cancel)
+    cancelPipelineRun: {
+        fields: ["repositoryId"],
+        numbers: ["runNum"],
+        confirm: true,
+        notice: () => "The run was cancelled."
+    },
+    retryJobRun: {
+        fields: ["repositoryId", "jobRunId", "operationId"],
+        numbers: ["runNum"],
+        // the new attempt's page, beside the job's
+        done: (result, c, back) => {
+            const page = back.split(/[?#]/)[0]
+            if (!result.jobRunId || !/\/-\/pipelines\/[0-9]+(?:\/jobs\/[^/]+)?$/.test(page)) return null
+            return page.replace(/\/jobs\/[^/]+$/, "") + "/jobs/" + encodeURIComponent(result.jobRunId)
+        },
+        notice: () => "The job runs again, as a new attempt."
+    },
+    approvePipelineRun: {
+        fields: ["repositoryId"],
+        numbers: ["runNum"],
+        notice: () => "Approved: the run's jobs are queued."
+    },
+    // a secret's value is sent once and never kept for the next page (SECRET); a replaced one keeps its name
+    storeCiSecret: {
+        fields: ["repositoryId", "secretId", "name", "value", "scope", "environmentId", "operationId"],
+        notice: () => "The secret was saved. Its value is not shown again."
+    },
+    deleteCiSecret: {fields: ["repositoryId", "secretId"], confirm: true, notice: () => "The secret was deleted."},
+    storeCiEnvironment: {
+        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "operationId"],
+        flags: ["approvalRequired"],
+        // the branches allowed are sent only when changed (the form shows the value it read beside it)
+        changed: ["allowedRefs"],
+        notice: () => "The environment was saved."
+    },
+    deleteCiEnvironment: {fields: ["repositoryId", "environmentId"], confirm: true, notice: () => "The environment was deleted."},
+    storePipelineSettings: {
+        fields: ["groupId", "runnerPoolId", "outsideRunnerPoolId", "outsideRunApproval"],
+        numbers: ["expectedRevision"],
+        notice: () => "The pipeline settings were saved."
+    },
     // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
     previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
 /* The forms whose text Preview shows (a file's edit previews its Markdown: previewField). */
 const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile"]
 /* What is never written back into a page after a refusal. */
-const SECRET = ["password", "code", "secret", "confirmPath"]
+const SECRET = ["password", "code", "secret", "confirmPath", "value"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
 function inputOf(spec) {
     const parameters = ec.web.parameters

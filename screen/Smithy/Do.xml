@@ -426,6 +426,67 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- DG5 (design-smithy §10, §11, §15.6): pipeline runs, a repository's secrets and environments, a group's runners -->
+  <transition name="runPipeline" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('runPipeline',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="rerunPipelineRun" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('rerunPipelineRun',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="cancelPipelineRun" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('cancelPipelineRun',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="retryJobRun" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('retryJobRun',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="approvePipelineRun" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('approvePipelineRun',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeCiSecret" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeCiSecret',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deleteCiSecret" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('deleteCiSecret',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeCiEnvironment" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeCiEnvironment',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deleteCiEnvironment" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('deleteCiEnvironment',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storePipelineSettings" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storePipelineSettings',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <!-- DG6 (design-smithy §4.4, §12.4): the page of a held report's link, -/held-report/<token>. It reads and writes
       nothing: a visitor is asked to sign in, an account gets the form that posts claimHeldReport -->
   <transition name="heldReport" method="get" read-only="true">

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- PipelineDetail (design-smithy §10 PipelineDetail), at -/pipelines/<n> and -/pipelines/<n>/jobs/<jobRunId>, in its
+    repository's shell: a run (getPipelineRun) with its header, the approval it waits for (Approve and run for a
+    Maintainer), Cancel (asked again on ?confirm=cancel), Run again and its jobs by stage; with a job (getJobRun) its steps,
+    its log (getJobLog: escaped lines, a page at a time with Load more), its failed tests linked to the file at the run's
+    commit, its artifacts and reports, and Retry. Where JavaScript runs the log's island (Islands/JobLog.qvue) appends a
+    running job's lines. A run the caller may not read (a held merge request's, a private repository's) is Not Found.
+    Transitions: artifact (-/artifacts/<artifactId>/<name>, downloadArtifact, streamed) and log (-/pipelines/<n>/jobs/<id>/log,
+    the log's lines as JSON for the island). Never kept by a cache. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Pipeline">
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <parameter name="runNum"/>
+  <parameter name="jobRunId"/>
+  <transition name="artifact" method="get" read-only="true">
+    <parameter name="repositoryId"/>
+    <parameter name="artifactId"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyPipelines.js').artifact(resolvedSiteId,String(repositoryId || ''),String(artifactId || ''))</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="log" method="get" read-only="true">
+    <parameter name="repositoryId"/>
+    <parameter name="runNum"/>
+    <parameter name="jobRunId"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyPipelines.js').logJson(resolvedSiteId,String(repositoryId || ''),String(runNum || ''),String(jobRunId || ''))</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <pre-actions>
+    <script><![CDATA[
+        // read before anything renders, so a run the caller may not read is the framework's Not Found, not a part of the shell
+        smithyRepository=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
+        smithyRun=ec.resource.script('component://mr-pass/screen/Smithy/SmithyPipelines.js').runPage(smithyRepository,String(runNum || ''),String(jobRunId || ''),passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        view=smithyRun
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+    </render-mode>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

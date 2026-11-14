@@ -34,7 +34,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1 to DG4, DG6); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG6); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -82,6 +82,15 @@ const BUILT = [
     "/Smithy/Islands/Editor.qvue",
     "/Smithy/Islands/Editor.qvt",
     "/Smithy/Islands/Editor.qjs",
+    // DG5: pipelines (design §10): the list, a run and its jobs, an upload's download, a job's log as JSON for the log's
+    // island, and the island
+    "/Smithy/RepositoryDetail/Pipelines",
+    "/Smithy/PipelineDetail",
+    "/Smithy/PipelineDetail/artifact",
+    "/Smithy/PipelineDetail/log",
+    "/Smithy/Islands/JobLog.qvue",
+    "/Smithy/Islands/JobLog.qvt",
+    "/Smithy/Islands/JobLog.qjs",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
     "/Smithy/redirect"
@@ -94,8 +103,17 @@ const built = screenPath =>
 /* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
 const BUILT_TABS = {
     "/Smithy/Site": ["settings", "requests", "quotas"],
-    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "quota", "delete"],
-    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "agreement", "forum", "archive"]
+    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "pipelines", "quota", "delete"],
+    "/Smithy/RepositoryDetail/Settings": [
+        "general",
+        "members",
+        "branch-rules",
+        "webhooks",
+        "pipelines",
+        "agreement",
+        "forum",
+        "archive"
+    ]
 }
 const bytes = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
 /* Step 1: the segments of a path, each percent-decoded once. A segment that is . or .., holds a slash or a control
@@ -312,8 +330,11 @@ function repositorySection(section, parameters) {
             if (!rest.length) return with_(R + "Pipelines")
             if (!NUM.test(rest[0])) fail()
             if (rest.length === 1) return with_("/Smithy/PipelineDetail", {runNum: rest[0]})
-            return rest.length === 3 && rest[1] === "jobs" && ID.test(rest[2])
-                ? with_("/Smithy/PipelineDetail", {runNum: rest[0], jobRunId: rest[2]})
+            if (rest[1] !== "jobs" || !ID.test(rest[2] || "")) fail()
+            if (rest.length === 3) return with_("/Smithy/PipelineDetail", {runNum: rest[0], jobRunId: rest[2]})
+            // DG5: a job's log as JSON for the log's island (a transition of PipelineDetail, as artifact is)
+            return rest.length === 4 && rest[3] === "log"
+                ? with_("/Smithy/PipelineDetail/log", {runNum: rest[0], jobRunId: rest[2]})
                 : fail()
         case "releases":
             return rest.length ? with_("/Smithy/ReleaseDetail", {tag: refPath}) : with_(R + "Releases")

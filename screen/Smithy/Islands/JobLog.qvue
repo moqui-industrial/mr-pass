@@ -1,0 +1,132 @@
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md.
+    The live log of a running job (plan/design-smithy.md §10 PipelineDetail), the island over the job page's plain log
+    (Smithy/SmithyPipelines.js runPage): it reads the lines after what the page shows from the log's JSON (the job's
+    -/pipelines/<n>/jobs/<id>/log) and appends them to the page's log as text, never as markup. A signed-in reader is told
+    on the framework's notification socket when the log grew (topic GitCiJobLog, the job's id its sub-topic), and the island
+    reads then; it also reads every pollSeconds (less often while the socket is open), which is all it has where the socket
+    does not open. It stops when the job has ended. Without it the page has Refresh and Load more. -->
+<template>
+    <p v-if="status" class="smithy-joblog-status" role="status"><small>{{ status }}</small></p>
+</template>
+<script>
+module.exports = {
+    name: 'SmithyJobLog',
+    data() {
+        return { status: '' }
+    },
+    mounted() {
+        const context = (this.$root.config || {}).context || {}
+        this.context = context
+        this.code = document.querySelector('#SmithyJobLog code')
+        // without the plain log there is nothing to add to: the page stays as it is
+        if (!this.code || !context.logUrl) return
+        this.after = Number(context.after) || 0
+        this.offset = Number(context.offset) || 0
+        this.line = Number(context.line) || 1
+        this.done = false
+        this.socketOpen = false
+        // the island reads from where the page ends: its Refresh and Load more are not needed
+        for (const id of ['SmithyLogRefresh', 'SmithyLogMore']) {
+            const element = document.getElementById(id)
+            if (element) element.style.display = 'none'
+        }
+        this.status = 'Following the log as the job runs.'
+        this.listen()
+        this.schedule(0)
+    },
+    beforeUnmount() {
+        this.stop()
+    },
+    methods: {
+        // the notification socket, for a signed-in reader: a message of the job's sub-topic means the log grew
+        listen() {
+            const n = this.context.notification
+            const moqui = window.moqui
+            if (!n || !moqui || !moqui.NotificationClient) return
+            try {
+                const scheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://'
+                this.client = new moqui.NotificationClient(scheme + window.location.host + n.endpoint)
+                this.stateOff = this.client.onState((state) => {
+                    this.socketOpen = state === 'open'
+                })
+                this.listenerOff = this.client.registerListener(n.topic, (message) => {
+                    if (message && message.subTopic === n.subTopic) this.schedule(0)
+                })
+            } catch (err) {
+                this.client = null
+            }
+        },
+        schedule(delay) {
+            clearTimeout(this.timer)
+            if (this.done) return
+            this.timer = setTimeout(() => this.read(), delay)
+        },
+        async read() {
+            if (this.reading || this.done) return
+            this.reading = true
+            const every = (this.socketOpen ? 15 : Number(this.context.pollSeconds) || 2) * 1000
+            let next = every
+            try {
+                const url =
+                    this.context.logUrl + '?after=' + this.after + '&offset=' + this.offset + '&line=' + this.line
+                const response = await fetch(url, {
+                    credentials: 'same-origin',
+                    headers: { Accept: 'application/json' },
+                })
+                if (response.status === 404) {
+                    this.status = 'This log is not available now.'
+                    this.stop()
+                    return
+                }
+                if (response.ok) {
+                    const out = await response.json()
+                    this.append(out)
+                    if (out.more) next = 0
+                } else next = Math.max(every, 10000)
+            } catch (err) {
+                next = Math.max(every, 10000)
+            } finally {
+                this.reading = false
+            }
+            this.schedule(next)
+        },
+        // each line as the page writes its own: a numbered anchor and the line's text
+        append(out) {
+            const lines = Array.isArray(out.lines) ? out.lines : []
+            for (const text of lines) {
+                const number = this.line++
+                const span = document.createElement('span')
+                span.id = 'L' + number
+                const anchor = document.createElement('a')
+                anchor.className = 'n'
+                anchor.href = '#L' + number
+                anchor.textContent = String(number)
+                span.appendChild(anchor)
+                span.appendChild(document.createTextNode(String(text)))
+                if (this.code.childNodes.length) this.code.appendChild(document.createTextNode('\n'))
+                this.code.appendChild(span)
+            }
+            if (lines.length) {
+                const empty = document.getElementById('SmithyLogEmpty')
+                if (empty) empty.style.display = 'none'
+            }
+            if (out.after != null) this.after = Number(out.after) || 0
+            if (out.offset != null) this.offset = Number(out.offset) || 0
+            const state = document.getElementById('SmithyJobState')
+            if (state && out.stateText) state.textContent = out.stateText
+            if (out.finished && !out.more) {
+                this.status = 'The job has ended. Reload the page for its results.'
+                this.stop()
+            }
+        },
+        stop() {
+            this.done = true
+            clearTimeout(this.timer)
+            if (this.listenerOff) this.listenerOff()
+            if (this.stateOff) this.stateOff()
+            this.listenerOff = null
+            this.stateOff = null
+        },
+    },
+}
+</script>

@@ -12,7 +12,9 @@
 // forum inside a group's and a repository's shell, of the scope's moderation pages and of a held report's link; one render
 // of the forum's topic list inside a group's shell (the scope's topics alone, links from the scoped base, the shell's tabs);
 // a held report's page and its claim through Smithy/Do; Report and Hide through Smithy/Do; a topic made an issue. Mantle's
-// SmithyForumScope, SmithyModerationTargets and SmithyHeldReports specs cover the rules behind them.
+// SmithyForumScope, SmithyModerationTargets and SmithyHeldReports specs cover the rules behind them. DG5 (§4.4, §10): the
+// paths of the pipeline pages (the runs, a run, a job, its log's JSON, an upload, the settings' Pipelines tab), their cache
+// policy and Do's ten pipeline transitions; the pages themselves are SmithyReview's spec.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const routes = () => ec.resource.script("component://mr-pass/service/pass/SmithyRoutes.js")
 const SITE = "PASS_SMITHY"
@@ -134,6 +136,14 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             branches: parse("moqui/mr-moqui/-/branches"),
             // a later phase's section is in the grammar, and not routed until its screen is built
             pipeline: parse("moqui/mr-moqui/-/pipelines/7"),
+            // DG5: the runs, a job, its log's JSON, an upload, and the settings' Pipelines tab
+            pipelines: parse("moqui/mr-moqui/-/pipelines"),
+            pipelineJob: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1"),
+            pipelineLog: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1/log"),
+            pipelineJobBad: parse("moqui/mr-moqui/-/pipelines/7/steps/J_1"),
+            pipelineLogBad: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1/raw"),
+            artifact: parse("moqui/mr-moqui/-/artifacts/A_1/results.tar.gz"),
+            pipelinesTab: parse("moqui/-/settings/pipelines"),
             // DG4: merge requests, a fork's head with a slash in its ref, the fork pages, a file's edit and the islands
             mergeRequests: parse("moqui/mr-moqui/-/merge-requests"),
             mergeRequestNew: parse("moqui/mr-moqui/-/merge-requests/new"),
@@ -265,7 +275,20 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.compareHead.screenParameters.head === "topic"
         out.branches.screenPath === "/Smithy/RepositoryDetail/Branches"
         out.pipeline.screenPath === "/Smithy/PipelineDetail"
-        !built.includes("/Smithy/PipelineDetail")
+        out.pipeline.screenParameters.runNum === "7"
+        built.includes("/Smithy/PipelineDetail")
+        out.pipelines.screenPath === "/Smithy/RepositoryDetail/Pipelines"
+        built.includes(out.pipelines.screenPath)
+        out.pipelineJob.screenParameters.jobRunId === "J_1"
+        out.pipelineLog.screenPath === "/Smithy/PipelineDetail/log"
+        out.pipelineLog.screenParameters.jobRunId === "J_1"
+        built.includes(out.pipelineLog.screenPath)
+        out.pipelineJobBad.kind === "NotFound"
+        out.pipelineLogBad.kind === "NotFound"
+        out.artifact.screenPath === "/Smithy/PipelineDetail/artifact"
+        out.artifact.screenParameters.artifactId === "A_1"
+        built.includes(out.artifact.screenPath)
+        out.pipelinesTab.screenParameters.tab === "pipelines"
         out.mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
         out.mergeRequestNew.screenPath === "/Smithy/NewMergeRequest"
         out.mergeRequest.screenPath === "/Smithy/MergeRequestDetail/Overview"
@@ -396,7 +419,10 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
             group: f.route(SITE, HOST, "/code/pass-smg/-/members"),
             stored: f.route(SITE, HOST, "/code/Pass-SMG/web.git"),
             slashes: f.route(SITE, HOST, "/code//pass-smg/web/"),
-            later: f.route(SITE, HOST, "/code/pass-smg/web/-/pipelines"),
+            later: f.route(SITE, HOST, "/code/pass-smg/web/-/releases"),
+            // DG5's pages are routed (the page answers Not Found where pipelines are off)
+            pipelines: f.route(SITE, HOST, "/code/pass-smg/web/-/pipelines"),
+            pipelinesTab: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/pipelines"),
             // DG4's pages are routed
             mergeRequests: f.route(SITE, HOST, "/code/pass-smg/web/-/merge-requests"),
             agreement: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/agreement"),
@@ -422,6 +448,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         stored,
         slashes,
         later,
+        pipelines,
+        pipelinesTab,
         mergeRequests,
         agreement,
         issue,
@@ -458,6 +486,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         slashes.screenPath === "/Smithy/redirect"
         slashes.screenParameters.location === "/code/pass-smg/web"
         later.kind === "NotFound"
+        pipelines.screenPath === "/Smithy/RepositoryDetail/Pipelines"
+        pipelinesTab.screenParameters.tab === "pipelines"
         mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
         agreement.screenParameters.tab === "agreement"
         // DG3's pages are routed (the page answers Not Found for a number the repository does not have)
@@ -863,9 +893,9 @@ feature("a form's post answers 303: to its page after a write, back to the form 
         unasked.location === "/code/"
         unasked.flash.error.message === "Confirm this change on its own page first."
         // DG6's heldReport alone is a GET: the page of a held report's link, which writes nothing
-        transitions === 71
-        posts === 70
-        forms === 70
+        transitions === 81
+        posts === 80
+        forms === 80
         optOut === false
     }
 })
@@ -1396,15 +1426,19 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
             // nor the forum's pages inside a shell (the forum's own are not) and the scope's moderation pages (DG6)
             scopePages: ["/moqui/-/forum", "/moqui/mr-moqui/-/forum/t/T1/hello", "/moqui/-/moderation"]
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
+                .join(" "),
+            // nor a pipeline's pages, a job's log and an upload (DG5): a log holds whatever a job printed
+            pipelinePages: ["/moqui/mr-moqui/-/pipelines", "/moqui/mr-moqui/-/pipelines/3/jobs/J1", "/moqui/mr-moqui/-/pipelines/3/jobs/J1/log", "/moqui/mr-moqui/-/artifacts/A1/x.tar.gz"]
+                .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" ")
         }
     },
-    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList, scopePages}) {
+    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList, scopePages, pipelinePages}) {
         app.screen === "Smithy"
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 95
+        count === 113
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"
@@ -1415,6 +1449,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         commitsList === "public, max-age=60"
         reviewPages === "no-store no-store no-store no-store"
         scopePages === "no-store no-store no-store"
+        pipelinePages === "no-store no-store no-store no-store"
     }
 })
 feature("every app's default base is refused as a group's path, so a group never takes a mount's place", {

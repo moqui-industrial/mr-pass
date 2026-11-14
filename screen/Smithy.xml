@@ -13,7 +13,10 @@
     Milestones, and Islands, whose Composer is the text editor of their forms where JavaScript runs. DG6 adds the forum inside a
     group's and a repository's shell (the forum's own screens, Forum.xml, mounted under GroupDetail and RepositoryDetail and
     rendered with the shell's scope and link base), Moderation (the forum's moderation screens in a scope, with Report and
-    Hide), the Forum tab of the settings and the page of a held report's link (Smithy/SmithyScope.js). The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
+    Hide), the Forum tab of the settings and the page of a held report's link (Smithy/SmithyScope.js). DG5 adds pipelines
+    (Smithy/SmithyPipelines.js): a repository's Pipelines, PipelineDetail (a run, a job with its log, failed tests and uploads,
+    and the log's island Islands/JobLog), the runs on a merge request's Checks and a commit's page, and the Pipelines tab of
+    the settings. The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a renamed
     path): 301 to a path on this site, with the request's query. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"

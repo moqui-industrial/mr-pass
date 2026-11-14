@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- MergeRequestChecks (design-smithy §9): every status of the head commit by context, with its state, description and
-    link, the required ones marked, and those required and not passed. Pipeline runs come with DG5. -->
+    link, the required ones marked (one not reported yet as expected), and those required and not passed; DG5: a ci/ check
+    linked to its run, the notice when the head changes ci.xml, and the head's pipeline runs with their jobs and failed
+    tests, with Approve and run for a run that waits (SmithyPipelines.js requestRuns). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Checks">
   <actions>
     <script><![CDATA[
-        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').checks(smithyRepository,smithyRequest)
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').checks(smithyRepository,smithyRequest,passBases,siteInfo,String(publicPath || ''))
     ]]></script>
   </actions>
   <widgets>
