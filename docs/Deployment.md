@@ -113,6 +113,41 @@ single-use exchange code. Configure allowed provider IDs in `pass_sso_flows`; th
 framework OIDC/OAuth facilities and account/second-factor policy. SAML remains unavailable where
 the framework package does not provide it.
 
+## Several sites by host name
+
+A server can give each PASS app a host of its own, such as the Forum at `forum.example.org` and the Shop at
+`shop.example.com`, beside the business's own host with the apps under `webroot.xml` (mr-moqui `docs/Run-Deploy.md`,
+"Several sites by host name", and its example `runtime/conf/MoquiSitesConf.xml`). Each such host has two elements in
+the runtime's conf:
+
+```xml
+<webapp-list><webapp name="webroot">
+    <root-screen host="forum\.example\.org" location="component://mr-pass/screen/Pass.xml" framework-routes="refuse"/>
+    <public-site host="forum.example.org" site-id="OPERATOR_ASSIGNED_SITE_ID"
+            screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
+        <mount path="/" screen="Forum"/>
+        <mount path="/account" screen="Account"/>
+    </public-site>
+</webapp></webapp-list>
+```
+
+- **The host's root** is `Pass.xml`, PASS's site root, for every app: there is no wrapper screen per app. The app at the
+  host's root is the `public-site`'s mount at `/` (Forum or Shop), with Account and any other app on its own path, as
+  the authority's mounts for the site say (`store#Mounts`, with the host among the site's hosts).
+- **The site** is bound by the `public-site`, the operator's conf, and never by a request: a `siteId` or
+  `resolvedSiteId` a request sends does not change it, and a path no site route takes has no site.
+- **`framework-routes="refuse"`** keeps the framework off the host: `/Login`, `/apps`, `/qapps`, `/rest`, the token
+  routes, the servlets, the sockets, `/dav`, `/health` and `/metrics` are Not Found there, and the shared `/js`, `/css`,
+  `/libs` and `/images` are served. People sign in through the site's Account (`/account/Login`). A page the site does
+  not have shows the framework's Not Found page.
+- **On the business's host** stay what the framework serves: the apps, the authority's REST (`/rest/s1/pass`) for a
+  remote PASS server, payment providers' webhooks and SSO callbacks. Point them at that host, not a site's.
+- **Sessions.** Each host's session cookie is its own. PASS's Account is the sign-in across a deployment's sites (SSO
+  through the authority); a person who signs in to a site is not signed in to the business's host.
+- **Links** a site's pages make are paths on its host. Mail links come from the site's canonical host
+  (`PublicSiteHost`), set at the authority.
+- **An edge node** gives each host web access as an `EdgeHost` of the pairing, with a certificate for the name.
+
 ## Billing and Supplier apps
 
 Billing (an organization's customer invoices and their pay links) and Supplier (a supplier's quotes, purchase orders and
