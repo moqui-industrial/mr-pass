@@ -65,6 +65,7 @@ const reasons = {
     sourceRefused: null,
     importActive: null,
     numbersTaken: null,
+    secretRequired: 'Give the secret again for the mirror’s new address, username or host key',
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */

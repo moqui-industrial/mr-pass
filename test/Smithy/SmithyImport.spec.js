@@ -4,7 +4,7 @@
 // start form with a refusal on it and what was typed, the warning of publishPrivate, the group's imports), one of an
 // import's page (stage, counts, the rate limit's wait with the time it goes on, the report escaped, Resume and Stop); Stop
 // refused without its confirmation, and a mirror's refused form keeping no secret, no username and no user part of its
-// address (the Mirrors tab's render is SmithyAccess's). Mantle's
+// address, a leading space before it too (the Mirrors tab's page is SmithyAccess's). Mantle's
 // SmithyGithubImport spec covers the rules behind them; SmithyAccess has who may reach these pages. Regression suite: these
 // are the pages' own logic. Run: ./moq test mr-pass --spec SmithyImport
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
@@ -164,11 +164,11 @@ feature(
                 returnTo: back
             })
             const after = stage()
-            // refused (notBuilt) on a server whose framework has no push mirrors
+            // refused: an address with a user part (here after a leading space) is no mirror's address
             const mirror = f.post(SITE, HOST, "storeMirror", {
                 repositoryId: t.repo.repositoryId,
                 mirrorId: "",
-                url: "https://someone:hunter2pass@git.example.test/a.git",
+                url: " https://someone:hunter2pass@git.example.test/a.git",
                 username: "mirror-user-name",
                 secret: "mirror-secret-0123456789",
                 refs: "refs/heads/*",
@@ -185,7 +185,7 @@ feature(
             after !== "SmiCancelled"
             mirror.status === 303
             mirror.flash.form === "storeMirror"
-            mirror.flash.error.reason === "notBuilt"
+            mirror.flash.error.message.includes("An https address, with the credential given apart")
             mirror.flash.values.url === "https://git.example.test/a.git"
             mirror.flash.values.refs === "refs/heads/*"
             !kept.includes("mirror-secret-0123456789")

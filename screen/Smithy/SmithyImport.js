@@ -247,15 +247,13 @@ function importPageView(siteId, bases, siteInfo, self, importId) {
 // ===== push mirrors =====
 /* The Mirrors tab of a repository's Settings (design §11), for a Maintainer: each push mirror (its address, refs, whether it
  * deletes refs, enabled, whether it has a credential, the last push with its result and error, the next attempt), Push now,
- * Edit, and Delete asked again; a new mirror. A server whose framework has no push mirrors yet says so, with no form. */
+ * Edit, and Delete asked again; a new mirror. */
 function mirrors(shell, head, c, closed) {
     const siteId = shell.siteId
     const id = shell.repository.repositoryId
     const tabPath = smithy.urls(shell.base, shell.repository.repositoryPath).section("settings") + "/mirrors"
     const page = body => ({html: h`${head}${body}`.html})
     const found = portal.attempt("findMirrors", {siteId, repositoryId: id})
-    if (found.error?.reason === "notBuilt")
-        return page(h`<p class="card" id="SmithyMirrorsNotBuilt">Push mirrors are not available on this server yet.</p>`)
     if (found.error)
         fail(
             found.error.kind === "NotFound" ? "NotFound" : found.error.kind,

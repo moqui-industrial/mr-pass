@@ -528,10 +528,10 @@ feature("an import is its group's Owners' and the mirrors a Maintainer's: a Deve
     then({owner, maintainer, developer}) {
         owner.run.html.includes("Import of acme/work")
         owner.tab.html.includes('<a href="/code/import/PASS_SMA_IMPORT">acme/work</a>')
-        maintainer.mirrors.html.includes("Push mirrors are not available on this server yet.")
+        maintainer.mirrors.html.includes("This repository has no push mirror.")
         maintainer.mirrors.html.includes('<a href="/code/pass-sma/work/-/settings/mirrors" aria-current="page">Mirrors</a>')
-        !maintainer.mirrors.html.includes("Smithy_storeMirror")
-        !maintainer.mirrors.html.includes("Smithy_pushMirror")
+        maintainer.mirrors.html.includes("Smithy_storeMirror")
+        !maintainer.mirrors.html.includes("not available on this server")
         owner.list.html.includes('<a href="/code/import/PASS_SMA_IMPORT">acme/work</a>')
         !owner.list.html.includes("acme/elsewhere")
         owner.elsewhere.kind === "NotFound"
