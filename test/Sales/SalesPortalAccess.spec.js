@@ -103,7 +103,7 @@ spec({
             const link = ec.resource
                 .script("component://mr-mantle/service/mantle/party/ExternalAccess.js")
                 .create({recordType: "SalesOrder", recordId: orderId2, scopes: "OrderView"})
-            order = {orderId: orderId2, token: link.token, url: link.url}
+            order = {orderId: orderId2, token: link.token, url: link.url, organizationPartyId: f.orgA}
         })
         logout()
     },
@@ -203,5 +203,33 @@ feature("the eight operations are in both schema copies and route lists; the quo
         post === "POST"
         orderReads === true
         writes === true
+    }
+})
+// Sales P19 (the user's call of Nov 14): a cancelled order opens from its link marked Cancelled, read only: Support's ask page only (the
+// site mounting Support for the organization), no cancellation, return or payment
+feature("a cancelled order's link shows it marked Cancelled, with no cancellation, return or payment link", {
+    when() {
+        fx().system(() => {
+            fx().make("mantle.public.PublicSiteApp", {
+                siteId,
+                appMountId: "support",
+                app: "support",
+                pathPrefix: "/support",
+                enabled: "Y",
+                targetId: order.organizationPartyId
+            })
+            const header = ec.entity.find("mantle.order.OrderHeader").condition({orderId: order.orderId}).one()
+            header.statusId = "OrderCancelled"
+            header.update()
+        })
+        return render("Sales/CustomerOrder", {token: order.token})
+    },
+    then(page) {
+        page.errors.length === 0 && !page.html.includes("Error rendering")
+        page.html.includes("Order " + order.orderId) && page.html.includes("<strong>Cancelled</strong>")
+        page.html.includes("this order was cancelled and can no longer be changed")
+        page.html.includes("Ask about this order") && !page.html.includes("Ask about or change this order")
+        !page.html.includes("Request cancellation") && !page.html.includes("Request a return")
+        !page.html.includes("Open in Billing") && !page.html.includes("<form")
     }
 })
