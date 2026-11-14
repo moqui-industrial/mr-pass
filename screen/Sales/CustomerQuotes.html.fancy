@@ -1,0 +1,7 @@
+<h1>My quotes</h1>
+<#if !siteInfo.authenticated><p>Sign in to see the quotes we sent your company. A quote's link in our email opens it without signing in.</p><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath || '')}">Sign in</a></p>
+<#elseif failure><p role="alert" class="error">${failure.message}</p>
+<#else><form method="get" id="MyQuoteFind" class="card" role="search" action="${publicPath}"><label>Show <select name="state"><option value="all"<#if state == 'all'> selected</#if>>All</option><option value="open"<#if state == 'open'> selected</#if>>Open</option></select></label><button>Find</button></form>
+<section id="MyQuotes" aria-label="Quotes"><#if !view.actingFor><p class="card">Your account is not a contact of a customer here. Ask your sales contact for an invitation.</p><#elseif !view.quoteList.length><p class="card">No quotes to show.</p></#if>
+<#list view.quoteList as row><article class="card"><h2><a href="${passBases.sales}/CustomerQuote?orderId=${encodeURIComponent(row.orderId)}">Quote ${row.orderId}<#if row.name> · ${row.name}</#if></a></h2><p><strong>${row.stateText}</strong> · ${row.totalText}</p><p><small><#if row.customerName>${row.customerName} · </#if>issued ${row.issuedText}<#if row.validThruText> · valid through ${row.validThruText}</#if></small></p></article></#list></section>
+<#if nextHref || firstHref><nav class="card" aria-label="More quotes"><#if firstHref><a href="${firstHref}">Newest quotes</a> </#if><#if nextHref><a href="${nextHref}" id="MyQuotesMore">Older quotes</a></#if></nav></#if></#if>

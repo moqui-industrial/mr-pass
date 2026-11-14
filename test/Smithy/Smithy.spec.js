@@ -736,7 +736,7 @@ feature("every app's default base is refused as a group's path, so a group never
         return {taken, count: Object.keys(apps).length}
     },
     then({taken, count}) {
-        count === 9
+        count === 10
         taken.length === 0
     }
 })

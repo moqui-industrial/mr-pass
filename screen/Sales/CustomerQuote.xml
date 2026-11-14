@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CustomerQuote (design-sales §10 CustomerQuote; IronStone impl-sales P13): an issued quote by its mailed link (token: its one
+    issue) or for a signed-in contact invited for the customer (orderId): QuoteOffer (the seller and customer, reference and
+    revision, validity, the offered lines, totals and terms, the issued PDF) and, while it is open, AcceptQuote (the revision
+    and total confirmed, the customer's PO, the acceptor's name and title, the terms acknowledged, a request key) and
+    DeclineQuote (a reason). Above the seller's threshold a link alone cannot accept: the page says to sign in. An answered
+    quote's page shows its receipt (QuoteResponse). A link that is wrong, expired, revoked or of an offer no longer open shows
+    the same "not available". Plain HTML forms; the PDF downloads through the facade. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Quote">
+  <transition name="respond" method="post">
+    <actions>
+      <script><![CDATA[
+        const sales=ec.resource.script('component://mr-pass/screen/Sales/Sales.js')
+        const {token,orderId}=sales.quoteOf()
+        const page=sales.base(publicPath,'respond')
+        const params={token,orderId}
+        const action=sales.param('action') === 'decline' ? 'decline' : 'accept'
+        sales.post('respondSalesQuote',{siteId:resolvedSiteId,token,orderId,action,expectedRevision:sales.param('expectedRevision'),
+            acknowledge:sales.param('acknowledge'),purchaseOrder:sales.param('purchaseOrder'),acceptorName:sales.param('acceptorName'),
+            acceptorTitle:sales.param('acceptorTitle'),reason:sales.param('reason'),operationId:sales.param('operationId')},
+            {path:page,params},{path:page.replace(/\/CustomerQuote$/,'/QuoteResponse'),params})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="document" method="get" read-only="true">
+    <actions>
+      <script><![CDATA[
+        const sales=ec.resource.script('component://mr-pass/screen/Sales/Sales.js')
+        const {token,orderId}=sales.quoteOf()
+        sales.download(resolvedSiteId,{token,orderId},{path:sales.base(publicPath,'document'),params:{token,orderId}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const sales=ec.resource.script('component://mr-pass/screen/Sales/Sales.js')
+        const asked=sales.quoteOf()
+        token=asked.token;orderId=asked.orderId
+        flash=sales.take()
+        view=null;failure=null
+        if(!token && !orderId)failure={kind:'NotFound',message:'Open the quote from the link in our email, or from My quotes.'}
+        else{
+            const found=sales.portal.attempt('getSalesQuote',{siteId:resolvedSiteId,token,orderId})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This quote is not available. The link may have expired or been replaced, or the quote is not one of yours. Your sales contact can send you a new link.'}:found.error
+            else view=found.result
+        }
+        quoteQuery=token?'token='+encodeURIComponent(token):'orderId='+encodeURIComponent(orderId || '')
+        respondOperationId=sales.portal.operationId()
+        declineOperationId=sales.portal.operationId()
+        signInHref=passBases.account+'/Login?returnTo='+encodeURIComponent(publicPath+'?'+(view && !token ? quoteQuery : 'orderId='+encodeURIComponent(view?.quote?.orderId || orderId || '')))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Sales/CustomerQuote.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

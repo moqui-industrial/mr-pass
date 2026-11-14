@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- CustomerQuotes (design-sales §10 CustomerQuotes; IronStone impl-sales P13): MyQuoteFind (open or all) and MyQuotes
+    (findSalesQuotes): the issued quotes of the customers a signed-in account acts for at the organization (a contact invited
+    for the customer, or the customer's own verified account), each quote's latest issue: reference, the customer when the
+    account acts for several, issued, validity, total and state, 20 to a page. A bearer link never lists. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="My quotes">
+  <actions>
+    <script><![CDATA[
+        const sales=ec.resource.script('component://mr-pass/screen/Sales/Sales.js')
+        state=sales.param('state') === 'open' ? 'open' : 'all'
+        cursor=sales.param('cursor')
+        const found=siteInfo.authenticated ? sales.portal.attempt('findSalesQuotes',{siteId:resolvedSiteId,state,cursor}) : {result:null}
+        view=found.result || null
+        const filters={state:state === 'all' ? null : state}
+        nextHref=view?.nextCursor ? publicPath + sales.query(Object.assign({},filters,{cursor:view.nextCursor})) : null
+        firstHref=cursor ? publicPath + sales.query(filters) : null
+        failure=found.error || null
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Sales/CustomerQuotes.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

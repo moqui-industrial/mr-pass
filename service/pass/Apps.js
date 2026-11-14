@@ -13,6 +13,8 @@
     supplier: { screen: 'Supplier', base: '/supplier' },
     // Customer Service P13: the Support app (its Feedback page; P15 the rest)
     support: { screen: 'Support', base: '/support' },
+    // PASS Sales (IronStone impl-sales P13): a seller's customer quotes (orders in P17)
+    sales: { screen: 'Sales', base: '/sales' },
     // Shop (impl-shop P1): a ProductStore's storefront, mounted at /shop or at a site's root
     shop: { screen: 'Shop', base: '/shop' },
     // Smithy (Dogfood DG1; plan/design-smithy.md): public git hosting, mounted at /code or at a site's root

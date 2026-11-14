@@ -25,6 +25,7 @@
         <mount path="/billing" screen="Billing"/>
         <mount path="/supplier" screen="Supplier"/>
         <mount path="/support" screen="Support"/>
+        <mount path="/sales" screen="Sales"/>
         <mount path="/shop" screen="Shop"/>
         <mount path="/code" screen="Smithy"/>
       </public-site>

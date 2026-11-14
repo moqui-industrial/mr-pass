@@ -218,6 +218,31 @@ queue and every customer and public knowledge source).
   reply, reopen and cancel, an article rating, an RMA link's evidence and withdrawal) are `TOKEN_WRITES`, accepted from a
   registered deployment without a member session.
 
+## Sales app
+
+The Sales app (`screen/Sales.xml`, the `sales` mount) is IronStone Sales' customer pages for one selling organization, its
+mount's target: `{"app": "sales", "pathPrefix": "/sales", "targetId": "ORG_ID"}`, and `/sales` in the runtime's
+`<public-site>` mounts (screen `Sales`). Its pages are CustomerQuotes (My quotes), CustomerQuote and QuoteResponse; customer
+orders follow. Readiness adds the app's checks: the target is an internal organization with Sales defaults and the commercial
+revision a quote's issue binds (BOSS Sales › Settings › Defaults), and the site has a canonical host. Until a published site
+has the app, a quote goes out with no link and customers cannot accept online (Sales' readiness says so).
+
+- **Links.** Each recipient of a sent quote gets its own link in its mail (`/sales/CustomerQuote?token=`), made for that
+  mail: an `ExternalAccessCapability` of the quote's issue, bound to the revision sent, ending with the quote's validity; only
+  its token's digest is kept. Revising or withdrawing the quote revokes its links; a change to the quote ends the issue, and
+  its links then open nothing. A link shows the offer and its PDF and takes the customer's acceptance (the revision and total
+  confirmed, the terms acknowledged, a PO when the organization asks one, the acceptor's name and title) or decline; afterwards
+  it shows the receipt, and a second submit answers the first. It never lists other quotes. The issued PDF carries the quote's
+  page without a token, for a signed-in contact. Every link lookup counts against a limit per requester, and responses do too.
+- **High-value quotes.** With an acceptance threshold set for a currency (Sales › Settings › Defaults, unset by default), a
+  quote above it is accepted only by a contact signed in; the link still shows it and can decline it.
+- **Contacts.** A customer's contact is invited from BOSS (Sales › Accounts › an account or a contact › Invite to Sales),
+  through `invite#Contact` with the `sales` app; redeeming the invitation lets the account see the customer's issued quotes
+  under My quotes and on the Account hub's Quotes and orders card, and accept them signed in. A customer who is a person reaches
+  their own quotes with no invitation once their account's email is verified. Set the site's registration to invitation.
+- **Remote frontend.** The `sales/...` operations are PASS operations served by Mantle's PassApi; `respondSalesQuote` is a
+  `TOKEN_WRITES` write a link's token authorizes, accepted from a registered deployment without a member session.
+
 ## Shop app
 
 Shop is a ProductStore's storefront (`screen/Shop.xml`, app `shop`; [design](../plan/design-shop.md),

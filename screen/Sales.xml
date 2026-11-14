@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- PASS Sales: a seller's customer pages for the organization the site's sales mount targets (IronStone impl-sales P13, P17;
+    design-sales §10; mr-mantle mantle.order.SalesPortalServices): CustomerQuotes (a signed-in contact's issued quotes),
+    CustomerQuote (an issued quote by its mailed link or for a signed-in contact: the offer, its PDF, Accept and Decline) and
+    QuoteResponse (the receipt). Orders join in P17. Every page calls the authority through pass.Facade.call#Operation only
+    (Sales/Sales.js, Shared/Portal.js); no ironstone service or BOSS screen. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Sales">
+  <always-actions>
+    <set field="passApp" value="sales"/>
+  </always-actions>
+  <subscreens default-item="CustomerQuotes"/>
+  <widgets>
+    <subscreens-active/>
+  </widgets>
+</screen>

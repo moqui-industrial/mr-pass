@@ -32,7 +32,7 @@ export interface PublishedPost { postId: string; rootCommEventId: string; ordina
 /** A refusal: its kind (code), an allow-listed camelCase reason (design-shop §7.3; impl-shop P1, F4), the request's own text for Unprocessable and Conflict, else a fixed one. */
 export interface SafeError { code: string; reason: string | null; message: string; fieldErrors: { field: string; reason?: string | null; message?: string }[]; correlationId: string }
 export interface HostInput { hostname: string; canonical?: boolean }
-export interface MountInput { app: 'forum' | 'account' | 'members' | 'sites' | 'billing' | 'supplier' | 'support' | 'shop'; pathPrefix: string; enabled?: boolean; appMountId?: string; targetId?: string }
+export interface MountInput { app: 'forum' | 'account' | 'members' | 'sites' | 'billing' | 'supplier' | 'support' | 'sales' | 'shop'; pathPrefix: string; enabled?: boolean; appMountId?: string; targetId?: string }
 /** A site's active Shop theme release (impl-shop P2): the manifest digest pins every file. */
 export interface ShopRelease { releaseId: string; manifestDigest: string; engine: string; viewApiVersion: number }
 /** getShopContext (impl-shop P1): the trusted Shop context of the routed site; release is P2's active theme release. */
