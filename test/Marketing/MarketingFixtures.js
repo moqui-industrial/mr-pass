@@ -210,8 +210,10 @@ function call(operation, input) {
         return {kind: error.moquiErrorKind || "Error", error: String(error.message).split("\n")[0]}
     }
 }
-/* The confirmation token of the newest captured message to an address. */
+/* The confirmation token of the newest captured message to an address (its attempt runs on a service worker once the request
+   commits: waited for). */
 function tokenTo(capture, address) {
+    ec.factory.waitWorkerPoolEmpty(50)
     const message = Array.from(capture.getMessages())
         .reverse()
         .find(m => Array.from(m.toList || []).includes(address))

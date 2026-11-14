@@ -324,10 +324,11 @@ sending profile, each offered list's policy names a published confirmation templ
   policy): Public offer, this site, and the interval it is open. The list's legacy public flag offers nothing. Each offer shows
   the policy's own wording beside its consent box.
 - **The sending profile.** The verification message is a transactional delivery of Comms' ledger from a ready sending profile of
-  the organization (a transactional one first; BOSS Marketing › Settings › Sending profiles: an approved relay, a sender, a bounce
-  domain with its hosted bounces@ account), with the confirmation template the policy names (a published Comms template of the
-  organization: Marketing › Sends › Message templates). Without either, requests are kept and no message goes out. A profile's
-  quiet hours delay it.
+  the organization for transactional mail (purpose Transactional, or none; a promotional profile never sends it. BOSS Marketing ›
+  Settings › Sending profiles: an approved relay, a sender, a bounce domain with its hosted bounces@ account), with the
+  confirmation template the policy names (a published Comms template of the organization: Marketing › Sends › Message templates).
+  Without either, requests are kept, no message goes out and the app's readiness names what is missing. The message is attempted
+  once the request commits (the ledger's job retries it); a profile's quiet hours delay it.
 - **Requests.** Subscribe takes an address, an optional name, the offered lists the visitor ticks and the consent box, with PASS's
   request key. The answer is the same receipt whatever happened: the address's directory contact or a new person is filed pending
   (which one is never said), a member already, a refusal, a repeat of the key, a limit reached. Limits: 30 requests in ten minutes

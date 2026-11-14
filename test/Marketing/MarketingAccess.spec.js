@@ -73,6 +73,8 @@ feature("refused alike for a site without the mount and an unoffered list; over 
         const address = fresh("limited")
         const receipts = []
         for (let i = 0; i < 6; i++) receipts.push(request(ids.siteId, address, [ids.kitchen]))
+        // the verifications are attempted on a service worker once each request commits
+        ec.factory.waitWorkerPoolEmpty(50)
         const party = fx.partyOf(address)
         const groups = new Set(
             fx.lib
