@@ -60,7 +60,8 @@ feature(
             page.html.includes("/js/moqui-form-when.js")
             !page.html.includes("score")
             ;[draft, closed, otherSite, forged, closedPost].every(x => x.kind === "NotFound")
-            new Set([draft, closed, otherSite].map(x => x.error)).size === 1
+            // P12 review R2: a forged link answers the page's one NotFound too (not the link check's own words)
+            new Set([draft, closed, otherSite, forged, closedPost].map(x => x.error)).size === 1
         }
     }
 )
