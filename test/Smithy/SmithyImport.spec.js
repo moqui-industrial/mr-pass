@@ -164,11 +164,11 @@ feature(
                 returnTo: back
             })
             const after = stage()
-            // refused: an address with a user part (here after a leading space) is no mirror's address
+            // refused: an address with a user part (here after a leading space, a / in its password) is no mirror's address
             const mirror = f.post(SITE, HOST, "storeMirror", {
                 repositoryId: t.repo.repositoryId,
                 mirrorId: "",
-                url: " https://someone:hunter2pass@git.example.test/a.git",
+                url: " https://someone:hunter2/pass@git.example.test/a.git",
                 username: "mirror-user-name",
                 secret: "mirror-secret-0123456789",
                 refs: "refs/heads/*",
@@ -190,7 +190,7 @@ feature(
             mirror.flash.values.refs === "refs/heads/*"
             !kept.includes("mirror-secret-0123456789")
             !kept.includes("mirror-user-name")
-            !kept.includes("hunter2pass")
+            !kept.includes("hunter2")
         }
     }
 )

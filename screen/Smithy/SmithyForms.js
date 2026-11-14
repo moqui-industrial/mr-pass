@@ -1888,8 +1888,9 @@ function inputOf(spec) {
     const keep = (name, value) => {
         if (SECRET.includes(name) || (spec.notKept || []).includes(name) || value == null) return
         const text = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
-        // leading space is trimmed first, so " https://user:secret@host" keeps no user part either
-        typed[name] = name === "url" ? text.trimStart().replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, "$1") : text
+        // leading space is trimmed first, so " https://user:secret@host" keeps no user part either; everything to the
+        // last @ goes, so a / or another @ in the password ("https://u:pa/ss@host") is not kept either
+        typed[name] = name === "url" ? text.trimStart().replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/).*@/, "$1") : text
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {
