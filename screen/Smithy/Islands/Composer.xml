@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Composer (design-smithy §8 NewIssue): the island over the text of an issue page's plain form (Composer.qvue): a Markdown
+    and rich text toggle and a preview in the page (Smithy/Do previewPost, answered as JSON). The form itself is posted as
+    the plain page posts it. The screen shows nothing of its own. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Composer">
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[<p>The editor is part of an issue's page.</p>]]></text>
+      <text type="qvue" location="component://mr-pass/screen/Smithy/Islands/Composer.qvue" template="false"/>
+    </render-mode>
+  </widgets>
+</screen>

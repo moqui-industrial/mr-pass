@@ -17,5 +17,6 @@ git push origin --tags</pre></#list></section>
 <#list view.entries as entry><tr><td class="wrap"><#if entry.href><a href="${entry.href}">${entry.name}<#if entry.directory>/</#if></a><#else>${entry.name} <small>(submodule)</small></#if></td><td class="smithy-wide wrap"><#if entry.commitHref><a href="${entry.commitHref}">${entry.summary}</a><#else>${entry.summary}</#if></td><td class="smithy-wide">${entry.size}</td><td>${entry.date}</td></tr></#list>
 <#if !view.entries.length><tr><td colspan="4">This directory is empty.</td></tr></#if></tbody></table></div>
 <#if view.moreHref><p><a href="${view.moreHref}">Show more</a></p></#if>
+<#if view.newFileHref><p id="SmithyFileActions"><a href="${view.newFileHref}">New file</a> · <a href="${view.uploadHref}">Upload a file</a></p></#if>
 <#if view.archives><p id="SmithyArchives">Download ${view.ref}: <#list view.archives as archive><#if archive_index> · </#if><a href="${archive.href}" rel="nofollow">${archive.label}</a></#list></p></#if>
 <#if view.readme><article id="SmithyReadme" class="wrap"><h2>${view.readme.path}</h2>${raw(view.readme.html)}</article></#if></#if>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- ScopeModeration (design-smithy §2, §12.3; Dogfood §6.4), at -/moderation[/…] of a group or a repository, in its shell:
+    the forum's own moderation screens (ReviewQueue, ReviewDetail, MemberDetail, Log), mounted here and limited to the
+    scope's category and its subtree with the scope's link base (Shared/View.js load), for the scope's Owners; anyone else
+    gets Not Found (Smithy/SmithyScope.js moderation). What waits there: held first posts and reports of the scope's forum,
+    issues and merge requests, a report of the group or the repository itself, and mail held from an address that is no
+    account's. Report (a confirmed viewer reports the group or the repository) and Hide (asked again, for who may hide)
+    are Smithy's own two pages under it; their forms post to Smithy/Do. Smithy has no moderation rows of its own. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Moderation">
+  <parameter name="groupId"/>
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <parameter name="moderationPath"/>
+  <always-actions>
+    <script><![CDATA[
+        smithyHome=false
+        smithyModeration=ec.resource.script('component://mr-pass/screen/Smithy/SmithyScope.js').moderation(resolvedSiteId,String(groupId || ''),String(repositoryId || ''),passBases,String(publicPath || ''),String(moderationPath || ''))
+        smithyGroup=smithyModeration.group
+        smithyRepository=smithyModeration.repository
+        smithyScopeShell=smithyModeration.shell
+        forumScope=smithyModeration.scope
+    ]]></script>
+  </always-actions>
+  <subscreens default-item="ReviewQueue">
+    <subscreens-item name="ReviewQueue" location="component://mr-pass/screen/Forum/Moderation/ReviewQueue.xml"/>
+    <subscreens-item name="ReviewDetail" location="component://mr-pass/screen/Forum/Moderation/ReviewDetail.xml"/>
+    <subscreens-item name="MemberDetail" location="component://mr-pass/screen/Forum/Moderation/MemberDetail.xml"/>
+    <subscreens-item name="Log" location="component://mr-pass/screen/Forum/Moderation/Log.xml"/>
+  </subscreens>
+  <widgets>
+    <section name="SmithyModerationGroupShell" condition="!!smithyGroup">
+      <widgets>
+        <render-mode>
+          <text type="html" location="component://mr-pass/screen/Smithy/GroupShell.html.fancy"/>
+        </render-mode>
+      </widgets>
+    </section>
+    <section name="SmithyModerationRepositoryShell" condition="!!smithyRepository">
+      <widgets>
+        <render-mode>
+          <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+        </render-mode>
+      </widgets>
+    </section>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(smithyModeration.navHtml)}]]></text>
+    </render-mode>
+    <subscreens-active/>
+  </widgets>
+</screen>

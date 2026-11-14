@@ -1,5 +1,6 @@
 /* Smithy's pages that write (Dogfood DG2; plan/design-smithy.md §1, §4.4, §6, §11): NewGroup, NewRepository, SiteSettings, a
- * group's Settings and Members, a repository's Settings, creating and deleting a branch or tag, and Account's Git access. Each
+ * group's Settings and Members, a repository's Settings, creating and deleting a branch or tag, and Account's Git access; the
+ * forms and transitions of DG3's issue pages (SmithyIssues.js) are made with what is here. Each
  * page is plain HTML whose forms post to a transition of Smithy/Do with the session token (run, below): the transition calls
  * one operation through the facade (Shared/Portal.js attempt), then answers 303, to the canonical page after a write, or back
  * to the form with the refusal's text and what was typed (Smithy.js setFlash). An ending or audience-widening action
@@ -9,10 +10,13 @@
 const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
 const {portal, fail, need, maybe, param, esc, enc, query, dateText, sizeText, holds} = smithy
 
-/* Markup built here; anything else h is given is escaped. */
+/* Markup built here; anything else h is given is escaped. It is known by a symbol, which no data read from the authority or
+ * the request can carry, and which every page script shares (each loads its own copy of this one). */
+const MARKUP = Symbol.for("pass.smithy.markup")
 class Markup {
     constructor(html) {
         this.html = String(html)
+        this[MARKUP] = true
     }
 }
 const toHtml = value =>
@@ -20,7 +24,7 @@ const toHtml = value =>
         ? ""
         : Array.isArray(value)
           ? value.map(toHtml).join("")
-          : value instanceof Markup
+          : typeof value === "object" && value[MARKUP] === true
             ? value.html
             : esc(value)
 const h = (strings, ...values) =>
@@ -65,6 +69,8 @@ function formOf(c, name, key) {
         key: key || "",
         id: "Smithy_" + name + (key ? "_" + String(key).replace(/[^A-Za-z0-9_-]/g, "_") : ""),
         error,
+        // a text's preview, asked from this form (the previewPost transition): the authority's cleaned markup
+        preview: mine && flash.preview ? String(flash.preview) : null,
         value: (field, fallback) =>
             mine && flash.values && Object.hasOwn(flash.values, field) ? flash.values[field] : (fallback ?? ""),
         invalid: field => !!error && error.field === field
@@ -112,7 +118,8 @@ function textarea(f, name, label, options = {}) {
         maxlength: options.maxlength,
         required: !!options.required,
         ...described(f, name)
-    })}>${f.value(name, options.value)}</textarea></label>${hint(options.hint)}`
+        // a newline right after the tag is dropped by the HTML parser: one is written, so a text's own first newline stays
+    })}>${"\n"}${f.value(name, options.value)}</textarea></label>${hint(options.hint)}`
 }
 function select(f, name, label, choices, options = {}) {
     const chosen = String(f.value(name, options.value))
@@ -502,8 +509,8 @@ function groupMembers(shell, view, bases, siteInfo, self) {
                 : ""
     }
 }
-/* GroupSettings (design §6): General (name, description, the issue repository; visibility; the path), Quota and Delete, for
- * an Owner; Not Found for anyone else. */
+/* GroupSettings (design §6): General (name, description, the issue repository; visibility; the path), Agreement, Forum
+ * (DG6), Quota and Delete (with Hide, for who may hide), for an Owner; Not Found for anyone else. */
 function groupSettings(shell, bases, siteInfo, self, tab) {
     if (!holds(shell.myRole, "owner")) fail()
     const c = contextOf(bases, siteInfo, self, shell.flash)
@@ -514,12 +521,22 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
         "Group settings",
         [
             ["general", "General", root],
+            ["agreement", "Agreement", root + "/agreement"],
+            ["forum", "Forum", root + "/forum"],
             ["quota", "Quota", root + "/quota"],
             ["delete", "Delete", root + "/delete"]
         ],
         current
     )}`
     const closed = gate(c, shell.capabilities.confirmed)
+    // DG4: the contributor agreement of the group's repositories (SmithyReview.js, read when the tab is asked)
+    if (current === "agreement")
+        return ec.resource
+            .script("component://mr-pass/screen/Smithy/SmithyReview.js")
+            .agreementSettings({siteId: shell.siteId, groupId: g.groupId}, g.groupPath, head.html, bases, siteInfo, self, shell.flash, shell.capabilities.confirmed)
+    // DG6: the group's forum, its mailing list and its address for security reports (SmithyScope.js)
+    if (current === "forum")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
     if (current === "quota") {
         const found = portal.attempt("getQuotaUsage", {siteId: shell.siteId, groupId: g.groupId})
         return {
@@ -546,7 +563,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
                 button: "Delete group",
                 cancelHref: root,
                 successTo: c.base + "/explore"
-            })}`.html
+            })}${ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").hideLink(shell)}`.html
         }
     const wanted = param("confirm") === "visibility" ? param("visibility") : null
     if (wanted && VISIBILITY.some(([value]) => value === wanted) && wanted !== g.visibility) {
@@ -675,7 +692,7 @@ function settingsAccess(shell) {
     const role = shell.capabilities.role
     if (!holds(role, "maintainer")) fail()
     const owner = holds(role, "owner")
-    return {tabs: ["general", "members", "branch-rules", "webhooks", ...(owner ? ["archive"] : [])], changesMembers: owner}
+    return {tabs: ["general", "members", "branch-rules", "webhooks", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
 }
 /* RepositorySettings (design §11): General, Members, Branch rules and Webhooks for a Maintainer, Archive for an Owner; a tab
  * the caller's role does not reach is Not Found, as the whole page is for less than a Maintainer. */
@@ -697,11 +714,25 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
             ["members", "Members", at("members")],
             ["branch-rules", "Branch rules", at("branch-rules")],
             ["webhooks", "Webhooks", at("webhooks")],
-            ...(owner ? [["archive", "Archive", at("archive")]] : [])
+            ...(owner
+                ? [
+                      ["agreement", "Agreement", at("agreement")],
+                      ["forum", "Forum", at("forum")],
+                      ["archive", "Archive", at("archive")]
+                  ]
+                : [])
         ],
         current
     )}`
     const closed = gate(c, shell.capabilities.confirmed)
+    // DG4: the contributor agreement, an Owner's (SmithyReview.js, read when the tab is asked)
+    if (current === "agreement")
+        return ec.resource
+            .script("component://mr-pass/screen/Smithy/SmithyReview.js")
+            .agreementSettings({siteId, repositoryId: id}, r.repositoryPath, head.html, bases, siteInfo, self, shell.flash, shell.capabilities.confirmed)
+    // DG6: the repository's forum (its subcategory) and its mailing list, an Owner's (SmithyScope.js)
+    if (current === "forum")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
     const page = body => ({html: h`${head}${body}`.html})
     const common = h`${hidden("repositoryId", id)}`
     if (current === "members") {
@@ -925,7 +956,9 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
                 r.archived ? "Unarchive" : "Archive",
                 h`<p>${r.archived ? "This repository is archived: it is read only." : "An archived repository is read only."}</p>`,
                 r.archived ? "Unarchive" : "Archive"
-            )}${ask("delete", "Delete", h`<p>Deleting a repository cannot be undone.</p>`, "Delete this repository")}`
+            )}${ask("delete", "Delete", h`<p>Deleting a repository cannot be undone.</p>`, "Delete this repository")}${ec.resource
+                .script("component://mr-pass/screen/Smithy/SmithyScope.js")
+                .hideLink(shell)}`
         )
     }
     const f = formOf(c, "updateRepository")
@@ -1140,9 +1173,11 @@ function gitAccess(siteId, bases, siteInfo, self) {
 }
 
 /* The transitions of Smithy/Do: each one operation of the same name. fields are the form's texts (sent when posted, so an
- * edit may clear one), optional the texts sent only when filled, flags its checkboxes, numbers and mib its numbers (mib a
- * size in MiB, sent in bytes), lists its repeated values joined with commas. done answers the page after a success when it
- * is not the form's own; confirm marks an action that is asked again first; account one of Account's Git access. */
+ * edit may clear one), optional the texts sent only when filled, flags its checkboxes (optionalFlags: sent only when
+ * checked), numbers and mib its numbers (mib a size in MiB, sent in bytes), lists its repeated values joined with commas,
+ * arrays its repeated or comma-separated values as a list (optionalArrays: sent only when there is one). done answers the page after a success when it
+ * is not the form's own (given the result, the bases, the form's own page and the operation's input); confirm marks an
+ * action that is asked again first; account one of Account's Git access. */
 const groupPage = (result, c) => (result.groupPath ? c.base + "/" + enc(result.groupPath) : null)
 const repositoryPage = (result, c) => (result.repositoryPath ? c.base + "/" + enc(result.repositoryPath) : null)
 const DO = {
@@ -1315,8 +1350,296 @@ const DO = {
         // an emptied limit is sent as an empty text, which gives up the own limit
         emptyText: true,
         notice: () => "The limits were saved."
-    }
+    },
+    // DG3 (design §8, §15.4): issues, their labels and milestones, and the conversation's posts, which are the forum's
+    // operations on the issue's record topic. A form of a text has a Preview button, which posts it to previewPost
+    createIssue: {
+        fields: ["repositoryId", "title", "body", "operationId"],
+        optional: ["sourceFormat", "milestoneId"],
+        flags: ["confidential"],
+        optionalArrays: ["labelIds", "assigneeHandles"],
+        // the new issue's page, beside the form's own
+        done: (result, c, back) =>
+            result.issueNumber && /\/-\/issues\/new$/.test(back) ? back.replace(/new$/, String(result.issueNumber)) : null,
+        notice: result =>
+            result.state === "pending"
+                ? "Waiting for review: your issue is shown to others once a moderator has approved it."
+                : "The issue was filed."
+    },
+    updateIssue: {
+        fields: ["repositoryId", "title"],
+        numbers: ["issueNumber", "expectedRevision"],
+        notice: () => "The title was saved."
+    },
+    setIssueState: {
+        fields: ["repositoryId", "state"],
+        optional: ["reason"],
+        numbers: ["issueNumber", "duplicateOfNumber", "expectedRevision"],
+        notice: result => (result.state === "closed" ? "The issue was closed." : "The issue was reopened.")
+    },
+    setIssueLabels: {
+        fields: ["repositoryId"],
+        numbers: ["issueNumber", "expectedRevision"],
+        arrays: ["labelIds"],
+        notice: () => "The labels were saved."
+    },
+    setIssueAssignees: {
+        fields: ["repositoryId"],
+        numbers: ["issueNumber", "expectedRevision"],
+        arrays: ["assigneeHandles"],
+        notice: () => "The assignees were saved."
+    },
+    setIssueMilestone: {
+        fields: ["repositoryId", "milestoneId"],
+        numbers: ["issueNumber", "expectedRevision"],
+        notice: () => "The milestone was saved."
+    },
+    // who reads the issue changes: asked again on a page of its own
+    setIssueConfidential: {
+        fields: ["repositoryId"],
+        optional: ["title", "body", "sourceFormat", "operationId"],
+        flags: ["confidential", "asNewIssue"],
+        numbers: ["issueNumber", "expectedRevision"],
+        confirm: true,
+        done: (result, c, back) =>
+            result.newIssueNumber ? back.replace(/\/-\/issues\/[0-9]+(?:[?#].*)?$/, "/-/issues/" + result.newIssueNumber) : null,
+        notice: result =>
+            result.newIssueNumber
+                ? "This public issue was made from the confidential one, which stays confidential."
+                : result.confidential
+                  ? "The issue is confidential now."
+                  : "The issue is public now."
+    },
+    storeLabel: {
+        fields: ["repositoryId", "labelId", "name", "color", "description", "operationId"],
+        numbers: ["expectedRevision"],
+        notice: () => "The label was saved."
+    },
+    deleteLabel: {fields: ["repositoryId", "labelId"], confirm: true, notice: () => "The label was deleted."},
+    storeMilestone: {
+        fields: ["repositoryId", "milestoneId", "name", "description", "dueDate", "state", "operationId"],
+        numbers: ["expectedRevision"],
+        notice: () => "The milestone was saved."
+    },
+    publishPost: {
+        fields: ["rootCommEventId", "body", "operationId"],
+        optional: ["sourceFormat"],
+        // an Owner's answer on a confidential issue that its reporter does not read
+        optionalFlags: ["ownersOnly"],
+        notice: result => (result.state === "pending" ? "Waiting for review: your comment is shown once it is approved." : "Your comment was added.")
+    },
+    updatePost: {
+        fields: ["postId", "body", "reason"],
+        optional: ["sourceFormat"],
+        numbers: ["expectedRevision"],
+        notice: () => "The text was saved."
+    },
+    setReaction: {fields: ["postId", "reactionKey"], flags: ["active"], notice: () => null},
+    flagPost: {fields: ["postId", "reason", "operationId"], notice: () => "Your report was sent to the moderators."},
+    setPreferences: {
+        fields: ["scopeType", "scopeId", "watchLevel"],
+        numbers: ["expectedRevision"],
+        notice: () => "Your notifications for this issue were saved."
+    },
+    // DG4 (design §9, §15.5): merge requests, forks, a file's edit and the agreement
+    createMergeRequest: {
+        fields: ["repositoryId", "sourceRef", "targetRef", "title", "body", "operationId"],
+        optional: ["sourceRepositoryId", "sourceFormat"],
+        flags: ["draft"],
+        optionalArrays: ["reviewerHandles"],
+        // shown again after a refusal, never sent: the fork's path the form was opened with
+        typedOnly: ["sourceRepositoryPath"],
+        done: (result, c, back) => (result.mergeRequestNum ? back.replace(/\/new(?:[?#].*)?$/, "/" + result.mergeRequestNum) : null),
+        notice: result =>
+            result.state === "pending"
+                ? "Waiting for review: your merge request is shown to others once a moderator has approved it."
+                : "The merge request was opened."
+    },
+    updateMergeRequest: {
+        fields: ["repositoryId", "title"],
+        flags: ["draft"],
+        numbers: ["mergeRequestNum", "expectedRevision"],
+        notice: () => "The merge request was saved."
+    },
+    setMergeRequestReviewers: {
+        fields: ["repositoryId"],
+        numbers: ["mergeRequestNum", "expectedRevision"],
+        arrays: ["reviewerHandles"],
+        notice: () => "The reviewers were saved."
+    },
+    submitReview: {
+        fields: ["repositoryId", "decision", "body", "operationId"],
+        optional: ["sourceFormat"],
+        numbers: ["mergeRequestNum"],
+        notice: result =>
+            result.state === "pending"
+                ? "Waiting for review: your review is shown once it is approved."
+                : result.reviewerState === "approved"
+                  ? "You approved this merge request."
+                  : result.reviewerState === "changes"
+                    ? "You asked for changes."
+                    : "Your review was added."
+    },
+    createReviewComment: {
+        fields: ["repositoryId", "body", "operationId"],
+        optional: ["threadId", "commitId", "path", "sourceFormat"],
+        numbers: ["mergeRequestNum", "oldLine", "newLine"],
+        notice: result => (result.state === "pending" ? "Waiting for review: your comment is shown once it is approved." : "Your comment was added.")
+    },
+    resolveReviewThread: {
+        fields: ["repositoryId", "threadId"],
+        numbers: ["mergeRequestNum"],
+        flags: ["resolved"],
+        notice: result => (result.resolved ? "The thread was resolved." : "The thread was reopened.")
+    },
+    // closing is asked again first; reopening is not
+    setMergeRequestState: {
+        fields: ["repositoryId", "state"],
+        numbers: ["mergeRequestNum", "expectedRevision"],
+        confirm: () => param("state") !== "open",
+        notice: result => (result.state === "closed" ? "The merge request was closed." : "The merge request was reopened.")
+    },
+    // asked again on a page that names the target branch, the method and what happens to the source branch
+    mergeMergeRequest: {
+        fields: ["repositoryId", "mergeMethod", "expectedHeadCommitId"],
+        optional: ["message"],
+        flags: ["deleteSourceBranch"],
+        numbers: ["mergeRequestNum", "expectedRevision"],
+        confirm: true,
+        notice: () => "The merge request was merged."
+    },
+    forkRepository: {
+        fields: ["repositoryId", "targetGroupId", "slug", "name", "visibility", "operationId"],
+        done: repositoryPage,
+        notice: result => "The fork " + result.repositoryPath + " was created."
+    },
+    // not an operation: one step of a file's edit to the next (step, below), the text kept for that one page
+    editFile: {
+        fields: ["repositoryId", "branch", "action", "path", "newPath", "content", "baseBlobId", "message", "stage"],
+        step: true,
+        previewField: "content"
+    },
+    commitFile: {
+        fields: ["repositoryId", "branch", "action", "path", "content", "message", "operationId"],
+        optional: ["newPath", "attachmentId", "baseBlobId", "destination", "newBranchName", "mergeRequestTitle"],
+        // the new merge request, or the file where it was committed
+        done: (result, c, back) => {
+            const root = back.split("/-/")[0]
+            if (result.mergeRequestNum) return root + "/-/merge-requests/" + result.mergeRequestNum
+            const path = param("action") === "rename" ? param("newPath") : param("path")
+            const branch = result.branch || param("branch")
+            if (!branch || !path) return root
+            return param("action") === "delete"
+                ? root + "/-/tree/" + enc(branch + (path.includes("/") ? "/" + path.slice(0, path.lastIndexOf("/")) : ""))
+                : root + "/-/blob/" + enc(branch + "/" + path)
+        },
+        notice: result =>
+            result.mergeRequestNum
+                ? "Your change is in merge request !" + result.mergeRequestNum + "."
+                : "Committed" + (result.branch ? " to " + result.branch : "") + "."
+    },
+    setAgreement: {
+        fields: ["repositoryId", "groupId", "setting", "agreementPath"],
+        numbers: ["expectedRevision"],
+        notice: result => (result.effective === "required" ? "The agreement is required now." : "The agreement was saved: it is not required.")
+    },
+    recheckAgreement: {
+        fields: ["repositoryId", "operationId"],
+        numbers: ["mergeRequestNum"],
+        notice: result => "The agreement was checked again" + (result.agreement?.state ? ": " + result.agreement.state + "." : ".")
+    },
+    declareBotOperator: {
+        fields: ["repositoryId", "operationId"],
+        numbers: ["mergeRequestNum"],
+        notice: () => "Recorded. A Maintainer confirms it."
+    },
+    confirmBotOperator: {
+        fields: ["repositoryId"],
+        numbers: ["mergeRequestNum", "expectedRevision"],
+        notice: () => "The bot's operator was confirmed."
+    },
+    // DG6 (design §12.3 to §12.5, §15.7): the forum of a group or a repository, Report and Hide, a held report, a topic
+    // made an issue
+    setScopeForum: {
+        optional: ["repositoryId", "groupId", "contactListId"],
+        flags: ["enabled"],
+        numbers: ["expectedRevision"],
+        notice: result => (result.enabled ? "The forum is on." : "The forum is off.")
+    },
+    reportSmithyTarget: {
+        fields: ["targetType", "targetId", "reason", "note", "operationId"],
+        notice: () => "Your report was sent to the moderators."
+    },
+    hideSmithyTarget: {
+        fields: ["targetType", "targetId", "reason"],
+        flags: ["hidden"],
+        numbers: ["expectedRevision"],
+        // asked again on its own page, which names the target and what follows
+        confirm: true,
+        notice: result => (result.hidden ? "It is hidden: Not Found to everyone but its owners and the site's moderators." : "It is shown again.")
+    },
+    convertTopicToIssue: {
+        fields: ["repositoryId", "rootCommEventId", "title", "operationId"],
+        arrays: ["postIds"],
+        optionalFlags: ["confidential"],
+        // the new issue's page, in the repository that was chosen
+        done: (result, c, back, input) => {
+            const path = result.repositoryPath || maybe("getRepository", {siteId: input.siteId, repositoryId: input.repositoryId})?.repository?.repositoryPath
+            return path && result.issueNumber ? c.base + "/" + enc(path) + "/-/issues/" + result.issueNumber : null
+        },
+        notice: result => "Issue #" + result.issueNumber + " was made from the topic."
+    },
+    storeIssueMailRoute: {
+        fields: ["groupId", "address"],
+        optional: ["repositoryId"],
+        flags: ["enabled"],
+        numbers: ["expectedRevision"],
+        notice: () => "The address for security reports was saved."
+    },
+    claimHeldReport: {
+        fields: ["token", "operationId"],
+        // the confidential issue the report became
+        done: (result, c) =>
+            result.repositoryPath && result.issueNumber ? c.base + "/" + enc(result.repositoryPath) + "/-/issues/" + result.issueNumber : null,
+        notice: result => "Your report was filed as the confidential issue #" + result.issueNumber + "."
+    },
+    // the forum's own operations a scope's Owner uses on the Forum tab: the category's mode and its list address
+    storeCategory: {
+        fields: ["contactListId", "mode"],
+        numbers: ["expectedRevision"],
+        notice: () => "The forum's mode was saved."
+    },
+    storeRoute: {
+        fields: ["contactListId", "address"],
+        optional: ["routeId", "operationId"],
+        flags: ["active"],
+        numbers: ["expectedRevision"],
+        notice: () => "The list's address was saved."
+    },
+    // a mailing list's archive and its members' invitations (Dogfood §6.3)
+    importMbox: {
+        fields: ["contactListId", "archiveName", "checksum"],
+        optional: ["sourceName"],
+        // the run's page
+        done: (result, c, back) => (result.importId ? back.split(/[?#]/)[0] + query({importId: result.importId}) + "#SmithyListImport" : null),
+        notice: () => "The import was started. This page shows its progress."
+    },
+    inviteListMembers: {
+        fields: ["contactListId", "operationId"],
+        arrays: ["addresses"],
+        notice: result =>
+            "Invited " +
+            (Number(result.invited) || 0) +
+            (result.alreadyInvited ? "; " + result.alreadyInvited + " had an invitation already" : "") +
+            (result.invalidCount ? "; " + result.invalidCount + " were not addresses" : "") +
+            (result.unsent ? "; " + result.unsent + " could not be mailed" : "") +
+            "."
+    },
+    // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
+    previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
+/* The forms whose text Preview shows (a file's edit previews its Markdown: previewField). */
+const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile"]
 /* What is never written back into a page after a refusal. */
 const SECRET = ["password", "code", "secret", "confirmPath"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
@@ -1330,20 +1653,31 @@ function inputOf(spec) {
     }
     const input = {}
     const typed = {}
+    // a post's text is kept whole, up to the longest a site allows
     const keep = (name, value) => {
-        if (!SECRET.includes(name) && value != null) typed[name] = String(value).slice(0, 4000)
+        if (!SECRET.includes(name) && value != null)
+            typed[name] = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {
             input[name] = param(name) ?? ""
             keep(name, input[name])
         }
+    for (const name of spec.typedOnly || []) if (param(name) != null) keep(name, param(name))
     for (const name of spec.optional || [])
         if (param(name) != null) {
             input[name] = param(name)
             keep(name, input[name])
         }
-    for (const name of spec.flags || []) input[name] = param(name) === "true"
+    for (const name of spec.flags || []) {
+        input[name] = param(name) === "true"
+        keep(name, input[name])
+    }
+    for (const name of spec.optionalFlags || [])
+        if (param(name) === "true") {
+            input[name] = true
+            keep(name, true)
+        }
     for (const name of spec.numbers || [])
         if (posted.has(name)) {
             const value = param(name)
@@ -1371,6 +1705,21 @@ function inputOf(spec) {
             keep(name, value ?? "")
         }
     for (const name of spec.lists || []) input[name] = many(name).join(",")
+    // a list the operation takes as one: checked boxes, or names typed with commas or spaces between (a handle with its @)
+    const listed = name =>
+        many(name)
+            .flatMap(value => value.split(/[\s,]+/))
+            .map(value => value.replace(/^@/, ""))
+            .filter(Boolean)
+    for (const name of spec.arrays || []) {
+        input[name] = listed(name)
+        keep(name, input[name].join(", "))
+    }
+    for (const name of spec.optionalArrays || []) {
+        const values = listed(name)
+        if (values.length) input[name] = values
+        keep(name, values.join(", "))
+    }
     // a field the form showed with its value (was_<name>) is sent only when that was changed
     for (const name of spec.changed || [])
         if (posted.has("was_" + name) && (param(name) ?? "") === (param("was_" + name) ?? "")) delete input[name]
@@ -1393,9 +1742,12 @@ function run(name, siteId, bases) {
     const gitAccessPage = c.account + "/GitAccess"
     const back = spec.account ? gitAccessPage : under(c.base, param("returnTo")) || c.base + "/"
     if (!ec.user.userId) return smithy.seeOther(c.account + "/Login?returnTo=" + encodeURIComponent(back))
+    if (spec.preview) return preview(siteId, back)
+    if (spec.step) return step(name, spec, siteId, back)
     const {input, typed, posted} = inputOf(spec)
     const refuse = error => {
-        smithy.setFlash({form: name, key: param("formKey") || "", error, values: typed})
+        // what was typed is kept for the form's next page, but not for a record the caller may not see
+        smithy.setFlash({form: name, key: param("formKey") || "", error, values: error.notFound ? {} : typed})
         smithy.seeOther(back)
     }
     const confirm = typeof spec.confirm === "function" ? spec.confirm(posted) : !!spec.confirm
@@ -1412,15 +1764,95 @@ function run(name, siteId, bases) {
             signIn: again
         })
     }
-    if (out.error) return refuse({message: out.error.message, field: out.error.fieldErrors?.[0]?.field || null})
+    if (out.error)
+        return refuse({
+            message: out.error.message,
+            field: out.error.fieldErrors?.[0]?.field || null,
+            reason: out.error.reason || null,
+            ...(out.error.kind === "NotFound" ? {notFound: true} : {})
+        })
     const result = out.result || {}
     smithy.setFlash({
         notice: spec.notice(result),
         ...(spec.token && result.token ? {token: {name: input.name || "", token: String(result.token)}} : {})
     })
     smithy.seeOther(
-        (spec.done && spec.done(result, c)) || (spec.account ? gitAccessPage : under(c.base, param("successTo")) || back)
+        (spec.done && spec.done(result, c, back, {siteId, ...input})) || (spec.account ? gitAccessPage : under(c.base, param("successTo")) || back)
     )
+}
+/* editFile (design §9.5): one step of a file's edit to the next. What was typed is kept in the session for the one next page
+ * of the edit (the save step, or the editor again), which the form's returnTo names; nothing is written. The step first
+ * reads the edit's context, so an account that may not view the repository, or a path that is not there, stores nothing
+ * (Not Found), and a text over the site's edit size is refused and not kept (editGuard, which a preview of a file's text
+ * passes too). An upload's file is staged with the authority
+ * here (stageAttachment, scanned), and the save names its attachment. */
+function editGuard(name, siteId, back) {
+    const repositoryId = param("repositoryId") || ""
+    const path = param("path") || ""
+    const context = portal.attempt(
+        "getEditContext",
+        {siteId, repositoryId, refPath: (param("branch") || "") + (path ? "/" + path : ""), editAction: param("action") || "update"},
+        {newTransaction: true}
+    )
+    if (context.error || context.result.editable === false) fail()
+    const limit = Number(context.result.maxEditBytes) || 1048576
+    // the size in bytes of what was typed (UTF-8)
+    const size = encodeURIComponent(param("content") || "").replace(/%[0-9A-F]{2}/g, "x").length
+    if (size <= limit) return true
+    // nothing of the text is kept
+    smithy.setFlash({
+        form: name,
+        key: param("formKey") || "",
+        values: {repositoryId, branch: param("branch") || "", path},
+        stage: "edit",
+        error: {message: "This text is larger than a file edited on its page may be (" + sizeText(limit) + "). Change the file with git.", field: "content"}
+    })
+    smithy.seeOther(back)
+    return false
+}
+function step(name, spec, siteId, back) {
+    if (!editGuard(name, siteId, back)) return
+    const {typed} = inputOf(spec)
+    const stage = param("stage") === "edit" ? "edit" : "save"
+    const repositoryId = param("repositoryId") || ""
+    let error = null
+    if (param("action") === "upload" && stage === "save") {
+        const file = ec.web.multiPartParameters?.file
+        const staged = file ? portal.attempt("stageAttachment", {siteId, purpose: "repositoryFile", repositoryId, file}, {newTransaction: true}) : null
+        const attachment = staged?.result?.attachment
+        if (!attachment) error = {message: staged?.error?.message || "Choose a file to upload.", field: "file"}
+        else if (attachment.scanState && attachment.scanState !== "clean") error = {message: "The file was held by the scanner and was not uploaded.", field: "file"}
+        else {
+            typed.attachmentId = attachment.attachmentId
+            typed.fileName = String(attachment.filename || "")
+            const to = String(typed.newPath || "")
+            if (!to || to.endsWith("/")) typed.newPath = to + typed.fileName
+        }
+    }
+    smithy.setFlash({form: name, key: param("formKey") || "", values: typed, ...(error ? {error, stage: "edit"} : {stage})})
+    smithy.seeOther(back)
+}
+/* previewPost (design §8 NewIssue): the text of a form as the authority would show it, cleaned. A plain form's Preview button
+ * posts here and is answered 303 back to the form, which shows the preview above what was typed; the composer's island asks
+ * for JSON. Nothing is stored but the one next page's flash. */
+function preview(siteId, back) {
+    const of = PREVIEWED.includes(param("previewOf")) ? param("previewOf") : null
+    if (!of) fail()
+    // a file's text is kept for the next page as a step keeps it: only for who may edit there, and within the edit size
+    if (DO[of].step && !editGuard(of, siteId, back)) return
+    const sourceFormat = param("sourceFormat") === "html" ? "html" : "markdown"
+    // in its own transaction, as a write is: a refusal does not undo this transition's answer
+    const out = portal.attempt("previewPost", {siteId, body: param(DO[of].previewField || "body") || "", sourceFormat}, {newTransaction: true})
+    const html = out.error ? null : String(StringUtilities.cleanHtml(out.result.body || ""))
+    if (String(ec.web.request.getHeader("accept") || "").includes("application/json"))
+        return ec.web.sendJsonResponse(out.error ? {error: out.error.message} : {body: html})
+    smithy.setFlash({
+        form: of,
+        key: param("formKey") || "",
+        values: inputOf(DO[of]).typed,
+        ...(out.error ? {error: {message: out.error.message, field: "body"}} : {preview: html || "<p>Nothing to preview.</p>"})
+    })
+    smithy.seeOther(back)
 }
 ;({
     newGroup,
@@ -1434,5 +1866,25 @@ function run(name, siteId, bases) {
     gitAccess,
     run,
     DO,
-    inputOf
+    PREVIEWED,
+    inputOf,
+    // what SmithyIssues.js and SmithyReview.js build their pages with
+    visibilities,
+    Markup,
+    h,
+    attributes,
+    hidden,
+    contextOf,
+    banner,
+    gate,
+    formOf,
+    open,
+    input,
+    textarea,
+    select,
+    check,
+    submit,
+    hint,
+    tabsOf,
+    confirmCard
 })

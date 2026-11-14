@@ -44,24 +44,31 @@
   </transition>
   <pre-actions>
     <script><![CDATA[
-        try{topicMetadata=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getTopic',input:{siteId:resolvedSiteId,rootCommEventId}}).call().result.topic}
+        // inside a group's or a repository's shell a topic of another category is Not Found (getTopic with the scope)
+        try{topicMetadata=ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'getTopic',input:ec.resource.script('component://mr-pass/screen/Shared/View.js').inputFor('getTopic',resolvedSiteId,{rootCommEventId,...(forumScope?{scopeContactListId:forumScope.contactListId}:{})})}).call().result.topic}
         catch(error){
           // An imported community's /t/slug/id link names its topic by the old id.
           ec.message.clearErrors()
-          const url=ec.resource.script('component://mr-pass/screen/Shared/View.js').legacyUrl(resolvedSiteId,'/t/'+rootCommEventId+(typeof requestedTopicSlug!=='undefined' && requestedTopicSlug?'/'+requestedTopicSlug:''),passBases)
+          const url=ec.resource.script('component://mr-pass/screen/Shared/View.js').legacyUrl(resolvedSiteId,'/t/'+rootCommEventId+(typeof requestedTopicSlug!=='undefined' && requestedTopicSlug?'/'+requestedTopicSlug:''),passBases,forumScope)
           if(url && ec.web.request?.method==='GET'){sri.sendRedirectAndStopRender(url);return}
           throw error
         }
         if(topicMetadata.kind==='private'){sri.sendRedirectAndStopRender((passBases.forum || '')+'/Messages/ConversationDetail?rootCommEventId='+encodeURIComponent(topicMetadata.rootCommEventId));return}
         // A merged topic's old ID redirects to its destination.
-        canonicalUrl=(passBases.forum || '')+'/t/'+encodeURIComponent(topicMetadata.rootCommEventId)+'/'+encodeURIComponent(topicMetadata.slug)
-        if(ec.web.request?.method==='GET' && (typeof requestedTopicSlug==='undefined' || requestedTopicSlug!==topicMetadata.slug || topicMetadata.movedFrom)) { sri.sendRedirectAndStopRender(canonicalUrl+(ec.web.parameters.around?'?around='+encodeURIComponent(ec.web.parameters.around):''));return }
+        const topicTail='/t/'+encodeURIComponent(topicMetadata.rootCommEventId)+'/'+encodeURIComponent(topicMetadata.slug)
+        // the page's address: under the scope's link base inside a group's or a repository's shell (Dogfood §6.1)
+        const topicUrl=(forumScope ? forumScope.base : passBases.forum || '')+topicTail
+        // one canonical address a topic: the site's forum where it is mounted, else the scope's own
+        canonicalUrl=forumScope && (siteInfo.mounts || []).some(m=>m.app==='forum') ? (passBases.forum || '')+topicTail : topicUrl
+        if(ec.web.request?.method==='GET' && (typeof requestedTopicSlug==='undefined' || requestedTopicSlug!==topicMetadata.slug || topicMetadata.movedFrom)) { sri.sendRedirectAndStopRender(topicUrl+(ec.web.parameters.around?'?around='+encodeURIComponent(ec.web.parameters.around):''));return }
     ]]></script>
   </pre-actions>
   <actions>
     <script><![CDATA[
         screenName='TopicDetail'
-        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,Object.assign({},ec.web.parameters,{rootCommEventId,topicMetadata}),passBases,siteInfo)
+        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,Object.assign({},ec.web.parameters,{rootCommEventId,topicMetadata}),passBases,siteInfo,forumScope)
+        // in a group's or a repository's forum: "Make an issue" for a role that may triage (design-smithy §12.5)
+        scopeToolsHtml=forumScope ? ec.resource.script('component://mr-pass/screen/Smithy/SmithyScope.js').topicTools(smithyScopeShell,view,passBases,siteInfo,String(publicPath || '')) : ''
     ]]></script>
   </actions>
   <widgets>
@@ -72,6 +79,13 @@
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Shared/TopicEnhance.html.fancy"/>
     </render-mode>
+    <section name="PassTopicDetailScopeTools" condition="scopeToolsHtml">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[${raw(scopeToolsHtml)}]]></text>
+        </render-mode>
+      </widgets>
+    </section>
     <section name="PassTopicDetailSetPreferencesSection" condition="view.forms.some(form =&gt; form.op === 'setPreferences')">
       <widgets>
         <render-mode>

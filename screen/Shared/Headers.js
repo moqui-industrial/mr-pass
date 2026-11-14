@@ -42,6 +42,19 @@ const ROUTES = [
     // cookie and no signed-in user (anonymousOnly), which sees public groups and repositories alone; a signed-in or
     // session request, so every members-only and private page, is no-store, as are the app's own paths under /-/ and the
     // create and import pages. A page answers no-store itself for a refusal and a redirect (Smithy/Smithy.js).
+    // Smithy DG3: the issue pages (a repository's and a group's Issues, an issue, the new-issue form, Labels and Milestones)
+    // and a commit's page, which lists the titles of the issues it names, are never kept by a cache, for a visitor either:
+    // an issue may become confidential, and a page a cache kept would still show it. (The shells' Issues tab has its count
+    // only for a signed-in account, whose pages no cache keeps: Smithy/Smithy.js openIssueCount.)
+    // Smithy DG4: a merge request's pages (one may be held for review, and Not Found to others), the pages that edit a
+    // file and the fork pages are never kept by a cache either.
+    // Smithy DG6: nor the forum's pages inside a group's or a repository's shell (the forum's own are not kept either: a
+    // topic may be hidden or moved, and its page carries the session's token for the reader's own controls) and the
+    // scope's moderation pages.
+    {
+        app: 'smithy',
+        path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks|forum|moderation)(?:\/|$)/,
+    },
     {
         app: 'smithy',
         path: /^\/(?!-(?:\/|$)|new(?:\/|$)|import(?:\/|$))/,

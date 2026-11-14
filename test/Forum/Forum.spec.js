@@ -414,3 +414,64 @@ feature('only a plain local path is kept as a sign-in return path', {
         newline === null
     },
 })
+feature(
+    "the composer's Markdown mode: a post published as Markdown keeps its source and is rendered and cleaned",
+    {
+        when() {
+            login('john.doe')
+            // the spec's earlier post was a moment ago: past the wait between two posts
+            const wasDisabled = ec.artifactExecution.disableAuthz()
+            try {
+                const state = ec.entity
+                    .find('mantle.forum.ForumMemberState')
+                    .condition({ siteId, partyId: ec.user.userAccount.partyId })
+                    .one()
+                if (state) {
+                    state.set('lastPostedAt', null)
+                    state.update()
+                }
+            } finally {
+                if (!wasDisabled) ec.artifactExecution.enableAuthz()
+            }
+            // Compose's publish transition, as the composer posts it with "Write in: Markdown" (sourceFormat)
+            const rendered = ec.screen
+                .makeTest()
+                .rootScreen('component://mr-pass/screen/Pass.xml')
+                .render(
+                    'Forum/Compose/publish',
+                    {
+                        resolvedSiteId: siteId,
+                        publicHost: 'forum.example.test',
+                        publicPath: '/forum/Compose/publish',
+                        moquiSessionToken: ec.web.sessionToken,
+                        contactListId: categoryId,
+                        title: 'Written in Markdown',
+                        body: 'A **bold** start\n\n<script>alert(1)</script>\n',
+                        sourceFormat: 'markdown',
+                        operationId: 'forum-test-markdown-1',
+                    },
+                    'post',
+                )
+            const published = JSON.parse(String(rendered.output || '{}'))
+            return {
+                errors: rendered.errorMessages,
+                post: run(F + 'get#Posts', {
+                    siteId,
+                    rootCommEventId: published.rootCommEventId,
+                }).postList[0],
+                editable: run(F + 'get#EditablePost', {
+                    siteId,
+                    postId: published.postId,
+                }).draft,
+            }
+        },
+        then({ errors, post, editable }) {
+            errors.length === 0
+            // stored as it was written, shown as the authority renders and cleans it
+            post.body.includes('<strong>bold</strong>')
+            !post.body.includes('<script')
+            editable.sourceFormat === 'markdown'
+            editable.body.includes('**bold**')
+        },
+    },
+)

@@ -15,13 +15,22 @@
   <actions>
     <script><![CDATA[
         screenName='ReviewDetail'
-        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo)
+        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo,forumScope)
+        // in a group's or a repository's scope: a reported group or repository, with where it is and Hide (design-smithy §12.3)
+        scopeTargetHtml=forumScope && view.target ? ec.resource.script('component://mr-pass/screen/Smithy/SmithyScope.js').reviewTarget(view.target,passBases) : ''
     ]]></script>
   </actions>
   <widgets>
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Shared/Page.html.fancy"/>
     </render-mode>
+    <section name="PassReviewDetailScopeTarget" condition="scopeTargetHtml">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[${raw(scopeTargetHtml)}]]></text>
+        </render-mode>
+      </widgets>
+    </section>
     <section name="PassReviewDetailAddReviewNoteSection" condition="view.forms.some(form =&gt; form.op === 'addReviewNote')">
       <widgets>
         <render-mode>

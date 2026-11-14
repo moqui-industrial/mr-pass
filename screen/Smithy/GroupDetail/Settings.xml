@@ -2,14 +2,22 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- GroupSettings (design-smithy §6 GroupSettings), at -/settings/<tab>, for an Owner and Not Found for anyone else: General
     (updateGroup, the visibility asked again before it changes, renameGroup), Quota (getQuotaUsage) and Delete (deleteGroup,
-    the path typed). Agreement, Pipelines, Forum and Import come with their phases. The forms post to Smithy/Do. -->
+    the path typed; Hide for who may hide), Agreement (DG4) and Forum (DG6, Smithy/SmithyScope.js forumSettings: the group's
+    forum on or off, its mailing list, the address for security reports). Pipelines and Import come with their phases. The
+    forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Settings">
   <parameter name="tab"/>
+  <pre-actions>
+    <script><![CDATA[
+        // built before anything renders, so who may not see the page gets the framework's Not Found, not a part of the shell
+        smithySettings=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').groupSettings(smithyGroup,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+    ]]></script>
+  </pre-actions>
   <actions>
     <script><![CDATA[
-        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').groupSettings(smithyGroup,passBases,siteInfo,String(publicPath || ''),String(tab || ''))
+        view=smithySettings
     ]]></script>
   </actions>
   <widgets>

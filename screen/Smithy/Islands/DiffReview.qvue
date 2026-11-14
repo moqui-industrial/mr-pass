@@ -1,0 +1,171 @@
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md.
+    The diff tools of a merge request's Changes page (plan/design-smithy.md §9 MergeRequestChanges), the island over the
+    server-rendered diff (Smithy/SmithyReview.js changes): a click on a line's number opens that line's comment form in
+    place, and a file may be shown side by side in m-diff-view, from its raw texts at the merge base and at the head. The
+    comment's form is an ordinary form posted to Smithy/Do createReviewComment, as the plain page posts it; the threads'
+    reply and resolve forms are the page's own. If this does not load, the page is unchanged: a line's number is then a link
+    that shows the same form. A file's text is shown as text by the editor, never as markup. A side that cannot be read says
+    so (a missing text is an empty side only for a file its status says was added or deleted), and a file over 400,000
+    characters a side is not laid out side by side. -->
+<template>
+    <div v-if="ready" class="smithy-diff-review">
+        <teleport v-for="file in files" :key="'tool' + file.index" :to="file.tools">
+            <button v-if="file.canSide" type="button" @click="toggle(file)">
+                {{ file.side ? 'Unified' : 'Side by side' }}
+            </button>
+        </teleport>
+        <teleport v-for="file in shown" :key="'side' + file.index" :to="file.target">
+            <p v-if="file.failed" role="alert">{{ file.failed }}</p>
+            <m-diff-view
+                v-else-if="file.loaded"
+                :original="file.original"
+                :modified="file.modified"
+                :file-name="file.path"
+                height="70vh"
+            ></m-diff-view>
+            <p v-else role="status">Loading both versions…</p>
+        </teleport>
+        <teleport v-if="composer" :to="composer.target">
+            <form method="post" class="card smithy-thread" :action="doUrl">
+                <input type="hidden" name="moquiSessionToken" :value="token" />
+                <input type="hidden" name="returnTo" :value="returnTo + '#' + composer.key" />
+                <input type="hidden" name="repositoryId" :value="repositoryId" />
+                <input type="hidden" name="mergeRequestNum" :value="mergeRequestNum" />
+                <input type="hidden" name="commitId" :value="commitId" />
+                <input type="hidden" name="path" :value="composer.path" />
+                <input type="hidden" :name="composer.old ? 'oldLine' : 'newLine'" :value="composer.line" />
+                <input type="hidden" name="operationId" :value="composer.operationId" />
+                <input type="hidden" name="sourceFormat" value="markdown" />
+                <label
+                    >Comment on line {{ composer.line }} of {{ composer.path }}
+                    <textarea ref="body" name="body" rows="3" maxlength="100000" required></textarea>
+                </label>
+                <p><small>Markdown.</small></p>
+                <p>
+                    <button>Comment</button>
+                    <button type="button" @click="cancel">Cancel</button>
+                </p>
+            </form>
+        </teleport>
+    </div>
+</template>
+<script>
+// the longest text of one side that is laid out side by side (characters)
+const MAX_SIDE = 400000
+module.exports = {
+    name: 'SmithyDiffReview',
+    data() {
+        return {
+            ready: false,
+            files: [],
+            composer: null,
+            token: '',
+            doUrl: '',
+            returnTo: '',
+            repositoryId: '',
+            mergeRequestNum: '',
+            commitId: '',
+        }
+    },
+    computed: {
+        shown() {
+            return this.files.filter((file) => file.side)
+        },
+    },
+    mounted() {
+        const config = this.$root.config || {}
+        const context = config.context || {}
+        this.token = config.sessionToken || ''
+        this.doUrl = context.doUrl
+        this.returnTo = context.returnTo
+        this.repositoryId = context.repositoryId
+        this.mergeRequestNum = context.mergeRequestNum
+        this.commitId = context.commitId
+        this.files = (context.files || [])
+            .map((file) => ({
+                ...file,
+                tools: document.querySelector('[data-smithy-tools="' + file.index + '"]'),
+                target: document.querySelector('[data-smithy-side="' + file.index + '"]'),
+                lines: document.querySelector('.smithy-lines[data-file="' + file.index + '"]'),
+                canSide: !file.binary && !!context.oldRaw && !!context.newRaw,
+                side: false,
+                loaded: false,
+                failed: '',
+                original: '',
+                modified: '',
+            }))
+            .filter((file) => file.tools && file.target && file.lines)
+        this.raw = { old: context.oldRaw, fresh: context.newRaw }
+        if (context.canComment) {
+            this.onClick = (event) => {
+                const link = event.target.closest && event.target.closest('a.n[data-line]')
+                if (!link || event.metaKey || event.ctrlKey || event.shiftKey) return
+                event.preventDefault()
+                this.open(link)
+            }
+            document.addEventListener('click', this.onClick)
+        }
+        this.ready = true
+    },
+    beforeUnmount() {
+        if (this.onClick) document.removeEventListener('click', this.onClick)
+    },
+    methods: {
+        // the form goes under the line's own row, in the page's diff
+        open(link) {
+            const row = link.closest('.l')
+            const found = /^F([0-9]+)([LR])([0-9]+)$/.exec(link.getAttribute('data-line') || '')
+            const file = found && this.files.find((item) => String(item.index) === found[1])
+            if (!row || !file) return
+            this.cancel()
+            const target = document.createElement('div')
+            row.after(target)
+            const random = new Uint8Array(24)
+            crypto.getRandomValues(random)
+            this.composer = {
+                key: found[0],
+                target,
+                path: file.path,
+                old: found[2] === 'L',
+                line: found[3],
+                operationId: Array.from(random, (byte) => byte.toString(16).padStart(2, '0')).join(''),
+            }
+            this.$nextTick(() => this.$refs.body && this.$refs.body.focus())
+        },
+        cancel() {
+            const target = this.composer && this.composer.target
+            this.composer = null
+            if (target) this.$nextTick(() => target.remove())
+        },
+        // one side's text. absent: the file is not on that side by its status (added, or deleted), so a 404 there is an
+        // empty text; any other failure is said, and so is a file too large to lay out side by side
+        async text(base, path, absent) {
+            const response = await fetch(base + '/' + String(path).split('/').map(encodeURIComponent).join('/'))
+            if (response.status === 404 && absent) return ''
+            if (!response.ok)
+                throw new Error('This file cannot be shown side by side: its text was not read (' + response.status + ').')
+            if (Number(response.headers.get('content-length') || 0) > MAX_SIDE)
+                throw new Error('This file is too large to show side by side.')
+            const text = await response.text()
+            if (text.length > MAX_SIDE) throw new Error('This file is too large to show side by side.')
+            return text
+        },
+        async toggle(file) {
+            file.side = !file.side
+            file.lines.style.display = file.side ? 'none' : ''
+            if (!file.side || file.loaded) return
+            try {
+                const both = await Promise.all([
+                    this.text(this.raw.old, file.oldPath, /^add/i.test(file.status)),
+                    this.text(this.raw.fresh, file.path, /^del/i.test(file.status)),
+                ])
+                file.original = both[0]
+                file.modified = both[1]
+                file.loaded = true
+            } catch (error) {
+                file.failed = error.message
+            }
+        },
+    },
+}
+</script>

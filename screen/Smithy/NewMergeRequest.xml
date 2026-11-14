@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- NewMergeRequest (design-smithy §9 NewMergeRequest), at -/merge-requests/new?base=&head=, in its repository's shell: the
+    target branch and the source (a fork's branch as <path>:<branch>), the commits and the file count the source adds
+    (getCompare), then title, text (a Markdown textarea with a server preview; the composer's island where JavaScript
+    runs), draft and, for a Developer, reviewers. The form posts to Smithy/Do (createMergeRequest, previewPost). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="New merge request">
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <actions>
+    <script><![CDATA[
+        smithyRepository=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').newMergeRequest(smithyRepository,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+    </render-mode>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

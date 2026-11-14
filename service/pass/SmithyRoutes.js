@@ -15,6 +15,8 @@ const NUM = /^[1-9][0-9]{0,8}$/
 const COMMIT = /^[0-9a-fA-F]{7,40}$/
 const DO_NAME = /^[a-z][A-Za-z]{1,60}$/
 const ISLAND = /^([A-Z][A-Za-z0-9]{0,60})\.(qvue|qvt|qjs)$/
+/* A held report's token (design §12.4), as a link in mail carries it. */
+const TOKEN = /^[A-Za-z0-9._~-]{8,200}$/
 /* §4.2: a group's or subgroup's segment (a handle is always one), and a repository's slug. */
 const GROUP_SEGMENT = /^[a-z0-9][a-z0-9_-]{1,38}$/
 const SLUG = /^[a-z0-9_][a-z0-9_.-]{0,99}$/
@@ -32,7 +34,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1, DG2); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG4, DG6); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -43,6 +45,7 @@ const BUILT = [
     "/Smithy/AccountDetail",
     "/Smithy/GroupDetail/Overview",
     "/Smithy/GroupDetail/Repositories",
+    "/Smithy/GroupDetail/Issues",
     "/Smithy/GroupDetail/Members",
     "/Smithy/GroupDetail/Settings",
     "/Smithy/RepositoryDetail/Files",
@@ -53,16 +56,46 @@ const BUILT = [
     "/Smithy/RepositoryDetail/Commits",
     "/Smithy/RepositoryDetail/Branches",
     "/Smithy/RepositoryDetail/Tags",
+    "/Smithy/RepositoryDetail/Issues",
+    "/Smithy/RepositoryDetail/Labels",
+    "/Smithy/RepositoryDetail/Milestones",
     "/Smithy/RepositoryDetail/Settings",
+    "/Smithy/NewIssue",
+    "/Smithy/IssueDetail",
+    // DG4: merge requests, forks and editing a file on its page
+    "/Smithy/RepositoryDetail/MergeRequests",
+    "/Smithy/NewMergeRequest",
+    "/Smithy/MergeRequestDetail/Overview",
+    "/Smithy/MergeRequestDetail/Commits",
+    "/Smithy/MergeRequestDetail/Changes",
+    "/Smithy/MergeRequestDetail/Checks",
+    "/Smithy/RepositoryDetail/Fork",
+    "/Smithy/RepositoryDetail/Edit",
+    // the composer's island (DG3), in each form the client asks a screen's component by
+    "/Smithy/Islands/Composer.qvue",
+    "/Smithy/Islands/Composer.qvt",
+    "/Smithy/Islands/Composer.qjs",
+    // the diff's and the editor's islands (DG4)
+    "/Smithy/Islands/DiffReview.qvue",
+    "/Smithy/Islands/DiffReview.qvt",
+    "/Smithy/Islands/DiffReview.qjs",
+    "/Smithy/Islands/Editor.qvue",
+    "/Smithy/Islands/Editor.qvt",
+    "/Smithy/Islands/Editor.qjs",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
     "/Smithy/redirect"
 ]
+/* Built screens that have screens and transitions under them: Do's transitions, and (DG6) the forum's own screens mounted
+ * under a group and a repository and the scope's moderation pages, whose paths forumSection and moderationSection check. */
+const BUILT_UNDER = ["/Smithy/Do", "/Smithy/GroupDetail/Forum", "/Smithy/RepositoryDetail/Forum", "/Smithy/Moderation"]
+const built = screenPath =>
+    BUILT.includes(screenPath) || BUILT_UNDER.some(root => screenPath === root || screenPath.startsWith(root + "/"))
 /* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
 const BUILT_TABS = {
     "/Smithy/Site": ["settings", "requests", "quotas"],
-    "/Smithy/GroupDetail/Settings": ["general", "quota", "delete"],
-    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "archive"]
+    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "quota", "delete"],
+    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "agreement", "forum", "archive"]
 }
 const bytes = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
 /* Step 1: the segments of a path, each percent-decoded once. A segment that is . or .., holds a slash or a control
@@ -109,6 +142,8 @@ function fixed(parts) {
         return page("/Smithy/Site", tab ? {tab} : {})
     }
     if (second === "do") return page("/Smithy/Do/" + one(rest, DO_NAME))
+    // DG6: the link of a held report's reply (design §12.4), a page of Do that writes nothing
+    if (second === "held-report") return page("/Smithy/Do/heldReport", {token: one(rest, TOKEN)})
     if (second === "island") {
         const found = rest.length === 1 ? ISLAND.exec(rest[0]) : null
         return found ? page("/Smithy/Islands/" + found[1] + "." + found[2]) : fail()
@@ -133,6 +168,66 @@ function compareSpec(rest) {
     }
     return out
 }
+/* The forum inside a group's or a repository's shell (design §12.5, Dogfood §6.1): the rest of the path after -/forum is
+ * mapped as the forum's own resolver maps a path after its mount (pass.RouteServices): t/<id>/<slug> is a topic (the slug
+ * may end in a render mode, and a transition's name may follow), p/<id> a post's permalink, else a screen of the forum that
+ * has a scope, then at most a transition's name. The forum's screens are mounted under the shell (screen), so the
+ * page is the forum's own. topicId, topicSlug and postId are the resolver's own outputs, as the forum's are. */
+const FORUM_SCREENS = [
+    "Topics",
+    "Topics/List",
+    "Topics/TopicDetail",
+    "Topics/PostHistory",
+    "Categories",
+    "Categories/List",
+    "Categories/CategoryDetail",
+    "Tags",
+    "Search",
+    "Compose"
+]
+const WORD = /^[A-Za-z][A-Za-z0-9]{0,40}$/
+const MODE = /\.(qvue|qvt|qjs)$/
+function forumSection(screen, rest, parameters) {
+    const to = (tail, more) => ({...page(screen + tail, {...parameters, forumPath: rest.join("/")}), ...(more || {})})
+    if (!rest.length) return to("")
+    if (rest[0] === "t") {
+        if (!ID.test(rest[1] || "") || rest.length > 4 || (rest[3] != null && !WORD.test(rest[3]))) fail()
+        const slug = rest[2] || ""
+        const mode = MODE.exec(slug)
+        return to("/Topics/TopicDetail" + (mode ? "." + mode[1] : "") + (rest[3] ? "/" + rest[3] : ""), {
+            topicId: rest[1],
+            topicSlug: slug.replace(MODE, "")
+        })
+    }
+    if (rest[0] === "p") return rest.length === 2 && ID.test(rest[1]) ? to("/Post", {postId: rest[1]}) : fail()
+    if (rest[0] === "feed") return rest.length === 1 ? to("/feed") : fail()
+    return to(screenTail(rest, FORUM_SCREENS))
+}
+/* A screen of a list, perhaps with a render mode, then at most a transition's name: its path under the mount, or Not
+ * Found. */
+function screenTail(rest, screens) {
+    for (const count of [2, 1]) {
+        if (rest.length < count || rest.length > count + 1) continue
+        const names = rest.slice(0, count)
+        const mode = MODE.exec(names[count - 1])
+        names[count - 1] = names[count - 1].replace(MODE, "")
+        const after = rest.slice(count)
+        if (screens.includes(names.join("/")) && after.every(word => WORD.test(word)))
+            return "/" + names.join("/") + (mode ? "." + mode[1] : "") + (after.length ? "/" + after[0] : "")
+    }
+    return fail()
+}
+/* Moderation in a scope (design §12.3): the forum's review queue, a review, a member and the log for the scope's Owners,
+ * and Smithy's own two pages, report (a confirmed viewer reports the group or the repository) and hide (who may hide it is
+ * asked again). */
+const MODERATION_SCREENS = ["ReviewQueue", "ReviewDetail", "MemberDetail", "Log"]
+function moderationSection(rest, parameters) {
+    const to = tail => page("/Smithy/Moderation" + tail, {...parameters, moderationPath: rest.join("/")})
+    if (!rest.length) return to("")
+    if (rest.length === 1 && rest[0] === "report") return to("/Report")
+    if (rest.length === 1 && rest[0] === "hide") return to("/Hide")
+    return to(screenTail(rest, MODERATION_SCREENS))
+}
 /* Step 5 for a group. */
 function groupSection(section, parameters) {
     const [word, ...rest] = section
@@ -146,8 +241,8 @@ function groupSection(section, parameters) {
         const tab = tabOf(rest, GROUP_TABS)
         return page("/Smithy/GroupDetail/Settings", tab ? {...parameters, tab} : parameters)
     }
-    if (word === "forum") return page("/Smithy/GroupDetail/Forum", {...parameters, forumPath: rest.join("/")})
-    if (word === "moderation") return page("/Smithy/Moderation", {...parameters, moderationPath: rest.join("/")})
+    if (word === "forum") return forumSection("/Smithy/GroupDetail/Forum", rest, parameters)
+    if (word === "moderation") return moderationSection(rest, parameters)
     return fail()
 }
 /* Step 5 for a repository. refPath is every segment after the section word, a ref name followed by a path in the tree, which
@@ -225,9 +320,9 @@ function repositorySection(section, parameters) {
         case "docs":
             return with_(R + "Docs", {refPath})
         case "forum":
-            return with_(R + "Forum", {forumPath: refPath})
+            return forumSection(R + "Forum", rest, parameters)
         case "moderation":
-            return with_("/Smithy/Moderation", {moderationPath: refPath})
+            return moderationSection(rest, parameters)
         case "settings": {
             const tab = tabOf(rest, REPOSITORY_TABS)
             return with_(R + "Settings", tab ? {tab} : {})
@@ -317,7 +412,7 @@ function route(siteId, suffix, base) {
         }
     }
     const out = parse(suffix, base, resolve)
-    if (!BUILT.includes(out.screenPath) && !out.screenPath.startsWith("/Smithy/Do/")) fail()
+    if (!built(out.screenPath)) fail()
     const tab = out.screenParameters.tab
     if (tab && BUILT_TABS[out.screenPath] && !BUILT_TABS[out.screenPath].includes(tab)) fail()
     return out

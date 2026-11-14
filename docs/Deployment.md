@@ -460,7 +460,7 @@ preview host's name apart from the BOSS host's all the same.
 ## Smithy app
 
 Smithy (`screen/Smithy.xml`; [design](../plan/design-smithy.md)) is public git hosting over the framework's git host and
-Mantle's `mantle.smithy` services: groups, repositories and their code. It runs where the git data is, so mount it on the
+Mantle's `mantle.smithy` services: groups, repositories, their code, their issues and their merge requests. It runs where the git data is, so mount it on the
 authority's own instance. It is bound to no business record (no target), a site has one Smithy mount, and it may be the
 site's root app:
 
@@ -479,8 +479,11 @@ name the same path, as for every app.
 
 - **Paths.** A page's path is names, then a section after `/-/`: `/<group>[/<subgroup>…]`, `/<group>/<repository>`,
   `/<group>/<repository>/-/tree/<ref>/<path>`, `/-/blob/…`, `/-/raw/…`, `/-/commits/<ref>`, `/-/commit/<id>`,
-  `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/members`,
-  `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
+  `/-/blame/…`, `/-/compare/<base>...<head>`, `/-/branches`, `/-/tags`, `/-/archive/<ref>.zip`, `/-/issues`, `/-/issues/new`,
+  `/-/issues/<n>`, `/-/labels`, `/-/milestones`, `/-/merge-requests`, `/-/merge-requests/new`, `/-/merge-requests/<n>` (and its
+  `/commits`, `/changes`, `/checks`), `/-/fork`, `/-/forks`, `/-/edit/<ref>/<path>` (and `/-/new/…`, `/-/upload/…`,
+  `/-/delete/…`), `/-/forum[/…]`, `/-/moderation[/…]`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`,
+  `/-/forum[/…]`, `/-/members`, `/-/moderation[/…]`, `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
   the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
   and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
   (`/<group>/<repository>/blob/main/README.md`) redirect (301) once Mantle has found something the visitor may view.
@@ -493,9 +496,59 @@ name the same path, as for every app.
   Not Found on every page and path, the same as what does not exist.
 - **Caching.** A read page is `public, max-age=60` only for a request with no session cookie and no signed-in user, which
   sees public repositories alone, and that answer has `Vary: Cookie`; every other request, and every answer to a form's
-  post, is `no-store` (`screen/Shared/Headers.js`). A raw file is served as
+  post, is `no-store` (`screen/Shared/Headers.js`). An issue page (`/-/issues…`, `/-/labels`, `/-/milestones…`) and a commit's page
+  (`/-/commit/<id>`, which names its issues) are `no-store` for a visitor too: an issue may be made confidential, and no
+  cache should still have its page. A merge request's pages (`/-/merge-requests…`; one may be held for review), the pages
+  that edit a file and the fork pages are `no-store` for a visitor as well, and so are the forum's pages inside a group or a
+  repository (`/-/forum…`) and the moderation pages (`/-/moderation…`). The Issues and Merge requests tabs show their
+  counts to a signed-in account only. A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
 - **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
+  The one exception is a form with a text on an issue page (a new issue, a comment, an edit), shown to a signed-in
+  account: it loads the framework's Vue scripts for the editor (`/-/island/Composer.qvue`, Markdown or rich text with a
+  preview in the page). Without JavaScript the form is a Markdown textarea with a Preview button. Two more pages load
+  them, with the framework's code widgets (`/js/WebrootCode.js`, which loads CodeMirror from `/libs/codemirror` when an
+  editor mounts): a merge request's Changes (`/-/island/DiffReview.qvue`: a line's comment form opened in place, a file
+  side by side) and a file's edit page (`/-/island/Editor.qvue`: the code editor over the plain textarea). Both pages
+  work without them: the diff is escaped text with an anchor and a comment link for each line, the editor a textarea.
+- **Issues.** A repository's Maintainer turns issues on in its Settings (General); the repository then has the Issues
+  tab, Labels and Milestones, and its project in Projects holds the tasks. An issue's conversation is posts of the
+  forum's engine, so the site's posting policy, trust levels, word rules, review queue and notification mail apply to
+  issues and comments as they do to topics, and a held one shows "Waiting for review" to its author. A confidential
+  issue is read by the Owners of the repository and of the groups above it, the site's operators, and its reporter
+  (what was filed and the answers); for everyone else its number is Not Found. An Owner makes it public, or a public one
+  confidential, on the issue's page, which asks again first.
+- **Merge requests.** A repository has them unless its Maintainer turns them off (Settings, General). One is opened from a
+  branch (Branches, Compare, or `/-/merge-requests/new`), from a fork's branch (`<group>/<repository>:<branch>` as the
+  source), by a push to `refs/for/<branch>` from any account that may view the repository, or by an edit on a file's
+  page. Its conversation is posts of the forum's engine, as an issue's is, so the site's posting policy applies: one
+  that is held shows "Waiting for review" to its author and is Not Found to everyone else until a moderator approves
+  it. A merge and a close are asked again on a page of their own; who may merge, the allowed methods, the approvals and
+  the required checks come from the branch rules (Settings, Branch rules). `git fetch origin refs/merge-requests/<n>/head`
+  fetches one. These are set in mr-mantle's `MoquiConf.xml` on the `git-server` element, and must be kept when a
+  runtime's conf replaces it: `review-start-hidden="true"` (a merge request from a push for review, a proposal or a
+  fork is not readable until Smithy's handler has passed its text through the post gate),
+  `reserved-status-contexts="agreement/,ci/"` (no user reports those checks; the agreement check and the CI engine
+  do) and `merge-request-url` (the page a push's answer names). Mantle sets it to
+  `/{repositoryPath}/-/merge-requests/{mergeRequestNum}`, which is right only where Smithy is the site's root app: with
+  Smithy under a path, set it in the runtime's conf with that prefix (`/code/{repositoryPath}/-/merge-requests/{mergeRequestNum}`). The
+  framework's `review-push`, `review-max-push-bytes` and `review-max-account-bytes` bound pushes for review
+  ([Git-Hosting](../../../../../docs/interfaces/Git-Hosting.md)).
+- **Forks.** Site settings say who may fork (`/-/site`, with who may create). A fork goes to the account's own namespace,
+  so the account needs a handle (its profile in the Account app), or to a group where it is a Maintainer; it is no
+  wider than its parent, and a parent with forks is not deleted.
+- **Editing a file.** A signed-in account with a confirmed address edits a text file on its page (Edit, New file,
+  Upload, Delete; a rename is an edit of the path), up to the site's edit size (`/-/site`, "maxEditBytes", 1 MiB by
+  default) and not a file in Git LFS. The save is a commit by the account: to the branch where it may push, to a new
+  branch with a merge request (the default on a protected branch), or as a proposal with no fork when it may only
+  view. The text of an unfinished edit is kept in the server session for the one next page (the save step, a preview,
+  a conflict), up to two minutes. An upload (any type of file, at most the edit size and 10 MiB) is staged and scanned as a forum
+  attachment is, so the media scanner must be configured for uploads to be accepted.
+- **The contributor agreement.** Off by default. An Owner turns it on for a group or a repository (Settings, Agreement:
+  inherit, off or required, and the file, `AUTHORS.md` by default, which must be in the repository first). Mantle then
+  requires the check `agreement/authors` in the branch rules, computes it for every merge request, and the merge
+  request's page says who is missing what, with a link that opens the file's edit page so the account adds its own
+  line under both lists. An account is matched to a commit's author by its confirmed addresses.
 - **Who may create.** The site's owners and operators set it on `/-/site` under the mount (Site settings in the header):
   who may create a group, a repository of their own and a fork (operators only; by request, which an operator approves or
   refuses on `/-/site/requests`; any account with a confirmed address), the kind of a repository made on a page (`db`, or
@@ -522,6 +575,35 @@ name the same path, as for every app.
   `blame-max-commits` the Blame page.
 - **Push.** A push needs a role of Developer or higher in the repository and a confirmed address; branch rules and
   webhooks are a repository's Settings (a Maintainer's), its members, visibility, transfer, archive and delete an Owner's.
+- **The forum in a group and a repository.** A site has one forum. A group has a category in it, and its Owner shows it
+  on the group's Settings, Forum tab ("Turn the forum on", which publishes the category); a repository's Owner turns its
+  own subcategory on in the repository's Settings, once the forum of the group above is on. The category is read by
+  whoever may view the group or the repository, never more widely. The forum's own pages are then at
+  `/<group>/-/forum` and `/<group>/<repository>/-/forum`, limited to that category and what is below it, inside the
+  group's or the repository's page with the Forum tab: the topic list, a topic (`…/-/forum/t/<id>/<slug>`), the
+  categories, tags, search, the composer (a new topic starts in the scope's category) and the feed
+  (`…/-/forum/feed`). `/forum`, where the site mounts it, stays the whole site's forum, and a topic's canonical address
+  is the one there; a site need not mount `/forum` for the groups' forums to work, but Messages, Drafts, Bookmarks and
+  the forum's own settings are pages of that mount only. A topic there has "Make an issue" for a Reporter of a
+  repository: the issue quotes the chosen posts and each links the other.
+- **Moderation in a group and a repository.** Smithy has no moderation of its own: what a public account writes (a
+  topic, an issue, a comment, a merge request) passes the forum's gate, and what is held or reported waits in the
+  forum's review queue. The Owners of a group see the queue and the log of their group's category and what is below it
+  at `/<group>/-/moderation` (the Moderation tab), a repository's Owners at `/<group>/<repository>/-/moderation`; the
+  site's own moderators keep `/forum/Moderation/ReviewQueue`, and internal moderators BOSS Comms. A signed-in account
+  with a confirmed address reports a group or a repository ("Report this repository"); the report waits in the queue of
+  the group above it, or the site's for a top-level group. An Owner of a group above, and the site's owners and
+  moderators, hide a repository or a group ("Hide it", asked again with a reason, or the decision "rejected" on its
+  report): it is then Not Found to everyone but its owners and the site's moderators, on its pages and in git, nothing
+  is deleted, and they show it again the same way. What the site's staff hid, an Owner does not show again.
+- **Security reports by mail.** A group's Owner names an address and the repository that takes the reports (Settings,
+  Forum tab, "Security reports by mail"); an owner or a moderator of the site turns the address on. The address's
+  domain must be one of `pass_route_domains` and its mail must reach the forum's inbound account, as a route address's
+  does (Inbound email, below). Mail to it from an account's confirmed address files a confidential issue as that
+  account. Mail from any other address is not posted: it is held for 30 days, its sender gets one reply a day with the
+  link `/-/held-report/<token>` under Smithy's mount, and the repository's Owners see it waiting in their review queue.
+  The link's page asks a visitor to sign in or register; the account whose confirmed address sent the message then
+  files it with the page's form. Outbound mail must be configured for the reply to be sent.
 
 ## Adding an app
 
@@ -594,7 +676,46 @@ handles each stored message. Set the gateway's `smtp_authserv_id` so only its
 `Authentication-Results` are kept: a sender must be one verified account address with DMARC, or
 aligned DKIM, passing there. Nothing creates accounts from mail, and unknown senders get no reply.
 Automatic replies and the forum's own mail are ignored, delivery reports mark hard bounces and
-stop that member's email, and a failed message can be retried from the Mail screen.
+stop that member's email, and a failed message can be retried from the Mail screen. A mailing list's address and a
+security report address answer an unknown sender once and hold the message (Mailing lists, below, and the Smithy
+app's "Security reports by mail").
+
+### Mailing lists
+
+A mailing list is a category whose mode is `list`, with a route address of its own. On a site with Smithy the forms
+are on a group's or a repository's Settings, Forum tab, once its forum is on; an owner of the site sets the mode and
+the address, and the group's or the repository's Owner imports the archive and invites the members.
+
+1. **The address and its mail route.** Choose the list's address (`dev@lists.example.org`) in a domain you receive
+   mail for, and add that domain to `pass_route_domains`. Publish the domain's MX record to the edge gateway (or the
+   mail server whose account the listener syncs), and its SPF, DKIM and DMARC records for the mail the list sends, as
+   for every sending domain. Deliver the address to the forum's inbound account as every route address is delivered
+   (Inbound email, above). Then set the category's mode to "Mailing list" and save the address ("List address"; on the
+   site forum, the Categories and Mail settings).
+2. **Headers.** A list category's mail carries its own `List-Id` (`"<name>" <dev.lists.example.org>`, the address with
+   its `@` as a dot), `List-Post` (`<mailto:dev@lists.example.org>`) and `List-Archive` (the category's page), so a
+   subscriber's mail filter tells the lists apart; other forum mail keeps the site's `List-Id`. An issue's or a merge
+   request's mail carries `List-Id: <repository path with dots>.<host>`.
+3. **Posting by mail** needs an account with a confirmed address, as on the pages. A message from an address that is
+   no account's is not posted: it is held for 30 days, its sender gets one reply a day with a link
+   (`<forum>/held-mail/<token>`) to sign in or register with that address and post it, and it is posted by itself when
+   an account verifies that address. The list's moderators see it waiting in the review queue and may drop it.
+4. **Spam.** Mail the gateway marked as spam (the listener's Junk folder, or `X-Spam-Flag`, `X-Spam-Status` or `X-Spam`
+   on the message) is never posted and its sender is not answered: from an account it is held in the review queue with
+   the reason `mail-verdict`; from any other address only its receipt is kept (Mail settings, Inbound messages).
+5. **Importing an archive.** Put the old list's mbox file in `pass_import_dir`, take its SHA-256 (`shasum -a 256`), and
+   start the import with the file's name and the checksum ("Import an archive"). Messages become topics and posts
+   with their dates, threaded by `Message-ID`, `In-Reply-To` and `References`; an author is a profile with no account,
+   kept by the hash of the address, and the posts become a person's own when an account verifies that address. No
+   mail is sent. The run is advanced by `pass_dispatch_operations`; its page shows what was made and what was not
+   carried (attachments, an unknown character set, a message that is too long, empty or unreadable). Starting the same
+   file again resumes the run and makes nothing twice.
+6. **Inviting the members.** Paste the old list's addresses ("Invite the list's members", up to 500 at a time). Each
+   gets one invitation by mail, which needs outbound mail configured; its link is the Account app's Invitation page,
+   where the person signs in or registers with that address and accepts, and is then sent every post of the list.
+   Nobody is subscribed without it. An invitation lasts 14 days; an address with an open one is not mailed again.
+7. **Cutover.** Import the archive, invite the members, send a last message to the old list with the new address, and
+   make the old list read only. Import the archive once more afterwards to carry what arrived in between.
 
 ### Automated classification
 

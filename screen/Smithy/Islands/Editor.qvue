@@ -1,0 +1,48 @@
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md.
+    The editor of a file's edit page (plan/design-smithy.md §9 Edit), the island over the plain form's textarea
+    (Smithy/SmithyReview.js edit): the framework's code editor (m-code-editor), with the language of the file's name. The
+    plain textarea stays the form's field, out of sight and kept in step with what is written here, so the form is posted
+    exactly as the plain page posts it; if this does not load, the plain form is unchanged. -->
+<template>
+    <div v-if="ready" class="smithy-editor-island">
+        <m-code-editor
+            v-model="text"
+            :file-name="fileName"
+            min-height="24rem"
+            max-height="80vh"
+            aria-label="Text of the file"
+        ></m-code-editor>
+    </div>
+</template>
+<script>
+module.exports = {
+    name: 'SmithyEditor',
+    data() {
+        return { ready: false, text: '', fileName: '' }
+    },
+    mounted() {
+        const context = (this.$root.config || {}).context || {}
+        const form = document.getElementById(context.formId)
+        const area = form && form.querySelector('textarea[name="content"]')
+        // without the plain field there is nothing to enhance: the page stays as it is
+        if (!area) return
+        this.area = area
+        this.text = area.value
+        this.fileName = context.fileName || ''
+        // the path may be changed (a rename, a new file's name): the language follows it
+        const path = form.querySelector('input[name="newPath"]')
+        if (path)
+            path.addEventListener('input', () => {
+                this.fileName = path.value
+            })
+        const label = area.closest('label')
+        if (label) label.style.display = 'none'
+        this.ready = true
+    },
+    watch: {
+        text(value) {
+            if (this.area) this.area.value = value || ''
+        },
+    },
+}
+</script>

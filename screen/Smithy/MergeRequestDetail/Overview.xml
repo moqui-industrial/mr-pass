@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- MergeRequestOverview (design-smithy §9): the conversation (the posts of the merge request's record topic, as an issue's)
+    with a reply form, the review form (comment, approve, request changes, by capability), and beside them the reviewers
+    and their decisions, the checks of the head, the agreement (signed, or who is missing what, with Sign), mergeability,
+    how to fetch it, and the merge box: the allowed methods for who may merge, or why it is refused. A merge and a close
+    are asked again on ?confirm=. Every form posts to Smithy/Do. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Overview">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').overview(smithyRepository,smithyRequest,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

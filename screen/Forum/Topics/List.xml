@@ -15,7 +15,7 @@
   <actions>
     <script><![CDATA[
         screenName='Topics'
-        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo)
+        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo,forumScope)
     ]]></script>
   </actions>
   <widgets>

@@ -853,9 +853,22 @@ post.
   list, count, search result, feed, commit page or notification. A Maintainer is not an Owner and does not see it,
   and neither is a project manager: a project role gives Maintainer at most (§5.2).
 - **In Projects.** A `WevConfidential` task that has a `SmithyIssue` is hidden from everyone but those Owners and
-  operators: `get#VisibleProjectInfo` and the task reads behind it leave it out for the project's managers, the
-  task's own parties and `allProjects` users, who see `WevConfidential` tasks today (`ProjectServices.xml`). Its
-  Chatter and description are hidden with it. An Owner does not assign it to a party who is not an Owner. (N-BOSS-ISSUE.)
+  operators: the project's managers, the task's own parties and `allProjects` users, who see `WevConfidential` tasks
+  today (`ProjectServices.xml`), do not see it. Its Chatter and description are hidden with it. An Owner does not
+  assign it to a party who is not an Owner. (N-BOSS-ISSUE.)
+  - **How (decided in DG3's review, Nov 13, 2026).** A confidential issue's task is kept in a **companion project** of
+    the repository (`SmithyRepository.confidentialWorkEffortId`, made on first need, never linked to the repository),
+    whose only members are the internal accounts that are Owners of the repository or of a group above it, kept in step
+    with every change of roles. Projects' ordinary rule (one sees the tasks of the projects one is on) then hides the
+    task in every read, in BOSS and in Mantle. Making an issue confidential or public moves its task between the
+    tracker's project and the companion; its id, time and notes stay.
+  - `get#VisibleProjectInfo` `hiddenItemIds` (the confidential issues' tasks the user is no Owner of) stays as a second
+    layer: Mantle's task reads and BOSS's own (`HiddenItems.js`) leave those ids out, and fail closed.
+  - **Why.** The first build only filtered: every reader of tasks was to leave `hiddenItemIds` out. The review found
+    about forty readers in BOSS and Mantle that still named or counted such a task (breadcrumbs, parent names, Today,
+    the calendar, timers, timesheets, invoices, estimates, release notes, burndown, allocations, search rows,
+    notifications, unlink and move). A filter each reader must remember does not hold; membership of a project is a
+    rule every reader already applies.
 - **The review queue and the classifier.** A held post of a confidential issue is read and decided by its Owners
   only, never by a site or category moderator or in BOSS Comms Moderation, and its text is never sent to the
   classifier (§12.1).
@@ -2374,7 +2387,7 @@ the N items are what this design adds to them.
 | N-GATE | mantle | DG3 | `ForumCore.gate` and `gateCommit`, called by `publishPost`, `updatePost`, `postInbound` and Smithy (§12.2); DG2's direct `sanctioned` and `applyRules` calls move into it. |
 | N-PROJECTION | mantle | DG3 | `mantle.work.PublicProjectionServices` (§8.2), shared with the Client portal. |
 | N-REFS | mantle | DG3 | `#n`, `!n` and `<repositoryPath>#n` in `find#TaskReferences`, `apply#CommitKeywords` and `link#MergeRequestItems` (§8.4). |
-| N-BOSS-ISSUE | boss, mantle | DG3 | Projects' WorkItemDetail shows the issue number and the outward conversation of a task that has a `SmithyIssue`, and does not edit its description. A `WevConfidential` task that has a `SmithyIssue` is hidden in Projects (`get#VisibleProjectInfo` and the reads behind it) from everyone but the Smithy Owners of its repository and groups, and operators: a project manager is not an Owner for this unless they hold `SmrOwner` (§8.3). |
+| N-BOSS-ISSUE | boss, mantle | DG3 | Projects' WorkItemDetail shows the issue number and the outward conversation of a task that has a `SmithyIssue`, and does not edit its description. A `WevConfidential` task that has a `SmithyIssue` is hidden in Projects (`get#VisibleProjectInfo` and the reads behind it) from everyone but the Smithy Owners of its repository and groups, and operators: a project manager is not an Owner for this unless they hold `SmrOwner` (§8.3). It is hidden by keeping the task in a companion project whose members are those Owners (§8.3), with `hiddenItemIds` as a second layer; `update#WorkItemField` and `update#TaskInfo` refuse the description of a task that is an issue. |
 | F4 | framework | DG4 | Forks (§9.2), with a service that makes one (`fork#GitRepository`: source, new id, new path). |
 | F5 | framework | DG4 | `refs/for/*`, `refs/merge-requests/*`, push options, `reviewTopic` and `pushedForReview`. |
 | N-COMMIT | framework | DG4 | `commit#GitFiles` gains `branch`, `newBranch` (create it from `branch`), `asProposal` with `targetRef` and `mergeRequestId` (commit to `refs/merge-requests/<n>/head`), `expectedBlobIds` (path to blob id; a mismatch is a conflict), `authorName`, `authorEmail`, and returns the merge request it opened. It checks update for a branch and view for a proposal. Smithy's `commitFile` is its only caller for a repository with a Smithy row (N-HOOKS). |

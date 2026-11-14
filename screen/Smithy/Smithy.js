@@ -1,5 +1,6 @@
 /* Smithy's pages (Dogfood DG1, DG2; plan/design-smithy.md §1, §6, §7): the browsing of groups and repositories. The pages
- * that write (DG2: new, settings, members, Git access) and the forms' transitions are SmithyForms.js, which uses this.
+ * that write (DG2: new, settings, members, Git access) and the forms' transitions are SmithyForms.js, which uses this;
+ * DG3's issue pages are SmithyIssues.js and DG4's merge requests, forks and file editing SmithyReview.js.
  * Each page's view is built here from the authority's reads, every one through pass.Facade.call#Operation (Shared/Portal.js
  * attempt), with the ids the route resolver gave (service/pass/SmithyRoutes.js). What the authority answers Not Found (a path
  * with no row, and what the caller may not view) is the framework's Not Found, the same for both. A page is plain HTML with
@@ -171,20 +172,59 @@ const commitRow = (u, base, c) => ({
     shortId: shortId(c.commitId),
     href: u.commit(c.commitId),
     summary: c.summary || "",
-    // DG1 shows the name in the commit; no account is taken from an address
+    // the name in the commit, and the account's handle when the authority gives one (who pushed it, DG4); no account is
+    // taken from an address here
     authorName: c.authorName || "",
+    authorHandle: c.authorHandle || "",
+    authorHref: c.authorHandle ? (base || "") + "/" + enc(c.authorHandle) : null,
     date: dateText(c.authorDate || c.commitDate)
 })
 
 /* The section word of a request path (the segment after /-/), or "" for a name's own page. */
 const sectionWord = path => /\/-\/([^/?]+)/.exec(String(path || ""))?.[1] || ""
 
+/* The open issues the caller may see of a repository ({repositoryId}) or of a group's repositories ({groupId}), for the
+ * Issues tab: the count findIssues answers (design §8), which leaves out what the caller may not see; null when it cannot be
+ * read, and for a visitor, whose page a cache may keep for a minute while an issue is made confidential. */
+function openIssueCount(siteId, scope) {
+    // not on a page a shared cache may keep: a visitor's shell has the tab without a count
+    if (!ec.user.userId) return null
+    const counts = maybe("findIssues", {siteId, ...scope, state: "open", limit: 1})?.counts
+    return counts && Number.isFinite(Number(counts.open)) ? Number(counts.open) : null
+}
+/* The open merge requests of a repository the caller may see, for the Merge requests tab (findMergeRequests' count, which
+ * leaves out one held for review); null for a visitor, as the Issues tab's count is, and when it cannot be read. */
+function openMergeRequestCount(siteId, repositoryId) {
+    if (!ec.user.userId) return null
+    const counts = maybe("findMergeRequests", {siteId, repositoryId, state: "open", limit: 1})?.counts
+    return counts && Number.isFinite(Number(counts.open)) ? Number(counts.open) : null
+}
+/* The scopes of a group or a repository (design §12.3, §12.5; Dogfood §6.1), from the read's forum view. forumScope: the
+ * category whose subtree the forum's pages inside the shell are limited to and the link base that takes the forum base's
+ * place there; it is there when the forum is on (enabled) or the caller owns the scope. moderationScope: the category
+ * whose review queue and log the scope's moderation pages show, for its Owners and the site's staff (a repository with
+ * no category of its own has its group's). Both are plain data, kept in the screen's context. */
+function scopesOf(found, record, root) {
+    const forum = found.forum || {}
+    const base = root + "/-/forum"
+    const moderationBase = root + "/-/moderation"
+    const enabled = !!forum.enabled
+    const canModerate = !!forum.moderationContactListId
+    const scope = contactListId => ({contactListId: String(contactListId), enabled, base, moderationBase, canModerate, name: record.name || ""})
+    return {
+        forumScope: forum.contactListId ? scope(forum.contactListId) : null,
+        moderationScope: canModerate ? scope(forum.moderationContactListId) : null
+    }
+}
 /* A group's shell (design §1): its record, breadcrumb, visibility and the tabs the caller may use. */
 function groupShell(siteId, groupId, base, path) {
     const found = need("getGroup", {siteId, groupId})
     const group = found.group
     const root = (base || "") + "/" + enc(group.groupPath)
     const word = sectionWord(path)
+    const {forumScope, moderationScope} = scopesOf(found, group, root)
+    // the forum's pages of a group that shows no forum are Not Found
+    if (word === "forum" && !forumScope?.enabled) fail()
     return {
         group,
         siteId,
@@ -192,6 +232,17 @@ function groupShell(siteId, groupId, base, path) {
         capabilities: found.capabilities || {},
         myRole: found.myRole || null,
         root,
+        section: word,
+        forumScope,
+        moderationScope,
+        // the issue repository's address for security reports, for its Owners (design §12.4)
+        issueMailRoute: found.forum?.issueMailRoute || null,
+        // hidden by a moderator (design §12.3): Not Found to everyone else, and marked for those who still see it
+        hidden: !!group.hidden,
+        // Report, for a signed-in account (whose page no cache keeps)
+        reportHref: ec.user.userId ? root + "/-/moderation/report" : null,
+        // Hide or show again, for who may (the site's staff, an Owner of a group above)
+        hideHref: found.capabilities?.canHide ? root + "/-/moderation/hide" : null,
         flash: takeFlash(),
         visibility: visibilityOf(group),
         crumbs: crumbsOf(base, group.groupPath, group.name),
@@ -199,7 +250,17 @@ function groupShell(siteId, groupId, base, path) {
         tabs: [
             {label: "Overview", href: root, current: !word},
             {label: "Repositories", href: root + "/-/repositories", current: word === "repositories"},
+            // the open issues of its repositories that the caller may see
+            {
+                label: "Issues",
+                href: root + "/-/issues",
+                current: word === "issues",
+                count: openIssueCount(siteId, {groupId: group.groupId})
+            },
+            ...(forumScope?.enabled ? [{label: "Forum", href: forumScope.base, current: word === "forum"}] : []),
             {label: "Members", href: root + "/-/members", current: word === "members"},
+            // the scope's moderation is its Owners' (and the site's staff's)
+            ...(moderationScope ? [{label: "Moderation", href: moderationScope.moderationBase, current: word === "moderation"}] : []),
             ...(holds(found.myRole, "owner")
                 ? [{label: "Settings", href: root + "/-/settings", current: word === "settings"}]
                 : [])
@@ -336,8 +397,17 @@ function repositoryShell(siteId, repositoryId, base, path) {
     const repository = found.repository
     const u = urls(base, repository.repositoryPath)
     const clone = found.cloneUrls || {}
+    const {forumScope, moderationScope} = scopesOf(found, repository, u.root)
+    // the forum's pages of a repository that has no forum are Not Found
+    if (word === "forum" && !forumScope?.enabled) fail()
     return {
         repository,
+        section: word,
+        forumScope,
+        moderationScope,
+        hidden: !!repository.hidden,
+        reportHref: found.capabilities?.signedIn ? u.section("moderation") + "/report" : null,
+        hideHref: found.capabilities?.canHide ? u.section("moderation") + "/hide" : null,
         // the repository's group (null in a personal namespace): what is inside it is no wider than it
         group: found.group || null,
         siteId,
@@ -350,6 +420,10 @@ function repositoryShell(siteId, repositoryId, base, path) {
         forkOf: repository.forkOf?.repositoryPath
             ? {path: repository.forkOf.repositoryPath, href: (base || "") + "/" + enc(repository.forkOf.repositoryPath)}
             : null,
+        // Fork, for a signed-in account the site's policy lets fork (the page says why when it may not), and the forks
+        forkHref: found.capabilities?.signedIn && found.capabilities?.canFork !== false ? u.section("fork") : null,
+        forkCount: Number(repository.forkCount) || 0,
+        forksHref: u.section("forks"),
         // where Smithy is the site's root app the page's URL is a clone address too, and comes first
         cloneUrls: [
             ["Page URL", clone.page],
@@ -366,10 +440,37 @@ function repositoryShell(siteId, repositoryId, base, path) {
             .filter(([, url]) => url)
             .map(([label, url]) => ({label, url})),
         tabs: [
-            {label: "Files", href: u.root, current: ["", "tree", "blob"].includes(word)},
+            {
+                label: "Files",
+                href: u.root,
+                current: ["", "tree", "blob", "blame", "edit", "new", "upload", "delete"].includes(word)
+            },
             {label: "Commits", href: u.section("commits"), current: ["commits", "commit"].includes(word)},
             {label: "Branches", href: u.section("branches"), current: word === "branches"},
             {label: "Tags", href: u.section("tags"), current: word === "tags"},
+            // a feature turned off has no tab (and its pages are Not Found)
+            ...(repository.features?.issues
+                ? [
+                      {
+                          label: "Issues",
+                          href: u.section("issues"),
+                          current: ["issues", "labels", "milestones"].includes(word),
+                          count: openIssueCount(siteId, {repositoryId: repository.repositoryId})
+                      }
+                  ]
+                : []),
+            ...(repository.features?.mergeRequests !== false
+                ? [
+                      {
+                          label: "Merge requests",
+                          href: u.section("merge-requests"),
+                          current: word === "merge-requests",
+                          count: openMergeRequestCount(siteId, repository.repositoryId)
+                      }
+                  ]
+                : []),
+            ...(forumScope?.enabled ? [{label: "Forum", href: forumScope.base, current: word === "forum"}] : []),
+            ...(moderationScope ? [{label: "Moderation", href: moderationScope.moderationBase, current: word === "moderation"}] : []),
             // a tab the caller may not use is absent: Settings is a Maintainer's
             ...(holds(found.capabilities?.role, "maintainer")
                 ? [{label: "Settings", href: u.section("settings"), current: word === "settings"}]
@@ -460,7 +561,8 @@ function pathCrumbs(u, ref, path, repositoryLabel) {
     ]
 }
 /* Files (design §7): the tree at a ref and a path, its last commit and the directory's rendered README; an empty repository's
- * push instructions; {redirect} for the ref picker's choice and for a path that is a file. */
+ * push instructions; {redirect} for the ref picker's choice and for a path that is a file. The screen's pre-actions call
+ * this, so a redirect is answered before anything of the page is written, and its actions show what was read. */
 function files(shell, refPath) {
     const u = urls(shell.base, shell.repository.repositoryPath)
     const picked = param("ref")
@@ -498,6 +600,15 @@ function files(shell, refPath) {
         entries,
         lastCommit: tree.lastCommit ? commitRow(u, shell.base, tree.lastCommit) : null,
         historyHref: u.commits(ref, treePath),
+        // New file and Upload at this directory of a branch, for a signed-in account (the page says what it may do)
+        newFileHref:
+            tree.ref?.kind === "branch" && shell.capabilities.signedIn && !shell.repository.archived
+                ? u.section("new", joinRef(ref, treePath))
+                : null,
+        uploadHref:
+            tree.ref?.kind === "branch" && shell.capabilities.signedIn && !shell.repository.archived
+                ? u.section("upload", joinRef(ref, treePath))
+                : null,
         // the whole tree at this ref as a file, for a signed-in account (the authority serves no archive to a visitor)
         archives: shell.capabilities.signedIn && !treePath ? archiveLinks(u, ref) : null,
         // the page's own address is built from what was read, never from the request's path
@@ -561,6 +672,16 @@ function blob(shell, refPath) {
         // each line's commit, for a file shown as text
         blameHref: !found.binary && !found.lfs && !found.tooLarge ? u.blame(ref, filePath) : null,
         historyHref: u.commits(ref, filePath),
+        // Edit and Delete on a branch, for a signed-in account: the edit page says whether and where it may save (a text
+        // file under the size limit that is not in Git LFS)
+        editHref:
+            found.ref?.kind === "branch" && shell.capabilities.signedIn && !shell.repository.archived && !found.lfs && !found.binary && !found.tooLarge
+                ? u.section("edit", joinRef(ref, filePath))
+                : null,
+        deleteHref:
+            found.ref?.kind === "branch" && shell.capabilities.signedIn && !shell.repository.archived
+                ? u.section("delete", joinRef(ref, filePath))
+                : null,
         permalink: found.ref?.commitId ? u.blob(found.ref.commitId, filePath) : null,
         lastCommit: found.lastCommit ? commitRow(u, shell.base, found.lastCommit) : null
     }
@@ -728,6 +849,15 @@ function refs(shell, refType) {
         ahead: r.aheadBy,
         behind: r.behindBy,
         compareHref: refType === "branch" && defaultBranch && r.name !== defaultBranch ? u.compare(defaultBranch, r.name) : null,
+        // a branch that is not the default one opens a merge request to it
+        mergeRequestHref:
+            refType === "branch" &&
+            defaultBranch &&
+            r.name !== defaultBranch &&
+            shell.repository.features?.mergeRequests !== false &&
+            shell.capabilities.signedIn
+                ? u.section("merge-requests") + "/new" + query({base: defaultBranch, head: r.name})
+                : null,
         archives: refType === "tag" && shell.capabilities.signedIn ? archiveLinks(u, r.name) : null
     }))
     // the default branch first
@@ -756,7 +886,21 @@ function changedFiles(fileList, fileDiffList) {
     const diffs = new Map((fileDiffList || []).map(d => [d.path, d]))
     return (fileList || []).map((f, i) => {
         const diff = diffs.get(f.path)
-        const text = diff?.unifiedDiff ?? diff?.diff ?? null
+        // a comparison's diff comes as hunks of lines (data, never the host's markup); a commit's as unified text
+        const text =
+            diff?.unifiedDiff ??
+            diff?.diff ??
+            (diff?.hunks?.length
+                ? diff.hunks
+                      .map(
+                          hunk =>
+                              "@@ -" + hunk.oldStart + "," + hunk.oldLines + " +" + hunk.newStart + "," + hunk.newLines + " @@\n" +
+                              (hunk.lines || [])
+                                  .map(line => (line.tag === "insert" ? "+" : line.tag === "delete" ? "-" : " ") + (line.text ?? ""))
+                                  .join("\n")
+                      )
+                      .join("\n")
+                : null)
         return {
             anchor: "file-" + (i + 1),
             path: f.path,
@@ -784,11 +928,33 @@ function commit(shell, commitId) {
         commitDate: dateText(c.commitDate),
         parents: (c.parentIds || []).map(id => ({shortId: shortId(id), href: u.commit(id)})),
         browseHref: u.tree(c.commitId, ""),
+        // the branches and tags that contain it (DG4; the authority bounds the list)
+        refs: (found.refList || []).map(ref => ({
+            name: ref.name,
+            kind: ref.kind || ref.refType || "",
+            isDefault: !!ref.isDefaultBranch,
+            href: u.tree(ref.name, "")
+        })),
+        refsTruncated: !!found.refsTruncated,
+        // the merge requests it is part of, those the caller may see
+        mergeRequests: (found.linkedMergeRequests || []).map(request => ({
+            number: request.mergeRequestNum,
+            title: request.title || "",
+            state: request.state || "",
+            href: u.section("merge-requests") + "/" + encodeURIComponent(request.mergeRequestNum)
+        })),
         statuses: (found.statusList || []).map(s => ({
             context: s.context || "default",
             state: s.state || "",
             description: s.description || "",
             href: /^https:\/\//.test(String(s.targetUrl || "")) ? s.targetUrl : null
+        })),
+        // the issues it names that the caller may see; one the caller may not see is in the count alone
+        issues: (found.linkedIssues || (c.issueNumbers || []).map(issueNumber => ({issueNumber}))).map(issue => ({
+            number: issue.issueNumber,
+            title: issue.title || "",
+            closed: issue.state === "closed",
+            href: u.section("issues") + "/" + encodeURIComponent(issue.issueNumber)
         })),
         hiddenItemCount: Number(found.hiddenItemCount) || 0,
         insertions: Number(found.insertions) || 0,
@@ -797,19 +963,35 @@ function commit(shell, commitId) {
         files: changedFiles(found.fileList, found.fileDiffList)
     }
 }
-/* Compare (design §7): two refs, ahead and behind, the commits and the diff; {redirect} for the form's choice. */
-function compare(shell, base, head, headRepositoryPath) {
-    const u = urls(shell.base, shell.repository.repositoryPath)
+/* The address the Compare form's choice goes to (the screen's pre-actions redirect there before anything renders), or null
+ * when the request makes none. namePath is the repository's path as the resolver gave it. */
+function compareRedirect(base, namePath) {
+    const u = urls(base, namePath)
     const formBase = param("from")
     const formHead = param("to")
-    if (formHead) return {redirect: formBase ? u.compare(formBase, formHead) : u.section("compare", formHead)}
+    return formHead ? (formBase ? u.compare(formBase, formHead) : u.section("compare", formHead)) : null
+}
+/* Compare (design §7): two refs, ahead and behind, the commits and the diff, and Open merge request when the head is
+ * ahead. The head may be a fork's ref (<repositoryPath>:<ref>). */
+function compare(shell, base, head, headRepositoryPath) {
+    const u = urls(shell.base, shell.repository.repositoryPath)
     const headText = (headRepositoryPath ? headRepositoryPath + ":" : "") + (head || "")
     const view = {
         action: u.section("compare"),
         base: base || shell.repository.defaultBranch || "",
         head: headText,
         result: null,
-        failure: null
+        failure: null,
+        // a fork compares with its parent on the parent's page, its own branch as the head
+        parent: shell.forkOf
+            ? {
+                  path: shell.forkOf.path,
+                  href: head
+                      ? urls(shell.base, shell.forkOf.path).section("compare", shell.repository.repositoryPath + ":" + head)
+                      : urls(shell.base, shell.forkOf.path).section("compare")
+              }
+            : null,
+        openHref: null
     }
     if (!head) return view
     const found = portal.attempt("getCompare", {
@@ -842,6 +1024,9 @@ function compare(shell, base, head, headRepositoryPath) {
         deletions: Number(r.deletions) || 0,
         files: changedFiles(r.fileList, r.fileDiffList)
     }
+    // the head is ahead: a merge request may be opened from it (the page of the new one says who may)
+    if (view.result.aheadBy > 0 && shell.repository.features?.mergeRequests !== false)
+        view.openHref = u.section("merge-requests") + "/new" + query({base: view.base, head: headText})
     return view
 }
 /* Whether a location is a path on this site: one leading slash, and no backslash or control character (a browser reads
@@ -858,6 +1043,12 @@ function redirect(location, status) {
         response.setHeader("Location", location)
         response.write("")
     } else response.sendRedirect(location)
+}
+/* A redirect a screen's pre-actions answer (sri is its render): never kept by a cache, and only to a path on this site. */
+function redirectBefore(sri, location) {
+    if (!siteLocal(location)) fail()
+    ec.web.response.setHeader("Cache-Control", "no-store")
+    sri.sendRedirectAndStopRender(location)
 }
 /* The answer to a form's post (303 See Other), never kept by a cache; only to a path on this site. */
 function seeOther(location) {
@@ -889,6 +1080,14 @@ function redirectRoute(location) {
     takeFlash,
     expireFlash,
     maybe,
+    openIssueCount,
+    refName,
+    shortId,
+    commitRow,
+    changedFiles,
+    pathCrumbs,
+    sectionWord,
+    compareRedirect,
     seeOther,
     codeHtml,
     diffHtml,
@@ -910,6 +1109,7 @@ function redirectRoute(location) {
     commit,
     compare,
     redirect,
+    redirectBefore,
     redirectRoute,
     siteLocal,
     disposition,

@@ -31,9 +31,10 @@
         const info=call('getSiteInfo',{})
         let draft=ec.web.parameters.draftId?call('getDraft',{draftId:ec.web.parameters.draftId}).draft:null
         if(ec.web.parameters.postId)draft=call('getEditablePost',{postId:ec.web.parameters.postId}).draft
-        let categoryId=ec.web.parameters.contactListId || draft?.contactListId || '',replyAllowed=true
+        // inside a group's or a repository's shell a new topic starts in the scope's category, and only its subtree is offered
+        let categoryId=ec.web.parameters.contactListId || draft?.contactListId || forumScope?.contactListId || '',replyAllowed=true
         const root=ec.web.parameters.rootCommEventId || draft?.rootCommEventId;if(root){const topic=call('getTopic',{rootCommEventId:root}).topic;categoryId=topic.category?.contactListId || '';replyAllowed=topic.capabilities.canReply}
-        ec.web.sendJsonResponse({recoveryKey:info.recoveryKey,authenticated:info.authenticated,categoryId,draft,replyAllowed,categories:call('findCategories',{}).categoryList.filter(category=>category.capabilities.canStartTopic || category.contactListId===categoryId)})
+        ec.web.sendJsonResponse({recoveryKey:info.recoveryKey,authenticated:info.authenticated,categoryId,draft,replyAllowed,categories:call('findCategories',forumScope?ec.resource.script('component://mr-pass/screen/Shared/View.js').inputFor('findCategories',resolvedSiteId,{scopeContactListId:forumScope.contactListId}):{}).categoryList.filter(category=>category.capabilities.canStartTopic || category.contactListId===categoryId)})
     ]]></script>
     </actions>
     <default-response type="none"/>
@@ -41,7 +42,9 @@
   <transition name="preview">
     <actions>
       <script><![CDATA[
-        ec.web.sendJsonResponse(ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'previewPost',input:{siteId:resolvedSiteId,body:ec.web.parameters.body || ''}}).call().result)
+        // the text as the authority renders it, from rich text or from Markdown (sourceFormat)
+        const input=ec.resource.script('component://mr-pass/screen/Shared/View.js').inputFor('previewPost',resolvedSiteId,ec.web.parameters)
+        ec.web.sendJsonResponse(ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'previewPost',input}).call().result)
     ]]></script>
     </actions>
     <default-response type="none"/>
@@ -66,7 +69,7 @@
   <actions>
     <script><![CDATA[
         screenName='Compose'
-        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo)
+        view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo,forumScope)
     ]]></script>
   </actions>
   <widgets>

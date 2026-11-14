@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- IssueDetail (design-smithy §8 IssueDetail), at -/issues/<n>, in its repository's shell: the issue (getIssue: title, state
+    with its reason, labels, milestone, assignees, linked commits and merge requests) and its conversation, the posts of
+    the issue's record topic (the forum's getPosts) with a reply form, reactions, a post's edit and report, the watch
+    level, and for the role that may the forms of the title, labels, assignees, milestone, the state and who reads it
+    (asked again on ?confirm=confidential). Every form posts to Smithy/Do. A confidential issue is marked for those who see
+    it and Not Found for everyone else, as an issue that does not exist is. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Issue">
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <parameter name="issueNumber"/>
+  <actions>
+    <script><![CDATA[
+        smithyRepository=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyIssues.js').issueDetail(smithyRepository,String(issueNumber || ''),passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+    </render-mode>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

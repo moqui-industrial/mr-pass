@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- GroupDetail (design-smithy §1, §6): a group's shell, the breadcrumb, the visibility chip and the tabs, over getGroup; a group
-    the caller may not view is Not Found. Tabs: Overview, Repositories, Members and, for an Owner, Settings (Issues and Forum come with
-    their phases). -->
+    the caller may not view is Not Found. Tabs: Overview, Repositories, Issues (with the open count the caller may see),
+    Forum (DG6: the forum's own screens, mounted here, with the group's scope and link base), Members and, for an Owner,
+    Moderation (Smithy/Moderation) and Settings. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Group">
@@ -12,9 +13,15 @@
     <script><![CDATA[
         smithyHome=false
         smithyGroup=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').groupShell(resolvedSiteId,String(groupId || ''),passBases.smithy,String(publicPath || ''))
+        // DG6: the forum's own screens under -/forum render with the group's scope and link base (Dogfood §6.1)
+        smithyScopeShell=smithyGroup
+        forumScope=smithyGroup.section==='forum' ? smithyGroup.forumScope : null
     ]]></script>
   </always-actions>
-  <subscreens default-item="Overview"/>
+  <subscreens default-item="Overview">
+    <!-- GroupForum (design-smithy §6): the forum's own screens, limited to the group's category and its subtree -->
+    <subscreens-item name="Forum" location="component://mr-pass/screen/Forum.xml"/>
+  </subscreens>
   <widgets>
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Smithy/GroupShell.html.fancy"/>

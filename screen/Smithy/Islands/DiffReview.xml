@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- DiffReview (design-smithy §9 MergeRequestChanges): the island over a merge request's server-rendered diff
+    (DiffReview.qvue): a line's comment form opened in place, and a file shown side by side in m-diff-view from its raw
+    texts at the merge base and the head. The forms are posted as the plain page posts them. The screen shows nothing of
+    its own. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="DiffReview">
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[<p>The diff tools are part of a merge request's Changes page.</p>]]></text>
+      <text type="qvue" location="component://mr-pass/screen/Smithy/Islands/DiffReview.qvue" template="false"/>
+    </render-mode>
+  </widgets>
+</screen>

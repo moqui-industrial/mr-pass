@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Compare (design-smithy §7 Compare): two refs of a repository (getCompare): ahead and behind, whether it merges cleanly, the
-    commits and the diff; the two refs are a GET form whose choice is redirected to -/compare/<base>...<head>. Opening a merge
-    request comes in DG4. -->
+    commits and the diff; the two refs are a GET form whose choice is redirected to -/compare/<base>...<head> (the pre-actions,
+    before anything renders). The head may be a fork's ref (<path>:<ref>); when it is ahead the page links to the new merge
+    request's form. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Compare">
@@ -11,13 +12,19 @@
   <parameter name="base"/>
   <parameter name="head"/>
   <parameter name="headRepositoryPath"/>
+  <pre-actions>
+    <script><![CDATA[
+        // the form's choice (from, to) goes to the comparison's own address, before anything renders
+        const chosen=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').compareRedirect(passBases.smithy,String(namePath || ''))
+        if(chosen){ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').redirectBefore(sri,chosen);return}
+    ]]></script>
+  </pre-actions>
   <actions>
     <script><![CDATA[
         const smithy=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js')
         smithyRepository=smithy.repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
-        // base and head are the resolver's (the path); the form's fields are from and to, read in compare()
+        // base and head are the resolver's (the path); the form's fields are from and to (the pre-actions)
         view=smithy.compare(smithyRepository,String(base || ''),String(head || ''),String(headRepositoryPath || ''))
-        if(view.redirect)sri.sendRedirectAndStopRender(view.redirect)
         changes=view.result
     ]]></script>
   </actions>

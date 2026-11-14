@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- MergeRequestChanges (design-smithy §9): the diff of the merge base to the head (getMergeRequestChanges), rendered here as
+    escaped unified text with an anchor for each line, the review threads at their lines with a reply form and Resolve, and
+    a line's number as the link to its comment form (?line=). Where JavaScript runs the DiffReview island opens that form
+    in place and shows a file side by side (m-diff-view). The forms post to Smithy/Do (createReviewComment,
+    resolveReviewThread, submitReview). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Changes">
+  <actions>
+    <script><![CDATA[
+        view=ec.resource.script('component://mr-pass/screen/Smithy/SmithyReview.js').changes(smithyRepository,smithyRequest,passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>
