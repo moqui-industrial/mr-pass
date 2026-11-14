@@ -7,7 +7,9 @@ organization's invoices to its customers and takes payment from an invoice's pay
 takes a supplier's quote, purchase order acknowledgement and bill (Purchasing's and Accounting's pages, over Mantle's
 SupplierPortalServices and PortalServices). Its Support app is Customer Service's customer pages: help, a customer's
 cases and returns, a cancel request for an order, and Feedback, a resolved case's rating from its invitation link (over Mantle's
-SupportCaseServices, KnowledgeServices, ReturnPolicyServices, OrderChangeServices and CaseFeedbackServices).
+SupportCaseServices, KnowledgeServices, ReturnPolicyServices, OrderChangeServices and CaseFeedbackServices). Its Sales app
+is IronStone Sales' customer pages: a quote's mailed link, the offer and its PDF, the customer's acceptance or decline and
+its receipt, and a contact's quotes (over Mantle's SalesPortalServices).
 
 The component has a framework-only static dependency. Local deployments load Mantle. Remote
 frontends need only framework, webroot, and PASS; they use one operator-configured Mantle authority
@@ -15,7 +17,7 @@ without loading its entity catalog or copying its Party records. BOSS is not a r
 
 The [Forum design](plan/design-forum.md) defines the stages and how an app registers (§13.1); what is built
 and verified, and what is deferred, is in [the implementation record](plan/implementation-forum.md).
-Operators start with [Deployment](docs/Deployment.md), which also covers the Billing, Supplier, Support and Smithy apps.
+Operators start with [Deployment](docs/Deployment.md), which also covers the Billing, Supplier, Support, Sales and Smithy apps.
 
 Its Shop app ([IronStone Shop](plan/design-shop.md), `screen/Shop.xml`) is a ProductStore's storefront, mounted at
 `/shop` or a site's root: the published catalog and search, a cart, a guest or signed-in checkout paying on the store's
@@ -58,11 +60,11 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyAccess --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyAccess,SalesPortal,SalesPortalAccess --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, SalesQuoteScenarios, SalesQuoteHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -86,7 +88,8 @@ the page, a Maintainer's merge, a merge request of the kind a push for review op
 commits and that merge request are made through page saves and the proposal service, with no `git push`, which the
 framework's git-client tests cover), its payment, order and subscription scenarios
 on the server (`ShopPaymentScenarios`, `ShopOrderScenarios`, `ShopSubscriptionScenarios`; design-shop §18.1 maps each
-scenario to its test in impl-shop §8), the large
+scenario to its test in impl-shop §8), PASS Sales' quote scenarios (`SalesQuoteScenarios`, standalone) and walk (`SalesQuoteHttp`, with `SalesQuoteFixtures`, at 390 px
+and with plain requests that run the same through a remote frontend), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.

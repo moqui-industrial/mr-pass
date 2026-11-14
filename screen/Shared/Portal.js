@@ -59,6 +59,10 @@ const reasons = {
     notBuilt: 'This is not available yet.',
     // Smithy DG2: a change of the git access by an account with no password needs a sign-in in the last 15 minutes
     recentSignInRequired: 'Sign in again to do this: you have been signed in for a while.',
+    // IronStone Sales P13: a quote above the seller's threshold is accepted signed in; one answered already shows its own text
+    acceptanceSignInRequired:
+        'Sign in as a contact invited for your company to accept a quote of this amount.',
+    responseRecorded: null,
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */
