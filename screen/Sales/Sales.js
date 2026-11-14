@@ -1,4 +1,4 @@
-/* PASS Sales' pages' helpers (IronStone impl-sales P13): one request parameter, the page's notice and error carried across a
+/* PASS Sales' pages' helpers (IronStone impl-sales P13, P17): one request parameter, the page's notice and error carried across a
  * post's redirect, a post's operation through the facade (Portal.js attempt) answered by a redirect, and the quote's PDF. What
  * identifies a quote in a page's links and posts is its link's token, else (a signed-in contact) its order. CC0 plus patent
  * grant. */
@@ -49,10 +49,10 @@ function post(operation, input, back, done) {
     ec.web.response.sendRedirect(done.path + query(done.params))
     return out
 }
-/* The quote's PDF, streamed by the facade; a refusal shows the page's error. */
-function download(siteId, input, back) {
+/* The quote's PDF (P17: or the order's, by its operation), streamed by the facade; a refusal shows the page's error. */
+function download(siteId, input, back, operation = "getSalesQuoteDocument") {
     try {
-        ec.resource.script("component://mr-pass/service/pass/Facade.js").downloadFile(siteId, "getSalesQuoteDocument", input)
+        ec.resource.script("component://mr-pass/service/pass/Facade.js").downloadFile(siteId, operation, input)
     } catch (error) {
         ec.message.clearErrors()
         ec.web.sessionAttributes.passSalesError = "This document is not available."
@@ -61,4 +61,21 @@ function download(siteId, input, back) {
 }
 /* The base of a transition's page (its path without the transition's name). */
 const base = (path, name) => String(path).replace(new RegExp("/" + name + "$"), "")
-;({portal, param, take, post, download, base, query, quoteOf})
+/* P17: an order's link kept in this session for its order (passSalesOrders:<siteId>, as Shop keeps a guest's), so the site's
+ * Support pages take the same link for that one order (Support/Support.js orderLink); never in a page or URL this frontend makes. */
+const ordersKey = siteId => "passSalesOrders:" + siteId
+function keepOrderLink(siteId, orderId, token) {
+    if (!siteId || !orderId || !token || ec.user.userId) return
+    const s = ec.web.sessionAttributes
+    let map = {}
+    try {
+        map = JSON.parse(String(s[ordersKey(siteId)] || "{}")) || {}
+    } catch (error) {
+        map = {}
+    }
+    map[orderId] = token
+    // the session keeps the latest twenty orders' links
+    const kept = Object.entries(map).slice(-20)
+    s[ordersKey(siteId)] = JSON.stringify(Object.fromEntries(kept))
+}
+;({portal, param, take, post, download, base, query, quoteOf, ordersKey, keepOrderLink})
