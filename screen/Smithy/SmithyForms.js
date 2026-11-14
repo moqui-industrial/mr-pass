@@ -1728,11 +1728,11 @@ const DO = {
     // DG10: and its deploy target; the token is sent only when typed and never kept for the next page (SECRET), the target's
     // and the clone's addresses are kept without a user part (inputOf)
     storeCiEnvironment: {
-        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "targetUrl", "requiredPipeline", "cloneUrl", "operationId"],
+        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "targetUrl", "requiredPipeline", "dataTypes", "cloneUrl", "operationId"],
         optional: ["token"],
         flags: ["approvalRequired"],
         // the texts are sent only when changed (the form shows the value it read beside each)
-        changed: ["allowedRefs", "targetUrl", "requiredPipeline", "cloneUrl"],
+        changed: ["allowedRefs", "targetUrl", "requiredPipeline", "dataTypes", "cloneUrl"],
         notice: () => "The environment was saved."
     },
     deleteCiEnvironment: {fields: ["repositoryId", "environmentId"], confirm: true, notice: () => "The environment was deleted."},

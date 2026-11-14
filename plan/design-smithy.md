@@ -1293,7 +1293,7 @@ commit with no passed run of the pipeline, is the framework's. **Operations** `f
 `cancelDeploy`. Refined in DG10.
 
 **Settings › Pipelines › Environments** (Maintainer): each environment's name, target URL, whether it has a token,
-required pipeline, whether a Maintainer's approval is needed, allowed branches, clone URL and last deployment; add and
+required pipeline, who waits for a Maintainer's approval (every deployment, or only one of a branch no rule protects), data types, allowed branches, clone URL and last deployment; add and
 edit (an https target and a clone URL with no user part, the token write-only: never echoed, kept after a save left
 empty), Delete asked again. **Deployments** at `B/<repositoryPath>/-/pipelines/deployments` (Developer): the
 deployments, newest first, a page at a time (environment, commit, branch, state, who asked, dates), and Request deploy

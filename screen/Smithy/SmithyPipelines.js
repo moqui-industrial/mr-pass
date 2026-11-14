@@ -674,7 +674,7 @@ function deployForm(c, shell, pu, found) {
         f,
         "environmentId",
         "Environment",
-        environments.map(env => [env.environmentId, plain(env.name) + (env.approvalRequired ? " (a Maintainer approves)" : "")])
+        environments.map(env => [env.environmentId, plain(env.name) + (env.approvalFor === "every" ? " (a Maintainer approves each deployment)" : "")])
     )}${input(f, "refName", "Branch", {
         value: r.defaultBranch || "main",
         required: true,
@@ -767,7 +767,9 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
         d.refName ? h` · ${refText(d.refName)}` : ""
     }${d.commitId ? h` · <a href="${pu.u.commit(d.commitId)}"><code>${shortId(d.commitId)}</code></a>` : ""}${
         d.componentName ? " · component " + plain(d.componentName) : ""
-    } · <a href="${pu.deployments}">All deployments</a></p>${facts.length ? h`<p><small>${facts.join(" · ")}</small></p>` : ""}${
+    } · <a href="${pu.deployments}">All deployments</a></p>${
+        d.approvalRequired ? h`<p id="SmithyDeploymentApproval">Needs a Maintainer's approval.</p>` : ""
+    }${facts.length ? h`<p><small>${facts.join(" · ")}</small></p>` : ""}${
         d.message ? h`<p class="wrap" id="SmithyDeploymentMessage">${messageText(d.message)}</p>` : ""
     }</article>`
     // Cancel and Refuse are asked again on a page of their own
@@ -797,11 +799,8 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
             })}<p><button>Refuse the deployment</button> <a href="${page}">Back</a></p></form>`.html
         }
     }
-    // the environment's approval rule, where the caller may read the environments (a Developer's)
-    const environment = (maybe("findCiEnvironments", {siteId: shell.siteId, repositoryId: r.repositoryId})?.environmentList || []).find(
-        env => env.environmentId === d.environmentId
-    )
-    const steps = deploySteps(d, !!environment?.approvalRequired)
+    // whether it waits for an approver once its pipeline passes (its environment's rule, or a branch no rule protects)
+    const steps = deploySteps(d, !!d.approvalRequired)
     const stepsHtml = h`<section class="card" id="SmithyDeploySteps" aria-label="Steps"><h3>Steps</h3><ol>${steps.map(
         step =>
             h`<li class="wrap smithy-step-${step.mark}"${attributes({"aria-current": step.mark === "now" ? "step" : null})}><strong>${step.label}</strong>${
@@ -1033,7 +1032,11 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
                 maxlength: 1000,
                 hint: "Branch names or patterns such as release/*, separated by spaces. Runs of a protected branch and of these get its secrets, and they deploy to it."
             }
-        )}${check("approvalRequired", "Approval required: only an approved run gets its secrets, and a deployment waits for a Maintainer's approval", !!env?.approvalRequired)}${input(
+        )}${check(
+            "approvalRequired",
+            "Every deployment waits for a Maintainer's approval, and only an approved run gets its secrets. Without it only a deployment of a branch no rule protects waits.",
+            !!env?.approvalRequired
+        )}${input(
             f,
             "targetUrl",
             "Target URL",
@@ -1053,7 +1056,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
             maxlength: 4096,
             hint: env?.hasToken
                 ? "It has a token, which is not shown. Leave this empty to keep it."
-                : "The attestation secret the target gave, at least 16 characters. It is never shown again."
+                : "The attestation secret the target gave, at least 32 characters. It is never shown again."
         })}${input(f, "requiredPipeline", "Required pipeline", {
             value: env?.requiredPipeline || "",
             was: true,
@@ -1061,6 +1064,12 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
             pattern: "[A-Za-z0-9._\\-]{1,64}",
             autocomplete: "off",
             hint: "The pipeline of the commit's ci.xml, with the deploy event, that must pass before it is deployed."
+        })}${input(f, "dataTypes", "Data types", {
+            value: (env?.dataTypes || []).join(", "),
+            was: true,
+            maxlength: 1300,
+            autocomplete: "off",
+            hint: "The data types the target loads of the component's data files, separated by commas or spaces (at most 20); empty for the target's defaults."
         })}${input(f, "cloneUrl", "Clone URL", {
             value: env?.cloneUrl || "",
             was: true,
@@ -1076,11 +1085,15 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
               }`
             : "None yet"
         return h`<article class="card smithy-row" id="SmithyEnvironment_${env.environmentId}"><h3 class="wrap">${env.name}${
-            env.approvalRequired ? h` <small class="smithy-chip">Approval required</small>` : ""
+            env.approvalFor === "every" ? h` <small class="smithy-chip">Approval required</small>` : ""
         }</h3><dl class="wrap"><dt>Target</dt><dd>${env.targetUrl ? plain(env.targetUrl) : "None"}</dd><dt>Token</dt><dd>${
             env.hasToken ? "Set (not shown)" : "None"
         }</dd><dt>Required pipeline</dt><dd>${env.requiredPipeline ? plain(env.requiredPipeline) : "None"}</dd><dt>Approval</dt><dd>${
-            env.approvalRequired ? "A Maintainer's approval is needed" : "Not needed"
+            env.approvalFor === "every"
+                ? "Every deployment waits for a Maintainer's approval"
+                : "Only a deployment of a branch no rule protects waits for a Maintainer's approval"
+        }</dd><dt>Data types</dt><dd>${
+            (env.dataTypes || []).length ? env.dataTypes.map(plain).join(", ") : "The target's defaults"
         }</dd><dt>Branches allowed</dt><dd>${env.allowedRefs ? plain(env.allowedRefs) : "Protected branches only"}</dd><dt>Clone URL</dt><dd>${
             env.cloneUrl ? plain(env.cloneUrl) : "The repository's clone address"
         }</dd><dt>Last deployment</dt><dd>${last}</dd></dl>${

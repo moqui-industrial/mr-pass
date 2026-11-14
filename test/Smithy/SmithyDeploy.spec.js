@@ -77,6 +77,8 @@ feature("an environment's target is stored through Do and listed on Settings ›
             token: TOKEN,
             requiredPipeline: "deploy",
             was_requiredPipeline: "",
+            dataTypes: "seed, demo",
+            was_dataTypes: "",
             cloneUrl: "",
             was_cloneUrl: "",
             operationId: ec.user.randomString(32),
@@ -117,7 +119,9 @@ feature("an environment's target is stored through Do and listed on Settings ›
         html.includes("<dd>https://deploy.smd.example.com</dd>")
         html.includes("<dd>Set (not shown)</dd>")
         html.includes("<dd>deploy</dd>")
-        html.includes("A Maintainer&#39;s approval is needed")
+        html.includes("<dd>Every deployment waits for a Maintainer&#39;s approval</dd>")
+        html.includes("<dt>Data types</dt><dd>seed, demo</dd>")
+        html.includes('name="was_dataTypes" value="seed, demo"')
         html.includes('<input type="password" name="token" maxlength="4096" autocomplete="new-password">')
         html.includes("It has a token, which is not shown. Leave this empty to keep it.")
         html.includes('name="was_targetUrl" value="https://deploy.smd.example.com"')
@@ -142,6 +146,7 @@ feature("Deployments lists a repository's deployments with Request deploy for wh
                 refName: "refs/heads/main",
                 pipelineRunId: "PSMD_RUN5",
                 statusId: "waiting-approval",
+                approvalRequired: "Y",
                 requestedByUserId: userIdOf(DEV),
                 errorText: "<script>alert(1)</script> waits",
                 createdDate: now
@@ -163,7 +168,7 @@ feature("Deployments lists a repository's deployments with Request deploy for wh
         html.includes("<td>@smddev</td>")
         // Request deploy for the Owner: the environment and a branch
         html.includes('id="Smithy_requestDeploy"')
-        html.includes('<option value="' + s.environmentId + '">demo (a Maintainer approves)</option>')
+        html.includes('<option value="' + s.environmentId + '">demo (a Maintainer approves each deployment)</option>')
         html.includes('name="refName" value="main"')
         // a Reporter has no form (and, where the read is a Developer's, no list)
         !reporter.includes("Smithy_requestDeploy")
@@ -197,6 +202,7 @@ feature("DeploymentDetail shows the steps with the run linked and the approver's
         html.includes("<h2>Deployment to demo</h2>")
         html.includes('id="SmithyDeploymentState">Waiting for approval</strong>')
         html.includes("asked by @smddev")
+        html.includes(`<p id="SmithyDeploymentApproval">Needs a Maintainer's approval.</p>`)
         // the authority's message escaped; the steps, the pipeline passed with its run linked and the approval now
         html.includes("&lt;script&gt;alert(1)&lt;/script&gt; waits")
         !html.includes("<script>alert(1)")
