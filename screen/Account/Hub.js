@@ -165,6 +165,50 @@ function preferences(siteId, publicPath) {
             ) + decline('list_' + list.contactListId, list.confirmPending),
         )
         .join('')
+    // IronStone Marketing P7: the sending organization's offered lists, with the recipient's state, the opt-out reasons and leaving
+    // all of its email
+    const marketing = v.marketing
+    const stateNote = (state) =>
+        state === 'pending'
+            ? ' (waiting for you to confirm it from the message we sent)'
+            : ''
+    const marketingSet = marketing
+        ? '<fieldset id="MarketingTopics"><legend>Email from ' +
+          esc(marketing.organizationName) +
+          '</legend>' +
+          marketing.topics
+              .map(
+                  (topic) =>
+                      box(
+                          'mkt_' + topic.contactListId,
+                          topic.state === 'subscribed' ||
+                              topic.state === 'pending',
+                          topic.name +
+                              ' (' +
+                              topic.channelText +
+                              ')' +
+                              stateNote(topic.state),
+                          topic.description,
+                      ),
+              )
+              .join('') +
+          '<p><small>Turning one on sends a message to confirm it first.</small></p>' +
+          '<fieldset><legend>Why are you leaving? (optional)</legend>' +
+          (marketing.reasons || [])
+              .map(
+                  (reason) =>
+                      '<label><input type="radio" name="mktReason" value="' +
+                      esc(reason.reasonId) +
+                      '"> ' +
+                      esc(reason.label) +
+                      '</label>',
+              )
+              .join('') +
+          '<label>Tell us more <input name="mktReasonText" maxlength="200"></label></fieldset>' +
+          '<label><input type="checkbox" name="mktLeave" value="true"> No more email from ' +
+          esc(marketing.organizationName) +
+          '</label></fieldset>'
+        : ''
     const topics = (v.topics || [])
         .map((topic) =>
             box(
@@ -193,13 +237,14 @@ function preferences(siteId, publicPath) {
         (lists
             ? '<fieldset><legend>Lists</legend>' + lists + '</fieldset>'
             : '') +
+        marketingSet +
         (topics
             ? '<fieldset><legend>Store emails</legend>' + topics + '</fieldset>'
             : '') +
         (v.mode === 'token'
             ? '<label><input type="checkbox" name="unsubscribeAll" value="true"> No marketing email at all</label>'
             : '') +
-        (lists || topics || v.mode === 'token'
+        (lists || topics || marketingSet || v.mode === 'token'
             ? '<p><button type="submit">Save preferences</button></p>'
             : '<p>You are on no lists.</p>') +
         '</form>' +
@@ -264,6 +309,7 @@ function save(siteId, publicPath) {
     const parameters = ec.web.parameters
     const lists = {}
     const topics = {}
+    const marketingTopics = {}
     const decline = { lists: [], topics: [] }
     for (const name of Object.keys(parameters)) {
         const declined = /^decline_(list|topic)_(.{1,80})$/.exec(name)
@@ -271,6 +317,9 @@ function save(siteId, publicPath) {
             decline[declined[1] === 'list' ? 'lists' : 'topics'].push(
                 declined[2],
             )
+        // IronStone Marketing P7: the organization's offered lists
+        const offered = /^mkt_(.{1,80})__shown$/.exec(name)
+        if (offered) marketingTopics[offered[1]] = param('mkt_' + offered[1]) === 'true'
         const shown = /^(list|topic)_(.{1,80})__shown$/.exec(name)
         if (!shown) continue
         const on = param(shown[1] + '_' + shown[2]) === 'true'
@@ -286,6 +335,16 @@ function save(siteId, publicPath) {
             topics,
             decline,
             unsubscribeAll: param('unsubscribeAll') === 'true',
+            ...(Object.keys(marketingTopics).length
+                ? {
+                      marketing: {
+                          topics: marketingTopics,
+                          reason: param('mktReason'),
+                          reasonText: param('mktReasonText'),
+                          leaveOrganization: param('mktLeave') === 'true',
+                      },
+                  }
+                : {}),
         }),
     })
     ec.web.sessionAttributes.passAccountNotice = found.error

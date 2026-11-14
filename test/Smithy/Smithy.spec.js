@@ -1419,7 +1419,7 @@ feature("every app's default base is refused as a group's path, so a group never
         return {taken, count: Object.keys(apps).length}
     },
     then({taken, count}) {
-        count === 10
+        count === 11
         taken.length === 0
     }
 })

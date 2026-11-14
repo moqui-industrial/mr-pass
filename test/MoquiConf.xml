@@ -26,6 +26,7 @@
         <mount path="/supplier" screen="Supplier"/>
         <mount path="/support" screen="Support"/>
         <mount path="/sales" screen="Sales"/>
+        <mount path="/marketing" screen="Marketing"/>
         <mount path="/shop" screen="Shop"/>
         <mount path="/code" screen="Smithy"/>
       </public-site>
@@ -43,6 +44,7 @@
         <mount path="/account" screen="Account"/>
         <mount path="/billing" screen="Billing"/>
         <mount path="/support" screen="Support"/>
+        <mount path="/marketing" screen="Marketing"/>
       </public-site>
       <public-site host="digital.zizi.localhost" site-id="ZIZI_DIGITAL" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
         <mount path="/shop" screen="Shop"/>

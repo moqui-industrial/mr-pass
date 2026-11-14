@@ -116,6 +116,10 @@ const TOKEN_WRITES = [
     'recoverCart',
     // IronStone Sales P13: a quote link's acceptance or decline (input.token)
     'respondSalesQuote',
+    // IronStone Marketing P7: a subscription request (anonymous: PASS's request key, its limits and the neutral receipt bound it)
+    // and its confirmation link's POST (input.token)
+    'requestSubscription',
+    'verifySubscription',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -214,6 +218,8 @@ function routeOf(operation, input) {
         // POST, answered empty for a visitor with no cart
         operation !== 'addCartItem' &&
         operation !== 'getCart' &&
+        // IronStone Marketing P7: a visitor's subscription request has no token (PASS's request key and the authority's limits)
+        operation !== 'requestSubscription' &&
         // a link's or cart's token, or (Shop P5) a checkout's return key or a guest's order link
         !(
             TOKEN_WRITES.includes(operation) &&
