@@ -487,6 +487,55 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- DG7 (design-smithy §13, §15.8): a group's landing page, a release and its files, the site's table of old paths -->
+  <transition name="setGroupLanding" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('setGroupLanding',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeRelease" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeRelease',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deleteRelease" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('deleteRelease',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="addReleaseAsset" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('addReleaseAsset',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="removeReleaseAsset" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('removeReleaseAsset',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="storeRedirect" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('storeRedirect',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="deleteRedirect" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('deleteRedirect',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="importRedirects" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('importRedirects',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <!-- DG6 (design-smithy §4.4, §12.4): the page of a held report's link, -/held-report/<token>. It reads and writes
       nothing: a visitor is asked to sign in, an account gets the form that posts claimHeldReport -->
   <transition name="heldReport" method="get" read-only="true">

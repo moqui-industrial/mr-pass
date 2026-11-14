@@ -34,7 +34,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1 to DG6); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG7); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -91,6 +91,14 @@ const BUILT = [
     "/Smithy/Islands/JobLog.qvue",
     "/Smithy/Islands/JobLog.qvt",
     "/Smithy/Islands/JobLog.qjs",
+    // DG7: the site (design §13): search, a repository's Docs and Releases, a release with its files' download, and a
+    // group's addons.xml (a transition of GroupDetail)
+    "/Smithy/Search",
+    "/Smithy/RepositoryDetail/Docs",
+    "/Smithy/RepositoryDetail/Releases",
+    "/Smithy/ReleaseDetail",
+    "/Smithy/ReleaseDetail/asset",
+    "/Smithy/GroupDetail/addons",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
     "/Smithy/redirect"
@@ -102,7 +110,7 @@ const built = screenPath =>
     BUILT.includes(screenPath) || BUILT_UNDER.some(root => screenPath === root || screenPath.startsWith(root + "/"))
 /* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
 const BUILT_TABS = {
-    "/Smithy/Site": ["settings", "requests", "quotas"],
+    "/Smithy/Site": ["settings", "requests", "quotas", "redirects"],
     "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "pipelines", "quota", "delete"],
     "/Smithy/RepositoryDetail/Settings": [
         "general",

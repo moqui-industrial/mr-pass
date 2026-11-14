@@ -4,7 +4,9 @@
     -/pipelines/<n>/jobs/<id>/log) and appends them to the page's log as text, never as markup. A signed-in reader is told
     on the framework's notification socket when the log grew (topic GitCiJobLog, the job's id its sub-topic), and the island
     reads then; it also reads every pollSeconds (less often while the socket is open), which is all it has where the socket
-    does not open. It stops when the job has ended. Without it the page has Refresh and Load more. -->
+    does not open. A read that says there is more waits pollSeconds too. The socket's path is the island's configuration
+    (context.notification.endpoint, none: no socket); a socket that closes before it ever opened (a host that refuses it) is
+    given up, and stop() closes it. It stops when the job has ended. Without it the page has Refresh and Load more. -->
 <template>
     <p v-if="status" class="smithy-joblog-status" role="status"><small>{{ status }}</small></p>
 </template>
@@ -42,12 +44,16 @@ module.exports = {
         listen() {
             const n = this.context.notification
             const moqui = window.moqui
-            if (!n || !moqui || !moqui.NotificationClient) return
+            if (!n || !n.endpoint || !/^\/[A-Za-z0-9_\/-]+$/.test(n.endpoint) || !moqui || !moqui.NotificationClient) return
             try {
                 const scheme = window.location.protocol === 'https:' ? 'wss://' : 'ws://'
                 this.client = new moqui.NotificationClient(scheme + window.location.host + n.endpoint)
+                this.everOpen = false
                 this.stateOff = this.client.onState((state) => {
                     this.socketOpen = state === 'open'
+                    if (this.socketOpen) this.everOpen = true
+                    // a host that refuses the socket: closed before it ever opened, so the island only polls
+                    else if (!this.everOpen) this.closeSocket()
                 })
                 this.listenerOff = this.client.registerListener(n.topic, (message) => {
                     if (message && message.subTopic === n.subTopic) this.schedule(0)
@@ -81,7 +87,8 @@ module.exports = {
                 if (response.ok) {
                     const out = await response.json()
                     this.append(out)
-                    if (out.more) next = 0
+                    // more to read: the next read still waits pollSeconds, so a long log is not read in one burst
+                    if (out.more) next = (Number(this.context.pollSeconds) || 2) * 1000
                 } else next = Math.max(every, 10000)
             } catch (err) {
                 next = Math.max(every, 10000)
@@ -119,13 +126,29 @@ module.exports = {
                 this.stop()
             }
         },
-        stop() {
-            this.done = true
-            clearTimeout(this.timer)
+        // the notification client's socket closed for good: its listeners off, no reopening
+        closeSocket() {
             if (this.listenerOff) this.listenerOff()
             if (this.stateOff) this.stateOff()
             this.listenerOff = null
             this.stateOff = null
+            this.socketOpen = false
+            const client = this.client
+            this.client = null
+            if (!client) return
+            client.tryReopenCount = Number.MAX_SAFE_INTEGER
+            const socket = client.webSocket
+            client.webSocket = null
+            try {
+                if (socket) socket.close()
+            } catch (err) {
+                // already closed
+            }
+        },
+        stop() {
+            this.done = true
+            clearTimeout(this.timer)
+            this.closeSocket()
         },
     },
 }

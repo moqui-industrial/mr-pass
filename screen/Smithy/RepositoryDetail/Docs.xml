@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Docs (design-smithy §13.2), at -/docs/<refPath>: a page of the repository's docs directory at a branch, a tag or a commit
+    (getDocsPage, which splits refPath; empty: the directory's README.md at the default branch), with the ref picker (a GET
+    form whose choice is redirected), the table of contents, the page's headings, Edit this page and the docs search box;
+    its relative links made Docs, Blob and raw links (Smithy/SmithySite.js docs). Not Found where docs are off. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Docs">
+  <pre-actions>
+    <script><![CDATA[
+        // read before anything renders: docs that are off or a page that is not there is the framework's Not Found, and the
+        // ref picker's choice is answered by a redirect
+        smithyDocs=ec.resource.script('component://mr-pass/screen/Smithy/SmithySite.js').docs(smithyRepository,String(refPath || ''),passBases,siteInfo,String(publicPath || ''))
+        if(smithyDocs.redirect){ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').redirectBefore(sri,smithyDocs.redirect);return}
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        view=smithyDocs
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

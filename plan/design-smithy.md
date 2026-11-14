@@ -1227,7 +1227,7 @@ names in [§14.5](#145-framework-records-for-ci-proposed) are proposals to it. W
 - A run for a fork's merge request, for a pushed-to-review merge request, or asked by an account without Developer is
   **untrusted**: no secrets, a read-only cache, the group's outside pool.
 - The first run of a contributor who has no merged merge request in the repository **waits** for a Maintainer's
-  "Approve and run" (`approvePipelineRun`); the approval covers later heads of the same merge request.
+  "Approve and run" (`approvePipelineRun`); an approval is for one head and its pusher: each new head of an outside merge request waits again until every account whose code runs (the author and the head's pusher) has had a merge request merged in the repository by another account, through a merge that changed the target (decided with the user, Nov 14, 2026; it replaces "the approval covers later heads").
 - A repository in a personal namespace has no runs unless an operator gave the account runner minutes
   (`SmithyAccount.runnerMinutesMonthly`, default 0).
 - Runner minutes are counted by month for the group or the account (`SmithyRunnerUsage`); a run that would start over

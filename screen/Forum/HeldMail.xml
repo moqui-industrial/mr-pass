@@ -31,7 +31,7 @@
   </actions>
   <widgets>
     <render-mode>
-      <text type="html"><![CDATA[<#if forumScope??><h2>Your message to the list</h2><#else><h1>Your message to the list</h1></#if>
+      <text type="html"><![CDATA[<#if forumScope><h2>Your message to the list</h2><#else><h1>Your message to the list</h1></#if>
 <#if heldRefused == 'gone'><p role="alert" class="error" id="PassHeldGone">This link was used already or has expired. A held message is kept for 30 days; send it again from your account's address.</p></#if>
 <#if heldRefused == 'address'><p role="alert" class="error" id="PassHeldAddress">Sign in with the account whose confirmed address sent the message, or confirm that address in your account's settings.</p></#if>
 <#if heldRefused == 'other'><p role="alert" class="error" id="PassHeldRefused">The message could not be posted now. Try again later.</p></#if>

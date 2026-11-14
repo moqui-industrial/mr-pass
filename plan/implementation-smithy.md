@@ -333,3 +333,92 @@ Matching Mantle's fixes of its DG6 review:
   count, a list's links in its group's or repository's forum with no `/forum` mount, linking a category being the
   site's owners', and the invitations' day limit.
 - The registries (`Schema.js`, `SmithySchema.js`, `Routes.js`) are unchanged copies of Mantle's (compared with `cmp`).
+
+### DG5 review fixes
+
+From the review of the DG5 pages (81b9b21), matching Mantle's fixes of its DG5 review:
+
+- **Log bounds.** A page of a running job's log, and each read of the log's JSON, holds the chunks up to about 256 KB
+  (the first always; `SmithyPipelines.js` `LOG_PAGE_BYTES`), and its `after` is the last chunk it holds; an ended log's
+  page is cut at its last whole line within it. The island (`Islands/JobLog.qvue`) waits `pollSeconds` before the next
+  read when a read says there is more, as it does otherwise. Load more on a running job carries `offset` as well as
+  `after`.
+- **Runners form.** The Pipelines tab's form holds the group's own values (`getPipelineSettings` `own`, empty where it
+  follows the group above), each with the value in effect and where it comes from as its hint (`inheritedFrom`), "As the
+  group above says" as the empty choice, and "never" only where `canSetNever` (the top-level group's Owner); `storePipelineSettings` sends only a changed field (`changed`, by `was_<name>`),
+  and an emptied one gives up the group's own value.
+- **Pipelines off.** The `log` and `artifact` transitions read the repository first and are Not Found where pipelines are
+  off, as the pages are.
+- **A failed test's link.** `testPath` refuses a path with a `.` or `..` segment, an empty one, a backslash or a control
+  character (after a leading `./`), so a report's path cannot lead anywhere else on the site.
+- **Control characters.** A log's lines, a test's suite, name, file and message, a step's name and command, and a run's and
+  a job's message lose C0 (but tab and newline), DEL, C1 (U+0080 to U+009F) and the bidirectional overrides and isolates
+  (U+202A to U+202E, U+2066 to U+2069), with terminal escapes (`plain`).
+- **The notification socket.** The island's socket path is the `pass_notification_endpoint` property (`/notws` when it is
+  not set; empty: no socket, the island polls), passed in its configuration; a socket that closes before it ever opened
+  (a host that refuses it) is given up, and `stop()` closes the client (its listeners off, no reopening).
+- **Cost.** The merge request's Checks tab reads a run again (`getPipelineRun`) for at most three runs of its list (one that
+  waits for approval first, then one that failed) and a job's failed tests (`getJobRun`) for at most two; the other rows
+  are what `runList` gives. CommitDetail links a `ci/<pipeline>/<job>` status to the run and job its target names (the
+  engine writes the run's page), on this site, not to the newest run of the pipeline; it makes no run read beyond
+  `findPipelineRuns`.
+- **Artifacts sent by the authority.** `Facade.js` `downloadFile` writes nothing when the operation answers `sent` (Mantle's
+  `downloadArtifact` now sends the file as the response itself, `send#RunArtifact`), so the name in its
+  `Content-Disposition` is the engine's.
+- **Tests.** `SmithyReview.spec.js` has a feature by page function and transition render: the log's JSON is `no-store`,
+  Not Found for a job that is not the run's and with pipelines off, and an upload is Not Found with pipelines off; Cancel
+  is not run without `confirm=yes`; a refused secret's save keeps its name and not its value for the form; the group's
+  runners form holds its own values with `was_` fields and the value in effect. The artifact's `Content-Disposition` is
+  not checked here: the engine sends it and needs the artifact's content, which a spec's rows do not have (Mantle's and
+  the framework's specs).
+
+## DG7: the site
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes `search`, a repository's `-/docs[/<refPath>]`, `-/releases`, `-/releases/<tag>` (the tag every remaining segment), `-/release-assets/<assetId>/<name>` (the `asset` transition of `ReleaseDetail`), a group's `-/addons.xml` (the `addons` transition of `GroupDetail`) and the Redirects tab of the site's settings (`-/site/redirects`). The grammar had them |
+| Redirects | `pass.RouteServices.resolve#Route` catches a Not Found (no mount, a Smithy path that names nothing, a page not built) and asks `Smithy.js` `movedPath`, which calls Mantle's `resolve#Redirect` (not an operation) with the site, the request's host and its path, and keeps a target that is a path on this site or an https address of one of the site's own hosts (`getSiteInfo` with that host answers only for one); the answer is `/Smithy/redirect` with the location, a 301 with the request's query. Not on a remote frontend (`pass_backend_url`), which has no Mantle |
+| Pages | `screen/Smithy/SmithySite.js` builds them as escaped markup with `SmithyForms.js`'s helpers: `Search`, `RepositoryDetail/Docs` (read in `pre-actions`), `RepositoryDetail/Releases`, `ReleaseDetail` (in the repository's shell, read in `pre-actions`), the `asset` and `addons` transitions, the Landing section of a group's General settings and the Redirects tab. `Smithy.js` builds the Overview (with the landing) and Explore (with components) |
+| Overview | `getGroupLanding`: the landing text, its relative links made pages of its repository at the branch it was read at (`rewriteLinks` with `sourceRef` and the file's directory), Source and, for a signed-in account, Edit this page (`editPath`); without it the description. Beside it (one column on a phone): the latest release, news and activity, each linked by the path the read gives; pinned repositories (`pinnedList`) and subgroups below. Home shows the home group's |
+| Explore | Components (`findComponents`): name, version, depends-on, the repository and its latest release; the kind filter has Components, and Everything shows the three lists |
+| Search | `/search?q=&kind=&in=`: one box; the kinds (`searchSite` `types`) as a select; `in` a group's or repository's path (`resolveSmithyPath`) narrows it. Several kinds: a section a kind with at most ten results and "More <kind>" (the same search of that kind); one kind: twenty a page with More results by cursor. A result is its title linked by its path, its place and day, and its snippet. A query under two characters shows the refusal. The header has the search box |
+| Docs | `getDocsPage`: the page (cleaned by the authority) with its links rewritten (`rewriteLinks` with `docs`: a Markdown file inside the docs directory is its Docs page at the ref with its anchor, any other file of the repository its Blob page, an image raw, a path leaving the repository no address); the ref picker (branches and tags of `refList`, a GET form redirected in `pre-actions` to the directory's index at that ref); the contents (`tocList`, beside the page, a closed `details` above it under 40 rem); On this page (the h2 and h3 anchors); Edit this page (a branch, a signed-in account); Source; a docs search box (`/search` with `kind=docs` and `in`). Not Found where docs are off. The repository's shell has the Docs tab where docs are on |
+| Releases | `findReleases` (twenty, by cursor): each release's name, Draft or Published, tag, day, commit, notes (links made the repository's pages at the tag) and files. For a Maintainer (`capabilities.canMerge`: a confirmed Maintainer of a repository not archived) New release: a tag of `findRefs` that has no release on the page, the name, the notes (the composer's island and Preview), Publish it now, Announce (`storeRelease` with `operationId`; the answer is the release's page). The shell has the Releases tab always |
+| ReleaseDetail | `getRelease`: the head (name, state, tag, day, commit, Files at this tag, the announcement, linked to the forum's topic where the site mounts the forum), the notes, the files (a download, size, SHA-256; an image's name), the source archives (`archiveList`) and the component. For `canEdit`: Publish or Make it a draft, asked on `?confirm=publish` or `?confirm=unpublish` (Announce offered with Publish), Withdraw on `?confirm=delete` (to the list), Remove a file on `?removeAsset=<id>`, Announce for a published release not yet announced, Name and notes (the composer; the notes sent only when written), Attach a file (multipart; `run` stages it with `stageAttachment` purpose `repositoryFile` and sends its `attachmentId`), a file of the tag's latest successful pipeline run (on `?attach=artifact`: `findPipelineRuns` of `refs/tags/<tag>`, `getPipelineRun`, `getJobRun` of at most three jobs) and a container image's name |
+| Downloads | `ReleaseDetail/asset`: `downloadReleaseAsset` streamed by `Facade.js` `downloadFile` as an attachment named by the authority, `nosniff`, `no-store`; a file backed by a run's artifact the authority sends itself (`sent`, as `downloadArtifact`). The archive transition (`-/archive/…`) now serves a public, unhidden repository's archive to a visitor too, as Mantle allows (addons.xml's archive locations), and the Files and Tags pages link it for a visitor of such a repository |
+| Site settings: pipelines | `storeSmithySettings` takes `outsideRunMaxJobs`: "Most jobs of an outside run" on `/-/site`, sent only when changed |
+| addons.xml | `GroupDetail/addons`: `getAddons`' text as it is, `text/xml; charset=utf-8`, `nosniff`; `public, max-age=300` with `Vary: Cookie` for a visitor of a public group that is not hidden, else `no-store` |
+| Landing settings | The General tab of a group's Settings (its Owner's) has Landing page: the repository and the file (what `getGroupLanding` read, sent together only when one was changed), the news category's id (sent when typed) and No news category (sends it empty): `setGroupLanding` |
+| Site settings | The Redirects tab (`-/site/redirects`, the site's owners and operators): the table (`findRedirects`, a search and a source filter, fifty a page by cursor), Add (`storeRedirect`: old address, old host, target, note), Delete asked on `?delete=<id>` (the row read again by `findRedirects`), Import (`importRedirects`: CSV pasted, the source; the notice counts new and changed and names the first five lines not taken) |
+| Forms | `Do.xml` has 8 more `post` transitions (88): `setGroupLanding`, `storeRelease` (a change of `published` on an existing release confirmed), `deleteRelease` (confirmed), `addReleaseAsset` (an upload staged first: `upload`), `removeReleaseAsset` (confirmed), `storeRedirect`, `deleteRedirect` (confirmed), `importRedirects`. `run` takes a form whose fields are not the operation's one to one (`adjust`: the composer's `body` is `notes`; the landing's fields sent only when changed) |
+| Caching | `Shared/Headers.js`: `/search` and `-/release-assets/…` are `no-store` for a visitor too; Docs, Releases and a release are read pages (public for a minute to a visitor) |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's with the 17 DG7 operations (130 Smithy operations), compared with `cmp` |
+| Tests | `test/Smithy/Smithy.spec.js`: the DG7 paths in the grammar; a visitor's archive of a public repository (the archive feature, changed); an old path of the site's table through the resolver (one route) and one that is not in it; one render of a Docs page (a link to a page of the directory and its anchor, one to a file outside it, the authority's cleaning kept, a heading's anchor, the contents, the ref picker with the tag, Edit, the docs search, the tab); one render of ReleaseDetail as the group's Owner (the notes cleaned, a file with its size and SHA-256 and its download, an image's name, the source archive, the Maintainer's forms) and the same page by its function as a confirmed account with no role (the files, none of the forms); one render of a group's `addons.xml` (text/xml, `no-store` for a signed-in account, the operation's text); Do's 88 posts; the registries and the cache policy. `SmithyAccess.spec.js`: the repository's tabs with Releases. The release and its image are made through the operations, its file as a row (no file is read) |
+
+Differences from the design:
+
+- The Search page's place is `?in=<path>` (the design's "scope"), and the kinds are one select, not several filters.
+- Docs search is the Search page with `kind=docs` and the repository, not a box of its own results.
+- The ref picker goes to the directory's index at the chosen ref, not to the same page there (which may not be).
+- A release's notes are rendered by the authority and shown; the edit form starts empty unless the read gives the notes'
+  source (`release.notes`), which `getRelease` does not yet: what is written replaces them, an empty field keeps them.
+- Publishing and making a draft again are asked on a page of their own (the design says nothing of it); Announce is
+  offered there and on a published release.
+- A release's file download is `no-store` for a public repository too (the facade's rule; a release may be withdrawn).
+- The news category is named by its id on the Landing section; its present value is not shown (no read answers it).
+- Redirects: a CSV is pasted, not uploaded; there is no edit of a redirect on the page (delete and add again, or import:
+  an old address the table has takes the new target).
+- Pinned repositories are what the read gives; pinning a repository has no page yet.
+
+Findings for other lanes:
+
+- Mantle: `get#Release` answers the notes rendered (`notesHtml`) but not their source, so a page cannot fill the notes'
+  editor; `getGroup` or `getGroupLanding` does not answer the group's `newsContactListId` (nor its landing file when the
+  file is gone), so the Landing form cannot show them.
+- Mantle: a release's name with `<` or `>` is refused by `mantle.work.ProjectServices.create#Release` ("HTML not allowed"
+  on the description) with the service's own message, not a field refusal of `storeRelease`.
+
+Not built: the acceptance walks of the site (the old links of the inventory landing where they should; `component-get`
+from the staging host); the 390 px check of these pages in a browser (the Docs contents drawer and the Overview's one
+column are CSS, not checked in a browser); an edit of a redirect; a group's Releases page (`findReleases` by `groupId`); a
+docs page cached by PASS (Mantle caches the rendering by blob id).

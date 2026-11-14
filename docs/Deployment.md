@@ -429,7 +429,9 @@ preview host's name apart from the BOSS host's all the same.
 ## Smithy app
 
 Smithy (`screen/Smithy.xml`; [design](../plan/design-smithy.md)) is public git hosting over the framework's git host and
-Mantle's `mantle.smithy` services: groups, repositories, their code, their issues, their merge requests and their pipelines. It runs where the git data is, so mount it on the
+Mantle's `mantle.smithy` services: groups, repositories, their code, their issues, their merge requests and their pipelines,
+and the site around them (a group's landing page, Docs, Releases, the component directory, search and the old paths of a
+site's move). It runs where the git data is, so mount it on the
 authority's own instance. It is bound to no business record (no target), a site has one Smithy mount, and it may be the
 site's root app:
 
@@ -458,8 +460,10 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   `/-/issues/<n>`, `/-/labels`, `/-/milestones`, `/-/merge-requests`, `/-/merge-requests/new`, `/-/merge-requests/<n>` (and its
   `/commits`, `/changes`, `/checks`), `/-/pipelines`, `/-/pipelines/<n>`, `/-/pipelines/<n>/jobs/<id>` (and its `/log`, the log's
   lines as JSON), `/-/artifacts/<id>/<name>`, `/-/fork`, `/-/forks`, `/-/edit/<ref>/<path>` (and `/-/new/…`, `/-/upload/…`,
-  `/-/delete/…`), `/-/forum[/…]`, `/-/moderation[/…]`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`,
-  `/-/forum[/…]`, `/-/members`, `/-/moderation[/…]`, `/-/settings/<tab>`; `/explore` lists what the visitor may view, and `/new/group`, `/new/repository` and `/-/site` are
+  `/-/delete/…`), `/-/forum[/…]`, `/-/moderation[/…]`, `/-/docs/<ref>/<path>`, `/-/releases`, `/-/releases/<tag>`,
+  `/-/release-assets/<id>/<name>`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`,
+  `/-/forum[/…]`, `/-/members`, `/-/moderation[/…]`, `/-/addons.xml`, `/-/settings/<tab>`; `/explore` lists what the visitor
+  may view (groups, repositories and components), `/search?q=` searches it, and `/new/group`, `/new/repository` and `/-/site` are
   the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
   and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
   (`/<group>/<repository>/blob/main/README.md`) redirect (301) once Mantle has found something the visitor may view.
@@ -477,7 +481,9 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   cache should still have its page. A merge request's pages (`/-/merge-requests…`; one may be held for review), the pages
   that edit a file and the fork pages are `no-store` for a visitor as well, and so are the forum's pages inside a group or a
   repository (`/-/forum…`), the moderation pages (`/-/moderation…`) and the pipeline pages, a job's log and an upload
-  (`/-/pipelines…`, `/-/artifacts/…`: a log holds whatever a job printed). The Issues and Merge requests tabs show their
+  (`/-/pipelines…`, `/-/artifacts/…`: a log holds whatever a job printed), a release's file (`/-/release-assets/…`) and
+  the Search page (`/search`, which lists issues). A group's `addons.xml` is `public, max-age=300` for a visitor of a
+  public group and `no-store` otherwise. The Issues and Merge requests tabs show their
   counts to a signed-in account only. A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
 - **Scripts.** The pages are plain HTML and load no script; code is shown as escaped text with line anchors (`#L10`).
@@ -489,9 +495,12 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   side by side) and a file's edit page (`/-/island/Editor.qvue`: the code editor over the plain textarea). Both pages
   work without them: the diff is escaped text with an anchor and a comment link for each line, the editor a textarea.
   A running job's page loads them for the live log (`/-/island/JobLog.qvue`): it reads the job's new lines from
-  `…/jobs/<id>/log` every two seconds, and at once when the framework's notification socket (`/notws`, a signed-in account
-  only) says the log grew; without it the page has Refresh and Load more. A log is shown as escaped text with its terminal
-  escapes taken out.
+  `…/jobs/<id>/log` every two seconds (a page or a read holds at most about 256 KB, and the next read waits as long), and at
+  once when the framework's notification socket says the log grew (a signed-in account only; its path is the
+  `pass_notification_endpoint` property, `/notws` when it is not set, and an empty value turns the socket off; a host
+  that refuses the socket is given up after its first try); without it the page has Refresh and Load more. A log, a test's
+  name and message and a step are shown as escaped text with terminal escapes, control characters and bidirectional
+  overrides taken out.
 - **Issues.** A repository's Maintainer turns issues on in its Settings (General); the repository then has the Issues
   tab, Labels and Milestones, and its project in Projects holds the tasks. An issue's conversation is posts of the
   forum's engine, so the site's posting policy, trust levels, word rules, review queue and notification mail apply to
@@ -527,7 +536,8 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
     not (outside runs: a fork's merge request, a push for review, an account below Developer; no secrets, a read-only
     cache). Allow at least one of each to a group, or outside runs have nowhere to run. A group's Owner chooses among the
     pools it is allowed (the group's Settings, Pipelines); with no choice the engine takes a pool of the job's pool name
-    that takes the run's trust, the owner's before a shared one.
+    that takes the run's trust, the owner's before a shared one. A subgroup's form holds its own choices ("As the group
+    above says" where it has none, with the choice in effect beside it), and a save changes only what was changed.
   - **Runner minutes.** Counted by month for each owner as its jobs end (`GitRunnerUsage`). A group has the site's
     default for a group (2000 a month until `/-/site` says otherwise, "Default limits of a group"), an account the
     default for an account (0: a personal repository runs nothing until an operator gives its account minutes on
@@ -578,8 +588,8 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
 - **Quotas.** A push is checked against the namespace's limits by Mantle's pre-receive rule. Git LFS uploads are checked
   by `<git-server lfs-upload-check-service>`, which mr-mantle's `MoquiConf.xml` sets; keep it when a runtime's conf
   replaces the `git-server` element.
-- **Downloads.** A tree's zip or tar.gz (`/-/archive/<ref>.zip`, `.tar.gz`) is served to a signed-in account only; a
-  visitor is sent to sign in. `git-server` `archive-max-bytes` and `archive-max-files` bound it, and `blame-max-bytes` and
+- **Downloads.** A tree's zip or tar.gz (`/-/archive/<ref>.zip`, `.tar.gz`) of a public repository is served to anyone
+  (addons.xml's archive locations need it), of any other to a signed-in account. `git-server` `archive-max-bytes` and `archive-max-files` bound it, and `blame-max-bytes` and
   `blame-max-commits` the Blame page.
 - **Push.** A push needs a role of Developer or higher in the repository and a confirmed address; branch rules and
   webhooks are a repository's Settings (a Maintainer's), its members, visibility, transfer, archive and delete an Owner's.
@@ -614,6 +624,56 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   link `/-/held-report/<token>` under Smithy's mount, and the repository's Owners see it waiting in their review queue.
   The link's page asks a visitor to sign in or register; the account whose confirmed address sent the message then
   files it with the page's form. Outbound mail must be configured for the reply to be sent.
+- **The landing page.** The site's home (`/-/site`, "Home group") shows the home group's page. A group's Owner makes its
+  page a Markdown file of a repository on the group's Settings, General, "Landing page": the repository's path and the
+  file (`moqui/site`, `landing.md`), read at that repository's default branch, cleaned, and edited as any file is ("Edit
+  this page"); the repository must be seen by everyone who sees the group. Its relative links lead to that repository's
+  pages. Beside it: the group's pinned repositories, the latest published release of its repositories, news (the latest
+  topics of a forum category whose id the Owner names there, readable by everyone who sees the group; a release
+  "announced" posts there) and what happened lately in the repositories the visitor views. The site's other pages (the
+  license, how to contribute) are files of the same repository, shown by Docs.
+- **Docs.** A repository's Maintainer turns Docs on (Settings, General, with the directory, `docs` by default); the
+  repository then has the Docs tab: `/-/docs` is the directory's `README.md` at the default branch, `/-/docs/<ref>/<path>`
+  a Markdown page at a branch, a tag or a commit, with a picker of the branches and tags, the table of contents of the
+  directory (a directory's `README.md` is its index; at most 500 files and five levels), the page's headings with stable
+  anchors, Edit this page at a branch, and a search box (the docs at the default branch, on the Search page). A link to a
+  Markdown file of the directory is its Docs page at the same ref, another file its file page, an image its raw file.
+- **Releases.** A repository has the Releases tab: a release is Mantle's release of the repository's project, made of a
+  tag by a Maintainer (New release on `/-/releases`, a draft until published) with a name and Markdown notes, which pass
+  the forum's gate. Publishing (asked again on the release's page) adds the files the tag's latest successful pipeline run
+  uploaded; a Maintainer attaches more (an upload of at most 10 MiB, scanned as an attachment is, or a file of the tag's
+  pipeline run, or a container image's name), removes one, announces the release in the news category of the nearest
+  group that has one, and withdraws it (the tag stays). A release's files count against the namespace's Git LFS limit.
+  Downloads are for whoever may view the repository (a draft's for its Maintainers), as attachments named by Mantle,
+  never kept by a cache; a file a pipeline run uploaded is sent from the run's artifact, which the release keeps. The
+  source archives of the tag are the Files' downloads.
+- **The component directory.** A repository whose root has a `component.xml` at its default branch is a Moqui
+  component: Mantle reads its name, version and `depends-on` on each push (`Smithy.gitecas.xml`). Explore lists the
+  components the visitor may view, with their latest release. Each group serves `/<group>/-/addons.xml`: the public
+  components of the group and its subgroups, in the format `./moq component-get` reads, with the site's clone and archive
+  addresses (from its canonical host; a public repository's archive needs no account). To take a component from it, copy its
+  `repository` element and the `component` elements wanted into your `myaddons.xml`, or save the file as
+  `myaddons.xml`:
+
+  ```sh
+  curl -s https://code.example.org/moqui/-/addons.xml > myaddons.xml
+  ./moq component-get mr-example
+  ```
+
+  A members-only or private component is not in the file; take it with git and an access token (Git access).
+- **Search.** `/search?q=` (the box in the header) searches repositories, groups, components, issues, merge requests, docs
+  pages and forum topics, each by its own rule (a confidential issue, a held merge request and a private repository's
+  items are found only by who may read them), narrowed to a kind, or to a group or a repository with `?in=<path>`.
+  Code search is not built.
+- **Redirects for a site move.** The site's owners keep a table of old addresses on `/-/site/redirects`: an old path (or a
+  whole address, whose host is kept: `https://forum.example.org/t/12`) and its target, a path of the site or an https
+  address of one of its hosts. A request that no mount and no Smithy name takes is looked up there before Not Found,
+  for the request's host and then for any of the site's hosts, and answered with a 301. For a move, give the old host
+  names to the site as hosts too (Several sites by host name, above), then import the inventory as CSV on the same
+  tab, one line an address (`old,target,note`; a first line of column names is skipped). An import runs twice safely: an
+  old address it has takes the new target, and a line that is not taken is named in the notice. The forum's own Discourse
+  addresses are its `ForumLegacyUrl` rows (Entitlements, operations and imports, below). Mantle's `resolve#Redirect` is
+  local to the authority: a remote PASS frontend answers Not Found for an old path.
 
 ## Adding an app
 

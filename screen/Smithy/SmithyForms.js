@@ -335,10 +335,14 @@ function site(siteId, bases, siteInfo, self, tab) {
         [
             ["settings", "Settings", root],
             ["requests", "Group requests", root + "/requests"],
-            ["quotas", "Quotas", root + "/quotas"]
+            ["quotas", "Quotas", root + "/quotas"],
+            ["redirects", "Redirects", root + "/redirects"]
         ],
         current
     )}`
+    // DG7: the site's table of old paths (SmithySite.js)
+    if (current === "redirects")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithySite.js").redirects(siteId, c, head, root + "/redirects")
     if (current === "requests") {
         const cursor = param("cursor")
         const found = need("findGroupRequests", {siteId, status: "requested", limit: 30, ...(cursor ? {cursor} : {})})
@@ -471,7 +475,9 @@ function site(siteId, bases, siteInfo, self, tab) {
                 value: settings.outsideRunApproval || "first",
                 hint: "An outside run is one of a fork's merge request, a push for review, or an account below Developer. A group may say otherwise for its repositories."
             }
-        )}</fieldset>${submit("Save settings")}`
+        )}${number("outsideRunMaxJobs", "Most jobs of an outside run", settings.outsideRunMaxJobs, {
+            hint: "An outside run with more jobs than this is refused."
+        })}</fieldset>${submit("Save settings")}`
             .html
     }
 }
@@ -637,7 +643,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             {value: g.pathSegment, required: true, maxlength: 39, pattern: "[a-z0-9][a-z0-9_\\-]{1,38}", autocomplete: "off"}
         )}<p>Renaming changes the address of the group and of every repository in it, for pages and for git. The old addresses redirect until something else takes the name.</p>${submit(
             "Rename group"
-        )}`.html
+        )}${ec.resource.script("component://mr-pass/screen/Smithy/SmithySite.js").landingSettings(shell, c)}`.html
     }
 }
 
@@ -1355,9 +1361,10 @@ const DO = {
     revokeAccessToken: {fields: ["tokenId"], account: true, confirm: true, notice: () => "The token was revoked."},
     storeSmithySettings: {
         fields: ["homeGroupPath", "groupCreate", "repositoryCreate", "forkCreate", "repositoryKind", "outsideRunApproval"],
-        numbers: ["defaultMaxRepositories", "defaultRunnerMinutes", "groupRunnerMinutes", "expectedRevision"],
+        numbers: ["defaultMaxRepositories", "defaultRunnerMinutes", "groupRunnerMinutes", "outsideRunMaxJobs", "expectedRevision"],
         mib: ["defaultRepositoryBytes", "defaultLfsBytes", "groupRepositoryBytes", "groupLfsBytes", "maxEditBytes"],
         changed: [
+            "outsideRunMaxJobs",
             "defaultMaxRepositories",
             "defaultRunnerMinutes",
             "groupRunnerMinutes",
@@ -1721,13 +1728,90 @@ const DO = {
     storePipelineSettings: {
         fields: ["groupId", "runnerPoolId", "outsideRunnerPoolId", "outsideRunApproval"],
         numbers: ["expectedRevision"],
+        // only a field that was changed is sent; one emptied gives up the group's own value (it follows the group above)
+        changed: ["runnerPoolId", "outsideRunnerPoolId", "outsideRunApproval"],
         notice: () => "The pipeline settings were saved."
+    },
+    // DG7 (design §13, §15.8): a group's landing page, releases and their files, the site's table of old paths. A group's
+    // landing file is sent when its repository or path was changed (both together), its news category when one is typed
+    // or "No news category" is checked
+    setGroupLanding: {
+        fields: ["groupId", "landingRepositoryPath", "landingPath", "newsContactListId"],
+        numbers: ["expectedRevision"],
+        adjust: input => {
+            const same = name => (param(name) ?? "") === (param("was_" + name) ?? "")
+            if (same("landingRepositoryPath") && same("landingPath")) {
+                delete input.landingRepositoryPath
+                delete input.landingPath
+            }
+            if (param("clearNews") === "true") input.newsContactListId = ""
+            else if (!input.newsContactListId) delete input.newsContactListId
+        },
+        notice: () => "The landing page was saved."
+    },
+    // a release of a tag (operationId) or a change of one (expectedRevision); its notes are the composer's text (body), sent
+    // only when written; publishing or withdrawing a published one is asked again on the release's page
+    storeRelease: {
+        fields: ["repositoryId", "tag", "name", "body"],
+        optional: ["published", "sourceFormat", "operationId"],
+        optionalFlags: ["announce"],
+        numbers: ["expectedRevision"],
+        confirm: posted => posted.has("expectedRevision") && posted.has("published"),
+        adjust: input => {
+            if (input.body) input.notes = input.body
+            delete input.body
+            if (!input.notes) delete input.sourceFormat
+        },
+        // a new release's page; a change stays on the page it was made on
+        done: (result, c, back) => {
+            const page = back.split(/[?#]/)[0]
+            return result.tag && /\/-\/releases$/.test(page) ? page + "/" + enc(result.tag) : null
+        },
+        notice: result => "The release " + result.tag + " was saved." + (result.announcementTopicId ? " It is announced in the news." : "")
+    },
+    deleteRelease: {fields: ["repositoryId", "tag"], numbers: ["expectedRevision"], confirm: true, notice: () => "The release was withdrawn."},
+    addReleaseAsset: {
+        fields: ["repositoryId", "tag", "operationId"],
+        optional: ["name", "artifactId", "imageName"],
+        upload: true,
+        notice: () => "The file was added to the release."
+    },
+    removeReleaseAsset: {fields: ["repositoryId", "assetId"], confirm: true, notice: () => "The file was removed from the release."},
+    storeRedirect: {
+        fields: ["oldPath", "targetPath", "note", "operationId"],
+        optional: ["oldHost", "redirectId"],
+        notice: () => "The redirect was saved."
+    },
+    deleteRedirect: {fields: ["redirectId"], confirm: true, notice: () => "The redirect was deleted."},
+    importRedirects: {
+        fields: ["csv", "source"],
+        notice: result => {
+            const failed = result.failedList || []
+            return (
+                "Imported: " +
+                (Number(result.created) || 0) +
+                " new, " +
+                (Number(result.updated) || 0) +
+                " changed" +
+                (failed.length
+                    ? "; " +
+                      failed.length +
+                      " lines not taken: " +
+                      failed
+                          .slice(0, 5)
+                          .map(line => "line " + line.line + " (" + String(line.message || "").replace(/^[a-zA-Z]+(\[[a-zA-Z]+\])?: /, "") + ")")
+                          .join(", ") +
+                      (failed.length > 5 ? ", ..." : "")
+                    : "") +
+                "."
+            )
+        }
     },
     // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
     previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
 /* The forms whose text Preview shows (a file's edit previews its Markdown: previewField). */
-const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile"]
+const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile", "storeRelease"]
 /* What is never written back into a page after a refusal. */
 const SECRET = ["password", "code", "secret", "confirmPath", "value"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
@@ -1840,6 +1924,20 @@ function run(name, siteId, bases) {
     }
     const confirm = typeof spec.confirm === "function" ? spec.confirm(posted) : !!spec.confirm
     if (confirm && param("confirm") !== "yes") return refuse({message: "Confirm this change on its own page first.", field: null})
+    // DG7: a form whose fields are not the operation's one to one (adjust), and a release's file uploaded with its form
+    if (spec.adjust) spec.adjust(input, posted)
+    if (spec.upload && ec.web.multiPartParameters?.file) {
+        const staged = portal.attempt(
+            "stageAttachment",
+            {siteId, purpose: "repositoryFile", repositoryId: input.repositoryId || "", file: ec.web.multiPartParameters.file},
+            {newTransaction: true}
+        )
+        const attachment = staged.result?.attachment
+        if (!attachment) return refuse({message: staged.error?.message || "Choose a file to upload.", field: "file"})
+        if (attachment.scanState && attachment.scanState !== "clean")
+            return refuse({message: "The file was held by the scanner and was not added.", field: "file"})
+        input.attachmentId = attachment.attachmentId
+    }
     // in its own transaction, so a refusal does not undo this transition's answer
     const out = portal.attempt(name, {siteId, ...input}, {newTransaction: true})
     // a change of the account's git access asks for the password again: that refusal is not a sign-in's

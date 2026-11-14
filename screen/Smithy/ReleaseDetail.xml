@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- ReleaseDetail (design-smithy §13.3), at -/releases/<tag>, in its repository's shell: a release (getRelease) with its notes,
+    files (sizes, SHA-256, downloads), the tag's source archives and its component, and for a Maintainer its forms (name and
+    notes, Publish or Make it a draft, Announce, attach a file, Remove, Withdraw), which post to Smithy/Do. A draft is Not
+    Found but to a Maintainer. The asset transition serves a release's file at -/release-assets/<assetId>/<name>
+    (downloadReleaseAsset), streamed as an attachment and never kept by a cache. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Release">
+  <parameter name="repositoryId"/>
+  <parameter name="namePath"/>
+  <parameter name="tag"/>
+  <transition name="asset" method="get" read-only="true">
+    <parameter name="repositoryId"/>
+    <parameter name="assetId"/>
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithySite.js').asset(resolvedSiteId,String(repositoryId || ''),String(assetId || ''))</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <pre-actions>
+    <script><![CDATA[
+        // read before anything renders, so a release the caller may not read is the framework's Not Found, not a part of the shell
+        smithyRepository=ec.resource.script('component://mr-pass/screen/Smithy/Smithy.js').repositoryShell(resolvedSiteId,String(repositoryId || ''),passBases.smithy,String(publicPath || ''))
+        smithyRelease=ec.resource.script('component://mr-pass/screen/Smithy/SmithySite.js').releaseDetail(smithyRepository,String(tag || ''),passBases,siteInfo,String(publicPath || ''))
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        view=smithyRelease
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Smithy/RepositoryShell.html.fancy"/>
+    </render-mode>
+    <render-mode>
+      <text type="html"><![CDATA[${raw(view.html)}]]></text>
+    </render-mode>
+  </widgets>
+</screen>

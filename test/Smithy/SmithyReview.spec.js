@@ -567,3 +567,60 @@ feature("a running job's page: its log escaped, a failed test linked, an artifac
         shown.includes('<option value="check" selected>check</option>')
     }
 })
+feature("pipeline page rules: the log's JSON is no-store and Not Found with pipelines off, an upload too; Cancel asks again; a refused secret keeps no value; the runners form holds the group's own values", {
+    when() {
+        const f = fixtures()
+        const job = "PSMR_JOB41"
+        const page = R + "/-/pipelines/41"
+        const log = jobRunId =>
+            f.render(SITE, HOST, page + "/jobs/" + jobRunId + "/log", "Smithy/PipelineDetail/log", {repositoryId: s.repo, namePath: "pass-smr/review", runNum: "41", jobRunId})
+        const upload = () =>
+            f.render(SITE, HOST, R + "/-/artifacts/PSMR_ART41/results.tar.gz", "Smithy/PipelineDetail/artifact", {repositoryId: s.repo, namePath: "pass-smr/review", artifactId: "PSMR_ART41"})
+        const on = log(job)
+        const other = log("PSMR_NONE")
+        // Cancel without its confirmation page's answer is not run
+        const cancel = f.post(SITE, HOST, "cancelPipelineRun", {repositoryId: s.repo, runNum: 41, returnTo: page})
+        const state = f.operation("getPipelineRun", {siteId: SITE, repositoryId: s.repo, runNum: 41}).run?.state
+        // a secret's value is not kept for the form's next page when its save is refused
+        const secret = f.post(SITE, HOST, "storeCiSecret", {
+            repositoryId: s.repo,
+            name: "bad name!",
+            value: "s3cret-value",
+            scope: "nowhere",
+            operationId: id(),
+            returnTo: R + "/-/settings/pipelines"
+        })
+        // with pipelines off, the log's JSON and an upload are Not Found
+        f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "N"})
+        const off = log(job)
+        const fileOff = upload()
+        f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "Y"})
+        // the group's runners form holds its own values, each sent only when changed, with the value in effect as its hint
+        const {smithy, pipelines} = scripts()
+        const groupPage = "/code/pass-smr/-/settings/pipelines"
+        const runners = pipelines.groupSettings(smithy.groupShell(SITE, s.group, "/code", groupPage), "", BASES, INFO, groupPage).html
+        let lines = null
+        try {
+            lines = JSON.parse(on.html).lines
+        } catch (error) {
+            lines = null
+        }
+        return {on, lines, other, cancel, state, secret, off, fileOff, runners}
+    },
+    then({on, lines, other, cancel, state, secret, off, fileOff, runners}) {
+        on.header("Cache-Control") === "no-store"
+        Array.isArray(lines) && lines.length >= 2
+        other.errors.some(error => error.includes("Page not found"))
+        cancel.flash.error.message === "Confirm this change on its own page first."
+        state === "waiting"
+        secret.status === 303
+        !!secret.flash.error
+        secret.flash.values.name === "bad name!"
+        !Object.hasOwn(secret.flash.values, "value")
+        off.errors.some(error => error.includes("Page not found"))
+        fileOff.errors.some(error => error.includes("Page not found"))
+        runners.includes('<input type="hidden" name="was_runnerPoolId" value="">')
+        runners.includes("In effect now:")
+        runners.includes('<option value="" selected>As the group above says</option>')
+    }
+})

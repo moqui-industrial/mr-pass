@@ -88,7 +88,7 @@ function refText(refName) {
     return ref
 }
 /* The words of a run's message without the refusal's code in front (quotaExceeded: ...). */
-const messageText = message => String(message || "").replace(/^[a-z][A-Za-z]{2,40}: /, "")
+const messageText = message => plain(String(message || "").replace(/^[a-z][A-Za-z]{2,40}: /, ""))
 const chip = (state, id) => h`<strong class="smithy-chip"${attributes({id: id || null})}>${stateText(state)}</strong>`
 
 /* One run as a line of a list: its number and pipeline, its state, and what it ran for. */
@@ -206,8 +206,12 @@ const jobName = job => job.jobName + (job.matrixKey ? " (" + job.matrixKey + ")"
  * and other control characters taken out, and of a line rewritten by carriage returns (a progress bar) its last text. */
 // eslint-disable-next-line no-control-regex
 const ANSI = /\u001b(?:\[[0-?]*[ -\/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|[@-Z\\-_])/g
+/* The control characters taken out of what a job wrote (its log, a test's name and message, a step's name and command, a
+ * message): C0 but tab and newline, DEL, C1, and the bidirectional overrides and isolates (U+202A to U+202E, U+2066 to
+ * U+2069), which would make a line read otherwise than it is. */
 // eslint-disable-next-line no-control-regex
-const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f]/g
+const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g
+const plain = text => String(text ?? "").replace(ANSI, "").replace(CONTROL, "")
 function logLines(text) {
     const lines = String(text ?? "").split("\n")
     if (lines.length && lines[lines.length - 1] === "") lines.pop()
@@ -226,6 +230,20 @@ const logHtml = (lines, first) =>
     )
 /* The UTF-8 length of a text in bytes. */
 const utf8Length = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
+/* The bytes of a job's log a page or one of the island's reads holds at most, about: a page is 500 chunks or this. */
+const LOG_PAGE_BYTES = 262144
+/* The longest start of a text that is at most bytes long in UTF-8. */
+function cutBytes(text, bytes) {
+    let used = 0
+    let at = 0
+    for (const c of text) {
+        const size = utf8Length(c)
+        if (used + size > bytes) break
+        used += size
+        at += c.length
+    }
+    return text.slice(0, at)
+}
 /* A piece of a job's log (getJobLog): while it runs the chunks after after, once it has ended the stored log from offset.
  * {lines, after, offset, more, finished, state, pollSeconds, notification}: after and offset are where the next read
  * starts (both are passed back, so no line is lost when the job ends between two reads), more that the log has more past
@@ -241,6 +259,7 @@ function readLog(input, at, watch) {
     let text
     let offset = out.nextOffset ?? at.offset
     let more
+    let after = null
     if (out.finished) {
         text = String(out.text ?? "")
         more = out.nextOffset != null && out.logBytes != null && Number(out.nextOffset) < Number(out.logBytes)
@@ -249,14 +268,35 @@ function readLog(input, at, watch) {
             text = text.slice(0, cut + 1)
             offset = at.offset + utf8Length(text)
         }
+        // a page holds about LOG_PAGE_BYTES: an ended log's piece is cut at its last whole line within it
+        if (utf8Length(text) > LOG_PAGE_BYTES) {
+            const within = cutBytes(text, LOG_PAGE_BYTES)
+            const end = within.lastIndexOf("\n")
+            text = end >= 0 ? within.slice(0, end + 1) : within
+            offset = at.offset + utf8Length(text)
+            more = true
+        }
     } else {
+        // the chunks of a running job up to about LOG_PAGE_BYTES (the first always); the rest is the next read's
         const chunks = out.chunkList || []
-        text = chunks.map(chunk => chunk.text || "").join("")
-        more = chunks.length >= 500
+        const kept = []
+        let bytes = 0
+        for (const chunk of chunks) {
+            const size = utf8Length(String(chunk.text || ""))
+            if (kept.length && bytes + size > LOG_PAGE_BYTES) break
+            bytes += size
+            kept.push(chunk)
+        }
+        text = kept.map(chunk => chunk.text || "").join("")
+        more = chunks.length >= 500 || kept.length < chunks.length
+        if (kept.length < chunks.length) {
+            const last = kept[kept.length - 1]
+            if (last?.chunkSeq != null) after = Math.max(Number(last.chunkSeq), at.after)
+        }
     }
     return {
         lines: logLines(text),
-        after: out.nextChunkSeq != null ? Math.max(Number(out.nextChunkSeq) - 1, at.after) : at.after,
+        after: after != null ? after : out.nextChunkSeq != null ? Math.max(Number(out.nextChunkSeq) - 1, at.after) : at.after,
         offset: Number(offset) || 0,
         more,
         finished: !!out.finished,
@@ -371,7 +411,7 @@ function runPage(shell, runNum, jobRunId, bases, siteInfo, self) {
     const stepsHtml = steps.length
         ? h`<section class="card" id="SmithySteps" aria-label="Steps"><h3>Steps</h3><ol>${steps.map(
               step =>
-                  h`<li class="wrap">${step.stepName ? h`<strong>${step.stepName}</strong> ` : ""}<code>${step.command}</code> ${chip(step.state)}${
+                  h`<li class="wrap">${step.stepName ? h`<strong>${plain(step.stepName)}</strong> ` : ""}<code>${plain(step.command)}</code> ${chip(step.state)}${
                       step.exitCode != null && step.exitCode !== 0 ? " · exit code " + step.exitCode : ""
                   }</li>`
           )}</ol></section>`
@@ -385,7 +425,7 @@ function runPage(shell, runNum, jobRunId, bases, siteInfo, self) {
           query(
               log.finished
                   ? {offset: log.offset, line: at.line + log.lines.length}
-                  : {after: log.after, line: at.line + log.lines.length}
+                  : {after: log.after, offset: log.offset, line: at.line + log.lines.length}
           ) +
           "#SmithyLog"
         : null
@@ -424,6 +464,13 @@ function runHead(c, pu, run) {
         " · "
     )}</small></p>${run.message ? h`<p class="wrap" id="SmithyRunMessage">${messageText(run.message)}</p>` : ""}</article>`
 }
+/* The framework's notification socket's path for the log's island: the pass_notification_endpoint property (/notws when it
+ * is not set; empty: no socket, the island polls), a path on this host only. */
+function notificationEndpoint() {
+    const configured = System.getProperty("pass_notification_endpoint")
+    const endpoint = configured == null ? "/notws" : String(configured).trim()
+    return /^\/[A-Za-z0-9_\/-]{1,100}$/.test(endpoint) ? endpoint : null
+}
 /* The log's island (design §10): where JavaScript runs it reads the lines after what the page shows from the log's JSON (the
  * log transition) every pollSeconds, and at once when the notification socket says the log grew (topic GitCiJobLog, the
  * job's id its sub-topic; a signed-in reader only), and stops when the job has ended. */
@@ -440,15 +487,17 @@ function logIsland(c, siteInfo, pu, run, job, log, at) {
             line: at.line + log.lines.length,
             pollSeconds: log.pollSeconds,
             // the framework's notification socket, which opens for a signed-in account; the page polls without it
-            notification: c.signedIn ? {endpoint: "/notws", topic: "GitCiJobLog", subTopic: job.jobRunId} : null
+            notification: c.signedIn && notificationEndpoint() ? {endpoint: notificationEndpoint(), topic: "GitCiJobLog", subTopic: job.jobRunId} : null
         },
         {loading: "Loading the log"}
     )
 }
-/* A failed test's file, as a path in the repository: a relative path only (a runner's absolute path is not one). */
+/* A failed test's file, as a path in the repository: a relative path only (a runner's absolute path is not one), with no . or
+ * .. segment, no empty one and no backslash, so a report cannot make the link lead anywhere else on the site. */
 const testPath = path => {
     const p = String(path || "").replace(/^(?:\.\/)+/, "")
-    return p && !p.startsWith("/") && !/^[A-Za-z]:/.test(p) ? p : null
+    if (!p || p.startsWith("/") || /^[A-Za-z]:/.test(p) || /[\\\u0000-\u001f\u007f]/.test(p)) return null
+    return p.split("/").every(segment => segment && segment !== "." && segment !== "..") ? p : null
 }
 /* The failed tests of a job (design §10): name, the file and line linked to Blob at the run's commit, the message. */
 function failedTests(pu, run, detail) {
@@ -457,8 +506,8 @@ function failedTests(pu, run, detail) {
     return h`<section class="card" id="SmithyFailedTests" aria-label="Failed tests"><h3>Failed tests <small>${tests.length}</small></h3><ul>${tests.map(
         test => {
             const path = testPath(test.filePath)
-            const place = test.filePath ? test.filePath + (test.lineNumber ? ":" + test.lineNumber : "") : ""
-            return h`<li class="wrap"><strong>${test.suiteName ? test.suiteName + " › " : ""}${test.testName}</strong>${
+            const place = test.filePath ? plain(test.filePath) + (test.lineNumber ? ":" + test.lineNumber : "") : ""
+            return h`<li class="wrap"><strong>${test.suiteName ? plain(test.suiteName) + " › " : ""}${plain(test.testName)}</strong>${
                 place
                     ? h` · ${
                           path && run.commitId
@@ -467,7 +516,7 @@ function failedTests(pu, run, detail) {
                       }`
                     : ""
             }${test.durationMillis != null ? h` <small>${(Number(test.durationMillis) / 1000).toFixed(2)} s</small>` : ""}${
-                test.message ? h`<pre class="smithy-pre">${test.message}</pre>` : ""
+                test.message ? h`<pre class="smithy-pre">${plain(test.message)}</pre>` : ""
             }</li>`
         }
     )}</ul></section>`
@@ -490,6 +539,8 @@ function artifacts(pu, detail) {
  * (downloadArtifact), streamed by the facade as an attachment, nosniff and never kept by a cache. */
 function artifact(siteId, repositoryId, artifactId) {
     if (!artifactId || !repositoryId) fail()
+    // a repository with pipelines off has none of their files (the authority refuses them too)
+    requirePipelines({repository: need("getRepository", {siteId, repositoryId}).repository})
     try {
         ec.resource
             .script("component://mr-pass/service/pass/Facade.js")
@@ -507,6 +558,8 @@ function artifact(siteId, repositoryId, artifactId) {
  * them as text); a reader who may not read the run gets Not Found. */
 function logJson(siteId, repositoryId, runNum, jobRunId) {
     if (!/^[1-9][0-9]{0,8}$/.test(runNum) || !jobRunId) fail()
+    // a repository with pipelines off has no log to follow (the authority refuses it too)
+    requirePipelines({repository: need("getRepository", {siteId, repositoryId}).repository})
     const at = logStart()
     const log = readLog({siteId, repositoryId, runNum: Number(runNum), jobRunId}, at, true)
     ec.web.response.setHeader("Cache-Control", "no-store")
@@ -524,22 +577,36 @@ function logJson(siteId, repositoryId, runNum, jobRunId) {
 
 /* What a merge request's Checks tab shows of its runs at the head (design §9 MergeRequestChecks): each run with its jobs and
  * their failed tests, and Approve and run for a run that waits, when the caller may approve it. request.found is
- * getMergeRequest's answer (runList); a run is read again for its jobs, at most ten, and a failed job for its tests. */
+ * getMergeRequest's answer (runList), whose rows the list shows as they are; a run is read again for its jobs only for the
+ * first RUN_READS runs (one that waits for approval first, then one that failed), and a failed job for its tests only for
+ * TEST_READS jobs of the page. */
+const RUN_READS = 3
+const TEST_READS = 2
 function requestRuns(c, shell, request) {
     const runs = (request.found.runList || []).slice(0, 10)
     if (!runs.length) return ""
     const r = shell.repository
     const pu = urlsOf(c.base, r.repositoryPath)
+    const rank = run => (run.state === "waiting" && run.approvalState === "waiting" ? 0 : ["failure", "error"].includes(run.state) ? 1 : 2)
+    const detailed = new Set(
+        runs
+            .slice()
+            .sort((x, y) => rank(x) - rank(y))
+            .slice(0, RUN_READS)
+            .map(run => run.runNum)
+    )
     let reads = 0
     return h`<section class="card" id="SmithyRequestRuns" aria-label="Pipeline runs"><p><strong>Pipeline runs of the head</strong></p>${runs.map(
         run => {
-            const found = maybe("getPipelineRun", {siteId: shell.siteId, repositoryId: r.repositoryId, runNum: run.runNum})
+            const found = detailed.has(run.runNum)
+                ? maybe("getPipelineRun", {siteId: shell.siteId, repositoryId: r.repositoryId, runNum: run.runNum})
+                : null
             if (!found) return runLine(c, r.repositoryPath, run)
             const caps = found.capabilities || {}
             const jobs = (found.jobList || []).map(job => {
                 // the failed tests of a failed job, read for at most five jobs of the page
                 const tests =
-                    Number(job.testFailedCount) && reads++ < 5
+                    Number(job.testFailedCount) && reads++ < TEST_READS
                         ? maybe("getJobRun", {
                               siteId: shell.siteId,
                               repositoryId: r.repositoryId,
@@ -551,7 +618,7 @@ function requestRuns(c, shell, request) {
                     tests.length
                         ? h`<ul>${tests.slice(0, 10).map(test => {
                               const path = testPath(test.filePath)
-                              return h`<li>${test.testName}${
+                              return h`<li>${plain(test.testName)}${
                                   path && found.run.commitId
                                       ? h` · <a href="${pu.u.blob(found.run.commitId, path)}${test.lineNumber ? "#L" + test.lineNumber : ""}">${path}${test.lineNumber ? ":" + test.lineNumber : ""}</a>`
                                       : ""
@@ -614,38 +681,41 @@ function runnerSettings(c, found, closed, groupPath) {
                 ? h`<p><small>An Owner of ${groupPath || "the group"} changes these, on the group's settings.</small></p>`
                 : "")
         }</section>${poolList}`
+    // the form holds the group's own values (empty where it follows the group above or the site), never the values in
+    // effect: a save sends only a field that was changed (was_<name>), and an emptied one gives up the group's own value
+    const own = found.own || (found.inheritedFromPath ? {} : found)
+    const from = found.inheritedFrom || {}
+    const whence = field => (from[field] === "site" ? "the site" : from[field] ? from[field] : "this group")
     const f = formOf(c, "storePipelineSettings")
-    const pick = (trusted, any) => [
-        ["", any],
+    const pick = (trusted, above) => [
+        ["", above],
         ...pools.filter(pool => !!pool.trusted === trusted).map(pool => [pool.runnerPoolId, poolText(pool)])
     ]
-    return h`${open(c, f, {title: "Runners"})}${minutes}${hidden("groupId", found.groupId)}${hidden("expectedRevision", found.revision)}${select(
-        f,
+    const ownSelect = (field, label, choices, inEffect, text) =>
+        h`${select(f, field, label, choices, {
+            value: own[field] || "",
+            hint: text + " In effect now: " + inEffect + (own[field] ? "" : ", as " + whence(field) + " says") + "."
+        })}${hidden("was_" + field, own[field] || "")}`
+    return h`${open(c, f, {title: "Runners"})}${minutes}${hidden("groupId", found.groupId)}${hidden("expectedRevision", found.revision)}${ownSelect(
         "runnerPoolId",
         "Pool of trusted runs",
-        pick(true, "A pool of the jobs' pool name that takes trusted runs"),
-        {
-            value: found.runnerPoolId || "",
-            hint: "Runs of this group's own branches and tags, pushed or asked for by a Developer. They get the secrets their rules allow."
-        }
-    )}${select(
-        f,
+        pick(true, "As the group above says"),
+        chosen(found.runnerPoolId, "a pool of the jobs' pool name that takes trusted runs"),
+        "Runs of this group's own branches and tags, pushed or asked for by a Developer. They get the secrets their rules allow."
+    )}${ownSelect(
         "outsideRunnerPoolId",
         "Pool of outside runs",
-        pick(false, "A pool of the jobs' pool name that takes outside runs"),
-        {
-            value: found.outsideRunnerPoolId || "",
-            hint: "Runs of a fork's merge request, a push for review, or an account below Developer: no secrets, and a read-only cache."
-        }
-    )}${select(
-        f,
+        pick(false, "As the group above says"),
+        chosen(found.outsideRunnerPoolId, "a pool of the jobs' pool name that takes outside runs"),
+        "Runs of a fork's merge request, a push for review, or an account below Developer: no secrets, and a read-only cache."
+    )}${ownSelect(
         "outsideRunApproval",
         "When an outside run waits",
-        [["", "As the group above or the site says"], ...APPROVALS],
-        {
-            value: found.outsideRunApproval || ""
-        }
-    )}${inherited}${submit("Save")}${poolList}`
+        // never (outside runs that never wait) only for who may set it, the top-level group's Owner
+        [["", "As the group above or the site says"], ...APPROVALS.filter(([key]) => key !== "never" || found.canSetNever !== false || own.outsideRunApproval === "never")],
+        approvalText,
+        ""
+    )}${submit("Save")}${poolList}`
 }
 
 /* The Pipelines tab of a group's Settings (design §11), for its Owner: the runners of its repositories. */

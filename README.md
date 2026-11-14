@@ -32,7 +32,8 @@ and a comparison), a repository's issues (the public view of its project's tasks
 their reporter, with labels, milestones and a conversation of forum posts written in Markdown), its merge requests (from a
 branch, a fork or a push for review, with line comments on the diff, reviews, the checks, the contributor agreement and
 the merge), its pipelines (the runs, a job's steps, log, failed tests and uploads, Approve and run, secrets, environments
-and the runner pools), forks, editing a file on its page with the save as a commit, the forum's own pages inside a group and a
+and the runner pools), its releases and Docs, a group's landing page and `addons.xml` (the component directory), one search
+box, the site's old paths, forks, editing a file on its page with the save as a commit, the forum's own pages inside a group and a
 repository (limited to its category, with the moderation queue for its Owners, Report and Hide, a mailing list's import
 and invitations, and security reports by mail), and for an account with a confirmed address creating groups and repositories, their settings and
 members, branch rules, webhooks and its own SSH keys and access tokens (Account's Git access), all without JavaScript

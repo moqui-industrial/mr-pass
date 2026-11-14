@@ -132,10 +132,12 @@ function commit(repositoryId, message, fileMap) {
     return run("org.moqui.git.GitServices.commit#GitFiles", {repositoryId, message, fileMap}).commitId
 }
 /* Turns a repository's issues on, as the current user (a Maintainer of it). */
-function issuesOn(siteId, repositoryId) {
+const issuesOn = (siteId, repositoryId) => turnOn(siteId, repositoryId, {issuesEnabled: true})
+/* Changes a repository's settings (its features: {docsEnabled: true}), as the current user (a Maintainer of it). */
+function turnOn(siteId, repositoryId, fields) {
     const revision = operation("getRepository", {siteId, repositoryId}).repository.revision
     run("mantle.smithy.SmithyServices.update#Repository", {
-        input: {siteId, repositoryId, issuesEnabled: true, expectedRevision: revision}
+        input: {siteId, repositoryId, ...fields, expectedRevision: revision}
     })
 }
 /* An issue the current user files (Mantle's create#Issue), in Markdown: {issueNumber, rootCommEventId, state}. */
@@ -246,4 +248,4 @@ function route(siteId, hostname, path) {
         return {kind: error.moquiErrorKind || "Error", message: String(error.message).split("\n")[0]}
     }
 }
-;({run, site, account, role, group, repository, commit, issuesOn, issue, forumOn, topic, operation, render, post, route})
+;({run, site, account, role, group, repository, commit, issuesOn, turnOn, issue, forumOn, topic, operation, render, post, route})
