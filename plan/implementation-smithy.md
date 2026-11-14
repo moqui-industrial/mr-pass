@@ -465,3 +465,33 @@ From the review of the DG7 pages (760173c), matching Mantle's fixes of its revie
   (`resolveRedirect` and the GitHub import's), whose `cancelImport` is also the forum's mbox `cancelImport`
   (`ForumSchema.js`), so one facade could not hold both. PASS keeps the DG7 copies (130 operations) until Mantle renames
   it; the registries' check of Smithy's spec fails until then.
+
+## DG8: the GitHub import and push mirrors
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes `import` and `import/<importId>` (`/Smithy/Import`), the Import tab of a group's Settings and the Mirrors tab of a repository's. The grammar had them |
+| Pages | `screen/Smithy/SmithyImport.js` builds them as escaped markup with `SmithyForms.js`'s helpers: the Import tab (`groupImport`), an import's page and the site's imports (`Smithy/Import.xml`, `importPageView`), and the Mirrors tab (`mirrors`). Every read and write is Mantle's (`SmithyImport.js` through the facade); what the caller may not see is Not Found |
+| Import tab | A group's Owner or an operator: the GitHub repository (`owner/name`), a token in a password field never filled back, a new repository (its slug) or one of the group's, issues and pull requests, and `publishPrivate` with its warning (`startGitHubImport`, which goes to the import's page); the group's imports below (`findGitHubImports`). An account without a confirmed address is told to confirm in place of the form |
+| An import's page | `B/import/<importId>` (`getGitHubImport`): the stage in words, counts by type (imported, seen at GitHub, failed), the wait on GitHub's rate limit with the time it goes on, the report (escaped), what an import never carries, Refresh (a link), Resume with a token once the run ended or Replace token while it runs (`resumeGitHubImport`), and Stop asked again on `?confirm=cancel` (`cancelGitHubImport`). `B/import` is the site's imports, for an operator |
+| Mirrors tab | A Maintainer: each mirror with its address, refs, delete refs, enabled, whether it has a credential, the last push and its result and error, the next attempt; Push now (`pushMirror`), Edit, and Delete asked again (`deleteMirror`); New mirror. The form (`mirrorFields`): an https address with no credential in it, the username and the secret apart (the secret write-only), the host key's fingerprint for SSH, the refs, delete refs, enabled, and "Remove the credential" for a mirror that has one (`removeCredential`) |
+| Secrets | `token` and `secret` are in `SmithyForms.js`' `SECRET`, and the mirror form adds `username` (`notKept`): a refused form keeps none of them for the next page, and a kept `url` loses its user part (after leading space too), a webhook's too. None is ever in an address |
+| Forms | `Do.xml` has 6 more `post` transitions: `startGitHubImport`, `resumeGitHubImport`, `cancelGitHubImport` (confirmed), `storeMirror`, `deleteMirror` (confirmed), `pushMirror` |
+| Redirects | `Smithy.js` `movedPath` asks the facade's `resolveRedirect` (an operation since Mantle's DG7 review), so an imported repository's old GitHub paths and the site's table answer on a remote frontend too |
+| Caching | `Shared/Headers.js`: `import…` pages are `no-store` for a visitor too, as `new…` are |
+| Reasons | `Shared/Portal.js` has `sourceRefused`, `importActive`, `numbersTaken` and `secretRequired`, as Mantle's `PassAuthority.js` |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's again, with the 9 DG8 operations: the import's are named for GitHub (`startGitHubImport` and the rest), so the forum's mbox `cancelImport` keeps its name and one facade holds both (the DG7 note's wait is over) |
+| Tests | `test/Smithy/SmithyImport.spec.js` on Mantle's recorded GitHub responses (`smithy_github_api`): an import started through its form goes to its page, a refusal returns to the form, the token in no address, flash or page; an import's page (stage, counts, the wait with its time, the report escaped, Resume and Stop); Stop without its confirmation refused; a refused mirror form keeping no secret, username or user part of its address; the Settings page rendered once; the mirror list and its form through page functions. `SmithyAccess.spec.js`: an import is its group's Owners' and the mirrors a Maintainer's (a Developer gets Not Found, as for an import that is not there); the operator's list and another site's import are Not Found. `Smithy.spec.js`: the DG8 paths |
+
+Differences from the design:
+
+- The start form is on the group's Import tab, not at `B/import`, which lists the site's imports for an operator; the
+  group is the tab's.
+- Resume takes a token: it is dropped when a run ends, so a run that ended needs one again; a running import's token
+  can be replaced.
+- Until the framework's mirrors were in, the Mirrors tab said "Push mirrors are not available on this server yet"
+  (Mantle's `notBuilt`); that branch is gone.
+
+Not built: `SmithyAccessWalk` and `SmithyPhone` as specs of their own; the phone width of the import and mirror pages
+in a browser. Not shown: an import against GitHub's live API (the pages run on recorded responses), and a mirror
+pushing to a real server.

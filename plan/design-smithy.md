@@ -592,8 +592,17 @@ each read returns `capabilities`.
   `refs/for/*`, the limits of §9.3. A pre-receive rule can refuse with a message (checked in the review).
 - **Mail.** A message from an address that is no account's confirmed address is not posted
   ([§12.4](#124-mail-in)).
-- **An access token** (a login key) acts as its account in git and in the framework's REST (F9). It cannot call a
-  PASS operation, and a page needs a session. Smithy has no bearer-link write.
+- **What PASS accepts.** A page needs a session. A PASS operation takes a signed-in session, or, for a listed set of
+  Dev AIDE operations, an installed app's device login key: a `UserLoginKey` with `deviceName`, the account's own,
+  unexpired and not scoped, found by its SHA-256. The list is `APP_KEY_OPERATIONS` in mantle `script/PassAuthority.js`:
+  `findMergeRequests`, `getMergeRequest`, `createMergeRequest`, `forkRepository`, `getAgreement`,
+  `getMergeRequestChanges`, `createReviewComment`, `resolveReviewThread`, `submitReview`, `findPipelineRuns`,
+  `getPipelineRun`, `getJobRun`, `getJobLog`, `rerunPipelineRun`, `retryJobRun`, `findIssues`, `getIssue` and
+  `createIssue` ([design-dev-aide §21](../../../../../plans/design-dev-aide.md#21-dev-aide-with-a-group-server)).
+  With such a key the account has its normal Smithy rights; merging is not on the list and stays on the page. A personal access token, a scoped key (`UserLoginKey.scope`, such as a gateway's)
+  and a session key are refused for every PASS operation, reads included (`accessDenied`). Decided Nov 14, 2026.
+- **An access token** (a login key) acts as its account in git and in the framework's REST (F9), where a write to a
+  repository Smithy keeps is refused with Smithy's operation named (§9.1). Smithy has no bearer-link write.
 
 ## 6. Groups and discovery screens
 
@@ -991,10 +1000,20 @@ methods. A `SmithyMergeRequest` row beside it holds the site, the conversation t
   by `handle#MergeRequestEvent`; `mantle.smithy.SmithyReviewServices.ensure#MergeRequest` then makes the
   `SmithyMergeRequest` and its topic, and computes the agreement.
 - **The framework's writes do not go around Smithy** (N-HOOKS, with F9). For a repository that has a Smithy row:
-  - the REST of F9 for merge requests, reviews, threads, statuses and the repository's path calls the Mantle
-    operations of §15 (the framework's REST resource names a Mantle service for such a repository), so the confirmed
-    address, the gate and the roles are the same as on a page. `create#MergeRequest`, `submit#MergeRequestReview`
-    and `create#ReviewComment` store no text for such a repository by another path;
+  - the framework's REST (F9) asks `git-server` `rest-write-check-service`
+    (`mantle.smithy.SmithyGitServices.check#RestWrite`) before each write. Every write is refused there
+    (`GitKeptByApplication`), with Smithy's REST and its operation named (`ref.create` `createRef`,
+    `mergeRequest.comment` `createReviewComment`, `mergeRequest.resolveThread` `resolveReviewThread`,
+    `pipeline.rerun` `rerunPipelineRun`, `job.retry` `retryJobRun`, and the rest), so the confirmed address, the gate
+    and the roles are the ones a page has. A read is allowed and says Smithy keeps the repository. One write is
+    allowed: `commitStatus.create`, an outside CI's status, for which the framework needs the push right and refuses
+    the contexts Smithy reserves;
+  - the framework's review threads (REST `git/{id}/mergeRequests/{n}/threads` and `…/resolve`) are Mantle's, through
+    `git-server` `review-thread-service` (`mantle.work.GitServices.handle#GitReviewThread`: find, comment, resolve).
+    It checks the caller's view first, binds a thread to the merge request its path names (a thread of another one
+    is Not Found), refuses a stale commit, and keeps a hidden merge request its author's alone;
+  - the hosting offer (`offer-service`, `SmithyGitServices.add#HostingOffer`) adds Smithy's REST base, its page URL,
+    forks and Mantle's task source to the framework's offer, for the site the client reaches; it names no account;
   - `merge#MergeRequest` to a protected branch needs delete (Maintainer), where it needs only update today; a
     Developer merges to an unprotected branch, as they could push to it;
   - `set#GitRepositoryPath` needs only update in the framework, so it is not exposed by REST for such a repository:
@@ -1097,8 +1116,11 @@ have):
 It is computed when the merge request opens, at each new head, when a push changes the file on the target branch (for
 each open merge request to that branch), and by `recheckAgreement` (after an account confirms an address or links a
 login). `SmithyAgreementSignature` caches step 3 by repository, ref, list and login, and is rebuilt when the file's
-blob at the ref changes; the Dev AIDE's "has this author signed" (F18) reads the same service
-(`mantle.smithy.SmithyAgreementServices.get#Signed`).
+blob at the ref changes. The Dev AIDE's "has this author signed" (F18) reads the same service
+(`mantle.smithy.SmithyAgreementServices.get#AuthorSigned`, also named `get#Signed`) through `git-server`
+`agreement-check-service` (`SmithyGitServices.check#AuthorSigned`): known, required, signed, and `signUrl`, the file's
+edit page on the default branch at the site's canonical host (https only). What is missing is said only to the author
+or a Maintainer of the repository; anyone else learns signed or not.
 
 **Merging.** A squash is refused (`squashFoldsSignature`) when C has a commit that adds a signature and C's commits
 have more than one author account, since the squash would put one person's signature in another's commit; the page
@@ -1218,9 +1240,12 @@ names in [§14.5](#145-framework-records-for-ci-proposed) are proposals to it. W
 - Secrets that are write-only through the services (a read gives names and scopes), environments, and runner pools
   with a `trusted` mark.
 - Each job's `GitCommitStatus` with the context `ci/<pipeline>/<job>` and the run's page as its target. The engine
-  asks Mantle for the address (`mantle.smithy.SmithyPipelineServices.get#RunUrl`), since it knows no page.
-- A hook before a run is queued (`mantle.smithy.SmithyPipelineServices.check#Run`), which answers allow, wait for
-  approval, or refuse, and whether the run is trusted.
+  asks Mantle for the address (`git-ci` `run-url-service`, `mantle.smithy.SmithyPipelineServices.get#RunUrl`), since
+  it knows no page.
+- A hook before a run is queued (`git-ci` `run-check-service`, `mantle.smithy.SmithyPipelineServices.check#Run`),
+  which answers allow, wait for approval, skip or refuse, whether the run is trusted, its owner and its pool. A hidden
+  repository runs nothing, and `git-server` `outbound-check-service` (`SmithyGitServices.check#Outbound`) holds its
+  webhooks, mirror pushes and fetches.
 
 **The rules Smithy adds** (Dogfood §8.4, question 10), in `check#Run`:
 
@@ -1278,7 +1303,7 @@ does not reach is absent.
 | Members | Maintainer reads, Owner changes | members of the repository and those inherited from its groups; add by handle, role, end date | `findRepositoryMembers`, `setRepositoryMember` | DG2 |
 | Branch rules | Maintainer | each rule: pattern, force push, delete, require a merge request, approvals, dismiss stale approvals, required contexts, merge methods | `getBranchRules`, `storeBranchRule`, `deleteBranchRule` | DG2 |
 | Webhooks | Maintainer | URL, events, active, the last delivery; Test; deliveries | `findWebhooks`, `storeWebhook`, `deleteWebhook`, `testWebhook`, `findWebhookDeliveries` | DG2 |
-| Mirrors | Maintainer | each push mirror: URL, refs, delete refs, enabled, has a credential, the last push, its result and error, the next attempt; add and edit (an https URL with no credential, username and secret apart, the secret write-only), Delete asked again, Push now; on a server whose framework has no push mirrors (`notBuilt`), "Push mirrors are not available on this server yet" and no form | `findMirrors`, `storeMirror`, `deleteMirror`, `pushMirror` | DG8 |
+| Mirrors | Maintainer | each push mirror: URL, refs, delete refs, enabled, has a credential, the last push, its result and error, the next attempt; add and edit (an https URL with no credential, username and secret apart, the secret write-only), Delete asked again, Push now. The framework's mirrors (F6), stored as the Maintainer, whose right is checked at each push (a mirror whose giver is no longer a Maintainer pauses); a new destination (scheme, host, port, user, host key) needs the secret again (`secretRequired`); a failure is told to the repository's Maintainers and Owners | `findMirrors`, `storeMirror`, `deleteMirror`, `pushMirror` | DG8 |
 | Pipelines | Maintainer | secrets (names and scopes; a value is write-only), environments, the pools in use | `findCiSecrets`, `storeCiSecret`, `deleteCiSecret`, `findCiEnvironments`, `storeCiEnvironment`, `deleteCiEnvironment`, `getPipelineSettings` | DG5/DG10 |
 | Agreement | Owner | inherit, off or required; the file; the rules it changes | `getAgreement`, `setAgreement` | DG4 |
 | Forum | Owner | the repository's subcategory: on, off, link | `setScopeForum` | DG6 |
@@ -1846,7 +1871,9 @@ Index: `SMITHY_REPO_PARTY` (`siteId`, `partyId`). Relationships: one `SmithyRepo
 | --- | --- | --- |
 | `siteId` * | id | |
 | `partyId` * | id | |
-| `githubLogin` | text-medium | lower case; set at a sign-in through the GitHub provider, or by the import for a placeholder |
+| `githubLogin` | text-medium | lower case; set at a sign-in through the GitHub provider, or by the import for a placeholder; a GitHub Enterprise login is kept as `login@host` |
+| `githubUserId` | text-short | GitHub's own id (a login can be renamed and reused, the id not): set by the import for a placeholder, moved to the account that claims it (DG8) |
+| `githubHost` | text-medium | `github.com` (also when empty) or a GitHub Enterprise Server's host, from the API the import read |
 | `placeholder` | text-indicator | `Y`: made by the import, not yet claimed (DG8) |
 | `claimedAt` | date-time | |
 | `bot` | text-indicator | DG4 |
@@ -1859,7 +1886,20 @@ Index: `SMITHY_REPO_PARTY` (`siteId`, `partyId`). Relationships: one `SmithyRepo
 | `reason` | text-long | |
 | `revision` | number-integer | |
 
-Index: `SMITHY_ACCOUNT_LOGIN` unique (`siteId`, `githubLogin`).
+Index: `SMITHY_ACCOUNT_LOGIN` unique (`siteId`, `githubLogin`); `SMITHY_ACCOUNT_GITHUB_ID` (`githubUserId`).
+
+**SmithyGithubLink** (DG8): a GitHub id an account's sign-in proved, of no one site.
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `userId` * | id | |
+| `githubUserId` | text-short | |
+| `githubHost` | text-medium | `github.com` or an Enterprise Server's host |
+| `authFlowId` | id | the sign-in flow that proved it |
+| `provenAt` | date-time | |
+
+Written only by `handle#SsoLinked` (§18.2), so a claim made later, when a membership becomes active, claims only for
+an id proven so and still the account's.
 
 **SmithyPathRedirect** (DG2): the old path of a renamed group or handle.
 
@@ -2045,7 +2085,7 @@ New in the framework, by the phase's item of [Dogfood §12](../../../../../plans
 | F4 | `GitRepository.forkOfRepositoryId`, id; `GitRepository.forkNetworkId`, id | the parent; the root of the fork network, for shared objects |
 | F4 | `GitMergeRequest.sourceRepositoryId`, id | empty: the target repository |
 | F5 | `GitMergeRequest.reviewTopic`, text-short; `GitMergeRequest.pushedForReview`, text-indicator | the `-o topic=` of a push to `refs/for/*`; whether the head is `refs/merge-requests/<n>/head` and not a branch. Refined in DG4 |
-| F6 | `GitRepositoryMirror`: `mirrorId` *, `repositoryId`, `url`, `systemMessageRemoteId` (the credential), `refs`, `deleteRefs`, `enabled`, `lastPushDate`, `lastResult`, `lastError`, `failureCount`, `nextAttemptDate` | several mirrors a repository, over HTTPS or SSH, forced to match. Today's `pushMirrorRemoteId` and `pushMirrorRefs` on `GitRepository` are one SSH mirror. Refined in DG8 |
+| F6 | `GitRepositoryMirror`: `mirrorId` *, `repositoryId`, `url`, `username`, the credential (encrypted, never returned: `hasCredential`), `hostKeyFingerprint`, `refPattern`, `deleteRefs`, `enabled`, `lastPushDate`, `lastResult`, `lastError`, `nextAttemptDate`, `attemptCount`, `createdByUserId`, `storedAuthzDisabled` | built in DG8: several mirrors a repository, over HTTPS or SSH with a pinned host key, forced to match ([Git-Hosting](../../../../../docs/interfaces/Git-Hosting.md#push-mirrors)). The older `pushMirrorRemoteId` and `pushMirrorRefs` on `GitRepository` are one SSH mirror, kept |
 
 ### 14.5 Framework records for CI (proposed)
 
@@ -2092,10 +2132,13 @@ Proposed to F7 and F8, beside the hosting rows in `moqui.resource`; refined in D
   `mantle.smithy.SmithyReviewServices`, **A** `mantle.smithy.SmithyAgreementServices`, **P**
   `mantle.smithy.SmithyPipelineServices`, **W** `mantle.smithy.SmithySiteServices`, **X**
   `mantle.smithy.SmithyImportServices`. Not operations, called by rules and by the framework:
-  `mantle.smithy.SmithyGitServices` (`check#Push`, `read#Component`), `SmithyServices.get#RepositoryRights`,
+  `mantle.smithy.SmithyGitServices` (`check#Push`, `check#LfsUpload`, `check#Outbound`, `check#RestWrite`,
+  `add#HostingOffer`, `check#AuthorSigned`, `read#Component`), `SmithyServices.get#RepositoryRights`,
   `check#AppReadiness`, `get#AccountCard`, `SmithyIssueServices.ensure#Issue`,
   `SmithyReviewServices.ensure#MergeRequest`, `SmithyAgreementServices.compute#Agreement` and `get#Signed`,
-  `SmithyPipelineServices.check#Run` and `get#RunUrl`.
+  `SmithyPipelineServices.check#Run` and `get#RunUrl`, `SmithyImportServices` (`run#Imports`, `handle#SsoLinked`,
+  `handle#MembershipActive`, `handle#MirrorFailure`, `claim#GithubAccount`), and Mantle's
+  `mantle.work.GitServices.handle#GitReviewThread`.
 - Routes are under `/rest/s1/pass/v1/sites/{siteId}/smithy/`; the tables give the rest. `repositories/{repositoryId}`
   is written `r/{id}` and `groups/{groupId}` is `g/{id}` in the tables only.
 - **Lists** take `limit` (30 by default, 100 at most) and an opaque `cursor`, and return `nextCursor`, as Forum's do
@@ -2118,7 +2161,8 @@ Proposed to F7 and F8, beside the hosting rows in `moqui.resource`; refined in D
   without the role; `Unprocessable` for a field that fails its rule, with the field named; `Conflict`
   (`staleRevision`); `Tarpit` (`rateLimited`) from the client caps.
 - **A bearer token.** No Smithy operation is a `TOKEN_WRITES` entry: none is authorized by a link's token. An access
-  token is for git and the framework's REST (§5.5).
+  token is for git and the framework's REST; an installed app's device key reaches the Dev AIDE's listed operations
+  (§5.5).
 - **Reads return** the projection, the caller's `capabilities` for the record, and `revision` where it can be edited.
   Ids of internal records (a party id, a user id, a work effort id) are not returned, except `workItemKey` to a
   Reporter.
@@ -2338,17 +2382,20 @@ Refined in DG7.
 
 ### 15.9 DG8: GitHub (9)
 
-Refined in DG8.
+Built in DG8. The import's operations are named for GitHub (`startGitHubImport` and the rest), since the forum's mbox
+import has `cancelImport`. Push mirrors are the framework's (F6,
+[Git-Hosting](../../../../../docs/interfaces/Git-Hosting.md#push-mirrors)); a failure the framework tells the
+mirror's giver of is told to the repository's Maintainers and Owners too (`handle#MirrorFailure`).
 
 | # | Operation | Service | Route | Input | Result | Refusals | Needs |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | `startImport` | X `start#Import` | POST `imports` | `groupId`, `sourceRepository`, `slug`, `repositoryId` (an existing mirror to fill), `token`, `options` (`issues`, `pullRequests`), `operationId` | `importId`, `repositoryId` | `nameTaken`; `Unprocessable` when GitHub refuses the token or the repository; `Conflict` while a run of the same source is active | Owner of the group; operator |
-| 2 | `getImportRun` | X `get#ImportRun` | GET `imports/{importId}` | `importId` | `importId`, `repositoryPath`, `sourceRepository`, `stage`, `counts` (by type: `imported`, `source`, `failed`), `reportList` (`sourceType`, `sourceId`, `errorText`), `waitingUntil` (the API's rate limit), `revision` | | the same |
-| 3 | `findImportRuns` | X `find#ImportRuns` | GET `imports` | `groupId`, `limit`, `cursor` | `importList` (`importId`, `repositoryPath`, `sourceRepository`, `stage`, `createdAt`, `finishedAt`), `nextCursor` | | the same |
-| 4 | `resumeImport` | X `resume#Import` | POST `imports/{importId}/resume` | `importId`, `token`, `expectedRevision` | `stage`, `revision` | `Conflict` while it runs | the same |
-| 5 | `cancelImport` | X `cancel#Import` | POST `imports/{importId}/cancel` | `importId`, `expectedRevision` | `stage`, `revision` | | the same |
+| 1 | `startGitHubImport` | X `start#Import` | POST `imports` | `groupId`, `sourceRepository`, `slug`, `repositoryId` (an existing mirror to fill), `token`, `options` (`issues`, `pullRequests`), `operationId` | `importId`, `repositoryId` | `nameTaken`; `Unprocessable` when GitHub refuses the token or the repository; `Conflict` while a run of the same source is active | Owner of the group; operator |
+| 2 | `getGitHubImport` | X `get#ImportRun` | GET `imports/{importId}` | `importId` | `importId`, `repositoryPath`, `sourceRepository`, `stage`, `counts` (by type: `imported`, `source`, `failed`), `reportList` (`sourceType`, `sourceId`, `errorText`), `waitingUntil` (the API's rate limit), `revision` | | the same |
+| 3 | `findGitHubImports` | X `find#ImportRuns` | GET `imports` | `groupId`, `limit`, `cursor` | `importList` (`importId`, `repositoryPath`, `sourceRepository`, `stage`, `createdAt`, `finishedAt`), `nextCursor` | | the same |
+| 4 | `resumeGitHubImport` | X `resume#Import` | POST `imports/{importId}/resume` | `importId`, `token`, `expectedRevision` | `stage`, `revision` | `Conflict` while it runs | the same |
+| 5 | `cancelGitHubImport` | X `cancel#Import` | POST `imports/{importId}/cancel` | `importId`, `expectedRevision` | `stage`, `revision` | | the same |
 | 6 | `findMirrors` | X `find#Mirrors` | GET `r/{id}/mirrors` | `repositoryId` | `mirrorList` (`mirrorId`, `url`, `refs`, `deleteRefs`, `enabled`, `hasCredential`, `lastPushDate`, `lastResult`, `lastError`, `nextAttemptDate`) | | Maintainer |
-| 7 | `storeMirror` | X `store#Mirror` | POST `r/{id}/mirrors` | `repositoryId`, `mirrorId`, `url`, `username`, `secret` (a token or a private key), `hostKeyFingerprint`, `refs`, `deleteRefs`, `enabled`, `operationId` | `mirrorId` | `Unprocessable` for a URL the outbound rules refuse | Maintainer |
+| 7 | `storeMirror` | X `store#Mirror` | POST `r/{id}/mirrors` | `repositoryId`, `mirrorId`, `url`, `username`, `secret` (a token or a private key), `hostKeyFingerprint`, `refs`, `deleteRefs`, `enabled`, `removeCredential`, `operationId` | `mirrorId` | `Unprocessable` for a URL the outbound rules refuse or one with a credential in it; `secretRequired` for a new destination without the secret | Maintainer; stored as the Maintainer, whose right the framework checks at each push |
 | 8 | `deleteMirror` | X `delete#Mirror` | DELETE `r/{id}/mirrors/{mirrorId}` | `repositoryId`, `mirrorId` | `deleted` | | Maintainer |
 | 9 | `pushMirror` | X `push#Mirror` | POST `r/{id}/mirrors/{mirrorId}/push` | `repositoryId`, `mirrorId` | `queued` | `Conflict` while a push runs | Maintainer |
 
@@ -2397,9 +2444,9 @@ the N items are what this design adds to them.
 | N-COMMIT | framework | DG4 | `commit#GitFiles` gains `branch`, `newBranch` (create it from `branch`), `asProposal` with `targetRef` and `mergeRequestId` (commit to `refs/merge-requests/<n>/head`), `expectedBlobIds` (path to blob id; a mismatch is a conflict), `authorName`, `authorEmail`, and returns the merge request it opened. It checks update for a branch and view for a proposal. Smithy's `commitFile` is its only caller for a repository with a Smithy row (N-HOOKS). |
 | N-MRNUM | framework | DG4/DG8 | `create#MergeRequest` accepts a `sourceRepositoryId`, and for the import a given `mergeRequestNum`, final state and dates. |
 | N-THREADS | mantle | DG4 | Review threads as posts with anchors, read by `get#ReviewThreads` beside today's (§9.1). |
-| N-LOGIN | framework, mantle | DG4 | The GitHub provider's login of an account reaches Mantle at sign-in (`SmithyAccount.githubLogin`). Where the framework keeps a provider's subject and login was not read for this design: DG4's check. |
+| N-LOGIN | framework, mantle | DG8 | Built in DG8: the framework's `sso-linked-service` hook, called after a real SSO sign-in with the flow, the provider's host, the external id and login; Mantle's `handle#SsoLinked` records a GitHub id as `SmithyGithubLink` and claims placeholders (§18.2). |
 | N-WRITE-ECA | framework | DG4 | Whether a gitECA rule on a merge's write can refuse it (the squash rule, §9.4). Else Projects' merge calls the Mantle check. |
-| N-HOOKS | framework | DG4, F9 | For a repository with a Smithy row the framework's writes do not go around Mantle (§9.1): `merge#MergeRequest` to a protected branch needs delete; `create#GitCommitStatus` refuses the contexts `agreement/` and `ci/` from a user (the system writes them); the REST of F9 for merge requests, reviews, threads and the path calls the Mantle operations, and does not expose `set#GitRepositoryPath`. How the framework learns that Mantle owns a repository (a conf-named service, as the authz service is named) is the framework lane's. |
+| N-HOOKS | framework | DG4, F9 | For a repository with a Smithy row the framework's writes do not go around Mantle (§9.1): `merge#MergeRequest` to a protected branch needs delete; `create#GitCommitStatus` refuses the contexts `agreement/` and `ci/` from a user (`git-server` `reserved-status-contexts`; the system writes them); the REST of F9 asks `rest-write-check-service`, which Smithy answers by refusing every write but `commitStatus.create` and naming its own operation; its review threads are Mantle's (`review-thread-service`). Built with P11 and P12. |
 | N-REACH | framework | DG4 | Whether a commit is reachable from a given set of refs of a repository, for the reads by commit id, and the same rule in upload-pack for a fetch by id (§9.2). |
 | N-CONTAINS | framework | DG4 | The branches and tags that contain a commit, bounded, for CommitDetail (`getCommit.refList`, returned from DG4). |
 | N-PUSHER | mantle | DG4 | The account that pushed a commit to a repository (from `GitUpdate`), for `commit.authorHandle` (§7 Commits). |
@@ -2407,8 +2454,8 @@ the N items are what this design adds to them.
 | N-SCOPE | pass, mantle | DG6 | Scope and link base in `Shared/View.js` and the forum's templates; `scopeContactListId` on the forum's reads (§12.5). |
 | N-TARGETS | mantle | DG6 | The target types `repository` and `group`, the mail verdict, held mail, list headers by category (§12.3, §12.4). |
 | N-ADDONS | framework | DG7 | `component-get` reads a server's `addons.xml` through a `myaddons.xml` entry. |
-| F6 | framework | DG8 | The push client over HTTPS, `GitRepositoryMirror`, the queue and back-off. |
-| F9 | framework | P11, DG5 | REST for repositories, merge requests, reviews, threads and runs. For a repository with a Smithy row its writes go through the Mantle operations (N-HOOKS), so the confirmed address, the gate and the roles hold; a public account's token reaches only what §5 allows. |
+| F6 | framework | DG8 | Built: the push client over HTTPS and over SSH, `GitRepositoryMirror`, the queue and back-off; with it `fetch#GitRefs` and imported merge requests (N-MRNUM). |
+| F9 | framework | P11, DG5 | Built: REST for repositories, merge requests, reviews, threads and runs. For a repository with a Smithy row its writes are refused there and made through Smithy's REST (N-HOOKS), so the confirmed address, the gate and the roles hold; a public account's token reaches only what §5 allows. |
 
 ## 17. Documents and outputs
 
@@ -2475,7 +2522,7 @@ DG9.
 | GitHub | Becomes | Notes |
 | --- | --- | --- |
 | The repository | a hosted `db` repository made from its `remote` mirror, at `<group>/<slug>` | the mirror is DG1's; cutover turns it around |
-| A user (an author, commenter, assignee, reviewer) | a placeholder account: a party and a `PublicSiteProfile` whose handle is the login in lower case when that is a valid, free handle, else `gh-<login>` cut to 32 characters with a digit suffix when taken (a login of 1, 2 or 33 to 39 characters is no valid handle), and a `SmithyAccount` with `githubLogin` and `placeholder` `Y` | no email is stored; the name shows with an "imported" mark; signing in through the GitHub provider with that login claims it (`claimedAt`), and the person's own account takes the placeholder's rows |
+| A user (an author, commenter, assignee, reviewer) | a placeholder account: a party and a `PublicSiteProfile` whose handle is the login in lower case when that is a valid, free handle, else `gh-<login>` cut to 32 characters with a digit suffix when taken (a login of 1, 2 or 33 to 39 characters is no valid handle), and a `SmithyAccount` with `githubLogin` and `placeholder` `Y` | by GitHub's id first (`githubUserId`, with `githubHost`), so a renamed or reused login is not another person; no email is stored; the name shows with an "imported" mark; claimed (`claimedAt`) as below, and the person's own account takes the placeholder's rows |
 | A label, a milestone | the project's label, milestone | by name |
 | An issue | a task (`WevGeneral`) and a `SmithyIssue` with the same number; the text as the topic's first post, Markdown kept as the source | state and reason mapped by §8.5; `createdAt` and the author kept |
 | An issue comment | a post of the topic, with its date and author | no notification is sent for imported posts |
@@ -2492,6 +2539,18 @@ state).
 
 The run waits on the API's rate limit (`waitingUntil`), resumes from `cursorJson`, and writes nothing twice: each
 source item has one `SmithyImportMap` row. The token is kept encrypted for the run and removed when it ends.
+
+**The claim of a placeholder.** It is by the framework's `user-facade` `login` `sso-linked-service`
+(`mantle.smithy.SmithyImportServices.handle#SsoLinked`, named in Mantle's `MoquiConf.xml`), which the framework calls
+after a real SSO sign-in that linked or confirmed the account's provider id commits; an edit of
+`UserAccount.externalUserId` by hand is no sign-in and calls nothing. Only an `OctGitHub` flow counts whose endpoints
+are GitHub's own (its client type's defaults, or exactly github.com's addresses), or a GitHub Enterprise Server's own
+addresses on the placeholder's `githubHost`, with the provider's host that GitHub's and the id the account's now. The
+proof is recorded as `SmithyGithubLink`, and `claim#GithubAccount` then claims the placeholder of that id in each site
+where the account is an active member and not suspended, each site apart. When a proven account's membership of a
+site becomes active later, the rule `SmithyClaimOnMembership` claims that site's placeholders too, from the
+`SmithyGithubLink`. The account takes the GitHub login and id (so the agreement counts its imported commits) and the
+placeholder's records.
 
 ### 18.3 Rollout
 
@@ -2551,8 +2610,8 @@ By [the testing skill](../../../../../.agents/skills/testing/SKILL.md) and
 | DG6 | `MailVerdict`, `ListHeaders`, `MboxImport` | mantle `test/forum/` | spam is held; a list category has its own headers; a small mbox imports once, threaded, and again with no duplicate |
 | DG7 | `SmithyDocs` | mantle | a page at a branch and at a tag; links rewritten; a path outside the docs directory is Not Found; the output is cleaned |
 | DG7 | `SmithyReleases`, `SmithyComponents`, `SmithySearch`, `SmithyRedirects` | mantle | a draft is a Maintainer's; `component.xml` read on a push; `addons.xml` lists public components only; each search type keeps its rule (a confidential issue and a private repository are not found); a redirect is used only when nothing takes the path |
-| DG8 | `SmithyGithubImport` | mantle | on recorded responses in `testdata/`: numbers kept; twice with no duplicate; a resume after a rate-limit wait; a placeholder claimed |
-| DG8 | `SmithyMirrors`, push client tests | mantle, `crates/moqui-git` | settings by role and the secret never returned; a push over HTTPS to a local server, forced to match |
+| DG8 | `SmithyGithubImport` | mantle | on recorded responses: numbers kept; twice with no duplicate; a resume after a rate-limit wait; a placeholder claimed through the sign-in hook, only for GitHub's own endpoints and the placeholder's host, and again when a proven account's membership becomes active |
+| DG8 | `SmithyMirrors`, push client tests | mantle, `crates/moqui-git` | settings by role and the secret never returned; a new host needs the secret again; a mirror whose giver is no longer a Maintainer pauses; a failure told to Maintainers and Owners; a push over HTTPS to a local server, forced to match |
 | DG10 | `SmithyDeploy` | mantle | a deploy needs a passed run and, where set, an approval |
 
 ### 19.2 The one access spec: `SmithyAccess`
@@ -2619,7 +2678,7 @@ name of §3 is in the code.
 | Forks and push-to-review; "merge request" is the one term | D7 | §9.2, §9.3 |
 | The conversation is a `ForumTopic` of kind `record`, in the repository's category as its scope | D8, D9, question 3 | §12.1 |
 | A record topic's every forum path is named and ruled (§12.1's eleven items), and its moderators need view of the record | D18 | §12.1 |
-| The framework's writes do not go around Smithy for a repository with a Smithy row; `agreement/` and `ci/` contexts are the system's; a merge to a protected branch needs Maintainer | D5, D17, D18 | §9.1, N-HOOKS |
+| The framework's writes do not go around Smithy for a repository with a Smithy row: its REST refuses them and names Smithy's operation; `agreement/` and `ci/` contexts are the system's; a merge to a protected branch needs Maintainer | D5, D17, D18 | §9.1, N-HOOKS |
 | `SmithyAccess` checks about seven rules; the per-operation table is the acceptance spec `SmithyAccessWalk` | the testing skill, against Dogfood §14's wording | §19.2 |
 | A line comment is a post with an anchor | D8 | §9.1; refined in DG4 |
 | A group always has a category; a repository has one when its Forum is on | D9 | §12.5 |
@@ -2638,6 +2697,7 @@ name of §3 is in the code.
 | Open CI: approval for a first contribution, an outside pool without secrets, quotas, no runs for a personal repository without minutes | question 10 | §10 |
 | A role is the party's, so a maintainer's internal and public accounts hold the same role | question 12 | §5.2 |
 | No bearer-link write; an access token is for git and the framework's REST | PASS's pattern | §5.5, §15.1 |
+| PASS takes an installed app's device login key for the Dev AIDE's listed operations, with the account's normal rights; access tokens, scoped keys and session keys for none | the user, Nov 14, 2026 | §5.5 |
 | The inventories are named, empty tables, filled before DG9; DG9 is not built | the build plan | §18.1 |
 
 ## 21. Open
@@ -2651,6 +2711,8 @@ name of §3 is in the code.
    of an account that signs in through the provider. Where the framework keeps it, and how it reaches
    `SmithyAccount.githubLogin`, was not read for this design. DG4 checks it (N-LOGIN); until then the agreement
    matches by confirmed address and handle only.
+   - Answered in DG8 (Nov 14, 2026): the framework calls `sso-linked-service` after a real SSO sign-in, and Mantle's
+     `handle#SsoLinked` records the GitHub id (`SmithyGithubLink`) and claims the placeholders of that id (§18.2).
 3. **The project of a personal repository's issues.** A project needs its owner in Mantle (an organization, a
    manager). Which organization owns the project made for a public account's repository, and whether BOSS Projects
    lists such projects, is DG3's check. Proposed: the site's operating organization owns them, in a status that keeps
