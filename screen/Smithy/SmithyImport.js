@@ -341,6 +341,6 @@ function mirrorFields(f, m) {
         maxlength: 1000,
         placeholder: "refs/heads/*, refs/tags/*",
         hint: "Ref patterns, separated by commas. Empty: all branches and tags."
-    })}${check("deleteRefs", "Delete the refs this repository no longer has", !!m.deleteRefs)}${check("enabled", "Enabled", editing ? !!m.enabled : true)}`
+    })}${m.hasCredential ? check("removeCredential", "Remove the credential (leave the username and token empty)", false) : ""}${check("deleteRefs", "Delete the refs this repository no longer has", !!m.deleteRefs)}${check("enabled", "Enabled", editing ? !!m.enabled : true)}`
 }
 ;({groupImport, importPageView, importRun, siteImports, mirrors, timeText})

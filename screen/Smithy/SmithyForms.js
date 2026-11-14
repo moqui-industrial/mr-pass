@@ -1854,10 +1854,12 @@ const DO = {
         confirm: true,
         notice: () => "The import was stopped. What it brought stays."
     },
-    // a mirror's secret is sent only when typed and never kept for the next page (SECRET), nor is its username shown again
+    // a mirror's secret is sent only when typed and never kept for the next page (SECRET), nor is its username (notKept)
     storeMirror: {
         fields: ["repositoryId", "mirrorId", "url", "refs", "operationId"],
         optional: ["username", "secret"],
+        notKept: ["username"],
+        optionalFlags: ["removeCredential"],
         flags: ["deleteRefs", "enabled"],
         notice: () => "The mirror was saved."
     },
@@ -1868,7 +1870,7 @@ const DO = {
 }
 /* The forms whose text Preview shows (a file's edit previews its Markdown: previewField). */
 const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile", "storeRelease"]
-/* What is never written back into a page after a refusal. */
+/* What is never written back into a page after a refusal (a form adds its own: notKept). */
 const SECRET = ["password", "code", "secret", "confirmPath", "value", "token"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
 function inputOf(spec) {
@@ -1882,9 +1884,11 @@ function inputOf(spec) {
     const input = {}
     const typed = {}
     // a post's text is kept whole, up to the longest a site allows
+    // a form's own credentials (notKept) are not kept either, and an address is kept without a user part (user:password@)
     const keep = (name, value) => {
-        if (!SECRET.includes(name) && value != null)
-            typed[name] = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
+        if (SECRET.includes(name) || (spec.notKept || []).includes(name) || value == null) return
+        const text = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
+        typed[name] = name === "url" ? text.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, "$1") : text
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {

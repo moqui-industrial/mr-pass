@@ -2,8 +2,9 @@
 // Import): an import started through its form's post on recorded GitHub answers (smithy_github_api names a directory of
 // them, so GitHub is never called), the token in no address, no flash and no page; one render of a group's Import tab (the
 // start form with a refusal on it and what was typed, the warning of publishPrivate, the group's imports), one of an
-// import's page (stage, counts, the rate limit's wait with the time it goes on, the report escaped, Resume and Stop) and
-// one of a repository's Mirrors tab on a server whose framework has no push mirrors yet (said plainly, no form). Mantle's
+// import's page (stage, counts, the rate limit's wait with the time it goes on, the report escaped, Resume and Stop); Stop
+// refused without its confirmation, and a mirror's refused form keeping no secret, no username and no user part of its
+// address (the Mirrors tab's render is SmithyAccess's). Mantle's
 // SmithyGithubImport spec covers the rules behind them; SmithyAccess has who may reach these pages. Regression suite: these
 // are the pages' own logic. Run: ./moq test mr-pass --spec SmithyImport
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
@@ -22,15 +23,13 @@ spec({
         t.group = f.group(SITE, "pass-smi", "public")
         t.repo = f.repository(SITE, t.group, "kept", "public", null)
         // GitHub's answer for acme/tools, and none for acme/missing (a 404, as GitHub answers a repository the token may not read)
-        ec.resource
-            .getLocationReference(RECORDED + "repos_acme_tools.json")
-            .putText(
-                JSON.stringify({
-                    status: 200,
-                    headers: {},
-                    body: {id: 7001, full_name: "acme/tools", private: false, default_branch: "main"}
-                })
-            )
+        ec.resource.getLocationReference(RECORDED + "repos_acme_tools.json").putText(
+            JSON.stringify({
+                status: 200,
+                headers: {},
+                body: {id: 7001, full_name: "acme/tools", private: false, default_branch: "main"}
+            })
+        )
         setProperty("smithy_github_api", RECORDED.replace(/\/$/, ""))
     }
 })
@@ -150,21 +149,48 @@ feature("an import's page shows its stage, counts, the rate limit's wait with it
         cache === "no-store"
     }
 })
-feature("a repository's Mirrors tab says plainly that this server has no push mirrors yet, with no form", {
-    when() {
-        const page = fixtures().render(SITE, HOST, "/code/pass-smi/kept/-/settings/mirrors", "Smithy/RepositoryDetail/Settings", {
-            repositoryId: t.repo.repositoryId,
-            namePath: "pass-smi/kept",
-            tab: "mirrors"
-        })
-        return {page, html: page.html}
-    },
-    then({page, html}) {
-        page.errors.length === 0
-        !html.includes("Error rendering")
-        html.includes('<a href="/code/pass-smi/kept/-/settings/mirrors" aria-current="page">Mirrors</a>')
-        html.includes('<p class="card" id="SmithyMirrorsNotBuilt">Push mirrors are not available on this server yet.</p>')
-        !html.includes("Smithy_storeMirror")
-        !html.includes("Smithy_pushMirror")
+feature(
+    "Stop needs its confirmation page's answer; a refused mirror keeps no secret, no username and no user part of its address",
+    {
+        when() {
+            const f = fixtures()
+            const stage = () =>
+                ec.entity.find("mantle.smithy.SmithyImportRun").condition("importId", t.importId).disableAuthz().one().statusId
+            const before = stage()
+            const back = "/code/import/" + t.importId
+            const unasked = f.post(SITE, HOST, "cancelGitHubImport", {
+                importId: t.importId,
+                expectedRevision: "1",
+                returnTo: back
+            })
+            const after = stage()
+            // refused (notBuilt) on a server whose framework has no push mirrors
+            const mirror = f.post(SITE, HOST, "storeMirror", {
+                repositoryId: t.repo.repositoryId,
+                mirrorId: "",
+                url: "https://someone:hunter2pass@git.example.test/a.git",
+                username: "mirror-user-name",
+                secret: "mirror-secret-0123456789",
+                refs: "refs/heads/*",
+                enabled: "true",
+                operationId: "pass-smi-mirror-1",
+                returnTo: "/code/pass-smi/kept/-/settings/mirrors"
+            })
+            return {before, after, unasked, mirror, kept: JSON.stringify(mirror.flash)}
+        },
+        then({before, after, unasked, mirror, kept}) {
+            unasked.status === 303
+            unasked.flash.error.message === "Confirm this change on its own page first."
+            after === before
+            after !== "SmiCancelled"
+            mirror.status === 303
+            mirror.flash.form === "storeMirror"
+            mirror.flash.error.reason === "notBuilt"
+            mirror.flash.values.url === "https://git.example.test/a.git"
+            mirror.flash.values.refs === "refs/heads/*"
+            !kept.includes("mirror-secret-0123456789")
+            !kept.includes("mirror-user-name")
+            !kept.includes("hunter2pass")
+        }
     }
-})
+)

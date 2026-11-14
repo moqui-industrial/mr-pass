@@ -112,6 +112,19 @@ spec({
             createdAt: Date.now(),
             revision: 1
         })
+        // the same group's id in an import of another site
+        f.run("create#mantle.public.PublicSite", {siteId: "PASS_SMA_ELSEWHERE", name: "Elsewhere", state: "published", locale: "en", timeZone: "UTC", policyRevision: 1, generation: 1})
+        f.run("create#mantle.smithy.SmithyImportRun", {
+            importId: "PASS_SMA_ELSEWHERE",
+            siteId: "PASS_SMA_ELSEWHERE",
+            groupId: t.group,
+            sourceEnumId: "SisGithub",
+            sourceRepository: "acme/elsewhere",
+            statusId: "SmiQueued",
+            startedByPartyId: ec.user.userAccount.partyId,
+            createdAt: Date.now(),
+            revision: 1
+        })
     },
     cleanup() {
         login("john.doe")
@@ -494,15 +507,36 @@ feature("an import is its group's Owners' and the mirrors a Maintainer's: a Deve
                 )
             )
         return {
-            owner: {run: importPage("PASS_SMA_IMPORT"), tab: importTab()},
+            owner: {
+                run: importPage("PASS_SMA_IMPORT"),
+                tab: importTab(),
+                // the site's imports, an operator's (the site's owner here)
+                list: outcome(() => imports.importPageView(SITE, bases, signedIn, "/code/import", "")),
+                elsewhere: importPage("PASS_SMA_ELSEWHERE"),
+                missing: importPage("NO_SUCH_IMPORT")
+            },
             maintainer: as(MAINTAINER, () => ({mirrors: mirrors(), run: importPage("PASS_SMA_IMPORT")})),
-            developer: as(DEVELOPER, () => ({run: importPage("PASS_SMA_IMPORT"), missing: importPage("NO_SUCH_IMPORT"), tab: importTab(), mirrors: mirrors()}))
+            developer: as(DEVELOPER, () => ({
+                run: importPage("PASS_SMA_IMPORT"),
+                missing: importPage("NO_SUCH_IMPORT"),
+                tab: importTab(),
+                mirrors: mirrors(),
+                list: outcome(() => imports.importPageView(SITE, bases, signedIn, "/code/import", ""))
+            }))
         }
     },
     then({owner, maintainer, developer}) {
         owner.run.html.includes("Import of acme/work")
         owner.tab.html.includes('<a href="/code/import/PASS_SMA_IMPORT">acme/work</a>')
         maintainer.mirrors.html.includes("Push mirrors are not available on this server yet.")
+        maintainer.mirrors.html.includes('<a href="/code/pass-sma/work/-/settings/mirrors" aria-current="page">Mirrors</a>')
+        !maintainer.mirrors.html.includes("Smithy_storeMirror")
+        !maintainer.mirrors.html.includes("Smithy_pushMirror")
+        owner.list.html.includes('<a href="/code/import/PASS_SMA_IMPORT">acme/work</a>')
+        !owner.list.html.includes("acme/elsewhere")
+        owner.elsewhere.kind === "NotFound"
+        owner.elsewhere.message === owner.missing.message
+        developer.list.kind === "NotFound"
         maintainer.run.kind === "NotFound"
         developer.run.kind === "NotFound"
         developer.run.message === developer.missing.message
