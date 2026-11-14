@@ -16,8 +16,9 @@
     <script><![CDATA[
         screenName='ReviewDetail'
         view=ec.resource.script('component://mr-pass/screen/Shared/View.js').load(screenName,siteId,ec.web.parameters,passBases,siteInfo,forumScope)
-        // in a group's or a repository's scope: a reported group or repository, with where it is and Hide (design-smithy §12.3)
-        scopeTargetHtml=forumScope && view.target ? ec.resource.script('component://mr-pass/screen/Smithy/SmithyScope.js').reviewTarget(view.target,passBases) : ''
+        // a reported group or repository, with where it is and what a decision does (design-smithy §12.3), in a scope's
+        // queue and in the site's (where the site's staff decide a report on one they may not open: it is not linked)
+        scopeTargetHtml=view.target ? ec.resource.script('component://mr-pass/screen/Smithy/SmithyScope.js').reviewTarget(view.target,passBases,resolvedSiteId) : ''
     ]]></script>
   </actions>
   <widgets>

@@ -63,6 +63,13 @@ const reasons = {
     acceptanceSignInRequired:
         'Sign in as a contact invited for your company to accept a quote of this amount.',
     responseRecorded: null,
+    // Smithy DG6: a repository a moderator hid is not forked
+    repositoryHidden: 'This repository is hidden.',
+    // Smithy DG8: the GitHub import; each with the refusal's own text (which token, which repository)
+    sourceRefused: null,
+    importActive: null,
+    numbersTaken: null,
+    secretRequired: 'Give the secret again for the mirror’s new address, username or host key',
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */

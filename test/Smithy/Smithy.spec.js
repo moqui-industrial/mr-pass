@@ -12,7 +12,16 @@
 // forum inside a group's and a repository's shell, of the scope's moderation pages and of a held report's link; one render
 // of the forum's topic list inside a group's shell (the scope's topics alone, links from the scoped base, the shell's tabs);
 // a held report's page and its claim through Smithy/Do; Report and Hide through Smithy/Do; a topic made an issue. Mantle's
-// SmithyForumScope, SmithyModerationTargets and SmithyHeldReports specs cover the rules behind them.
+// SmithyForumScope, SmithyModerationTargets and SmithyHeldReports specs cover the rules behind them. DG5 (§4.4, §10): the
+// paths of the pipeline pages (the runs, a run, a job, its log's JSON, an upload, the settings' Pipelines tab), their cache
+// policy and Do's ten pipeline transitions; the pages themselves are SmithyReview's spec. DG7 (§4.4, §13): the paths of the
+// site's pages (Search, Docs, Releases, a release and its file, a group's addons.xml, the site's Redirects tab), an old path
+// of the site's table answered by the resolver with its redirect and its target checked again (another host, a port, a user
+// part, a backslash, //, the preview host, a loop), one render of Search (what was asked and found escaped), one of a Docs
+// page (its links made Docs, Blob and raw links) and one of ReleaseDetail (its files, a Maintainer's forms; the same page as
+// an account with no role through its page function; Make it a draft refused without confirm=yes), and a group's
+// addons.xml as text/xml (a visitor's kept by a cache for five minutes). Mantle's SmithyDocs,
+// SmithyReleases, SmithyComponents, SmithySearch and SmithyRedirects specs cover the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const routes = () => ec.resource.script("component://mr-pass/service/pass/SmithyRoutes.js")
 const SITE = "PASS_SMITHY"
@@ -61,6 +70,8 @@ spec({
             "docs/Guide.md":
                 "# Guide\n\n[Up](../README.md) [Out](../../../etc/passwd) [Site](https://example.test/a) ![Logo](img/logo.png)\n",
             'docs/n\u00e9"w.txt': "plain <b>text</b>\n",
+            // DG7: the docs directory's index, with a link to a page of it, one to a file outside it, and a script
+            "docs/README.md": "# Web docs\n\nSee [the guide](Guide.md#start) and [the code](../src/main.js).\n\n<script>alert(5)</script>\n\n## Install\n",
             "src/main.js": "const a = 1\nif (a < 2) console.log('<script>alert(1)</script>')\n"
         })
         state.repo = made.repositoryId
@@ -104,6 +115,65 @@ spec({
         f.account(SITE, REPORTS, {confirmed: true, settled: true})
         // and one whose confirmed address sent a report by mail before it had the account
         f.account(SITE, SENDER, {confirmed: true, settled: true})
+        // DG7: docs on; a published release of the tag v1.0 with a container image's name and a file (a row: no file is
+        // read here); an old path of the site's table
+        f.turnOn(SITE, state.repo, {docsEnabled: true})
+        f.run("org.moqui.git.GitServices.create#GitRef", {repositoryId: state.repo, refName: "v1.0", refType: "tag"})
+        const release = f.operation("storeRelease", {
+            siteId: SITE,
+            repositoryId: state.repo,
+            tag: "v1.0",
+            name: "First & best",
+            notes: "The **first** one.\n\n<script>alert(6)</script>\n",
+            sourceFormat: "markdown",
+            published: true,
+            operationId: "pass-smg-release-1"
+        })
+        if (!release.tag) throw new Error("No release: " + release.message)
+        f.operation("addReleaseAsset", {
+            siteId: SITE,
+            repositoryId: state.repo,
+            tag: "v1.0",
+            imageName: "registry.example.test/web:1.0",
+            operationId: "pass-smg-asset-1"
+        })
+        const image = ec.entity.find("mantle.smithy.SmithyReleaseAsset").condition({repositoryId: state.repo}).disableAuthz().one()
+        f.run("create#mantle.smithy.SmithyReleaseAsset", {
+            assetId: "PASS_SMG_A1",
+            siteId: SITE,
+            repositoryId: state.repo,
+            workEffortId: image.workEffortId,
+            tagName: "v1.0",
+            name: "web-1.0.zip",
+            assetKindEnumId: "SakFile",
+            contentLocation: "dbresource://pass-smg/web-1.0.zip",
+            sizeBytes: 2048,
+            sha256: "ab".repeat(32),
+            createdAt: Date.now()
+        })
+        f.operation("storeRedirect", {siteId: SITE, oldPath: "/m/docs/web", targetPath: "/code/pass-smg/web/-/docs", operationId: "pass-smg-redirect-1"})
+        // rows of the table its writer would refuse (an old import, a host since gone), which the resolver checks again; the
+        // site's theme preview host
+        f.run("create#mantle.public.PublicSiteHost", {hostname: "preview." + HOST, siteId: SITE, hostKindEnumId: "PshkPreview"})
+        const moves = {
+            own: "https://" + HOST + "/code/pass-smg/web",
+            other: "https://other.example.test/x",
+            port: "https://" + HOST + ":8443/x",
+            at: "https://" + HOST + "@evil.example.test/x",
+            backslash: "/\\evil.example.test/x",
+            doubled: "//evil.example.test/x",
+            preview: "https://preview." + HOST + "/x",
+            loop: "/M/Loop/?a=1",
+            loopHost: "https://" + HOST + "/M/loop2/"
+        }
+        for (const [name, targetPath] of Object.entries(moves))
+            f.run("create#mantle.smithy.SmithyRedirect", {
+                redirectId: "PASS_SMG_MOVE_" + name,
+                siteId: SITE,
+                oldPath: name === "loop" ? "/m/loop" : name === "loopHost" ? "/m/loop2" : "/m/move/" + name,
+                targetPath,
+                sourceEnumId: "SrsManual"
+            })
     }
 })
 feature("the grammar: names, then a section after /-/, with the authority telling a group, a repository and an account apart", {
@@ -134,6 +204,14 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             branches: parse("moqui/mr-moqui/-/branches"),
             // a later phase's section is in the grammar, and not routed until its screen is built
             pipeline: parse("moqui/mr-moqui/-/pipelines/7"),
+            // DG5: the runs, a job, its log's JSON, an upload, and the settings' Pipelines tab
+            pipelines: parse("moqui/mr-moqui/-/pipelines"),
+            pipelineJob: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1"),
+            pipelineLog: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1/log"),
+            pipelineJobBad: parse("moqui/mr-moqui/-/pipelines/7/steps/J_1"),
+            pipelineLogBad: parse("moqui/mr-moqui/-/pipelines/7/jobs/J_1/raw"),
+            artifact: parse("moqui/mr-moqui/-/artifacts/A_1/results.tar.gz"),
+            pipelinesTab: parse("moqui/-/settings/pipelines"),
             // DG4: merge requests, a fork's head with a slash in its ref, the fork pages, a file's edit and the islands
             mergeRequests: parse("moqui/mr-moqui/-/merge-requests"),
             mergeRequestNew: parse("moqui/mr-moqui/-/merge-requests/new"),
@@ -208,6 +286,10 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             forumCompose: parse("moqui/mr-moqui/-/forum/Compose.qvue"),
             forumPublish: parse("moqui/-/forum/Compose/publish"),
             forumFeed: parse("moqui/-/forum/feed"),
+            // a held list message's link of a list in the scope, and its claim
+            forumHeld: parse("moqui/mr-moqui/-/forum/held-mail/abcDEF_123-456"),
+            forumHeldClaim: parse("moqui/-/forum/held-mail/abcDEF_123-456/claim"),
+            forumHeldBad: parse("moqui/-/forum/held-mail/abcDEF_123-456/post"),
             // the forum's pages that have no scope stay the site's own
             forumSettings: parse("moqui/-/forum/Settings/Mail"),
             forumMessages: parse("moqui/-/forum/Messages"),
@@ -219,7 +301,19 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             moderationBad: parse("moqui/-/moderation/Settings"),
             forumTab: parse("moqui/-/settings/forum"),
             heldReport: parse("-/held-report/abcDEF_123-456"),
-            heldReportBad: parse("-/held-report/a/b")
+            heldReportBad: parse("-/held-report/a/b"),
+            // DG7: the site's pages
+            search: parse("search"),
+            searchDeeper: parse("search/x"),
+            docs: parse("moqui/mr-moqui/-/docs"),
+            docsPage: parse("moqui/mr-moqui/-/docs/v1.0/guide/intro.md"),
+            releases: parse("moqui/mr-moqui/-/releases"),
+            release: parse("moqui/mr-moqui/-/releases/release/1.0"),
+            releaseAsset: parse("moqui/mr-moqui/-/release-assets/A_1/web-1.0.zip"),
+            releaseAssetBad: parse("moqui/mr-moqui/-/release-assets/A_1"),
+            addons: parse("moqui/addons/-/addons.xml"),
+            addonsDeeper: parse("moqui/-/addons.xml/x"),
+            siteRedirects: parse("-/site/redirects")
         }
         return {out, asked: asked.slice(), built: routes().BUILT}
     },
@@ -261,7 +355,20 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.compareHead.screenParameters.head === "topic"
         out.branches.screenPath === "/Smithy/RepositoryDetail/Branches"
         out.pipeline.screenPath === "/Smithy/PipelineDetail"
-        !built.includes("/Smithy/PipelineDetail")
+        out.pipeline.screenParameters.runNum === "7"
+        built.includes("/Smithy/PipelineDetail")
+        out.pipelines.screenPath === "/Smithy/RepositoryDetail/Pipelines"
+        built.includes(out.pipelines.screenPath)
+        out.pipelineJob.screenParameters.jobRunId === "J_1"
+        out.pipelineLog.screenPath === "/Smithy/PipelineDetail/log"
+        out.pipelineLog.screenParameters.jobRunId === "J_1"
+        built.includes(out.pipelineLog.screenPath)
+        out.pipelineJobBad.kind === "NotFound"
+        out.pipelineLogBad.kind === "NotFound"
+        out.artifact.screenPath === "/Smithy/PipelineDetail/artifact"
+        out.artifact.screenParameters.artifactId === "A_1"
+        built.includes(out.artifact.screenPath)
+        out.pipelinesTab.screenParameters.tab === "pipelines"
         out.mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
         out.mergeRequestNew.screenPath === "/Smithy/NewMergeRequest"
         out.mergeRequest.screenPath === "/Smithy/MergeRequestDetail/Overview"
@@ -362,6 +469,10 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.forumCompose.screenPath === "/Smithy/RepositoryDetail/Forum/Compose.qvue"
         out.forumPublish.screenPath === "/Smithy/GroupDetail/Forum/Compose/publish"
         out.forumFeed.screenPath === "/Smithy/GroupDetail/Forum/feed"
+        out.forumHeld.screenPath === "/Smithy/RepositoryDetail/Forum/HeldMail"
+        out.forumHeld.screenParameters.token === "abcDEF_123-456"
+        out.forumHeldClaim.screenPath === "/Smithy/GroupDetail/Forum/HeldMail/claim"
+        out.forumHeldBad.kind === "NotFound"
         out.forumSettings.kind === "NotFound"
         out.forumMessages.kind === "NotFound"
         out.forumModeration.kind === "NotFound"
@@ -376,6 +487,28 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.heldReport.screenPath === "/Smithy/Do/heldReport"
         out.heldReport.screenParameters.token === "abcDEF_123-456"
         out.heldReportBad.kind === "NotFound"
+        out.search.screenPath === "/Smithy/Search"
+        built.includes(out.search.screenPath)
+        out.searchDeeper.kind === "NotFound"
+        out.docs.screenPath === "/Smithy/RepositoryDetail/Docs"
+        out.docs.screenParameters.refPath === ""
+        out.docsPage.screenParameters.refPath === "v1.0/guide/intro.md"
+        built.includes(out.docs.screenPath)
+        out.releases.screenPath === "/Smithy/RepositoryDetail/Releases"
+        built.includes(out.releases.screenPath)
+        // a tag keeps its slashes
+        out.release.screenPath === "/Smithy/ReleaseDetail"
+        out.release.screenParameters.tag === "release/1.0"
+        built.includes(out.release.screenPath)
+        out.releaseAsset.screenPath === "/Smithy/ReleaseDetail/asset"
+        out.releaseAsset.screenParameters.assetId === "A_1"
+        built.includes(out.releaseAsset.screenPath)
+        out.releaseAssetBad.kind === "NotFound"
+        out.addons.screenPath === "/Smithy/GroupDetail/addons"
+        out.addons.screenParameters.groupId === "G2"
+        built.includes(out.addons.screenPath)
+        out.addonsDeeper.kind === "NotFound"
+        out.siteRedirects.screenParameters.tab === "redirects"
     }
 })
 feature("the resolver routes a Smithy mount by segment, so compare's ... passes and .. does not, here or in another app", {
@@ -388,7 +521,15 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
             group: f.route(SITE, HOST, "/code/pass-smg/-/members"),
             stored: f.route(SITE, HOST, "/code/Pass-SMG/web.git"),
             slashes: f.route(SITE, HOST, "/code//pass-smg/web/"),
-            later: f.route(SITE, HOST, "/code/pass-smg/web/-/pipelines"),
+            // DG8: a group's Import tab and an import's page are routed
+            later: f.route(SITE, HOST, "/code/pass-smg/-/settings/import"),
+            importRun: f.route(SITE, HOST, "/code/import/SMI_1"),
+            // DG7: an old path of the site's table, which no mount takes, is answered with its redirect
+            moved: f.route(SITE, HOST, "/m/docs/web/"),
+            gone: f.route(SITE, HOST, "/m/docs/other"),
+            // DG5's pages are routed (the page answers Not Found where pipelines are off)
+            pipelines: f.route(SITE, HOST, "/code/pass-smg/web/-/pipelines"),
+            pipelinesTab: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/pipelines"),
             // DG4's pages are routed
             mergeRequests: f.route(SITE, HOST, "/code/pass-smg/web/-/merge-requests"),
             agreement: f.route(SITE, HOST, "/code/pass-smg/web/-/settings/agreement"),
@@ -407,6 +548,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         }
     },
     then({
+        moved,
+        gone,
         repository,
         tree,
         compare,
@@ -414,6 +557,8 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         stored,
         slashes,
         later,
+        pipelines,
+        pipelinesTab,
         mergeRequests,
         agreement,
         issue,
@@ -426,17 +571,20 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         siteLater,
         groupSettings,
         webhooks,
-        mirrors
+        mirrors,
+        importRun
     }) {
         created.screenPath === "/Smithy/New/Repository"
         form.screenPath === "/Smithy/Do/createRepository"
         site.screenParameters.tab === "quotas"
-        siteLater.kind === "NotFound"
+        siteLater.screenParameters.tab === "redirects"
         groupSettings.screenPath === "/Smithy/GroupDetail/Settings"
         groupSettings.screenParameters.groupId === state.group
         webhooks.screenPath === "/Smithy/RepositoryDetail/Settings"
         webhooks.screenParameters.tab === "webhooks"
-        mirrors.kind === "NotFound"
+        mirrors.screenParameters.tab === "mirrors"
+        importRun.screenPath === "/Smithy/Import"
+        importRun.screenParameters.importId === "SMI_1"
         repository.screenPath === "/Smithy/RepositoryDetail/Files"
         repository.screenParameters.repositoryId === state.repo
         repository.screenParameters.namePath === "pass-smg/web"
@@ -449,7 +597,12 @@ feature("the resolver routes a Smithy mount by segment, so compare's ... passes 
         stored.screenParameters.location === "/code/pass-smg/web"
         slashes.screenPath === "/Smithy/redirect"
         slashes.screenParameters.location === "/code/pass-smg/web"
-        later.kind === "NotFound"
+        later.screenParameters.tab === "import"
+        moved.screenPath === "/Smithy/redirect"
+        moved.screenParameters.location === "/code/pass-smg/web/-/docs"
+        gone.kind === "NotFound"
+        pipelines.screenPath === "/Smithy/RepositoryDetail/Pipelines"
+        pipelinesTab.screenParameters.tab === "pipelines"
         mergeRequests.screenPath === "/Smithy/RepositoryDetail/MergeRequests"
         agreement.screenParameters.tab === "agreement"
         // DG3's pages are routed (the page answers Not Found for a number the repository does not have)
@@ -582,7 +735,7 @@ feature("raw serves a file as plain text or a download, never as a page: its typ
         sessionCache === "no-store"
     }
 })
-feature("the redirect answers 301 to a path on this site, is never cached, and refuses another host's", {
+feature("the redirect answers 301 to a path on this site, is never cached, and refuses another host's; an old path's target is checked again", {
     when() {
         const f = fixtures()
         const to = location => f.render(SITE, HOST, "/code/Pass-SMG/web", "Smithy/redirect", {location})
@@ -597,10 +750,18 @@ feature("the redirect answers 301 to a path on this site, is never cached, and r
             badLocation: bad.header("Location"),
             guard: ["/a/b?x=1", "//host/a", "/\\host/a", "/a\u0001b", "https://host/a", "a/b", ""]
                 .map(l => smithy.siteLocal(l))
-                .join(" ")
+                .join(" "),
+            // a target of the table: only a path of this site or an https address of one of its own hosts (not its preview
+            // host, another host, a port it does not have, a user part, a backslash or //), and never the path asked for
+            moves: ["own", "other", "port", "at", "backslash", "doubled", "preview"].map(name => smithy.movedPath(SITE, HOST, "/m/move/" + name) || "-").join(" "),
+            loops: [smithy.movedPath(SITE, HOST, "/m/loop"), smithy.movedPath(SITE, HOST, "/m/loop2"), smithy.movedPath(SITE, "other." + HOST, "/m/loop2")]
+                .map(target => target || "-")
+                .join(" "),
+            // the request's query goes before the target's fragment
+            query: [smithy.withQuery("/a#top", "x=1"), smithy.withQuery("/a?b=2#top", "x=1"), smithy.withQuery("/a", "")].join(" ")
         }
     },
-    then({status, location, cache, bad, badLocation, guard}) {
+    then({status, location, cache, bad, badLocation, guard, moves, loops, query}) {
         status === 301
         location === "/code/pass-smg/web/-/tree/main"
         cache === "no-store"
@@ -609,6 +770,9 @@ feature("the redirect answers 301 to a path on this site, is never cached, and r
         bad.errors[0].includes("Page not found")
         badLocation == null
         guard === "true false false false false false false"
+        moves === "https://" + HOST + "/code/pass-smg/web - - - - - -"
+        loops === "- - https://" + HOST + "/M/loop2/"
+        query === "/a?x=1#top /a?b=2&x=1#top /a"
     }
 })
 feature("CommitDetail shows the message, the parent, the changed file and its diff as escaped unified text", {
@@ -749,7 +913,7 @@ feature("Blame shows each run of lines with the commit that last changed it, as 
         !html.includes("<script")
     }
 })
-feature("archive serves a ref's tree to a signed-in account as an attachment, never cached; a visitor is sent to sign in", {
+feature("archive serves a ref's tree as an attachment, never cached, to a signed-in account and to a visitor of a public repository", {
     when() {
         const f = fixtures()
         const get = () =>
@@ -787,9 +951,9 @@ feature("archive serves a ref's tree to a signed-in account as an attachment, ne
         disposition === "attachment; filename=\"web-feature-login.zip\"; filename*=UTF-8''web-feature-login.zip"
         cache === "no-store"
         sniff === "nosniff"
-        // a visitor who may view the repository gets no file, only the way to sign in and come back
-        !visitor.html.startsWith("PK")
-        visitorLocation === "/account/Login?returnTo=" + encodeURIComponent("/code/pass-smg/web/-/archive/feature/login.zip")
+        // a public repository's archive is anyone's (addons.xml's archive locations for ./moq component-get)
+        visitor.html.startsWith("PK")
+        visitorLocation == null
         visitorCache === "no-store"
     }
 })
@@ -855,9 +1019,9 @@ feature("a form's post answers 303: to its page after a write, back to the form 
         unasked.location === "/code/"
         unasked.flash.error.message === "Confirm this change on its own page first."
         // DG6's heldReport alone is a GET: the page of a held report's link, which writes nothing
-        transitions === 71
-        posts === 70
-        forms === 70
+        transitions === 95
+        posts === 94
+        forms === 94
         optOut === false
     }
 })
@@ -1176,9 +1340,16 @@ feature(
                 true
             )
             const page = f.render(SITE, HOST, path, "Smithy/Do/heldReport", {token})
-            logout()
-            const visitor = f.render(SITE, HOST, path, "Smithy/Do/heldReport", {token})
-            login("john.doe")
+            // a visitor's content, through the page's own function (the page is rendered once, signed in)
+            const visitor = ec.resource
+                .script("component://mr-pass/screen/Smithy/SmithyScope.js")
+                .heldReportBody(
+                    token,
+                    {smithy: "/code", account: "/account"},
+                    {authenticated: false, site: {registrationMode: "closed"}},
+                    path,
+                    {}
+                )
             // a report that waits for its sender (mail to a report address from an address that had no account), with its
             // link's token known here: the account whose confirmed address sent it files it
             const sent = "pass-smg-held-token"
@@ -1212,7 +1383,7 @@ feature(
                 routed: f.route(SITE, HOST, path),
                 claim,
                 page,
-                visitor: visitor.html,
+                visitor,
                 token,
                 filed,
                 number,
@@ -1381,15 +1552,23 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
             // nor the forum's pages inside a shell (the forum's own are not) and the scope's moderation pages (DG6)
             scopePages: ["/moqui/-/forum", "/moqui/mr-moqui/-/forum/t/T1/hello", "/moqui/-/moderation"]
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
+                .join(" "),
+            // nor a pipeline's pages, a job's log and an upload (DG5): a log holds whatever a job printed
+            pipelinePages: ["/moqui/mr-moqui/-/pipelines", "/moqui/mr-moqui/-/pipelines/3/jobs/J1", "/moqui/mr-moqui/-/pipelines/3/jobs/J1/log", "/moqui/mr-moqui/-/artifacts/A1/x.tar.gz"]
+                .map(path => headers.policyOf("smithy", path, true).cacheControl)
+                .join(" "),
+            // DG7: Search (it lists issues) and a release's file are kept by no cache; Docs and Releases are read pages
+            sitePages: ["/search", "/moqui/mr-moqui/-/release-assets/A1/x.zip", "/moqui/mr-moqui/-/docs/main/a.md", "/moqui/mr-moqui/-/releases/v1"]
+                .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" ")
         }
     },
-    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList, scopePages}) {
+    then({app, authorityApp, schema, count, unrouted, twice, anonymous, signedIn, ownPath, issuePages, reviewPages, commitsList, scopePages, pipelinePages, sitePages}) {
         app.screen === "Smithy"
         app.base === "/code"
         authorityApp.root === true
         schema === true
-        count === 95
+        count === 140
         unrouted.length === 0
         twice.length === 0
         anonymous === "public, max-age=60"
@@ -1400,6 +1579,126 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
         commitsList === "public, max-age=60"
         reviewPages === "no-store no-store no-store no-store"
         scopePages === "no-store no-store no-store"
+        pipelinePages === "no-store no-store no-store no-store"
+        sitePages === "no-store no-store public, max-age=60 public, max-age=60"
+    }
+})
+feature("Docs shows a page of the docs directory: its links made Docs, Blob and raw links, its contents and headings, cleaned", {
+    when() {
+        const page = fixtures().render(SITE, HOST, "/code/pass-smg/web/-/docs/main", "Smithy/RepositoryDetail/Docs", {
+            repositoryId: state.repo,
+            namePath: "pass-smg/web",
+            refPath: "main"
+        })
+        const links = (page.html.match(/<a [^>]*>(?:the guide|the code)</g) || []).map(tag => /href="([^"]*)"/.exec(tag)[1]).join(" ")
+        return {page, html: page.html, links}
+    },
+    then({page, html, links}) {
+        page.errors.length === 0
+        !html.includes("Error rendering")
+        html.includes('id="SmithyDocsPage"')
+        // a page of the directory is its Docs page with its anchor; a file outside it is its Blob page
+        links === "/code/pass-smg/web/-/docs/main/Guide.md#start /code/pass-smg/web/-/blob/main/src/main.js"
+        html.includes('<h2 id="h-install">')
+        html.includes('<a href="#h-install">Install</a>')
+        // the contents, the ref picker with the tag, Edit at a branch, the docs search, and the tab
+        html.includes('<a href="/code/pass-smg/web/-/docs/main/Guide.md">Guide</a>')
+        html.includes('<option value="v1.0">v1.0</option>')
+        html.includes('href="/code/pass-smg/web/-/edit/main/docs/README.md" id="SmithyDocsEdit"')
+        html.includes('<form method="get" action="/code/search" role="search" class="card" id="SmithyDocsSearch">')
+        html.includes('<a href="/code/pass-smg/web/-/docs" aria-current="page">Docs</a>')
+    }
+})
+feature("Search escapes what was asked and what it found, and links a result by the authority's path", {
+    when() {
+        const page = fixtures().render(SITE, HOST, "/code/search", "Smithy/Search", {q: "breaks <b", kind: "issue"})
+        return {page, html: page.html}
+    },
+    then({page, html}) {
+        page.errors.length === 0
+        html.includes('value="breaks &lt;b"')
+        !html.includes("breaks <b")
+        html.includes('id="SmithySearch_issue"')
+        html.includes('<a href="/code/pass-smg/web/-/issues/1">Tree page breaks &lt;b&gt; (#1)</a>')
+    }
+})
+feature("a release's page shows its notes and its files with size and SHA-256; a Maintainer's forms only for a Maintainer; a change of its state asks again; addons.xml is text/xml", {
+    when() {
+        const f = fixtures()
+        const page = f.render(SITE, HOST, "/code/pass-smg/web/-/releases/v1.0", "Smithy/ReleaseDetail", {
+            repositoryId: state.repo,
+            namePath: "pass-smg/web",
+            tag: "v1.0"
+        })
+        // an account with no role reads the same release through the page's function
+        login(KEYS, "moqui1!!")
+        let viewer
+        try {
+            const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+            const self = "/code/pass-smg/web/-/releases/v1.0"
+            viewer = ec.resource
+                .script("component://mr-pass/screen/Smithy/SmithySite.js")
+                .releaseDetail(smithy.repositoryShell(SITE, state.repo, "/code", self), "v1.0", {smithy: "/code", account: "/account"}, {authenticated: true, mounts: []}, self).html
+        } finally {
+            login("john.doe")
+        }
+        const addonsOf = () => f.render(SITE, HOST, "/code/pass-smg/-/addons.xml", "Smithy/GroupDetail/addons", {groupId: state.group, namePath: "pass-smg"})
+        const addons = addonsOf()
+        // a visitor's copy of a public group's file may be kept by a cache for a while, one per cookie
+        logout()
+        let visitor
+        try {
+            visitor = addonsOf()
+        } finally {
+            login("john.doe")
+        }
+        // Make it a draft without its confirmation page's answer is not run
+        const revision = f.operation("getRelease", {siteId: SITE, repositoryId: state.repo, tag: "v1.0"}).release.revision
+        const unpublish = f.post(SITE, HOST, "storeRelease", {
+            repositoryId: state.repo,
+            tag: "v1.0",
+            expectedRevision: revision,
+            published: "false",
+            returnTo: "/code/pass-smg/web/-/releases/v1.0"
+        })
+        const published = f.operation("getRelease", {siteId: SITE, repositoryId: state.repo, tag: "v1.0"}).release.published
+        return {page, html: page.html, viewer, addons, visitor, unpublish, published}
+    },
+    then({page, html, viewer, addons, visitor, unpublish, published}) {
+        page.errors.length === 0
+        !html.includes("Error rendering")
+        html.includes('<small class="smithy-chip" id="SmithyReleaseState">Published</small>')
+        html.includes("First &amp; best")
+        html.includes("<strong>first</strong>")
+        // a named release's name in its edit form, sent back only when changed
+        html.includes('<input type="hidden" name="was_name" value="First &amp; best">')
+        // the file: its download through the release's path, its size and checksum; the image's name
+        html.includes('<a href="/code/pass-smg/web/-/release-assets/PASS_SMG_A1/web-1.0.zip" rel="nofollow">web-1.0.zip</a> <small>2.0 KiB</small>')
+        html.includes("SHA-256 <code>" + "ab".repeat(32) + "</code>")
+        html.includes("<code>registry.example.test/web:1.0</code>")
+        html.includes('<a href="/code/pass-smg/web/-/archive/v1.0.zip" rel="nofollow">zip</a>')
+        // a Maintainer's forms, each posting to Smithy/Do
+        html.includes('id="SmithyReleaseDelete"')
+        html.includes('action="/code/-/do/storeRelease"')
+        html.includes('enctype="multipart/form-data"')
+        html.includes('action="/code/-/do/addReleaseAsset"')
+        html.includes("/code/pass-smg/web/-/releases/v1.0?removeAsset=PASS_SMG_A1")
+        html.includes('<a href="/code/pass-smg/web/-/releases" aria-current="page">Releases</a>')
+        // an account with no role reads the files and has none of the forms
+        viewer.includes("web-1.0.zip")
+        !viewer.includes("/-/do/")
+        !viewer.includes("removeAsset")
+        !viewer.includes("SmithyReleaseDelete")
+        // the group's addons.xml: the operation's text as text/xml, kept by no cache for a signed-in account
+        addons.errors.length === 0
+        String(addons.header("Content-Type")).startsWith("text/xml")
+        addons.header("Cache-Control") === "no-store"
+        addons.html.startsWith('<?xml version="1.0" encoding="UTF-8"?>')
+        addons.html.includes("<addons>")
+        visitor.header("Cache-Control") === "public, max-age=300"
+        visitor.header("Vary") === "Cookie"
+        unpublish.flash.error.message === "Confirm this change on its own page first."
+        published === true
     }
 })
 feature("every app's default base is refused as a group's path, so a group never takes a mount's place", {

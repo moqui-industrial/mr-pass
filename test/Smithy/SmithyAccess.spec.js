@@ -10,7 +10,9 @@
 // request and one held for review are Not Found on their page to a stranger, whose review form has no approval, and the
 // page of a Developer has no merge form for a protected branch (the rules are Mantle's SmithyMergeRequests; here the
 // page's own view by caller, with no screen rendered). DG6's rule: a scope's moderation is its Owners' (the page's own
-// rule, with no screen rendered, and the queue's read with the scope; Mantle's SmithyModerationTargets has the rest).
+// rule, with no screen rendered, and the queue's read with the scope; Mantle's SmithyModerationTargets has the rest). DG8's
+// rules: an import's page and a group's Import tab are its Owners', the Mirrors tab a Maintainer's; a Developer gets Not Found,
+// as for an import that is not there (the pages' own rule, with no screen rendered; Mantle's SmithyGithubImport has the rest).
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_ACCESS"
 const HOST = "smithy-access.example.test"
@@ -93,6 +95,36 @@ spec({
         })
         // DG6: the group's category, the scope of its moderation
         t.category = ec.entity.find("mantle.smithy.SmithyGroup").condition("groupId", t.group).disableAuthz().one().contactListId
+        // DG8: an import into the group, as a step leaves one (made here: the start asks GitHub)
+        f.run("create#mantle.smithy.SmithyImportRun", {
+            importId: "PASS_SMA_IMPORT",
+            siteId: SITE,
+            groupId: t.group,
+            repositoryId: t.work.repositoryId,
+            sourceEnumId: "SisGithub",
+            sourceRepository: "acme/work",
+            options: JSON.stringify({issues: true, pullRequests: true}),
+            statusId: "SmiQueued",
+            cursorJson: "{}",
+            countsJson: "{}",
+            reportJson: JSON.stringify({items: [], notCarried: {}}),
+            startedByPartyId: ec.user.userAccount.partyId,
+            createdAt: Date.now(),
+            revision: 1
+        })
+        // the same group's id in an import of another site
+        f.run("create#mantle.public.PublicSite", {siteId: "PASS_SMA_ELSEWHERE", name: "Elsewhere", state: "published", locale: "en", timeZone: "UTC", policyRevision: 1, generation: 1})
+        f.run("create#mantle.smithy.SmithyImportRun", {
+            importId: "PASS_SMA_ELSEWHERE",
+            siteId: "PASS_SMA_ELSEWHERE",
+            groupId: t.group,
+            sourceEnumId: "SisGithub",
+            sourceRepository: "acme/elsewhere",
+            statusId: "SmiQueued",
+            startedByPartyId: ec.user.userAccount.partyId,
+            createdAt: Date.now(),
+            revision: 1
+        })
     },
     cleanup() {
         login("john.doe")
@@ -239,13 +271,14 @@ feature("a tab is shown to the role that may use it, and Settings is Not Found f
     },
     then({reporter, maintainer, unmounted}) {
         // a Reporter has no Settings tab, and the page is as one that does not exist
-        reporter.tabs === "Files Commits Branches Tags Issues Merge requests"
+        reporter.tabs === "Files Commits Branches Tags Issues Merge requests Releases"
         reporter.kind === "NotFound"
         reporter.settings == null
-        // a Maintainer has Settings with Branch rules, reads the members without changing them, and has no Archive
-        maintainer.tabs === "Files Commits Branches Tags Issues Merge requests Settings"
+        // a Maintainer has Settings with Branch rules and (DG5) Pipelines, reads the members without changing them, and has
+        // no Archive
+        maintainer.tabs === "Files Commits Branches Tags Issues Merge requests Releases Settings"
         maintainer.kind == null
-        maintainer.settings === "general members branch-rules webhooks"
+        maintainer.settings === "general members branch-rules webhooks mirrors pipelines"
         maintainer.changesMembers === false
         unmounted === "NotFound"
     }
@@ -442,6 +475,73 @@ feature("moderation in a scope is its Owners': the queue for an Owner, Not Found
         tab === false
         queue != null
         stranger.kind === "NotFound"
+    }
+})
+feature("an import is its group's Owners' and the mirrors a Maintainer's: a Developer gets Not Found, as for an import that is not there", {
+    when() {
+        const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
+        const forms = ec.resource.script("component://mr-pass/screen/Smithy/SmithyForms.js")
+        const imports = ec.resource.script("component://mr-pass/screen/Smithy/SmithyImport.js")
+        const bases = {smithy: "/code", account: "/account"}
+        const signedIn = {authenticated: true}
+        // each page's own rule for a caller, with no screen rendered: a text of the page, or its refusal
+        const outcome = work => {
+            try {
+                return {html: String(work().html)}
+            } catch (error) {
+                ec.message.clearErrors()
+                return {kind: error.moquiErrorKind, message: String(error.message)}
+            }
+        }
+        const importPage = importId => outcome(() => imports.importPageView(SITE, bases, signedIn, "/code/import/" + importId, importId))
+        const importTab = () =>
+            outcome(() => forms.groupSettings(smithy.groupShell(SITE, t.group, "/code", "/code/pass-sma/-/settings/import"), bases, signedIn, "/code/pass-sma/-/settings/import", "import"))
+        const mirrors = () =>
+            outcome(() =>
+                forms.repositorySettings(
+                    smithy.repositoryShell(SITE, t.work.repositoryId, "/code", "/code/pass-sma/work/-/settings/mirrors"),
+                    bases,
+                    signedIn,
+                    "/code/pass-sma/work/-/settings/mirrors",
+                    "mirrors"
+                )
+            )
+        return {
+            owner: {
+                run: importPage("PASS_SMA_IMPORT"),
+                tab: importTab(),
+                // the site's imports, an operator's (the site's owner here)
+                list: outcome(() => imports.importPageView(SITE, bases, signedIn, "/code/import", "")),
+                elsewhere: importPage("PASS_SMA_ELSEWHERE"),
+                missing: importPage("NO_SUCH_IMPORT")
+            },
+            maintainer: as(MAINTAINER, () => ({mirrors: mirrors(), run: importPage("PASS_SMA_IMPORT")})),
+            developer: as(DEVELOPER, () => ({
+                run: importPage("PASS_SMA_IMPORT"),
+                missing: importPage("NO_SUCH_IMPORT"),
+                tab: importTab(),
+                mirrors: mirrors(),
+                list: outcome(() => imports.importPageView(SITE, bases, signedIn, "/code/import", ""))
+            }))
+        }
+    },
+    then({owner, maintainer, developer}) {
+        owner.run.html.includes("Import of acme/work")
+        owner.tab.html.includes('<a href="/code/import/PASS_SMA_IMPORT">acme/work</a>')
+        maintainer.mirrors.html.includes("This repository has no push mirror.")
+        maintainer.mirrors.html.includes('<a href="/code/pass-sma/work/-/settings/mirrors" aria-current="page">Mirrors</a>')
+        maintainer.mirrors.html.includes("Smithy_storeMirror")
+        !maintainer.mirrors.html.includes("not available on this server")
+        owner.list.html.includes('<a href="/code/import/PASS_SMA_IMPORT">acme/work</a>')
+        !owner.list.html.includes("acme/elsewhere")
+        owner.elsewhere.kind === "NotFound"
+        owner.elsewhere.message === owner.missing.message
+        developer.list.kind === "NotFound"
+        maintainer.run.kind === "NotFound"
+        developer.run.kind === "NotFound"
+        developer.run.message === developer.missing.message
+        developer.tab.kind === "NotFound"
+        developer.mirrors.kind === "NotFound"
     }
 })
 feature("no Smithy write is a bearer link's: none is among the writes a link's token authorizes", {

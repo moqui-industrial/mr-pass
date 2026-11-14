@@ -1211,6 +1211,13 @@ function load(name, siteId, parameters, bases, identity, scope) {
             ...parameters,
             scopeContactListId: oneCategory ? null : scope.contactListId,
         }
+        // a member is moderated in the scope's category (or one of its subtree): an Owner of the scope reads what the
+        // member did there, never across the site (getMember's scopeActivity)
+        if (name === 'MemberModeration') {
+            if (parameters.contactListId)
+                requireInScope(siteId, scope, parameters.contactListId)
+            else parameters.contactListId = scope.contactListId
+        }
     }
     const def = { ...definitions[name] },
         view = {
@@ -1448,6 +1455,13 @@ function load(name, siteId, parameters, bases, identity, scope) {
             : []
         view.notes = name === 'ReviewDetail' ? data.notes : []
         if (name === 'ReviewDetail') {
+            // the reports, each with its reporter only for the site's staff (null for a scope's moderator: "a member")
+            view.reports = (data.reports || []).map((report) => ({
+                reason: report.reason || '',
+                evidence: report.evidence || '',
+                reporterPartyId: report.reporterPartyId || null,
+                createdAt: report.createdAt,
+            }))
             // a reported group or repository (its path and whether it is hidden), for what a scope's page adds
             view.target = data.target || null
             // mail held from an address that is no account's: who sent it and until when it waits; its text is the
@@ -1572,6 +1586,25 @@ function load(name, siteId, parameters, bases, identity, scope) {
                     (rule.enabled === 'Y' ? '' : ' (disabled)'),
             }))
             view.details = []
+        }
+        if (name === 'MemberModeration' && data.scopeActivity) {
+            // moderated as a scope's Owner: the member's posts and the actions on them in the scope, and a sanction
+            // there; the trust level is the site's, not set here
+            view.details = [
+                ['Posts here', String(data.scopeActivity.postCount ?? 0)],
+            ]
+            view.scopeActions = (data.scopeActivity.actionList || []).map(
+                (action) => ({
+                    action: action.action,
+                    reason: action.reason || '',
+                    createdAt: action.createdAt,
+                }),
+            )
+            view.forms = view.forms.filter((f) => f.op !== 'setTrust')
+            view.formValues.setSanction = {
+                targetPartyId: parameters.targetPartyId,
+                contactListId: parameters.contactListId,
+            }
         }
         if (name === 'MemberModeration' && data.memberState) {
             view.formValues.setTrust = {

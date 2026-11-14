@@ -3,7 +3,8 @@
 <!-- GroupDetail (design-smithy §1, §6): a group's shell, the breadcrumb, the visibility chip and the tabs, over getGroup; a group
     the caller may not view is Not Found. Tabs: Overview, Repositories, Issues (with the open count the caller may see),
     Forum (DG6: the forum's own screens, mounted here, with the group's scope and link base), Members and, for an Owner,
-    Moderation (Smithy/Moderation) and Settings. -->
+    Moderation (Smithy/Moderation) and Settings. DG7: the Overview has the group's landing text, latest release, news and
+    activity; the addons transition serves the group's addons.xml. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Group">
@@ -18,6 +19,13 @@
         forumScope=smithyGroup.section==='forum' ? smithyGroup.forumScope : null
     ]]></script>
   </always-actions>
+  <!-- DG7 (design-smithy §13.4): the group's addons.xml, -/addons.xml, for ./moq component-get (getAddons' text, text/xml) -->
+  <transition name="addons" method="get" read-only="true">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithySite.js').addons(smithyGroup)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <subscreens default-item="Overview">
     <!-- GroupForum (design-smithy §6): the forum's own screens, limited to the group's category and its subtree -->
     <subscreens-item name="Forum" location="component://mr-pass/screen/Forum.xml"/>

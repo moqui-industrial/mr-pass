@@ -98,6 +98,8 @@ function downloadFile(siteId, operation, input, options) {
     const backend = System.getProperty('pass_backend_url')
     if (!backend) {
         const result = call(operation, { siteId, ...input })
+        // Smithy DG5: the authority's operation sent the file as this response itself (a run's artifact, send#RunArtifact)
+        if (result.sent === true) return
         const headers = () => {
             ec.web.response.setContentType(result.file.mimeType)
             // Shop P8 (F75): the authority lets a public product image of the current generation be kept a minute; else no-store

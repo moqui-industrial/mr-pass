@@ -188,6 +188,57 @@ Not built: `signAgreement`'s form; the forum's post stream island on Overview; t
 file tree (`m-file-tree`) on Changes; attachments; a group's merge request list; `SmithyAccessWalk` and `SmithyPhone`
 as specs of their own (`SmithyContribution` checks this phase's pages at 390 px).
 
+## DG5: pipelines
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes a repository's `-/pipelines`, `-/pipelines/<n>`, `-/pipelines/<n>/jobs/<jobRunId>`, `-/pipelines/<n>/jobs/<jobRunId>/log` (added: the log's JSON), `-/artifacts/<artifactId>/<name>`, the Pipelines tab of a group's and a repository's Settings, and the island `-/island/JobLog.qvue` (`.qvt`, `.qjs`). The rest of the grammar was DG1's |
+| Pages | `screen/Smithy/SmithyPipelines.js` builds them as escaped markup with `SmithyForms.js`'s helpers: `RepositoryDetail/Pipelines` and `PipelineDetail` (in the repository's shell, read in `pre-actions`, so a run the caller may not read is the framework's Not Found before the shell is written), and the settings tabs. The repository's shell has the Pipelines tab where pipelines are on; with them off every pipeline page is Not Found |
+| Pipelines | `findPipelineRuns`: each run with its number and pipeline, state, an Outside run chip, the event, the branch or merge request, the commit, who asked, the day, the duration, the jobs and failed tests, and the run's message; a GET form of filters (branch, event, state), More by cursor. Run pipeline (`canRun`) is a form of the manual pipelines the read names (`pipelineList`) and a branch or tag, or a sentence when the default branch's `ci.xml` has none |
+| PipelineDetail | `getPipelineRun`: the header (state, event, ref or merge request, commit, who, times, trusted or an outside run, the built-in pipeline, the message), the waiting banner with Approve and run (`canApprove`; a sentence for anyone else), Cancel (`canCancel`, asked again on `?confirm=cancel`), Run again (`canRerun`, `rerunPipelineRun`), and the jobs in stages (a job with no `needs` in the first, any other one stage after the latest it needs). With a job (`getJobRun`): the run's jobs as a row of chips (one scrolling row on a phone), the job's facts and Retry (`canRetry`, an ended job; the answer is the new attempt's page), its steps, its log, its failed tests (suite, name, the file and line linked to Blob at the run's commit for a relative path, the time, the message) and its artifacts and reports (a download each, with size, checksum and expiry) |
+| Log | `getJobLog`, a page at a time: while the job runs the chunks after `?after=` (500 at most), once it has ended the stored log from `?offset=`, cut at its last whole line; `?line=` numbers the page's first line. Each line has its number and anchor (`#L10`), is escaped, and has its terminal escapes and other control characters taken out (of a line a carriage return rewrote, its last text). Load more links the next page; a running job's page has Refresh |
+| JobLog island | `Islands/JobLog.qvue` on a running job's page: reads `…/jobs/<id>/log` (the `log` transition of `PipelineDetail`: the next lines as JSON, `getJobLog` with `watch` for a signed-in reader) every `pollSeconds` (2), every 15 s while the notification socket is open, and at once on a message of topic `GitCiJobLog` with the job's id as its sub-topic; appends each line as text (DOM text nodes, never markup), updates the job's state chip, hides Refresh and Load more, and stops when the job has ended. The socket is `moqui.NotificationClient` on `/notws` for a signed-in reader only |
+| Artifacts | The `artifact` transition of `PipelineDetail` (`downloadArtifact`), streamed by `Facade.js` `downloadFile` as an attachment named by the authority, `nosniff`, `no-store`. A visitor who may view the repository downloads too (the operation's need is any) |
+| Checks | A merge request's Checks tab and the Overview's box: a `ci/` check links to its run on this site (`checkList[].path`) or else to its https target, a required context with no status reads "expected", `ciFileChanged` is said ("a Maintainer merges it"), and `missingList` as before; the Overview's box lists the head's runs (`runList`); the Checks tab reads each run again (`getPipelineRun`, ten at most) for its jobs, the failed tests of up to five failed jobs (`getJobRun`), and Approve and run where `canApprove` |
+| Commit | CommitDetail lists the commit's runs (`findPipelineRuns` by `commitId`, where pipelines are on), and a `ci/<pipeline>/<job>` status links to its pipeline's newest run on this site in place of the address the engine wrote |
+| Settings | Repository › Pipelines (a Maintainer's tab): Runners (`getPipelineSettings`: the month's runner minutes of the owner, the allowed pools with their trust and whose they are, the pools chosen and when outside runs wait; the form for the group's Owner, `canStore`, else read only with who changes them), Secrets (`findCiSecrets`: name, scope, environment, added, last used; Add; Replace the value with the scope; Delete asked again on `?delete=<secretId>`) and Environments (`findCiEnvironments`: name, branches allowed, approval required; Add, Edit, Delete asked again on `?deleteEnvironment=<id>`). A secret's value is a password field, never written back, and `value` is in `SmithyForms.js` `SECRET`, so a refusal keeps nothing of it for the next page. Group › Pipelines (an Owner's): the Runners form (`storePipelineSettings`). SiteSettings has "When an outside run waits" (`storeSmithySettings` `outsideRunApproval`) |
+| Forms | `Do.xml` has 10 more `post` transitions (80): `runPipeline` and `rerunPipelineRun` (to the run's page; the notice says a run the check refused, its message without the code, or one that waits), `cancelPipelineRun` (confirmed), `retryJobRun`, `approvePipelineRun`, `storeCiSecret`, `deleteCiSecret` (confirmed), `storeCiEnvironment` (the branches allowed sent only when changed), `deleteCiEnvironment` (confirmed), `storePipelineSettings` |
+| Caching | `Shared/Headers.js`: `-/pipelines…` and `-/artifacts/…` are `no-store` for a visitor too (a log holds whatever a job printed, and a merge request's run is hidden with it) |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's with the 18 DG5 operations (113 Smithy operations), compared with `cmp`; `Shared/Portal.js` reasons unchanged |
+| Tests | `test/Smithy/SmithyReview.spec.js` (one render of a running job's page as the run's Owner: the log escaped with its escapes and a progress bar's earlier text out, a failed test linked to its line at the run's commit, an artifact's link, the waiting banner with Approve and run, the step escaped, the chips, the island, the tab; the run's page as a viewer through `runPage`: no Approve, no Cancel, the jobs in two stages; Run pipeline through `Do` refused with `quotaExceeded` and the refusal on the form, read through `pipelines`). The run and its jobs are rows the feature makes (a spec cannot play the runner); it takes 0.09 s. `Smithy.spec.js` (the DG5 paths, the routes through the resolver, the cache policy, Do's 80 posts, the registries), `SmithyAccess.spec.js` (a Maintainer's settings tabs with Pipelines) |
+
+Differences from the design:
+
+- The grammar has `-/pipelines/<n>/jobs/<jobRunId>/log`, the log's JSON for the island (a transition of `PipelineDetail`, as `artifact` is).
+- The log is read by chunk while a job runs and by byte offset once it has ended (Mantle's `getJobLog` gives both); a page
+  is 500 chunks or 256 KB, and its lines are numbered from the page's first (`?line=`), not from the log's start, when
+  reached by Load more.
+- The island polls as the design says and reads at once on a notification; it opens the socket at `/notws` itself (the
+  public island's config has no notification endpoint). On a host that refuses `/notws`, or for a visitor, it only polls.
+- Run again (`rerunPipelineRun`) is on the run's page; the design's catalog has no re-run. Retry is offered for any ended
+  job.
+- Cancel and the deletes of a secret and of an environment are asked again on a page of their own; Approve is not.
+- A repository's Pipelines tab is one page (Runners, Secrets, Environments). Its runners are the group's: a Maintainer
+  reads them and the group's Owner saves them there or on the group's tab. A personal repository's are read only.
+- `getPipelineSettings` gives the pool and the approval in effect and the group they come from, not the group's own value:
+  the form shows the value in effect, so a save on a subgroup stores an inherited pool as its own.
+- A ci/ status on CommitDetail and the checks links to its run on this site, not to the engine's address on the canonical
+  host.
+- The Checks tab reads each run again for its jobs and failed tests: up to ten `getPipelineRun` and five `getJobRun` calls.
+- With pipelines off the pipeline pages are Not Found, runs from before included.
+
+Findings for other lanes:
+
+- Framework: `org.moqui.git.GitCiServices.find#CiEnvironments` (`crates/moqui-git/src/ci/service.rs`) does not return
+  `allowedRefs`, so Mantle's `findCiEnvironments` answers it empty and the page shows "Protected branches only". The edit
+  form sends the field only when it was changed, so a save does not clear it.
+
+Not built: the acceptance walk `SmithyPipeline` (design §19.3: a push runs on the fake host type, the log and a failed
+test on the run's page, a red run blocking the merge); the 390 px check of these pages in a browser (they reuse the
+shell's scrolling tabs and code blocks; `SmithyWalk` was not extended); the Commits list's checks per commit; the
+built-in pipeline named on Pipelines for a component with no `ci.xml` before it has run; a group's list of runs; DG10's
+deploy environments (target, token, required pipeline, deployments).
+
 ## DG6: the forum inside Smithy, the lists, moderation in a scope
 
 | Area | Implementation |
@@ -251,3 +302,196 @@ Not built: a render of the scope's moderation pages and of the settings' Forum t
 scratch spec, which is not kept); the phone width of the moderation, Report, Hide and settings pages; a group's or a
 repository's forum on a remote PASS frontend (D1: Smithy runs where the git data is); `SmithyAccessWalk` and
 `SmithyPhone` as specs of their own.
+
+### DG6 review fixes
+
+Matching Mantle's fixes of its DG6 review:
+
+- `Shared/Portal.js` has the reason `repositoryHidden` (a hidden repository is not forked: "This repository is hidden."),
+  last as in Mantle's `PassAuthority.js`; ShopAccess's parity check covers it.
+- Mail counts as authenticated by the gateway only in an `Authentication-Results` field whose authserv-id is in
+  `smtp_authserv_id`: `InboundMail.spec.js` sets it to its fixture mail's `gw.example.test`. No other spec posts by mail.
+- A held list message's link is in the forum its list is read in: `SmithyRoutes.js` `forumSection` maps
+  `held-mail/<token>[/claim]` under a scope's `/-/forum` to the forum's own `HeldMail` (mounted under the shell with the
+  rest of the forum), and `<forum mount>/held-mail/<token>` stays. After a claim `HeldMail` goes to the topic in the
+  scope's base, or the forum mount's; its title is an `h2` inside a shell.
+- Scoped results: a scope's `MemberDetail` asks `getMember` with the scope's category (or a category of its subtree,
+  checked); for a caller who moderates only as a scope's Owner it shows the posts there and the moderation there
+  (`scopeActivity`), no site-wide membership or trust, and no trust form (a sanction's form has the category). A
+  review's reports are listed (`Page.html.fancy`, "Reports"); a report whose reporter is withheld reads "by a member",
+  else it links the reporter's member page. The reported group or repository is shown on a review in the site's queue
+  too (`reviewTarget`), and linked, with "Show it again", only when the caller may open it (`resolveSmithyPath`): the
+  site's staff decide reports on what they may not view. `inviteListMembers`' notice says how many were not sent for
+  the day's limit (`limitedCount`). The Forum tab's "Link an existing category" is shown to the site's owners and
+  operators alone (`canManageSite`), and its hint says a category that would open to more readers is refused.
+  `convertTopicToIssue`'s refusal of a topic read by fewer than the repository's issues shows its own text in the form.
+- `Smithy.spec.js` renders `Smithy/Do/heldReport` once (signed in); the visitor's content is checked through
+  `SmithyScope.js` `heldReportBody`, the page's content without the site's shell. The grammar test has the scoped
+  `held-mail` paths.
+- `docs/Deployment.md`: Smithy's `git-ci` `run-check-service` (`mantle.smithy.SmithyServices.check#PipelineRun`, named
+  by Mantle's `MoquiConf.xml`: a hidden repository runs no CI), `smtp_authserv_id` on the authority for any mail to
+  count, a list's links in its group's or repository's forum with no `/forum` mount, linking a category being the
+  site's owners', and the invitations' day limit.
+- The registries (`Schema.js`, `SmithySchema.js`, `Routes.js`) are unchanged copies of Mantle's (compared with `cmp`).
+
+### DG5 review fixes
+
+From the review of the DG5 pages (81b9b21), matching Mantle's fixes of its DG5 review:
+
+- **Log bounds.** A page of a running job's log, and each read of the log's JSON, holds the chunks up to about 256 KB
+  (the first always; `SmithyPipelines.js` `LOG_PAGE_BYTES`), and its `after` is the last chunk it holds; an ended log's
+  page is cut at its last whole line within it. The island (`Islands/JobLog.qvue`) waits `pollSeconds` before the next
+  read when a read says there is more, as it does otherwise. Load more on a running job carries `offset` as well as
+  `after`.
+- **Runners form.** The Pipelines tab's form holds the group's own values (`getPipelineSettings` `own`, empty where it
+  follows the group above), each with the value in effect and where it comes from as its hint (`inheritedFrom`), "As the
+  group above says" as the empty choice, and "never" only where `canSetNever` (the top-level group's Owner); `storePipelineSettings` sends only a changed field (`changed`, by `was_<name>`),
+  and an emptied one gives up the group's own value.
+- **Pipelines off.** The `log` and `artifact` transitions read the repository first and are Not Found where pipelines are
+  off, as the pages are.
+- **A failed test's link.** `testPath` refuses a path with a `.` or `..` segment, an empty one, a backslash or a control
+  character (after a leading `./`), so a report's path cannot lead anywhere else on the site.
+- **Control characters.** A log's lines, a test's suite, name, file and message, a step's name and command, and a run's and
+  a job's message lose C0 (but tab and newline), DEL, C1 (U+0080 to U+009F) and the bidirectional overrides and isolates
+  (U+202A to U+202E, U+2066 to U+2069), with terminal escapes (`plain`).
+- **The notification socket.** The island's socket path is the `pass_notification_endpoint` property (`/notws` when it is
+  not set; empty: no socket, the island polls), passed in its configuration; a socket that closes before it ever opened
+  (a host that refuses it) is given up, and `stop()` closes the client (its listeners off, no reopening).
+- **Cost.** The merge request's Checks tab reads a run again (`getPipelineRun`) for at most three runs of its list (one that
+  waits for approval first, then one that failed) and a job's failed tests (`getJobRun`) for at most two; the other rows
+  are what `runList` gives. CommitDetail links a `ci/<pipeline>/<job>` status to the run and job its target names (the
+  engine writes the run's page), on this site, not to the newest run of the pipeline; it makes no run read beyond
+  `findPipelineRuns`.
+- **Artifacts sent by the authority.** `Facade.js` `downloadFile` writes nothing when the operation answers `sent` (Mantle's
+  `downloadArtifact` now sends the file as the response itself, `send#RunArtifact`), so the name in its
+  `Content-Disposition` is the engine's.
+- **Tests.** `SmithyReview.spec.js` has a feature by page function and transition render: the log's JSON is `no-store`,
+  Not Found for a job that is not the run's and with pipelines off, and an upload is Not Found with pipelines off; Cancel
+  is not run without `confirm=yes`; a refused secret's save keeps its name and not its value for the form; the group's
+  runners form holds its own values with `was_` fields and the value in effect. The artifact's `Content-Disposition` is
+  not checked here: the engine sends it and needs the artifact's content, which a spec's rows do not have (Mantle's and
+  the framework's specs).
+
+## DG7: the site
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes `search`, a repository's `-/docs[/<refPath>]`, `-/releases`, `-/releases/<tag>` (the tag every remaining segment), `-/release-assets/<assetId>/<name>` (the `asset` transition of `ReleaseDetail`), a group's `-/addons.xml` (the `addons` transition of `GroupDetail`) and the Redirects tab of the site's settings (`-/site/redirects`). The grammar had them |
+| Redirects | `pass.RouteServices.resolve#Route` catches a Not Found (no mount, a Smithy path that names nothing, a page not built) and asks `Smithy.js` `movedPath`, which calls Mantle's `resolve#Redirect` (not an operation) with the site, the request's host and its path, and keeps a target that is a path on this site or an https address of one of the site's own hosts (`getSiteInfo` with that host answers only for one); the answer is `/Smithy/redirect` with the location, a 301 with the request's query. Not on a remote frontend (`pass_backend_url`), which has no Mantle |
+| Pages | `screen/Smithy/SmithySite.js` builds them as escaped markup with `SmithyForms.js`'s helpers: `Search`, `RepositoryDetail/Docs` (read in `pre-actions`), `RepositoryDetail/Releases`, `ReleaseDetail` (in the repository's shell, read in `pre-actions`), the `asset` and `addons` transitions, the Landing section of a group's General settings and the Redirects tab. `Smithy.js` builds the Overview (with the landing) and Explore (with components) |
+| Overview | `getGroupLanding`: the landing text, its relative links made pages of its repository at the branch it was read at (`rewriteLinks` with `sourceRef` and the file's directory), Source and, for a signed-in account, Edit this page (`editPath`); without it the description. Beside it (one column on a phone): the latest release, news and activity, each linked by the path the read gives; pinned repositories (`pinnedList`) and subgroups below. Home shows the home group's |
+| Explore | Components (`findComponents`): name, version, depends-on, the repository and its latest release; the kind filter has Components, and Everything shows the three lists |
+| Search | `/search?q=&kind=&in=`: one box; the kinds (`searchSite` `types`) as a select; `in` a group's or repository's path (`resolveSmithyPath`) narrows it. Several kinds: a section a kind with at most ten results and "More <kind>" (the same search of that kind); one kind: twenty a page with More results by cursor. A result is its title linked by its path, its place and day, and its snippet. A query under two characters shows the refusal. The header has the search box |
+| Docs | `getDocsPage`: the page (cleaned by the authority) with its links rewritten (`rewriteLinks` with `docs`: a Markdown file inside the docs directory is its Docs page at the ref with its anchor, any other file of the repository its Blob page, an image raw, a path leaving the repository no address); the ref picker (branches and tags of `refList`, a GET form redirected in `pre-actions` to the directory's index at that ref); the contents (`tocList`, beside the page, a closed `details` above it under 40 rem); On this page (the h2 and h3 anchors); Edit this page (a branch, a signed-in account); Source; a docs search box (`/search` with `kind=docs` and `in`). Not Found where docs are off. The repository's shell has the Docs tab where docs are on |
+| Releases | `findReleases` (twenty, by cursor): each release's name, Draft or Published, tag, day, commit, notes (links made the repository's pages at the tag) and files. For a Maintainer (`capabilities.canMerge`: a confirmed Maintainer of a repository not archived) New release: a tag of `findRefs` that has no release on the page, the name, the notes (the composer's island and Preview), Publish it now, Announce (`storeRelease` with `operationId`; the answer is the release's page). The shell has the Releases tab always |
+| ReleaseDetail | `getRelease`: the head (name, state, tag, day, commit, Files at this tag, the announcement, linked to the forum's topic where the site mounts the forum), the notes, the files (a download, size, SHA-256; an image's name), the source archives (`archiveList`) and the component. For `canEdit`: Publish or Make it a draft, asked on `?confirm=publish` or `?confirm=unpublish` (Announce offered with Publish), Withdraw on `?confirm=delete` (to the list), Remove a file on `?removeAsset=<id>`, Announce for a published release not yet announced, Name and notes (the composer; the notes sent only when written), Attach a file (multipart; `run` stages it with `stageAttachment` purpose `repositoryFile` and sends its `attachmentId`), a file of the tag's latest successful pipeline run (on `?attach=artifact`: `findPipelineRuns` of `refs/tags/<tag>`, `getPipelineRun`, `getJobRun` of at most three jobs) and a container image's name |
+| Downloads | `ReleaseDetail/asset`: `downloadReleaseAsset` streamed by `Facade.js` `downloadFile` as an attachment named by the authority, `nosniff`, `no-store`; a file backed by a run's artifact the authority sends itself (`sent`, as `downloadArtifact`). The archive transition (`-/archive/…`) now serves a public, unhidden repository's archive to a visitor too, as Mantle allows (addons.xml's archive locations), and the Files and Tags pages link it for a visitor of such a repository |
+| Site settings: pipelines | `storeSmithySettings` takes `outsideRunMaxJobs`: "Most jobs of an outside run" on `/-/site`, sent only when changed |
+| addons.xml | `GroupDetail/addons`: `getAddons`' text as it is, `text/xml; charset=utf-8`, `nosniff`; `public, max-age=300` with `Vary: Cookie` for a visitor of a public group that is not hidden, else `no-store` |
+| Landing settings | The General tab of a group's Settings (its Owner's) has Landing page: the repository and the file (what `getGroupLanding` read, sent together only when one was changed), the news category's id (sent when typed) and No news category (sends it empty): `setGroupLanding` |
+| Site settings | The Redirects tab (`-/site/redirects`, the site's owners and operators): the table (`findRedirects`, a search and a source filter, fifty a page by cursor), Add (`storeRedirect`: old address, old host, target, note), Delete asked on `?delete=<id>` (the row read again by `findRedirects`), Import (`importRedirects`: CSV pasted, the source; the notice counts new and changed and names the first five lines not taken) |
+| Forms | `Do.xml` has 8 more `post` transitions (88): `setGroupLanding`, `storeRelease` (a change of `published` on an existing release confirmed), `deleteRelease` (confirmed), `addReleaseAsset` (an upload staged first: `upload`), `removeReleaseAsset` (confirmed), `storeRedirect`, `deleteRedirect` (confirmed), `importRedirects`. `run` takes a form whose fields are not the operation's one to one (`adjust`: the composer's `body` is `notes`; the landing's fields sent only when changed) |
+| Caching | `Shared/Headers.js`: `/search` and `-/release-assets/…` are `no-store` for a visitor too; Docs, Releases and a release are read pages (public for a minute to a visitor) |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's with the 17 DG7 operations (130 Smithy operations), compared with `cmp` |
+| Tests | `test/Smithy/Smithy.spec.js`: the DG7 paths in the grammar; a visitor's archive of a public repository (the archive feature, changed); an old path of the site's table through the resolver (one route) and one that is not in it; one render of a Docs page (a link to a page of the directory and its anchor, one to a file outside it, the authority's cleaning kept, a heading's anchor, the contents, the ref picker with the tag, Edit, the docs search, the tab); one render of ReleaseDetail as the group's Owner (the notes cleaned, a file with its size and SHA-256 and its download, an image's name, the source archive, the Maintainer's forms) and the same page by its function as a confirmed account with no role (the files, none of the forms); one render of a group's `addons.xml` (text/xml, `no-store` for a signed-in account, the operation's text); Do's 88 posts; the registries and the cache policy. `SmithyAccess.spec.js`: the repository's tabs with Releases. The release and its image are made through the operations, its file as a row (no file is read) |
+
+Differences from the design:
+
+- The Search page's place is `?in=<path>` (the design's "scope"), and the kinds are one select, not several filters.
+- Docs search is the Search page with `kind=docs` and the repository, not a box of its own results.
+- The ref picker goes to the directory's index at the chosen ref, not to the same page there (which may not be).
+- A release's notes are rendered by the authority and shown; the edit form holds the notes' source, which `getRelease`
+  gives a Maintainer (`notes`, since the review); what is written replaces them, an empty field keeps them.
+- Publishing and making a draft again are asked on a page of their own (the design says nothing of it); Announce is
+  offered there and on a published release.
+- A release's file download is `no-store` for a public repository too (the facade's rule; a release may be withdrawn).
+- The news category is named by its id on the Landing section; its present value is not shown (no read answers it).
+- Redirects: a CSV is pasted, not uploaded; there is no edit of a redirect on the page (delete and add again, or import:
+  an old address the table has takes the new target).
+- Pinned repositories are what the read gives; pinning a repository has no page yet.
+
+Findings for other lanes:
+
+- Mantle: `getGroup` or `getGroupLanding` does not answer the group's `newsContactListId` (nor its landing file when the
+  file is gone), so the Landing form cannot show them. (The notes' source and a field refusal of a name with `<` or `>`
+  are Mantle's since its review.)
+
+Not built: the acceptance walks of the site (the old links of the inventory landing where they should; `component-get`
+from the staging host); the 390 px check of these pages in a browser (the Docs contents drawer and the Overview's one
+column are CSS, not checked in a browser); an edit of a redirect; a group's Releases page (`findReleases` by `groupId`); a
+docs page cached by PASS (Mantle caches the rendering by blob id).
+
+### DG7 review fixes
+
+From the review of the DG7 pages (760173c), matching Mantle's fixes of its review:
+
+- **Archives.** Files links a visitor of a public repository to the archive at a branch or a tag only (`tree.ref.kind`),
+  not at a commit id, which Mantle serves a signed-in account alone; Tags and a release link a tag's.
+- **A job's log.** `readLog` takes Mantle's bounds as they are: `more` is `getJobLog`'s `more` (its chunk limit or its
+  byte bound cut the answer), or an ended log's `nextOffset` short of `logBytes`; `after` and `offset` are the answer's
+  `nextChunkSeq` and `nextOffset`, which Mantle moves back over what it left out. PASS's own byte cut of a running job's
+  chunks (`LOG_PAGE_BYTES`, which kept `after` but not `offset`, so a job that ended between two reads lost the chunks
+  past the cut) is gone; an ended log's piece with more still ends at its last whole line, with `offset` moved to it. So
+  Load more appears on a running job whose log is longer than one read (it did not: the page counted 500 chunks of a
+  read that holds 100).
+- **A ci/ check's link.** CommitDetail and a merge request's checks link a `ci/` status to its own run on this site (the
+  run and job its target names, or the authority's `path`) or to nothing, never to its https target; a status of another
+  context keeps its https target.
+- **Redirects.** `redirectRoute` puts the request's query before the target's `#fragment` (`withQuery`). `ownAddress`
+  refuses the site's theme preview host (`ShopPreview.js` `isPreviewHost`), as Mantle's `siteTarget` does. `movedPath`
+  refuses a target that is the path asked for on the same host, as `resolve#Redirect` looks a path up (no query or
+  fragment, no trailing slash, percent-decoded, lower case), so a row cannot answer itself in a loop.
+- **Plain text.** `plain` (and its `ANSI` and `CONTROL`) moved to `Smithy.js`, and is used also on a job's name and matrix
+  key, its image and its needs, a pipeline's name (run lists, a run's head, Cancel, Run pipeline's choices, Checks, a
+  commit's runs), an artifact's name (a job's artifacts, Attach a pipeline run's file), a run's ref text, a search result's
+  title and snippet, a component's description in Explore, and a check's context and description.
+- **Docs ref picker.** The choice is redirected only when it is a branch or a tag of the page's `refList` (or the ref shown);
+  any other value is not taken, so the parameter cannot name a path. The page is read first.
+- **A release's file upload.** `run` asks `getRelease` first (`uploadCheck`) and stages the file only for
+  `capabilities.canEdit`; a release that is not there is Not Found's refusal, anyone else's is refused before anything
+  is stored. A file staged for a write that is then refused is removed (`removeStagedAttachment`).
+- **An unnamed release.** Mantle names an unnamed release by its tag, so the edit form's Name is empty when the name is the
+  tag, and is sent only when changed (`was_name`; `storeRelease` `changed`): a save of the notes leaves the release
+  unnamed. The notes' editor is filled from `getRelease`'s `notes` (Mantle now gives a Maintainer the stored text).
+- **Tests.** Smithy: an old path's target checked again (rows the writer would refuse: another host, a port, a user part,
+  a backslash, `//`, the preview host; a loop on the same host, the same row from another host kept); `withQuery`; one
+  render of Search (the query and a result's title escaped); a visitor's `addons.xml` (`public, max-age=300`,
+  `Vary: Cookie`); Make it a draft without `confirm=yes` refused; the release's `was_name`; the Docs and ReleaseDetail
+  renders no longer check Mantle's cleaning again. SmithyReview: the checks with a `ci/` status that has an https target
+  (no link) and another context's (linked); the log's JSON rendered once, its Not Found cases (another job, pipelines
+  off) and an upload's with pipelines off through `logJson` and `artifact`; `testPath`'s refusals; `plain` on C0, C1, DEL,
+  bidi and terminal escapes. Load more on a running job is not checked by a render: it needs Mantle's `more`.
+- **Registries.** Not copied again: Mantle's working `SmithySchema.js` and `PassRoutes.js` now hold DG8's operations
+  (`resolveRedirect` and the GitHub import's), whose `cancelImport` is also the forum's mbox `cancelImport`
+  (`ForumSchema.js`), so one facade could not hold both. PASS keeps the DG7 copies (130 operations) until Mantle renames
+  it; the registries' check of Smithy's spec fails until then.
+
+## DG8: the GitHub import and push mirrors
+
+| Area | Implementation |
+| --- | --- |
+| Routes | `SmithyRoutes.js` routes `import` and `import/<importId>` (`/Smithy/Import`), the Import tab of a group's Settings and the Mirrors tab of a repository's. The grammar had them |
+| Pages | `screen/Smithy/SmithyImport.js` builds them as escaped markup with `SmithyForms.js`'s helpers: the Import tab (`groupImport`), an import's page and the site's imports (`Smithy/Import.xml`, `importPageView`), and the Mirrors tab (`mirrors`). Every read and write is Mantle's (`SmithyImport.js` through the facade); what the caller may not see is Not Found |
+| Import tab | A group's Owner or an operator: the GitHub repository (`owner/name`), a token in a password field never filled back, a new repository (its slug) or one of the group's, issues and pull requests, and `publishPrivate` with its warning (`startGitHubImport`, which goes to the import's page); the group's imports below (`findGitHubImports`). An account without a confirmed address is told to confirm in place of the form |
+| An import's page | `B/import/<importId>` (`getGitHubImport`): the stage in words, counts by type (imported, seen at GitHub, failed), the wait on GitHub's rate limit with the time it goes on, the report (escaped), what an import never carries, Refresh (a link), Resume with a token once the run ended or Replace token while it runs (`resumeGitHubImport`), and Stop asked again on `?confirm=cancel` (`cancelGitHubImport`). `B/import` is the site's imports, for an operator |
+| Mirrors tab | A Maintainer: each mirror with its address, refs, delete refs, enabled, whether it has a credential, the last push and its result and error, the next attempt; Push now (`pushMirror`), Edit, and Delete asked again (`deleteMirror`); New mirror. The form (`mirrorFields`): an https address with no credential in it, the username and the secret apart (the secret write-only), the host key's fingerprint for SSH, the refs, delete refs, enabled, and "Remove the credential" for a mirror that has one (`removeCredential`) |
+| Secrets | `token` and `secret` are in `SmithyForms.js`' `SECRET`, and the mirror form adds `username` (`notKept`): a refused form keeps none of them for the next page, and a kept `url` loses its user part (after leading space too), a webhook's too. None is ever in an address |
+| Forms | `Do.xml` has 6 more `post` transitions: `startGitHubImport`, `resumeGitHubImport`, `cancelGitHubImport` (confirmed), `storeMirror`, `deleteMirror` (confirmed), `pushMirror` |
+| Redirects | `Smithy.js` `movedPath` asks the facade's `resolveRedirect` (an operation since Mantle's DG7 review), so an imported repository's old GitHub paths and the site's table answer on a remote frontend too |
+| Caching | `Shared/Headers.js`: `import…` pages are `no-store` for a visitor too, as `new…` are |
+| Reasons | `Shared/Portal.js` has `sourceRefused`, `importActive`, `numbersTaken` and `secretRequired`, as Mantle's `PassAuthority.js` |
+| Registries | `SmithySchema.js` and `Routes.js` are copies of Mantle's again, with the 9 DG8 operations: the import's are named for GitHub (`startGitHubImport` and the rest), so the forum's mbox `cancelImport` keeps its name and one facade holds both (the DG7 note's wait is over) |
+| Tests | `test/Smithy/SmithyImport.spec.js` on Mantle's recorded GitHub responses (`smithy_github_api`): an import started through its form goes to its page, a refusal returns to the form, the token in no address, flash or page; an import's page (stage, counts, the wait with its time, the report escaped, Resume and Stop); Stop without its confirmation refused; a refused mirror form keeping no secret, username or user part of its address; the Settings page rendered once; the mirror list and its form through page functions. `SmithyAccess.spec.js`: an import is its group's Owners' and the mirrors a Maintainer's (a Developer gets Not Found, as for an import that is not there); the operator's list and another site's import are Not Found. `Smithy.spec.js`: the DG8 paths |
+
+Differences from the design:
+
+- The start form is on the group's Import tab, not at `B/import`, which lists the site's imports for an operator; the
+  group is the tab's.
+- Resume takes a token: it is dropped when a run ends, so a run that ended needs one again; a running import's token
+  can be replaced.
+- Until the framework's mirrors were in, the Mirrors tab said "Push mirrors are not available on this server yet"
+  (Mantle's `notBuilt`); that branch is gone.
+
+Not built: `SmithyAccessWalk` and `SmithyPhone` as specs of their own; the phone width of the import and mirror pages
+in a browser. Not shown: an import against GitHub's live API (the pages run on recorded responses), and a mirror
+pushing to a real server.

@@ -320,7 +320,8 @@ function quotaTable(found) {
         String
     )}${row("Repository size", "repositoryBytes", sizeText)}${row("Git LFS", "lfsBytes", sizeText)}${row("Runner minutes this month", "runnerMinutes", String)}</tbody></table></div>`
 }
-/* SiteSettings (design §11): who may create, the kind of a new repository and the default quotas; the group requests and
+/* SiteSettings (design §11): who may create, the kind of a new repository, the default quotas and (DG5) when an outside
+ * pipeline run waits for approval; the group requests and
  * their decision; an account's or a group's limits. The site's owners and operators only; Not Found for anyone else. */
 function site(siteId, bases, siteInfo, self, tab) {
     const settings = need("getSmithySettings", {siteId})
@@ -334,10 +335,14 @@ function site(siteId, bases, siteInfo, self, tab) {
         [
             ["settings", "Settings", root],
             ["requests", "Group requests", root + "/requests"],
-            ["quotas", "Quotas", root + "/quotas"]
+            ["quotas", "Quotas", root + "/quotas"],
+            ["redirects", "Redirects", root + "/redirects"]
         ],
         current
     )}`
+    // DG7: the site's table of old paths (SmithySite.js)
+    if (current === "redirects")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithySite.js").redirects(siteId, c, head, root + "/redirects")
     if (current === "requests") {
         const cursor = param("cursor")
         const found = need("findGroupRequests", {siteId, status: "requested", limit: 30, ...(cursor ? {cursor} : {})})
@@ -457,7 +462,22 @@ function site(siteId, bases, siteInfo, self, tab) {
             "groupLfsBytes",
             "Git LFS, MiB",
             mibOf(settings.groupLfsBytes)
-        )}${number("groupRunnerMinutes", "Runner minutes a month", settings.groupRunnerMinutes)}</fieldset>${submit("Save settings")}`
+        )}${number("groupRunnerMinutes", "Runner minutes a month", settings.groupRunnerMinutes)}</fieldset><fieldset><legend>Pipelines</legend>${select(
+            f,
+            "outsideRunApproval",
+            "When an outside run waits",
+            [
+                ["first", "A first contribution's runs wait for a Maintainer's approval"],
+                ["always", "Every outside run waits for a Maintainer's approval"],
+                ["never", "Outside runs start without an approval"]
+            ],
+            {
+                value: settings.outsideRunApproval || "first",
+                hint: "An outside run is one of a fork's merge request, a push for review, or an account below Developer. A group may say otherwise for its repositories."
+            }
+        )}${number("outsideRunMaxJobs", "Most jobs of an outside run", settings.outsideRunMaxJobs, {
+            hint: "An outside run with more jobs than this is refused."
+        })}</fieldset>${submit("Save settings")}`
             .html
     }
 }
@@ -510,7 +530,8 @@ function groupMembers(shell, view, bases, siteInfo, self) {
     }
 }
 /* GroupSettings (design §6): General (name, description, the issue repository; visibility; the path), Agreement, Forum
- * (DG6), Quota and Delete (with Hide, for who may hide), for an Owner; Not Found for anyone else. */
+ * (DG6), Pipelines (DG5: the runner pools, when outside runs wait, the month's minutes), Quota and Delete (with Hide, for
+ * who may hide), for an Owner; Not Found for anyone else. */
 function groupSettings(shell, bases, siteInfo, self, tab) {
     if (!holds(shell.myRole, "owner")) fail()
     const c = contextOf(bases, siteInfo, self, shell.flash)
@@ -523,7 +544,9 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             ["general", "General", root],
             ["agreement", "Agreement", root + "/agreement"],
             ["forum", "Forum", root + "/forum"],
+            ["pipelines", "Pipelines", root + "/pipelines"],
             ["quota", "Quota", root + "/quota"],
+            ["import", "Import", root + "/import"],
             ["delete", "Delete", root + "/delete"]
         ],
         current
@@ -537,6 +560,9 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
     // DG6: the group's forum, its mailing list and its address for security reports (SmithyScope.js)
     if (current === "forum")
         return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
+    // DG5: the runners of the group's repositories (SmithyPipelines.js)
+    if (current === "pipelines")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js").groupSettings(shell, head.html, bases, siteInfo, self)
     if (current === "quota") {
         const found = portal.attempt("getQuotaUsage", {siteId: shell.siteId, groupId: g.groupId})
         return {
@@ -547,6 +573,9 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             }`.html
         }
     }
+    // DG8: the GitHub import into the group (SmithyImport.js); the list stays when the start form is closed
+    if (current === "import")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyImport.js").groupImport(shell, head, c, closed)
     if (closed) return {html: h`${head}${closed}`.html}
     if (current === "delete")
         return {
@@ -618,7 +647,7 @@ function groupSettings(shell, bases, siteInfo, self, tab) {
             {value: g.pathSegment, required: true, maxlength: 39, pattern: "[a-z0-9][a-z0-9_\\-]{1,38}", autocomplete: "off"}
         )}<p>Renaming changes the address of the group and of every repository in it, for pages and for git. The old addresses redirect until something else takes the name.</p>${submit(
             "Rename group"
-        )}`.html
+        )}${ec.resource.script("component://mr-pass/screen/Smithy/SmithySite.js").landingSettings(shell, c)}`.html
     }
 }
 
@@ -692,9 +721,10 @@ function settingsAccess(shell) {
     const role = shell.capabilities.role
     if (!holds(role, "maintainer")) fail()
     const owner = holds(role, "owner")
-    return {tabs: ["general", "members", "branch-rules", "webhooks", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
+    return {tabs: ["general", "members", "branch-rules", "webhooks", "mirrors", "pipelines", ...(owner ? ["agreement", "forum", "archive"] : [])], changesMembers: owner}
 }
-/* RepositorySettings (design §11): General, Members, Branch rules and Webhooks for a Maintainer, Archive for an Owner; a tab
+/* RepositorySettings (design §11): General, Members, Branch rules, Webhooks, (DG8) Mirrors and (DG5) Pipelines for a Maintainer, Archive for
+ * an Owner; a tab
  * the caller's role does not reach is Not Found, as the whole page is for less than a Maintainer. */
 function repositorySettings(shell, bases, siteInfo, self, tab) {
     const access = settingsAccess(shell)
@@ -714,6 +744,8 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
             ["members", "Members", at("members")],
             ["branch-rules", "Branch rules", at("branch-rules")],
             ["webhooks", "Webhooks", at("webhooks")],
+            ["mirrors", "Mirrors", at("mirrors")],
+            ["pipelines", "Pipelines", at("pipelines")],
             ...(owner
                 ? [
                       ["agreement", "Agreement", at("agreement")],
@@ -733,6 +765,12 @@ function repositorySettings(shell, bases, siteInfo, self, tab) {
     // DG6: the repository's forum (its subcategory) and its mailing list, an Owner's (SmithyScope.js)
     if (current === "forum")
         return ec.resource.script("component://mr-pass/screen/Smithy/SmithyScope.js").forumSettings(shell, head.html, bases, siteInfo, self)
+    // DG5: the runners, secrets and environments (SmithyPipelines.js)
+    if (current === "pipelines")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js").repositorySettings(shell, head.html, bases, siteInfo, self)
+    // DG8: the push mirrors (SmithyImport.js)
+    if (current === "mirrors")
+        return ec.resource.script("component://mr-pass/screen/Smithy/SmithyImport.js").mirrors(shell, head, c, closed)
     const page = body => ({html: h`${head}${body}`.html})
     const common = h`${hidden("repositoryId", id)}`
     if (current === "members") {
@@ -1179,6 +1217,14 @@ function gitAccess(siteId, bases, siteInfo, self) {
  * is not the form's own (given the result, the bases, the form's own page and the operation's input); confirm marks an
  * action that is asked again first; account one of Account's Git access. */
 const groupPage = (result, c) => (result.groupPath ? c.base + "/" + enc(result.groupPath) : null)
+/* DG5: a run's page (the authority's path under the mount), and what the notice says of the run asked for. */
+const runPage = (result, c) => (result.path && smithy.siteLocal(result.path) ? c.base + result.path : null)
+const runNotice = result =>
+    result.state === "error"
+        ? "Run #" + result.runNum + " did not start" + (result.message ? ": " + String(result.message).replace(/^[a-z][A-Za-z]{2,40}: /, "") : ".")
+        : result.state === "waiting"
+          ? "Run #" + result.runNum + " waits for a Maintainer's approval."
+          : "Run #" + result.runNum + " was queued."
 const repositoryPage = (result, c) => (result.repositoryPath ? c.base + "/" + enc(result.repositoryPath) : null)
 const DO = {
     requestGroup: {
@@ -1322,10 +1368,11 @@ const DO = {
     },
     revokeAccessToken: {fields: ["tokenId"], account: true, confirm: true, notice: () => "The token was revoked."},
     storeSmithySettings: {
-        fields: ["homeGroupPath", "groupCreate", "repositoryCreate", "forkCreate", "repositoryKind"],
-        numbers: ["defaultMaxRepositories", "defaultRunnerMinutes", "groupRunnerMinutes", "expectedRevision"],
+        fields: ["homeGroupPath", "groupCreate", "repositoryCreate", "forkCreate", "repositoryKind", "outsideRunApproval"],
+        numbers: ["defaultMaxRepositories", "defaultRunnerMinutes", "groupRunnerMinutes", "outsideRunMaxJobs", "expectedRevision"],
         mib: ["defaultRepositoryBytes", "defaultLfsBytes", "groupRepositoryBytes", "groupLfsBytes", "maxEditBytes"],
         changed: [
+            "outsideRunMaxJobs",
             "defaultMaxRepositories",
             "defaultRunnerMinutes",
             "groupRunnerMinutes",
@@ -1633,15 +1680,198 @@ const DO = {
             (result.alreadyInvited ? "; " + result.alreadyInvited + " had an invitation already" : "") +
             (result.invalidCount ? "; " + result.invalidCount + " were not addresses" : "") +
             (result.unsent ? "; " + result.unsent + " could not be mailed" : "") +
+            (result.limitedCount ? "; " + result.limitedCount + " were not sent: the day's limit" : "") +
             "."
     },
+    // DG5 (design §10, §11, §15.6): pipeline runs, a repository's secrets and environments, a group's runners. A run asked for
+    // goes to its page; one the run check refused comes back with its state error and a message, which the notice says
+    runPipeline: {
+        fields: ["repositoryId", "pipelineName", "refName", "operationId"],
+        done: runPage,
+        notice: runNotice
+    },
+    rerunPipelineRun: {
+        fields: ["repositoryId", "operationId"],
+        numbers: ["runNum"],
+        done: runPage,
+        notice: runNotice
+    },
+    // asked again on the run's page (?confirm=cancel)
+    cancelPipelineRun: {
+        fields: ["repositoryId"],
+        numbers: ["runNum"],
+        confirm: true,
+        notice: () => "The run was cancelled."
+    },
+    retryJobRun: {
+        fields: ["repositoryId", "jobRunId", "operationId"],
+        numbers: ["runNum"],
+        // the new attempt's page, beside the job's
+        done: (result, c, back) => {
+            const page = back.split(/[?#]/)[0]
+            if (!result.jobRunId || !/\/-\/pipelines\/[0-9]+(?:\/jobs\/[^/]+)?$/.test(page)) return null
+            return page.replace(/\/jobs\/[^/]+$/, "") + "/jobs/" + encodeURIComponent(result.jobRunId)
+        },
+        notice: () => "The job runs again, as a new attempt."
+    },
+    approvePipelineRun: {
+        fields: ["repositoryId"],
+        numbers: ["runNum"],
+        notice: () => "Approved: the run's jobs are queued."
+    },
+    // a secret's value is sent once and never kept for the next page (SECRET); a replaced one keeps its name
+    storeCiSecret: {
+        fields: ["repositoryId", "secretId", "name", "value", "scope", "environmentId", "operationId"],
+        notice: () => "The secret was saved. Its value is not shown again."
+    },
+    deleteCiSecret: {fields: ["repositoryId", "secretId"], confirm: true, notice: () => "The secret was deleted."},
+    storeCiEnvironment: {
+        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "operationId"],
+        flags: ["approvalRequired"],
+        // the branches allowed are sent only when changed (the form shows the value it read beside it)
+        changed: ["allowedRefs"],
+        notice: () => "The environment was saved."
+    },
+    deleteCiEnvironment: {fields: ["repositoryId", "environmentId"], confirm: true, notice: () => "The environment was deleted."},
+    storePipelineSettings: {
+        fields: ["groupId", "runnerPoolId", "outsideRunnerPoolId", "outsideRunApproval"],
+        numbers: ["expectedRevision"],
+        // only a field that was changed is sent; one emptied gives up the group's own value (it follows the group above)
+        changed: ["runnerPoolId", "outsideRunnerPoolId", "outsideRunApproval"],
+        notice: () => "The pipeline settings were saved."
+    },
+    // DG7 (design §13, §15.8): a group's landing page, releases and their files, the site's table of old paths. A group's
+    // landing file is sent when its repository or path was changed (both together), its news category when one is typed
+    // or "No news category" is checked
+    setGroupLanding: {
+        fields: ["groupId", "landingRepositoryPath", "landingPath", "newsContactListId"],
+        numbers: ["expectedRevision"],
+        adjust: input => {
+            const same = name => (param(name) ?? "") === (param("was_" + name) ?? "")
+            if (same("landingRepositoryPath") && same("landingPath")) {
+                delete input.landingRepositoryPath
+                delete input.landingPath
+            }
+            if (param("clearNews") === "true") input.newsContactListId = ""
+            else if (!input.newsContactListId) delete input.newsContactListId
+        },
+        notice: () => "The landing page was saved."
+    },
+    // a release of a tag (operationId) or a change of one (expectedRevision); its notes are the composer's text (body), sent
+    // only when written; publishing or withdrawing a published one is asked again on the release's page
+    storeRelease: {
+        fields: ["repositoryId", "tag", "name", "body"],
+        optional: ["published", "sourceFormat", "operationId"],
+        optionalFlags: ["announce"],
+        numbers: ["expectedRevision"],
+        // the name of a release's edit form is sent only when changed (an unnamed release's empty field stays unnamed)
+        changed: ["name"],
+        confirm: posted => posted.has("expectedRevision") && posted.has("published"),
+        adjust: input => {
+            if (input.body) input.notes = input.body
+            delete input.body
+            if (!input.notes) delete input.sourceFormat
+        },
+        // a new release's page; a change stays on the page it was made on
+        done: (result, c, back) => {
+            const page = back.split(/[?#]/)[0]
+            return result.tag && /\/-\/releases$/.test(page) ? page + "/" + enc(result.tag) : null
+        },
+        notice: result => "The release " + result.tag + " was saved." + (result.announcementTopicId ? " It is announced in the news." : "")
+    },
+    deleteRelease: {fields: ["repositoryId", "tag"], numbers: ["expectedRevision"], confirm: true, notice: () => "The release was withdrawn."},
+    addReleaseAsset: {
+        fields: ["repositoryId", "tag", "operationId"],
+        optional: ["name", "artifactId", "imageName"],
+        upload: true,
+        // before a file is staged: only who may change the release (its capabilities), so a refused upload stores nothing
+        uploadCheck: (input, siteId) => {
+            const found = portal.attempt("getRelease", {siteId, repositoryId: input.repositoryId || "", tag: input.tag || ""})
+            if (found.result?.capabilities?.canEdit) return null
+            return found.error?.kind === "NotFound"
+                ? {message: found.error.message || "This release was not found.", field: null, notFound: true}
+                : {message: "Only a Maintainer of this repository adds files to its releases.", field: null, reason: "accessDenied"}
+        },
+        notice: () => "The file was added to the release."
+    },
+    removeReleaseAsset: {fields: ["repositoryId", "assetId"], confirm: true, notice: () => "The file was removed from the release."},
+    storeRedirect: {
+        fields: ["oldPath", "targetPath", "note", "operationId"],
+        optional: ["oldHost", "redirectId"],
+        notice: () => "The redirect was saved."
+    },
+    deleteRedirect: {fields: ["redirectId"], confirm: true, notice: () => "The redirect was deleted."},
+    importRedirects: {
+        fields: ["csv", "source"],
+        notice: result => {
+            const failed = result.failedList || []
+            return (
+                "Imported: " +
+                (Number(result.created) || 0) +
+                " new, " +
+                (Number(result.updated) || 0) +
+                " changed" +
+                (failed.length
+                    ? "; " +
+                      failed.length +
+                      " lines not taken: " +
+                      failed
+                          .slice(0, 5)
+                          .map(line => "line " + line.line + " (" + String(line.message || "").replace(/^[a-zA-Z]+(\[[a-zA-Z]+\])?: /, "") + ")")
+                          .join(", ") +
+                      (failed.length > 5 ? ", ..." : "")
+                    : "") +
+                "."
+            )
+        }
+    },
+    // DG8 (design §11 Import, §15.9): the GitHub import, whose token is never kept for the next page (SECRET); its options
+    // are the form's checkboxes as the operation's map, and a new repository's path is sent only for a new one
+    startGitHubImport: {
+        fields: ["groupId", "sourceRepository", "slug", "repositoryId", "token", "operationId"],
+        adjust: input => {
+            input.options = {
+                issues: param("issues") === "true",
+                pullRequests: param("pullRequests") === "true",
+                ...(param("publishPrivate") === "true" ? {publishPrivate: true} : {})
+            }
+            if (input.repositoryId) delete input.slug
+            else delete input.repositoryId
+        },
+        done: (result, c) => (result.importId ? c.base + "/import/" + encodeURIComponent(result.importId) : null),
+        notice: () => "The import started. It goes on in steps, and this page shows where it is."
+    },
+    resumeGitHubImport: {
+        fields: ["importId"],
+        optional: ["token"],
+        numbers: ["expectedRevision"],
+        notice: () => "The import goes on."
+    },
+    // asked again on the import's page (?confirm=cancel)
+    cancelGitHubImport: {
+        fields: ["importId"],
+        numbers: ["expectedRevision"],
+        confirm: true,
+        notice: () => "The import was stopped. What it brought stays."
+    },
+    // a mirror's secret is sent only when typed and never kept for the next page (SECRET), nor is its username (notKept)
+    storeMirror: {
+        fields: ["repositoryId", "mirrorId", "url", "refs", "operationId"],
+        optional: ["username", "secret"],
+        notKept: ["username"],
+        optionalFlags: ["removeCredential"],
+        flags: ["deleteRefs", "enabled"],
+        notice: () => "The mirror was saved."
+    },
+    deleteMirror: {fields: ["repositoryId", "mirrorId"], confirm: true, notice: () => "The mirror was deleted."},
+    pushMirror: {fields: ["repositoryId", "mirrorId"], notice: () => "The mirror's push was queued."},
     // not a write: the text of the form named by previewOf, as the authority would show it (preview, below)
     previewPost: {fields: ["body"], optional: ["sourceFormat"], preview: true}
 }
 /* The forms whose text Preview shows (a file's edit previews its Markdown: previewField). */
-const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile"]
-/* What is never written back into a page after a refusal. */
-const SECRET = ["password", "code", "secret", "confirmPath"]
+const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfidential", "createMergeRequest", "editFile", "storeRelease"]
+/* What is never written back into a page after a refusal (a form adds its own: notKept). */
+const SECRET = ["password", "code", "secret", "confirmPath", "value", "token"]
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
 function inputOf(spec) {
     const parameters = ec.web.parameters
@@ -1654,9 +1884,13 @@ function inputOf(spec) {
     const input = {}
     const typed = {}
     // a post's text is kept whole, up to the longest a site allows
+    // a form's own credentials (notKept) are not kept either, and an address is kept without a user part (user:password@)
     const keep = (name, value) => {
-        if (!SECRET.includes(name) && value != null)
-            typed[name] = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
+        if (SECRET.includes(name) || (spec.notKept || []).includes(name) || value == null) return
+        const text = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
+        // leading space is trimmed first, so " https://user:secret@host" keeps no user part either; everything to the
+        // last @ goes, so a / or another @ in the password ("https://u:pa/ss@host") is not kept either
+        typed[name] = name === "url" ? text.trimStart().replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/).*@/, "$1") : text
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {
@@ -1752,8 +1986,28 @@ function run(name, siteId, bases) {
     }
     const confirm = typeof spec.confirm === "function" ? spec.confirm(posted) : !!spec.confirm
     if (confirm && param("confirm") !== "yes") return refuse({message: "Confirm this change on its own page first.", field: null})
+    // DG7: a form whose fields are not the operation's one to one (adjust), and a release's file uploaded with its form
+    if (spec.adjust) spec.adjust(input, posted)
+    let stagedId = null
+    if (spec.upload && ec.web.multiPartParameters?.file) {
+        const checked = spec.uploadCheck ? spec.uploadCheck(input, siteId) : null
+        if (checked) return refuse(checked)
+        const staged = portal.attempt(
+            "stageAttachment",
+            {siteId, purpose: "repositoryFile", repositoryId: input.repositoryId || "", file: ec.web.multiPartParameters.file},
+            {newTransaction: true}
+        )
+        const attachment = staged.result?.attachment
+        if (!attachment) return refuse({message: staged.error?.message || "Choose a file to upload.", field: "file"})
+        if (attachment.scanState && attachment.scanState !== "clean")
+            return refuse({message: "The file was held by the scanner and was not added.", field: "file"})
+        input.attachmentId = attachment.attachmentId
+        stagedId = attachment.attachmentId
+    }
     // in its own transaction, so a refusal does not undo this transition's answer
     const out = portal.attempt(name, {siteId, ...input}, {newTransaction: true})
+    // a file staged for a write that was refused is not kept
+    if (out.error && stagedId) portal.attempt("removeStagedAttachment", {siteId, attachmentId: stagedId}, {newTransaction: true})
     // a change of the account's git access asks for the password again: that refusal is not a sign-in's
     if (out.error && spec.account && out.error.kind === "AuthenticationRequired") {
         // the password (and the second factor's code) again; or, for an account that has no password, a fresh sign-in

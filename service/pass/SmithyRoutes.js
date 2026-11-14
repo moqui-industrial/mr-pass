@@ -15,7 +15,7 @@ const NUM = /^[1-9][0-9]{0,8}$/
 const COMMIT = /^[0-9a-fA-F]{7,40}$/
 const DO_NAME = /^[a-z][A-Za-z]{1,60}$/
 const ISLAND = /^([A-Z][A-Za-z0-9]{0,60})\.(qvue|qvt|qjs)$/
-/* A held report's token (design §12.4), as a link in mail carries it. */
+/* A held report's or a held list message's token (design §12.4, Dogfood §6.3), as a link in mail carries it. */
 const TOKEN = /^[A-Za-z0-9._~-]{8,200}$/
 /* §4.2: a group's or subgroup's segment (a handle is always one), and a repository's slug. */
 const GROUP_SEGMENT = /^[a-z0-9][a-z0-9_-]{1,38}$/
@@ -34,7 +34,7 @@ const REPOSITORY_TABS = [
     "forum",
     "archive"
 ]
-/* The screens built so far (DG1 to DG4, DG6); a path of the grammar that names another screen is Not Found until its phase. A
+/* The screens built so far (DG1 to DG8); a path of the grammar that names another screen is Not Found until its phase. A
  * form's path (-/do/<name>) is a transition of Smithy/Do, which has the ones that are built. */
 const BUILT = [
     "/Smithy/Home",
@@ -82,9 +82,28 @@ const BUILT = [
     "/Smithy/Islands/Editor.qvue",
     "/Smithy/Islands/Editor.qvt",
     "/Smithy/Islands/Editor.qjs",
+    // DG5: pipelines (design §10): the list, a run and its jobs, an upload's download, a job's log as JSON for the log's
+    // island, and the island
+    "/Smithy/RepositoryDetail/Pipelines",
+    "/Smithy/PipelineDetail",
+    "/Smithy/PipelineDetail/artifact",
+    "/Smithy/PipelineDetail/log",
+    "/Smithy/Islands/JobLog.qvue",
+    "/Smithy/Islands/JobLog.qvt",
+    "/Smithy/Islands/JobLog.qjs",
+    // DG7: the site (design §13): search, a repository's Docs and Releases, a release with its files' download, and a
+    // group's addons.xml (a transition of GroupDetail)
+    "/Smithy/Search",
+    "/Smithy/RepositoryDetail/Docs",
+    "/Smithy/RepositoryDetail/Releases",
+    "/Smithy/ReleaseDetail",
+    "/Smithy/ReleaseDetail/asset",
+    "/Smithy/GroupDetail/addons",
     "/Smithy/CommitDetail",
     "/Smithy/Compare",
-    "/Smithy/redirect"
+    "/Smithy/redirect",
+    // DG8: a GitHub import's page and the site's imports (design §11 Import)
+    "/Smithy/Import"
 ]
 /* Built screens that have screens and transitions under them: Do's transitions, and (DG6) the forum's own screens mounted
  * under a group and a repository and the scope's moderation pages, whose paths forumSection and moderationSection check. */
@@ -93,9 +112,19 @@ const built = screenPath =>
     BUILT.includes(screenPath) || BUILT_UNDER.some(root => screenPath === root || screenPath.startsWith(root + "/"))
 /* The tabs built so far of each settings screen; another tab of the grammar is Not Found until its phase. */
 const BUILT_TABS = {
-    "/Smithy/Site": ["settings", "requests", "quotas"],
-    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "quota", "delete"],
-    "/Smithy/RepositoryDetail/Settings": ["general", "members", "branch-rules", "webhooks", "agreement", "forum", "archive"]
+    "/Smithy/Site": ["settings", "requests", "quotas", "redirects"],
+    "/Smithy/GroupDetail/Settings": ["general", "agreement", "forum", "pipelines", "quota", "import", "delete"],
+    "/Smithy/RepositoryDetail/Settings": [
+        "general",
+        "members",
+        "branch-rules",
+        "webhooks",
+        "mirrors",
+        "pipelines",
+        "agreement",
+        "forum",
+        "archive"
+    ]
 }
 const bytes = text => encodeURIComponent(text).replace(/%[0-9A-F]{2}/g, "x").length
 /* Step 1: the segments of a path, each percent-decoded once. A segment that is . or .., holds a slash or a control
@@ -170,7 +199,8 @@ function compareSpec(rest) {
 }
 /* The forum inside a group's or a repository's shell (design §12.5, Dogfood §6.1): the rest of the path after -/forum is
  * mapped as the forum's own resolver maps a path after its mount (pass.RouteServices): t/<id>/<slug> is a topic (the slug
- * may end in a render mode, and a transition's name may follow), p/<id> a post's permalink, else a screen of the forum that
+ * may end in a render mode, and a transition's name may follow), p/<id> a post's permalink, held-mail/<token>[/claim] a
+ * held list message's page (a list bound to the scope links there), else a screen of the forum that
  * has a scope, then at most a transition's name. The forum's screens are mounted under the shell (screen), so the
  * page is the forum's own. topicId, topicSlug and postId are the resolver's own outputs, as the forum's are. */
 const FORUM_SCREENS = [
@@ -200,6 +230,11 @@ function forumSection(screen, rest, parameters) {
         })
     }
     if (rest[0] === "p") return rest.length === 2 && ID.test(rest[1]) ? to("/Post", {postId: rest[1]}) : fail()
+    // the link a list in this scope answers held mail with (Forum/HeldMail), held-mail/<token>, and its claim
+    if (rest[0] === "held-mail") {
+        if (!TOKEN.test(rest[1] || "") || rest.length > 3 || (rest.length === 3 && rest[2] !== "claim")) fail()
+        return page(screen + "/HeldMail" + (rest[2] ? "/claim" : ""), {...parameters, forumPath: rest.join("/"), token: rest[1]})
+    }
     if (rest[0] === "feed") return rest.length === 1 ? to("/feed") : fail()
     return to(screenTail(rest, FORUM_SCREENS))
 }
@@ -306,8 +341,11 @@ function repositorySection(section, parameters) {
             if (!rest.length) return with_(R + "Pipelines")
             if (!NUM.test(rest[0])) fail()
             if (rest.length === 1) return with_("/Smithy/PipelineDetail", {runNum: rest[0]})
-            return rest.length === 3 && rest[1] === "jobs" && ID.test(rest[2])
-                ? with_("/Smithy/PipelineDetail", {runNum: rest[0], jobRunId: rest[2]})
+            if (rest[1] !== "jobs" || !ID.test(rest[2] || "")) fail()
+            if (rest.length === 3) return with_("/Smithy/PipelineDetail", {runNum: rest[0], jobRunId: rest[2]})
+            // DG5: a job's log as JSON for the log's island (a transition of PipelineDetail, as artifact is)
+            return rest.length === 4 && rest[3] === "log"
+                ? with_("/Smithy/PipelineDetail/log", {runNum: rest[0], jobRunId: rest[2]})
                 : fail()
         case "releases":
             return rest.length ? with_("/Smithy/ReleaseDetail", {tag: refPath}) : with_(R + "Releases")

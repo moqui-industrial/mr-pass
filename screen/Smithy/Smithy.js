@@ -1,6 +1,8 @@
 /* Smithy's pages (Dogfood DG1, DG2; plan/design-smithy.md §1, §6, §7): the browsing of groups and repositories. The pages
  * that write (DG2: new, settings, members, Git access) and the forms' transitions are SmithyForms.js, which uses this;
- * DG3's issue pages are SmithyIssues.js and DG4's merge requests, forks and file editing SmithyReview.js.
+ * DG3's issue pages are SmithyIssues.js and DG4's merge requests, forks and file editing SmithyReview.js. DG7 (design §13):
+ * a group's Overview has its landing text, latest release, news and activity, Explore its components, and the resolver
+ * asks the site's table of old paths before Not Found (movedPath); the site's other pages are SmithySite.js.
  * Each page's view is built here from the authority's reads, every one through pass.Facade.call#Operation (Shared/Portal.js
  * attempt), with the ids the route resolver gave (service/pass/SmithyRoutes.js). What the authority answers Not Found (a path
  * with no row, and what the caller may not view) is the framework's Not Found, the same for both. A page is plain HTML with
@@ -108,6 +110,16 @@ function expireFlash() {
     if (!(Date.now() - at < FLASH_LIFE)) attributes.remove(FLASH)
 }
 const shortId = id => String(id || "").slice(0, 8)
+/* Terminal escapes (colors, cursor moves, a title), which a job's log and its names may hold. */
+// eslint-disable-next-line no-control-regex
+const ANSI = /\u001b(?:\[[0-?]*[ -\/]*[@-~]|\][^\u0007\u001b]*(?:\u0007|\u001b\\)?|[@-Z\\-_])/g
+/* The control characters taken out of a text a page shows as it was written by a job, a ci.xml, a component.xml or a search
+ * index (a log, a job's or a pipeline's name, a test, a component's description, a search result): C0 but tab and newline,
+ * DEL, C1, and the bidirectional overrides and isolates (U+202A to U+202E, U+2066 to U+2069), which would make a line read
+ * otherwise than it is. */
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g
+const plain = text => String(text ?? "").replace(ANSI, "").replace(CONTROL, "")
 function sizeText(size) {
     const n = Number(size)
     if (!Number.isFinite(n)) return ""
@@ -267,14 +279,58 @@ function groupShell(siteId, groupId, base, path) {
         ]
     }
 }
-/* A group's Overview (before DG7: its description, pinned repositories and subgroups); Home shows it for the home group. */
+/* A path a DG7 read gives for a page (from the host's root, the mount included), or null for one that is not a path on this
+ * site. DG5's run paths are under the mount and are read by SmithyPipelines.js. */
+const rooted = path => (path && siteLocal(String(path)) ? String(path) : null)
+const ACTIVITY = {push: "Push", merge: "Merged", release: "Release"}
+/* A group's Overview (design §6, §13.1): its landing text (getGroupLanding: a Markdown page of a content repository, cleaned
+ * by the authority, its relative links made that repository's pages at the branch it was read at), else its description;
+ * its pinned repositories, the latest release of its repositories, its news (the latest topics of its news category) and
+ * what happened in the repositories the caller views; and its subgroups. Home shows it for the home group. */
 function overview(siteId, shell, base) {
     const groupId = shell.group.groupId
-    const pinned = maybe("findRepositories", {siteId, groupId, pinned: true, limit: 30})
+    const landing = maybe("getGroupLanding", {siteId, groupId})
+    const pinned = landing
+        ? landing.pinnedList || []
+        : maybe("findRepositories", {siteId, groupId, pinned: true, limit: 30})?.repositoryList || []
     const subgroups = maybe("findGroups", {siteId, parentGroupId: groupId, limit: 30})
+    const sourcePath = String(landing?.sourcePath || "")
+    const landingHtml =
+        landing?.html && landing.sourceRepositoryPath
+            ? rewriteLinks(
+                  landing.html,
+                  urls(base, landing.sourceRepositoryPath),
+                  String(landing.sourceRef || ""),
+                  sourcePath.split("/").slice(0, -1).join("/")
+              )
+            : null
+    const latest = landing?.latestRelease?.release || null
     return {
-        description: shell.group.description || "",
-        pinned: (pinned?.repositoryList || []).map(r => repositoryRow(base, r)),
+        description: landingHtml ? "" : shell.group.description || "",
+        landingHtml,
+        // the file's edit page, for a signed-in account (that page says whether and where it may save)
+        editHref: landingHtml && ec.user.userId ? rooted(landing.editPath) : null,
+        sourceHref: landingHtml ? urls(base, landing.sourceRepositoryPath).blob(String(landing.sourceRef || ""), sourcePath) : null,
+        pinned: pinned.map(r => repositoryRow(base, r)),
+        latestRelease: latest
+            ? {
+                  repositoryPath: landing.latestRelease.repositoryPath,
+                  name: latest.name || latest.tag || "",
+                  tag: latest.tag || "",
+                  href: rooted(latest.path),
+                  date: dateText(latest.publishedAt),
+                  notesHtml: latest.notesHtml || ""
+              }
+            : null,
+        news: (landing?.newsList || []).map(topic => ({title: topic.title || "", href: rooted(topic.path), date: dateText(topic.date)})),
+        activity: (landing?.activityList || []).map(item => ({
+            kind: ACTIVITY[item.kind] || item.kind || "",
+            title: item.title || "",
+            href: rooted(item.path),
+            actor: item.actorHandle || "",
+            actorHref: item.actorHandle ? (base || "") + "/" + enc(item.actorHandle) : null,
+            date: dateText(item.date)
+        })),
         subgroups: (subgroups?.groupList || []).map(g => groupRow(base, g)),
         repositoriesHref: shell.root + "/-/repositories"
     }
@@ -286,22 +342,27 @@ function home(siteId, base) {
     const shell = groupShell(siteId, found.homeGroupId, base, "")
     return {shell, overview: overview(siteId, shell, base)}
 }
-/* Explore (design §6): groups and repositories the caller may view, with one search field and a kind filter. */
+/* Explore (design §6): groups, repositories and (DG7) components the caller may view, with one search field and a kind
+ * filter. */
 function explore(siteId, base) {
     const path = (base || "") + "/explore"
     const q = param("q")
     const flash = takeFlash()
-    const kind = ["groups", "repositories"].includes(param("kind")) ? param("kind") : "all"
+    const kind = ["groups", "repositories", "components"].includes(param("kind")) ? param("kind") : "all"
+    const shows = list => kind === "all" || kind === list
     const groupCursor = param("gc")
     const repositoryCursor = param("rc")
-    const groups =
-        kind === "repositories"
-            ? null
-            : need("findGroups", {siteId, limit: 30, ...(q ? {query: q} : {}), ...(groupCursor ? {cursor: groupCursor} : {})})
-    const repositories =
-        kind === "groups"
-            ? null
-            : need("findRepositories", {
+    const componentCursor = param("cc")
+    const groups = !shows("groups")
+        ? null
+        : need("findGroups", {siteId, limit: 30, ...(q ? {query: q} : {}), ...(groupCursor ? {cursor: groupCursor} : {})})
+    // the component directory (design §13.4): a repository whose root has a component.xml
+    const components = !shows("components")
+        ? null
+        : need("findComponents", {siteId, limit: 30, ...(q ? {query: q} : {}), ...(componentCursor ? {cursor: componentCursor} : {})})
+    const repositories = !shows("repositories")
+        ? null
+        : need("findRepositories", {
                   siteId,
                   limit: 30,
                   sort: "pushed",
@@ -316,8 +377,24 @@ function explore(siteId, base) {
         kind,
         groups: groups ? groups.groupList.map(g => groupRow(base, g)) : null,
         repositories: repositories ? repositories.repositoryList.map(r => repositoryRow(base, r)) : null,
+        components: components
+            ? components.componentList.map(c => {
+                  const u = urls(base, c.repositoryPath)
+                  return {
+                      name: c.name,
+                      version: c.version || "",
+                      dependsOn: c.dependsOn || [],
+                      path: c.repositoryPath,
+                      href: u.root,
+                      description: plain(c.description),
+                      latestTag: c.latestTag || "",
+                      releaseHref: c.latestTag ? u.section("releases", c.latestTag) : null
+                  }
+              })
+            : null,
         moreGroupsHref: groups?.nextCursor ? path + query({...filters, gc: groups.nextCursor}) : null,
-        moreRepositoriesHref: repositories?.nextCursor ? path + query({...filters, rc: repositories.nextCursor}) : null
+        moreRepositoriesHref: repositories?.nextCursor ? path + query({...filters, rc: repositories.nextCursor}) : null,
+        moreComponentsHref: components?.nextCursor ? path + query({...filters, cc: components.nextCursor}) : null
     }
 }
 /* GroupRepositories (design §6): subgroups first, then the group's repositories with a filter and a sort. */
@@ -469,6 +546,13 @@ function repositoryShell(siteId, repositoryId, base, path) {
                       }
                   ]
                 : []),
+            // DG5: the pipeline runs, where pipelines are on
+            ...(repository.features?.pipelines
+                ? [{label: "Pipelines", href: u.section("pipelines"), current: word === "pipelines" || word === "artifacts"}]
+                : []),
+            // DG7: the releases (a repository has them whatever its features), and its docs where they are on
+            {label: "Releases", href: u.section("releases"), current: word === "releases" || word === "release-assets"},
+            ...(repository.features?.docs ? [{label: "Docs", href: u.section("docs"), current: word === "docs"}] : []),
             ...(forumScope?.enabled ? [{label: "Forum", href: forumScope.base, current: word === "forum"}] : []),
             ...(moderationScope ? [{label: "Moderation", href: moderationScope.moderationBase, current: word === "moderation"}] : []),
             // a tab the caller may not use is absent: Settings is a Maintainer's
@@ -496,8 +580,9 @@ function refChoices(shell) {
  * or the tree for a path that ends in a slash) and an image to its raw file (-/raw/<ref>/<path>), each resolved against
  * directory, the file's directory at the shown ref. A link with a scheme, a protocol-relative one and an anchor are left
  * alone; one that would leave the repository's tree (.. above its root) loses its address. html is the authority's cleaned
- * markup. */
-function rewriteLinks(html, u, ref, directory) {
+ * markup. docs (DG7, a docs page): {root, href(path)}, the docs directory and the address of its page of a path in it; a
+ * link to a Markdown file inside the directory is that Docs page, with its anchor. */
+function rewriteLinks(html, u, ref, directory, docs) {
     const unescape = text =>
         text
             .replace(/&quot;/g, '"')
@@ -537,13 +622,17 @@ function rewriteLinks(html, u, ref, directory) {
         const cut = target.search(/[?#]/)
         const path = resolve(cut < 0 ? target : target.slice(0, cut))
         const rest = cut < 0 ? "" : target.slice(cut)
+        const anchor = rest.startsWith("#") ? rest : ""
+        const inDocs = !!docs && !isImage && !!path && path.startsWith(docs.root + "/") && /\.(?:md|markdown)$/i.test(path)
         const address =
             path == null
                 ? "#"
                 : isImage
                   ? u.raw(ref, path)
-                  : (!path || /\/$/.test(cut < 0 ? target : target.slice(0, cut)) ? u.tree(ref, path) : u.blob(ref, path)) +
-                    (rest.startsWith("#") ? rest : "")
+                  : inDocs
+                    ? docs.href(path.slice(docs.root.length + 1)) + anchor
+                    : (!path || /\/$/.test(cut < 0 ? target : target.slice(0, cut)) ? u.tree(ref, path) : u.blob(ref, path)) +
+                      anchor
         return "<" + tag + before + " " + attribute + '="' + esc(address) + '"'
     })
 }
@@ -609,8 +698,13 @@ function files(shell, refPath) {
             tree.ref?.kind === "branch" && shell.capabilities.signedIn && !shell.repository.archived
                 ? u.section("upload", joinRef(ref, treePath))
                 : null,
-        // the whole tree at this ref as a file, for a signed-in account (the authority serves no archive to a visitor)
-        archives: shell.capabilities.signedIn && !treePath ? archiveLinks(u, ref) : null,
+        // the whole tree at this ref as a file, for a signed-in account; for a visitor of a public repository at a branch or a
+        // tag only (the authority serves a visitor no archive of a commit id)
+        archives:
+            !treePath &&
+            (shell.capabilities.signedIn || (publicRepository(shell.repository) && ["branch", "tag"].includes(tree.ref?.kind)))
+                ? archiveLinks(u, ref)
+                : null,
         // the page's own address is built from what was read, never from the request's path
         moreHref: tree.hasMore ? u.tree(ref, treePath) + query({offset: offset + entries.length}) : null,
         readme: tree.readme?.html ? {path: tree.readme.path, html: rewriteLinks(tree.readme.html, u, ref, treePath)} : null
@@ -686,6 +780,8 @@ function blob(shell, refPath) {
         lastCommit: found.lastCommit ? commitRow(u, shell.base, found.lastCommit) : null
     }
 }
+/* Whether a repository is public and not hidden: its archive is anyone's (the authority decides; this only chooses links). */
+const publicRepository = repository => visibilityOf(repository) === "public" && !repository.hidden
 /* The downloads of the tree at a ref (design §7): a zip and a tar.gz. */
 const archiveLinks = (u, ref) => [
     {label: "zip", href: u.archive(ref, "zip")},
@@ -736,14 +832,15 @@ function blame(shell, refPath) {
     }
 }
 /* archive (design §7): the tree at a branch, a tag or a commit as a zip or a tar.gz (downloadArchive), streamed by the
- * facade as PASS's other downloads are, as an attachment with a safe name and never kept by a cache. The authority serves it
- * to a signed-in account: a visitor who may view the repository is sent to sign in, and one who may not gets Not Found. */
+ * facade as PASS's other downloads are, as an attachment with a safe name and never kept by a cache. The authority serves a
+ * public repository's to anyone (addons.xml's archive locations for ./moq component-get), and any other to a signed-in
+ * account: a visitor it asks to sign in is sent to sign in, and one who may not view the repository gets Not Found. */
 function archive(siteId, repositoryId, ref, format, base, accountBase) {
     const repository = need("getRepository", {siteId, repositoryId}).repository
     const u = urls(base, repository.repositoryPath)
     if (!["zip", "tar.gz"].includes(format) || !ref) fail()
-    if (!ec.user.userId)
-        return redirect((accountBase ?? "/account") + "/Login?returnTo=" + encodeURIComponent(u.archive(ref, format)))
+    const signIn = () => redirect((accountBase ?? "/account") + "/Login?returnTo=" + encodeURIComponent(u.archive(ref, format)))
+    if (!ec.user.userId && !publicRepository(repository)) return signIn()
     // the headers go before the body: an attachment with a safe name, never kept by a cache
     const name = (repository.slug || "repository") + "-" + String(ref).replace(/[^A-Za-z0-9._-]+/g, "-") + "." + format
     try {
@@ -757,6 +854,7 @@ function archive(siteId, repositoryId, ref, format, base, accountBase) {
             )
     } catch (error) {
         ec.message.clearErrors()
+        if (!ec.user.userId && error.moquiErrorKind === "AuthenticationRequired") return signIn()
         // what is not there (a ref the repository does not have) and what is refused (a tree too large) are both no file
         fail(
             error.moquiErrorKind === "NotFound" ? "NotFound" : error.moquiErrorKind || "NotFound",
@@ -858,7 +956,7 @@ function refs(shell, refType) {
             shell.capabilities.signedIn
                 ? u.section("merge-requests") + "/new" + query({base: defaultBranch, head: r.name})
                 : null,
-        archives: refType === "tag" && shell.capabilities.signedIn ? archiveLinks(u, r.name) : null
+        archives: refType === "tag" && (shell.capabilities.signedIn || publicRepository(shell.repository)) ? archiveLinks(u, r.name) : null
     }))
     // the default branch first
     rows.sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
@@ -921,6 +1019,18 @@ function commit(shell, commitId) {
     const c = found.commit
     const message = String(c.message || c.summary || "")
     const body = message.includes("\n") ? message.slice(message.indexOf("\n") + 1).replace(/^\n+/, "") : ""
+    // DG5: the commit's pipeline runs, newest first, where pipelines are on; a check of a ci/<pipeline>/<job> context links to
+    // the run that wrote it, on this site: the run and job its target names (the engine writes the run's page on the site's
+    // canonical host), not the address itself and not the newest run of that pipeline
+    const runs = shell.repository.features?.pipelines
+        ? maybe("findPipelineRuns", {siteId: shell.siteId, repositoryId: shell.repository.repositoryId, commitId: c.commitId, limit: 20})
+              ?.runList || []
+        : []
+    const runLink = status => {
+        if (!String(status.context || "").startsWith("ci/")) return null
+        const found = /\/-\/pipelines\/([1-9][0-9]{0,8})(?:\/jobs\/([A-Za-z0-9_-]{1,40}))?\/?(?:[?#].*)?$/.exec(String(status.targetUrl || ""))
+        return found ? u.section("pipelines") + "/" + found[1] + (found[2] ? "/jobs/" + found[2] : "") : null
+    }
     return {
         ...commitRow(u, shell.base, c),
         body,
@@ -944,10 +1054,22 @@ function commit(shell, commitId) {
             href: u.section("merge-requests") + "/" + encodeURIComponent(request.mergeRequestNum)
         })),
         statuses: (found.statusList || []).map(s => ({
-            context: s.context || "default",
+            context: plain(s.context) || "default",
             state: s.state || "",
-            description: s.description || "",
-            href: /^https:\/\//.test(String(s.targetUrl || "")) ? s.targetUrl : null
+            description: plain(s.description),
+            // a ci/ check links to its own run or to nothing (never to an address its writer chose); another context to its
+            // https target
+            href: String(s.context || "").startsWith("ci/")
+                ? runLink(s)
+                : /^https:\/\//.test(String(s.targetUrl || ""))
+                  ? s.targetUrl
+                  : null
+        })),
+        runs: runs.map(run => ({
+            number: run.runNum,
+            name: plain(run.pipelineName),
+            state: run.state || "",
+            href: (shell.base || "") + run.path
         })),
         // the issues it names that the caller may see; one the caller may not see is in the count alone
         issues: (found.linkedIssues || (c.issueNumbers || []).map(issueNumber => ({issueNumber}))).map(issue => ({
@@ -1059,10 +1181,75 @@ function seeOther(location) {
     response.setHeader("Location", location)
     response.write("")
 }
-/* The resolver's redirect (Smithy.xml redirect): 301 to its location with the request's query. */
-function redirectRoute(location) {
-    const asked = ec.web.request.getQueryString?.()
-    redirect(String(location || "") + (asked ? "?" + asked : ""), 301)
+/* Whether a location is an https address of one of the site's own hosts (the authority answers getSiteInfo for a host of the
+ * site alone): a target of the site's table of old paths may be one, for a move between its hosts. */
+// eslint-disable-next-line no-control-regex
+const ADDRESS = /^https:\/\/([A-Za-z0-9.-]+(?::[0-9]{1,5})?)(\/[^\s\\<>"'`\u0000-\u001f\u007f]*)?$/
+function ownAddress(siteId, location) {
+    const found = ADDRESS.exec(String(location || ""))
+    if (!found || !siteId) return false
+    const hostname = found[1].toLowerCase()
+    // as Mantle's siteTarget: the site's own hosts, not its theme preview host (which serves nothing else)
+    if (ec.resource.script("component://mr-pass/screen/Shop/ShopPreview.js").isPreviewHost(siteId, hostname)) return false
+    return !portal.attempt("getSiteInfo", {siteId, hostname}).error
+}
+/* A location with the request's query added: after the location's own query and before its #fragment. */
+function withQuery(location, asked) {
+    const text = String(location || "")
+    if (!asked) return text
+    const at = text.indexOf("#")
+    const head = at >= 0 ? text.slice(0, at) : text
+    return head + (head.includes("?") ? "&" : "?") + asked + (at >= 0 ? text.slice(at) : "")
+}
+/* The resolver's redirect (Smithy.xml redirect): 301 to its location with the request's query; a path on this site, or (an
+ * old path of the site's table, DG7) an https address of one of its hosts. */
+function redirectRoute(location, siteId) {
+    const to = withQuery(location, ec.web.request.getQueryString?.())
+    if (siteLocal(location) || !ownAddress(siteId, location)) return redirect(to, 301)
+    const response = ec.web.response
+    response.setHeader("Cache-Control", "no-store")
+    response.setStatus(301)
+    response.setHeader("Location", to)
+    response.write("")
+}
+/* DG7 (design §13.6): the target of an old path of the site (the table of old paths, SmithyRedirect, and from DG8 an imported
+ * repository's GitHub paths), which the resolver answers with a 301 before Not Found: a path on this site or an https
+ * address of one of its hosts, re-checked here; null for none. DG8: it is the facade's resolveRedirect, so a remote frontend
+ * has it too. */
+function movedPath(siteId, host, path) {
+    if (!siteId || !path || !String(path).startsWith("/") || String(path).length > 2000) return null
+    ec.message.pushErrors()
+    let out
+    try {
+        out = portal.attempt("resolveRedirect", {siteId, host: host || null, path: String(path)})
+    } finally {
+        ec.message.clearErrors()
+        ec.message.popErrors()
+    }
+    if (out.error) {
+        if (out.error.kind !== "NotFound") ec.logger.warn("The site's old paths were not read for " + path + ": " + out.error.message)
+        return null
+    }
+    const target = String(out.result?.targetPath || "")
+    if (!target || !(siteLocal(target) || ownAddress(siteId, target))) return null
+    // never back to the path asked for (on this host): resolve#Redirect would answer it with the same row, a loop
+    const whole = ADDRESS.exec(target)
+    const sameHost = !whole || whole[1].toLowerCase().replace(/:[0-9]+$/, "") === String(host || "").toLowerCase().replace(/:[0-9]+$/, "")
+    return sameHost && samePath(whole ? whole[2] || "/" : target, path) ? null : target
+}
+/* Whether two paths are one as resolve#Redirect looks a path up: without the query and the fragment, a trailing slash, the
+ * percent-encoding of a character and the case. */
+function samePath(one, other) {
+    const normal = value => {
+        let text = String(value || "").replace(/[?#].*$/, "")
+        try {
+            text = decodeURIComponent(text)
+        } catch (error) {
+            // as it is
+        }
+        return (text.length > 1 ? text.replace(/\/+$/, "") : text).toLowerCase() || "/"
+    }
+    return normal(one) === normal(other)
 }
 ;({
     portal,
@@ -1111,6 +1298,13 @@ function redirectRoute(location) {
     redirect,
     redirectBefore,
     redirectRoute,
+    withQuery,
+    movedPath,
+    plain,
+    ANSI,
+    CONTROL,
+    rooted,
+    publicRepository,
     siteLocal,
     disposition,
     rewriteLinks

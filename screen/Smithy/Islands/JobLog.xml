@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- JobLog (design-smithy §10 PipelineDetail): the island over a running job's log on its page (JobLog.qvue): it appends the
+    lines after what the page shows, from the log's JSON (PipelineDetail's log transition), when the notification socket
+    says the log grew and every few seconds besides, and stops when the job has ended. The screen shows nothing of its own. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Job log">
+  <widgets>
+    <render-mode>
+      <text type="html"><![CDATA[<p>The live log is part of a job's page.</p>]]></text>
+      <text type="qvue" location="component://mr-pass/screen/Smithy/Islands/JobLog.qvue" template="false"/>
+    </render-mode>
+  </widgets>
+</screen>
