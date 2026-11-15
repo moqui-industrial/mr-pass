@@ -382,10 +382,32 @@ published confirmation template, and the site has a canonical host.
   request, consent box and receipt) or a form's card linking SubmitForm, at most five a page, each shown only for a list offered or
   a form open on this site. Its text is kept in the organization's page space (a wiki space with restricted updates, made with the
   first page), which only the site page services write; themes stay Commerce's.
+- **Tracking links.** A campaign's link is made in BOSS Marketing › Content › Tracking links (or a campaign's Tracking links box): a
+  registered destination (a landing page of the organization's Marketing mount, or an https address on a host of a site that serves
+  the organization or of its allowed list, Campaign defaults' "Tracking link hosts"), its source, medium and content from the
+  organization's vocabulary, and the site whose address it gets: `https://{canonical host}/trk/{siteId}/{code}`, with its QR code on
+  the link's page. PASS's own conf (`MoquiConf.xml`, loaded on the authority and on a remote frontend alike) registers the redirect
+  (`/trk/*`, `script/TrackingRedirect.js`) and a send's open pixel (`/trk-o/*`, `script/TrackingPixel.js`) as web scripts, each limited
+  per client by its `<rate-limit>` when per-client web protection is on (60 and 120 a minute). Each declines the session, runs as the
+  anonymous request, asks the authority where the link goes (`resolveTrackingLink`) and records the visit (`recordTrackingEvent`),
+  and redirects (302) or answers the image whatever was recorded; nothing of the request names a destination, and a disabled or
+  ended link goes to its safe destination or a neutral "not available" page (404). The authority keeps its own limits: 30 events of
+  a link from a client in ten minutes and 20,000 an hour on a site; over them the visitor is still redirected and nothing is kept.
+  A visitor key (the `mkt_vk` cookie, HttpOnly, a year; its digest alone is kept) is set only when the organization's Campaign
+  defaults count unique visitors ("Visitor keys", off by default) or the link is a consenting recipient's, and never for a browser
+  that sends `Sec-GPC: 1` or `DNT: 1` or for a known scanner, crawler or prefetch, which is recorded apart and is never a conversion.
+  A landing page's address with a link's code (`/marketing/pages/{route}?tc={code}`) records a page visit with the key the browser
+  already holds. A send's message gives a recipient who allows tracking (the PcpTracking purpose) under a sending profile whose
+  tracking policy is "consented recipients" each of the organization's tracking links with a personalized token (`?token=`, its
+  digest kept, ninety days; the framework's request log redacts a `token` parameter) and the pixel; every other recipient gets each
+  link's direct destination and no pixel. Commerce's Home counts the visits of a store's sites. The paths `/trk` and `/trk-o` are
+  taken on every host of the deployment: no Smithy group, site page or redirect should use them.
 - **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` and
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
-  answer carries its link's token) and `verifySubscription` (a link's token) are `TOKEN_WRITES`, accepted from a registered
-  deployment without a member session.
+  answer carries its link's token), `verifySubscription` (a link's token) and `recordTrackingEvent` (an anonymous write the authority's
+  limits bound; a personalized link's token) are `TOKEN_WRITES`, accepted from a registered deployment without a member session.
+  The tracking web scripts reach the authority through the same transport, so a remote frontend records there with no Mantle of its
+  own.
 
 ## Shop app
 
