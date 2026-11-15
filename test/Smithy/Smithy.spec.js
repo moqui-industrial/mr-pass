@@ -18,9 +18,10 @@
 // and a deployment, and Do's three deployment transitions; the pages are SmithyDeploy's spec. DG7 (§4.4, §13): the paths of the
 // site's pages (Search, Docs, Releases, a release and its file, a group's addons.xml, the site's Redirects tab), an old path
 // of the site's table answered by the resolver with its redirect and its target checked again (another host, a port, a user
-// part, a backslash, //, the preview host, a loop), one render of Search (what was asked and found escaped), one of a Docs
-// page (its links made Docs, Blob and raw links) and one of ReleaseDetail (its files, a Maintainer's forms; the same page as
-// an account with no role through its page function; Make it a draft refused without confirm=yes), and a group's
+// part, a backslash, //, the preview host, a loop), one render of Search at the screen its request path resolves to
+// (-/search, at a root mount too, whose first segment the framework does not take; what was asked and found escaped), one
+// of a Docs page (its links made Docs, Blob and raw links) and one of ReleaseDetail (its files, a Maintainer's forms; the
+// same page as an account with no role through its page function; Make it a draft refused without confirm=yes), and a group's
 // addons.xml as text/xml (a visitor's kept by a cache for five minutes). Mantle's SmithyDocs,
 // SmithyReleases, SmithyComponents, SmithySearch and SmithyRedirects specs cover the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
@@ -28,6 +29,8 @@ const routes = () => ec.resource.script("component://mr-pass/service/pass/Smithy
 const SITE = "PASS_SMITHY"
 const HOST = "smithy.example.test"
 const KEYS = "pass.smithy.keys"
+const ROOT_SITE = "PASS_SMITHY_ROOT"
+const ROOT_HOST = "smithy-root.example.test"
 const PLAIN = "pass.smithy.plain"
 const REPORTS = "pass.smithy.reports"
 const SENDER = "pass.smithy.sender"
@@ -308,8 +311,11 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             heldReport: parse("-/held-report/abcDEF_123-456"),
             heldReportBad: parse("-/held-report/a/b"),
             // DG7: the site's pages
-            search: parse("search"),
-            searchDeeper: parse("search/x"),
+            // Search is under -/: the framework's /search proxy takes /search on every host (the user's call)
+            search: parse("-/search"),
+            searchDeeper: parse("-/search/x"),
+            // the old path is a name now (a reserved word, so no group has it)
+            oldSearch: parse("search"),
             docs: parse("moqui/mr-moqui/-/docs"),
             docsPage: parse("moqui/mr-moqui/-/docs/v1.0/guide/intro.md"),
             releases: parse("moqui/mr-moqui/-/releases"),
@@ -501,6 +507,8 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
         out.search.screenPath === "/Smithy/Search"
         built.includes(out.search.screenPath)
         out.searchDeeper.kind === "NotFound"
+        out.oldSearch.kind === "NotFound"
+        asked.includes("search")
         out.docs.screenPath === "/Smithy/RepositoryDetail/Docs"
         out.docs.screenParameters.refPath === ""
         out.docsPage.screenParameters.refPath === "v1.0/guide/intro.md"
@@ -1569,7 +1577,7 @@ feature("Smithy's registrations agree: the app, PASS's copy of Mantle's operatio
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" "),
             // DG7: Search (it lists issues) and a release's file are kept by no cache; Docs and Releases are read pages
-            sitePages: ["/search", "/moqui/mr-moqui/-/release-assets/A1/x.zip", "/moqui/mr-moqui/-/docs/main/a.md", "/moqui/mr-moqui/-/releases/v1"]
+            sitePages: ["/-/search", "/moqui/mr-moqui/-/release-assets/A1/x.zip", "/moqui/mr-moqui/-/docs/main/a.md", "/moqui/mr-moqui/-/releases/v1"]
                 .map(path => headers.policyOf("smithy", path, true).cacheControl)
                 .join(" ")
         }
@@ -1616,16 +1624,34 @@ feature("Docs shows a page of the docs directory: its links made Docs, Blob and 
         html.includes('<a href="/code/pass-smg/web/-/docs/main/Guide.md">Guide</a>')
         html.includes('<option value="v1.0">v1.0</option>')
         html.includes('href="/code/pass-smg/web/-/edit/main/docs/README.md" id="SmithyDocsEdit"')
-        html.includes('<form method="get" action="/code/search" role="search" class="card" id="SmithyDocsSearch">')
+        html.includes('<form method="get" action="/code/-/search" role="search" class="card" id="SmithyDocsSearch">')
         html.includes('<a href="/code/pass-smg/web/-/docs" aria-current="page">Docs</a>')
     }
 })
-feature("Search escapes what was asked and what it found, and links a result by the authority's path", {
+feature("Search is reached by its request path, at a root mount too, where the framework takes no segment of it; it escapes what was asked and what it found, and links a result by the authority's path", {
     when() {
-        const page = fixtures().render(SITE, HOST, "/code/search", "Smithy/Search", {q: "breaks <b", kind: "issue"})
-        return {page, html: page.html}
+        const f = fixtures()
+        // Smithy at a site's root (the user's call): the framework's /search proxy (a servlet of the default conf)
+        // answers /search on every host ahead of any screen, so the page, the header's box and the docs box use -/search
+        f.run("create#mantle.public.PublicSite", {siteId: ROOT_SITE, name: "Smithy at the root", state: "published", registrationMode: "invitation", locale: "en", timeZone: "UTC", policyRevision: 1, generation: 1})
+        f.run("create#mantle.public.PublicSiteParty", {siteId: ROOT_SITE, partyId: ec.user.userAccount.partyId, state: "active", role: "owner", revision: 1})
+        f.run("mantle.public.SiteServices.store#Mounts", {
+            input: {siteId: ROOT_SITE, expectedRevision: 1, mounts: [{app: "account", pathPrefix: "/account"}, {app: "smithy", pathPrefix: "/"}], hosts: [{hostname: ROOT_HOST, canonical: true}]}
+        })
+        const atRoot = f.route(ROOT_SITE, ROOT_HOST, "/-/search")
+        // the page as a request reaches it: the resolver's screen for the path, rendered under Pass.xml
+        const routed = f.route(SITE, HOST, "/code/-/search")
+        const page = f.render(SITE, HOST, "/code/-/search", routed.screenPath.slice(1), {...routed.screenParameters, q: "breaks <b", kind: "issue"})
+        const actions = [...page.html.matchAll(/<form [^>]*action="([^"]*)"[^>]*id="(SmithySearchBox|SmithySearch)"/g)].map(m => m[2] + " " + m[1])
+        return {atRoot, routed, page, html: page.html, actions, reserved: ec.web.reservedPaths}
     },
-    then({page, html}) {
+    then({atRoot, routed, page, html, actions, reserved}) {
+        atRoot.screenPath === "/Smithy/Search"
+        routed.screenPath === "/Smithy/Search"
+        // a servlet's or the host's segment is never the first of a path Smithy answers at the root
+        reserved.includes("search")
+        !reserved.includes("-")
+        actions.join(", ") === "SmithySearchBox /code/-/search, SmithySearch /code/-/search"
         page.errors.length === 0
         html.includes('value="breaks &lt;b"')
         !html.includes("breaks <b")

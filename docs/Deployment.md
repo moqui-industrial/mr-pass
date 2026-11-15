@@ -401,7 +401,8 @@ published confirmation template, and the site has a canonical host.
   tracking policy is "consented recipients" each of the organization's tracking links with a personalized token (`?token=`, its
   digest kept, ninety days; the framework's request log redacts a `token` parameter) and the pixel; every other recipient gets each
   link's direct destination and no pixel. Commerce's Home counts the visits of a store's sites. The paths `/trk` and `/trk-o` are
-  taken on every host of the deployment: no Smithy group, site page or redirect should use them.
+  taken on every host of the deployment, so the framework reserves them (`ec.web.reservedPaths`, each declared servlet's
+  first segment): no Smithy group, handle, site page, redirect or mount can take them.
 - **Events.** An events manager makes a campaign's event in BOSS Marketing › Events (a calendar event they organize; its calendar's
   editors may change it there) and sets up its registration: one offer per occurrence (a repeating event's occurrences each their
   own), its seats, hold, waitlist, terms, this site and an optional store (a store order; storeless by default), its ticket types
@@ -629,7 +630,7 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   `/-/delete/…`), `/-/forum[/…]`, `/-/moderation[/…]`, `/-/docs/<ref>/<path>`, `/-/releases`, `/-/releases/<tag>`,
   `/-/release-assets/<id>/<name>`, `/-/settings/<tab>`, and `/<group>/-/repositories`, `/-/issues`,
   `/-/forum[/…]`, `/-/members`, `/-/moderation[/…]`, `/-/addons.xml`, `/-/settings/<tab>`; `/explore` lists what the visitor
-  may view (groups, repositories and components), `/search?q=` searches it, and `/new/group`, `/new/repository` and `/-/site` are
+  may view (groups, repositories and components), `/-/search?q=` searches it, and `/new/group`, `/new/repository` and `/-/site` are
   the create pages and the site's settings. `service/pass/SmithyRoutes.js` holds the grammar, and Mantle tells a group from a repository
   and a ref from a path. A name in another case, a `.git` suffix, a renamed path and a GitHub form
   (`/<group>/<repository>/blob/main/README.md`) redirect (301) once Mantle has found something the visitor may view.
@@ -648,7 +649,7 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   that edit a file and the fork pages are `no-store` for a visitor as well, and so are the forum's pages inside a group or a
   repository (`/-/forum…`), the moderation pages (`/-/moderation…`) and the pipeline pages, a job's log and an upload
   (`/-/pipelines…`, `/-/artifacts/…`: a log holds whatever a job printed), a release's file (`/-/release-assets/…`) and
-  the Search page (`/search`, which lists issues). A group's `addons.xml` is `public, max-age=300` for a visitor of a
+  the Search page (`/-/search`, which lists issues). A group's `addons.xml` is `public, max-age=300` for a visitor of a
   public group and `no-store` otherwise. The Issues and Merge requests tabs show their
   counts to a signed-in account only. A raw file is served as
   plain text, a still image or a download, with `nosniff` and a sandboxing CSP, never as a page of the site.
@@ -827,10 +828,11 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   ```
 
   A members-only or private component is not in the file; take it with git and an access token (Git access).
-- **Search.** `/search?q=` (the box in the header) searches repositories, groups, components, issues, merge requests, docs
+- **Search.** `/-/search?q=` (the box in the header) searches repositories, groups, components, issues, merge requests, docs
   pages and forum topics, each by its own rule (a confidential issue, a held merge request and a private repository's
   items are found only by who may read them), narrowed to a kind, or to a group or a repository with `?in=<path>`.
-  Code search is not built.
+  Code search is not built. The page is not at `/search`: the framework's default conf has its OpenSearch proxy
+  there (a servlet, which answers on every host ahead of any page), so `/search` is never a page of a site.
 - **Redirects for a site move.** The site's owners keep a table of old addresses on `/-/site/redirects`: an old path (or a
   whole address, whose host is kept: `https://forum.example.org/t/12`) and its target, a path of the site or an https
   address of one of its hosts. A request that no mount and no Smithy name takes is looked up there before Not Found,

@@ -54,15 +54,15 @@ const ROUTES = [
     // Smithy DG5: nor the pipeline pages, a job's log and its uploads (-/pipelines…, -/artifacts/…): a log can hold
     // anything a job printed, and a merge request's run is hidden with it.
     // Smithy DG7: nor a release's file (-/release-assets/…, which the download answers no-store itself) and the Search page
-    // (it lists issues, which may become confidential). A group's addons.xml sets its own (public for a visitor of a public
-    // group). Docs and Releases are read pages.
+    // (-/search, one of the app's own paths; it lists issues, which may become confidential). A group's addons.xml sets its
+    // own (public for a visitor of a public group). Docs and Releases are read pages.
     {
         app: 'smithy',
         path: /\/-\/(?:issues|labels|milestones|commit|merge-requests|edit|new|upload|delete|fork|forks|forum|moderation|pipelines|artifacts|release-assets)(?:\/|$)/,
     },
     {
         app: 'smithy',
-        path: /^\/(?!-(?:\/|$)|new(?:\/|$)|import(?:\/|$)|search(?:\/|$))/,
+        path: /^\/(?!-(?:\/|$)|new(?:\/|$)|import(?:\/|$))/,
         cacheControl: 'public, max-age=60',
         anonymousOnly: true,
     },
