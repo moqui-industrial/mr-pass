@@ -13,7 +13,7 @@ its receipt, a contact's quotes, and a customer's orders with their delivery and
 signed in (over Mantle's SalesPortalServices). Its Marketing app is IronStone Marketing's public subscription and forms: an
 organization's offered lists, a request with its neutral receipt and the confirmation link's page, a published survey's form
 answered by anyone, a signed-in account or an invitation's link, its storeless landing pages with their embedded subscribe
-boxes, and a published event registration offer's page (over Mantle's MarketingPortalServices); unsubscribing and topics are the Account app's Email preferences page. PASS's own
+boxes, a published event registration offer's page, and its registration (choosing places, the attendees' answers and the terms, payment on the provider's page) and the registration's own page with entry codes and cancellation (over Mantle's MarketingPortalServices); unsubscribing and topics are the Account app's Email preferences page. PASS's own
 `MoquiConf.xml` registers Marketing's tracking redirect and pixel (`script/TrackingRedirect.js`, `TrackingPixel.js` at `/trk/*` and
 `/trk-o/*`), web scripts over Mantle's TrackingServices through PASS's transport.
 
@@ -69,7 +69,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 
 ```sh
 ./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess,SmithyDeploy,SalesPortal,SalesPortalAccess,MarketingSubscriptions,MarketingAccess,SubmitForm,FormPublications,MarketingForms,MarketingPages,MarketingTracking,MarketingEvents,Tracking,SitePages,EventRegistrationSetup --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess,SmithyDeploy,SalesPortal,SalesPortalAccess,MarketingSubscriptions,MarketingAccess,SubmitForm,FormPublications,MarketingForms,MarketingPages,MarketingTracking,MarketingEvents,MarketingRegistration,Tracking,SitePages,EventRegistrationSetup,EventRegistrations --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens

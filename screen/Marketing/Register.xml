@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Register (design-marketing §13 Register; IronStone impl-marketing P17): the steps of a registration for a published offer of the
+    organization the site's marketing mount serves, each an operation of the authority (mantle.marketing.MarketingPortalServices):
+    - RegistrationChoice (?offer=): each ticket's price and advisory availability (getMarketingEvent), the places wanted of each, the
+      buyer's name and address and a request key; Reserve (reserveRegistration) holds them all or puts them all on the waitlist, and
+      the reservation's capability is kept in the session, never in an address;
+    - RegistrationAnswers (?ref=): each attendee's name (and optional address), the offer's questions (each attendee's or the buyer's
+      once) and the terms to accept (completeRegistration); a free registration is confirmed here;
+    - RegistrationPayment: the amount after its hold ends, and Pay (startRegistrationPayment), which sends the payer to the payment
+      provider's page; the provider returns to ?ref=&key= and the page reads the verified result, never the browser's claim;
+    - RegistrationReceipt: the opaque reference and the state (confirmed, payment received and awaiting the organizer's confirmation,
+      waitlisted, under review), with the link to the registration's page.
+    An unknown, draft, closed or past offer and a lost or another site's reservation show the same "not available". Plain HTML
+    without JavaScript; PASS's default headers (no-store, the shell's CSP, a same-origin referrer policy). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Register">
+  <transition name="reserve" method="post">
+    <actions>
+      <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing,p=ec.web.parameters
+        const page=marketing.base(publicPath,'reserve')
+        const offer=marketing.param('offer')
+        // the places of each ticket the page showed, by its id
+        const ids=String(marketing.param('ticketIds') || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z0-9_-]{1,40}$/.test(s))
+        const lines=ids.map(id=>({ticketTypeId:id,quantity:Number(marketing.param('quantity_'+id) || 0)})).filter(line=>line.quantity>0)
+        const out=reg.call('reserveRegistration',resolvedSiteId,null,{registrationPolicyId:offer,lines:JSON.stringify(lines),
+            buyerName:marketing.param('buyerName'),buyerEmail:marketing.param('buyerEmail'),operationId:marketing.param('operationId')})
+        if(out.error)reg.back(page,{offer},out.error)
+        else{
+            const reference=out.result.registration.reference
+            reg.keep(resolvedSiteId,reference,out.result.token)
+            ec.web.response.sendRedirect(page+marketing.query({ref:reference}))
+        }
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="complete" method="post">
+    <actions>
+      <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing,p=ec.web.parameters
+        const page=marketing.base(publicPath,'complete')
+        const ref=marketing.param('ref')
+        const count=Math.min(Number(marketing.param('placeCount') || 0),10)
+        const names=String(marketing.param('fieldNames') || '').split(',').map(s=>s.trim()).filter(s=>/^[A-Za-z][A-Za-z0-9_]{0,59}$/.test(s))
+        const scope=marketing.param('questionScope')==='buyer'?'buyer':'attendee'
+        const attendees=[],answers=[]
+        for(let i=0;i<count;i++){
+            attendees.push({name:marketing.param('attendeeName_'+i),email:marketing.param('attendeeEmail_'+i)})
+            if(scope==='buyer' && i>0)continue
+            const values={}
+            for(const name of names){
+                const value=p['f'+i+'_'+name]
+                if(value==null || value==='')continue
+                values[name]=Array.isArray(value)?value.map(String):(typeof value==='object' && value.length!=null?Array.from(value).map(String):String(value))
+            }
+            answers.push(values)
+        }
+        const out=reg.call('completeRegistration',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{attendees:JSON.stringify(attendees),
+            answers:JSON.stringify(answers),acceptTerms:marketing.param('acceptTerms'),termsRevision:marketing.param('termsRevision'),
+            operationId:marketing.param('operationId')})
+        reg.back(page,{ref},out.error || null)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="pay" method="post">
+    <actions>
+      <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        const page=marketing.base(publicPath,'pay')
+        const ref=marketing.param('ref')
+        const out=reg.call('startRegistrationPayment',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{operationId:marketing.param('operationId')})
+        const redirectUrl=out.result?.payment?.provider?.redirectUrl
+        // the provider's own page (an https address or a path of this site); anything else stays here with the state
+        if(redirectUrl && /^(https:\/\/|\/(?!\/))/.test(redirectUrl))ec.web.response.sendRedirect(redirectUrl)
+        else reg.back(page,{ref},out.error || null)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <actions>
+    <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        flash=marketing.take()
+        const offerParam=marketing.param('offer'),ref=marketing.param('ref'),returnKey=marketing.param('key')
+        view=null;event=null;failure=null;step=null
+        const notAvailable={kind:'NotFound',message:'This registration is not available. It may have closed, or this page was opened in another browser: use the link in your email.'}
+        if(ref){
+            const reach=reg.reachOf(resolvedSiteId,ref,returnKey)
+            if(!reach)failure=notAvailable
+            else{
+                const found=reg.call('getRegistration',resolvedSiteId,reach,{returned:marketing.param('returned') ? 'true' : null})
+                if(found.error)failure=found.error.kind==='NotFound'?notAvailable:found.error
+                else view=found.result.registration
+            }
+        }else if(offerParam && /^[A-Za-z0-9_-]{1,40}$/.test(offerParam)){
+            const found=marketing.portal.attempt('getMarketingEvent',{siteId:resolvedSiteId,registrationPolicyId:offerParam})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This event is not available.'}:found.error
+            else{event=found.result.event;if(!event.registrationOpen)failure={kind:'Closed',message:event.registrationText}}
+        }else failure={kind:'NotFound',message:'Open this page from the event you want to register for.'}
+        if(event && !failure)step='choice'
+        else if(view){
+            if(view.limited)step='receipt'
+            else if(view.state==='held' && !view.completed)step='answers'
+            else if(view.state==='held' && view.paymentDue)step='payment'
+            else step='receipt'
+        }
+        ticketIds=event?event.tickets.map(t=>t.ticketTypeId).join(','):''
+        fieldList=view && !view.limited?Array.from(view.fields || []):[]
+        fieldNames=fieldList.map(f=>f.fieldName).join(',')
+        placeList=view && !view.limited?Array.from(view.places || []):[]
+        termsParagraphs=view && !view.limited?reg.paragraphs(view.terms):[]
+        operationId=marketing.portal.operationId()
+        registrationPath=String(publicPath).replace(/\/Register$/,'/Registration')
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/Register.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
