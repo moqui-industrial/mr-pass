@@ -353,7 +353,9 @@ published confirmation template, and the site has a canonical host.
 - **Email preferences.** On the Account app's Email preferences page, by a list mail's link or signed in, the organization's lists
   offered on the site show with the recipient's state: turning one off unsubscribes it (with an optional reason, kept on the
   withdrawal), turning one on sends a verification message first (a signed-in account's verified address is accepted at once), and
-  "No more email from" the organization leaves all its lists and withdraws its marketing email for that organization alone.
+  "No more email from" the organization leaves all its lists and withdraws its marketing email for that organization alone. A
+  list of phone numbers (a text message topic) shows there too and may be left, never joined: joining is through an import or staff
+  with evidence (a confirmation by the number itself is later).
 - **Forms (SubmitForm).** A survey, lead form or registration questions built in BOSS Marketing › Surveys is answered here once a
   content author publishes it in Distribution with this site: to anyone (`/marketing/SubmitForm?publication=ID`, the link and QR
   Distribution shows), to signed-in accounts (the visitor signs in first), or by invitation (each recipient of an invitation send
@@ -440,8 +442,15 @@ published confirmation template, and the site has a canonical host.
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
   answer carries its link's token), `verifySubscription` (a link's token) and `recordTrackingEvent` (an anonymous write the authority's
   limits bound; a personalized link's token) are `TOKEN_WRITES`, accepted from a registered deployment without a member session.
-  The tracking web scripts reach the authority through the same transport, so a remote frontend records there with no Mantle of its
-  own.
+  The registration's six operations are POSTs: `reserveRegistration` an anonymous write as `requestSubscription` is (the request key and
+  the authority's limits), `completeRegistration`, `startRegistrationPayment`, `getRegistrationPaymentForm`, `getRegistration` and
+  `cancelRegistration` carrying the reservation's capability, all six `TOKEN_WRITES`. The tracking web scripts reach the authority
+  through the same transport, so a remote frontend records there with no Mantle of its own.
+- **Visitor key through a remote frontend.** A remote frontend forwards the consented visitor key (its `mkt_vk` cookie) with a Shop
+  checkout (`submitCheckout`'s `visitorKey`) and with Register's payment start (`startRegistrationPayment`'s `visitorKey`), so an order
+  placed through it is attributed as a local one; the authority keeps only the key's digest, and only where a visit would keep the
+  key. Both fields are new in the facade's schema: upgrade the authority before the PASS frontends, since an older authority refuses
+  an operation naming a field it does not know.
 
 ## Shop app
 

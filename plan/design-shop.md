@@ -518,8 +518,9 @@ whose page only reads until its one button confirms, so a mail scanner's fetch c
 days) or, for a choice checked while signed in, by the account signing in with that email
 verified (Shop P6's claim, and the preferences page). A guest's choice, even once Shop P6's claim
 moves it to the account, is confirmed only by the receipt's link or by the account turning the
-topic on itself: whoever checked it was not signed in (P9 follow-up review R1). A choice turned off on the preferences page before it is confirmed stays off. Marketing's
-`request#Subscription`, when built, takes over the news opt-in's recording.
+topic on itself: whoever checked it was not signed in (P9 follow-up review R1). A choice turned off on the preferences page before it is confirmed stays off. As built (mr-boss
+impl-marketing P7), the news opt-in is recorded through Marketing's audience service (`file#CheckoutSubscription`, a
+subscription request of kind checkout, source `PcsCheckout`), pending until the receipt's link or a verified sign-in as above.
 Provider-hosted fields collect payment credentials;
 Shop receives only provider references/tokens. Required address fields derive from destination
 and tax rules, not a hard-coded US form. Digital-only carts omit delivery. Totals remain
