@@ -38,6 +38,16 @@ const ROUTES = [
             'https://test.authorize.net',
         ],
     },
+    // IronStone Marketing P17 review (the user's call, Nov 15): Register's relay posts a fresh Accept Hosted form token to
+    // Authorize.Net's page as Shop's does; only this route's form-action allows it, and it stays no-store
+    {
+        app: 'marketing',
+        path: /^\/RegistrationRelay\/?$/,
+        formAction: [
+            'https://accept.authorize.net',
+            'https://test.authorize.net',
+        ],
+    },
     // Smithy DG1 (plan/design-smithy.md §1): its read pages are public for a minute, and only for a request with no session
     // cookie and no signed-in user (anonymousOnly), which sees public groups and repositories alone; a signed-in or
     // session request, so every members-only and private page, is no-store, as are the app's own paths under /-/ and the

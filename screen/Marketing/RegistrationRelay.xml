@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- RegistrationRelay (IronStone impl-marketing P17 review; the user's call, Nov 15; Shop's PaymentRelay, impl-shop F37): for a
+    registration's pending payment whose provider page takes a posted form token (Authorize.Net Accept Hosted), a fresh token asked of
+    the authority on each visit (getRegistrationPaymentForm, by the reservation's capability kept in the session or the buyer's
+    account) and posted by the payer to the provider's page. Reached from Register's payment step by ?ref=; no-store, the token in this
+    page alone; only this route's CSP allows the provider's form-action (Shared/Headers.js). Nothing confirms here or on the way back:
+    the provider returns to Register's ?ref=&key=, which reads the state, and the verified result decides. Plain HTML: the payer
+    presses Continue (PASS's Marketing pages carry no script). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Payment">
+  <actions>
+    <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        const ref=marketing.param('ref')
+        form=null;failure=null
+        registerPath=String(publicPath).replace(/\/RegistrationRelay$/,'/Register')
+        reference=ref && reg.referencePattern.test(ref)?ref:''
+        const reach=reference?reg.reachOf(resolvedSiteId,reference,null):null
+        if(!reach || reach.key)failure={kind:'NotFound',message:'This payment page is not available. Open your registration from the link in your email.'}
+        else{
+            const found=reg.call('getRegistrationPaymentForm',resolvedSiteId,reach,{})
+            if(found.error)failure=found.error.kind==='NotFound'?{kind:'NotFound',message:'This payment page is not available.'}:found.error
+            else if(!/^https:\/\//.test(String(found.result.form?.formUrl || '')))failure={kind:'Unavailable',message:'The payment page cannot be opened now.'}
+            else{form=found.result.form;fieldList=Object.entries(form.fields || {}).map(([name,value])=>({name:String(name),value:String(value)}))}
+        }
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/RegistrationRelay.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

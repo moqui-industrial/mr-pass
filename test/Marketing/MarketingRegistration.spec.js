@@ -128,6 +128,7 @@ feature("the operations are in both schema copies and route lists, and in the th
             "reserveRegistration",
             "completeRegistration",
             "startRegistrationPayment",
+            "getRegistrationPaymentForm",
             "getRegistration",
             "cancelRegistration"
         ]
@@ -146,12 +147,16 @@ feature("the operations are in both schema copies and route lists, and in the th
             schemas: ops.every(op => !!pass[op] && JSON.stringify(pass[op]) === JSON.stringify(mantle[op])),
             routed: ops.map(op => routes.map(list => Array.from(list).find(route => route[2] === op)?.[0]).join("/")),
             written: ops.every(op => lists.every(list => list.includes(op))),
-            same: lists.every(list => JSON.stringify(list) === JSON.stringify(lists[0]))
+            same: lists.every(list => JSON.stringify(list) === JSON.stringify(lists[0])),
+            // the relay alone may post to Accept Hosted's page (the user's call, Nov 15); Register keeps form-action 'self'
+            headers: ec.resource.script("component://mr-pass/screen/Shared/Headers.js")
         }
     },
-    then({schemas, routed, written, same}) {
+    then({schemas, routed, written, same, headers}) {
         schemas
         routed.every(verbs => verbs == "POST/POST")
         written && same
+        headers.policyOf("marketing", "/RegistrationRelay", false).formAction.includes("https://accept.authorize.net")
+        headers.policyOf("marketing", "/Register", false).formAction.length == 0
     }
 })

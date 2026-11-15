@@ -426,8 +426,11 @@ published confirmation template, and the site has a canonical host.
   confirmation" with no ticket until then. The reservation's capability is kept in the visitor's session; the receipt's link opens
   `/marketing/Registration?token=...` (read once into the session, the address then `?ref=`), where the buyer sees each place, shows a
   confirmed place's entry code (a new code each time, revoking the last) and cancels before the event starts, a refund showing pending
-  until the provider answers. A signed-in buyer whose own verified account bought it reaches it without a link. Only a provider page
-  reached by address is supported here (not a posted hosted form). The five operations are POSTs in the deployment's token-write
+  until the provider answers. A signed-in buyer whose own verified account bought it reaches it without a link. The payment step
+  shows the amount due and Pay sends its key, so a price changed since is shown again, not charged. A provider page that takes a
+  posted form (Authorize.Net Accept Hosted) is reached through `/marketing/RegistrationRelay` (`getRegistrationPaymentForm`, a fresh
+  token each visit), the one Marketing route whose CSP adds `form-action https://accept.authorize.net https://test.authorize.net`; a
+  proxy or CDN must pass its own `Content-Security-Policy` through. The six operations are POSTs in the deployment's token-write
   list. Jobs: `run_EventRegistrations` (every two minutes: payment results, hold expiry, waitlist offers, refunds) and
   `run_EventRegistrationNotices` (every fifteen minutes).
 - **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi (`getMarketingEvent` a read,
