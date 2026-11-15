@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Page (design-marketing §8 LandingPages, §13.1; IronStone impl-marketing P14): a published landing page of the site's marketing
+    mount at pages/{route} (resolve#Route), the site page services' exact published version in its window through
+    getMarketingPage, with no store. Its text is clean HTML from the authority, sanitized again here (the theme's rich text rule:
+    no script, no event handler, no style), and each component it embeds is rendered through its own public operation: a list
+    offered on this site as a subscribe box posting to Subscribe (getMarketingPublication; the same request, consent box and
+    neutral receipt), a form publication open on this site as a card linking its SubmitForm page (getMarketingForm). A component
+    naming a list or form that is not offered here shows nothing. A draft, scheduled, withdrawn or unknown page is Not Found (404).
+    Plain HTML without JavaScript; the route keeps PASS's default headers (no-store, the shell's CSP).
+    Marketing P15 records a tracking code's visit here, through its own operation, once the page is read. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Page">
+  <parameter name="routePath"/>
+  <actions>
+    <script><![CDATA[
+        const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
+        const found=marketing.portal.attempt('getMarketingPage',{siteId:resolvedSiteId,routePath:String(routePath || ''),
+            locale:ec.user.locale ? String(ec.user.locale) : null})
+        if(found.error){
+            if(found.error.kind!=='NotFound')throw Object.assign(new Error(found.error.message),{moquiErrorKind:found.error.kind})
+            throw Object.assign(new Error('Page not found'),{moquiErrorKind:'NotFound'})
+        }
+        landingPage=found.result.page
+        marketingBase=passBases?.marketing ?? '/marketing'
+        // each part in order: the page's text sanitized again, or an embedded component the site offers now (else nothing)
+        landingParts=[]
+        for(const part of landingPage.parts || []){
+            if(part.kind==='html')landingParts.push({kind:'html',html:ec.resource.theme.sanitizeRichText(String(part.html || ''))})
+            else if(part.kind==='subscribe'){
+                const offer=marketing.portal.attempt('getMarketingPublication',{siteId:resolvedSiteId,contactListId:part.contactListId})
+                if(!offer.error && offer.result.topics.length)
+                    landingParts.push({kind:'subscribe',topic:offer.result.topics[0],organizationName:offer.result.organizationName,
+                        operationId:marketing.portal.operationId()})
+            }else if(part.kind==='form'){
+                const form=marketing.portal.attempt('getMarketingForm',{siteId:resolvedSiteId,publicationId:part.publicationId})
+                if(!form.error && form.result.form.publicationId)
+                    landingParts.push({kind:'form',publicationId:form.result.form.publicationId,title:form.result.form.title,
+                        intro:form.result.form.intro})
+            }
+        }
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/Page.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
