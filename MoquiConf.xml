@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- No copyright or license for configuration file, details here are not considered a creative work. -->
+<!-- PASS's own conf, loaded on the authority and on a remote frontend alike (IronStone impl-marketing P15, F55, F79): PASS Marketing's
+    tracking redirect and pixel, web scripts of mr-pass (not framework files: the framework names no Mantle service). Each declines the
+    session, runs as the anonymous request, sets nothing but the visitor key (a Set-Cookie header, where the authority says it may be
+    kept and the browser does not ask not to be tracked), reaches the authority only through PASS's facade and transport (in process,
+    REST or gRPC) by the two schema operations resolveTrackingLink and recordTrackingEvent, and answers the redirect or the image even
+    when recording fails; a destination never comes from the request. docs/Deployment.md "Marketing app: Tracking links". -->
+<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+    <webapp-list>
+        <webapp name="webroot">
+            <!-- a tracking link: /trk/{siteId}/{publicCode}, with a send's personalized ?token= (redacted from the request log) -->
+            <servlet name="PassTrackingRedirect" location="component://mr-pass/script/TrackingRedirect.js">
+                <url-pattern>/trk/*</url-pattern>
+            </servlet>
+            <!-- a send's open pixel: /trk-o/{siteId}?token= -->
+            <servlet name="PassTrackingPixel" location="component://mr-pass/script/TrackingPixel.js">
+                <url-pattern>/trk-o/*</url-pattern>
+            </servlet>
+            <!-- per client (on when the per-client web protection is); the authority keeps its own limit per client and code and per
+                site, over which a visitor is still redirected and nothing is recorded -->
+            <web-protection>
+                <rate-limit name="pass-tracking" path="/trk/**" methods="GET,HEAD" requests="60" seconds="60" burst="60"/>
+                <rate-limit name="pass-tracking-pixel" path="/trk-o/**" methods="GET,HEAD" requests="120" seconds="60" burst="120"/>
+            </web-protection>
+        </webapp>
+    </webapp-list>
+</moqui-conf>

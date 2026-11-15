@@ -4,7 +4,7 @@
 // embedded subscribe box shown for a list the site offers only; a draft page, an unknown route and a site without the mount are
 // not available alike. The operation is in both schema copies and route lists, a read (in no TOKEN_WRITES list). Mantle's
 // SitePages spec covers the storeless mount's staff rules; the acceptance test MarketingPagesHttp goes through a visitor's
-// subscription from the page.
+// subscription from the page. P15: a tracking link's code on the page's address (?tc=) records one page visit.
 const fx = ec.resource.script("component://mr-pass/test/Marketing/MarketingFixtures.js")
 const host = "landing.marketing.example.test"
 let ids
@@ -38,6 +38,21 @@ spec({
                 ].join("\n")
             )
         )
+        // P15: a tracking link of the site, whose code on the page's address records a page visit
+        const {make, system, row} = fx.lib
+        if (!row("mantle.marketing.tracking.TrackingCode", {trackingCodeId: "PMP_LINK"}))
+            system(() =>
+                make("mantle.marketing.tracking.TrackingCode", {
+                    trackingCodeId: "PMP_LINK",
+                    organizationPartyId: ids.org,
+                    siteId: ids.siteId,
+                    publicCode: "PmpPage0001",
+                    destinationKindEnumId: "TdkUrl",
+                    redirectUrl: "https://" + host + "/marketing/pages/spring",
+                    disabled: "N",
+                    fromDate: new Date(Date.now() - 86400000)
+                })
+            )
         logout()
     },
     cleanupSpec() {
@@ -46,7 +61,14 @@ spec({
 })
 feature("a published landing page is served with no store, its subscribe box for an offered list only; others not available", {
     when() {
-        const page = render("Marketing/Page", {routePath: "spring", publicPath: "/marketing/pages/spring"})
+        const page = render("Marketing/Page", {routePath: "spring", publicPath: "/marketing/pages/spring", tc: "PmpPage0001"})
+        const visits = Array.from(
+            ec.entity
+                .find("mantle.marketing.tracking.MarketingTrackingEvent")
+                .condition({trackingCodeId: "PMP_LINK"})
+                .disableAuthz()
+                .list()
+        )
         const route = ec.service
             .sync()
             .name("pass.RouteServices.resolve#Route")
@@ -58,11 +80,16 @@ feature("a published landing page is served with no store, its subscribe box for
             draft: fx.call("getMarketingPage", {siteId: ids.siteId, routePath: "summer"}),
             unknown: fx.call("getMarketingPage", {siteId: ids.siteId, routePath: "no-such-page"}),
             noMount: fx.call("getMarketingPage", {siteId: ids.siteNone, routePath: "spring"}),
-            published: fx.call("getMarketingPage", {siteId: ids.siteId, routePath: "spring"})
+            published: fx.call("getMarketingPage", {siteId: ids.siteId, routePath: "spring"}),
+            visits
         }
     },
-    then({page, route, draft, unknown, noMount, published}) {
+    then({page, route, draft, unknown, noMount, published, visits}) {
         page.errors.length === 0
+        // P15: the tracking code on the address recorded one page visit, with no key (the page sets none) and no party; the spec's
+        // render sends no browser's user agent, so it is marked a known automated fetch
+        visits.length === 1 && visits[0].eventKindEnumId === "MteVisit" && visits[0].automated === "Y"
+        !visits[0].visitorKeyHash && !visits[0].campaignRecipientId
         page.html.includes('id="LandingPage"') && page.html.includes("Spring sale") && page.html.includes("Plant now.")
         !page.html.includes("<script>alert") && !page.html.includes("onerror")
         // the page's own article: no script URL, data URL, SVG or style from its text

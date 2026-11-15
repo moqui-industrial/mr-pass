@@ -123,6 +123,9 @@ const TOKEN_WRITES = [
     // IronStone Marketing P12: a form's answer (anonymous for a public publication: PASS's request key, its limits and the neutral
     // receipt bound it; an invitation's link with input.token)
     'submitMarketingForm',
+    // IronStone Marketing P15: a tracking event of the redirect, the pixel or a page carrying a code (anonymous: the authority's limits
+    // per client and code and per site bound it, and its answer is the same; a personalized link's or pixel's input.token)
+    'recordTrackingEvent',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -225,6 +228,8 @@ function routeOf(operation, input) {
         operation !== 'requestSubscription' &&
         // IronStone Marketing P12: a visitor's answer to a public form has no token (PASS's request key and the authority's limits)
         operation !== 'submitMarketingForm' &&
+        // IronStone Marketing P15: a tracking event of a generic link or page has no token (the authority's limits bound it)
+        operation !== 'recordTrackingEvent' &&
         // a link's or cart's token, or (Shop P5) a checkout's return key or a guest's order link
         !(
             TOKEN_WRITES.includes(operation) &&

@@ -8,11 +8,15 @@
     neutral receipt), a form publication open on this site as a card linking its SubmitForm page (getMarketingForm). A component
     naming a list or form that is not offered here shows nothing. A draft, scheduled, withdrawn or unknown page is Not Found (404).
     Plain HTML without JavaScript; the route keeps PASS's default headers (no-store, the shell's CSP).
-    Marketing P15 records a tracking code's visit here, through its own operation, once the page is read. -->
+    Marketing P15: a page carrying a tracking link's code (?tc=, a printed or shared address) records a page visit through the tracking
+    capture's own operation (recordTrackingEvent: the authority checks the code is a link of this site, keeps the visitor key the browser
+    already holds only where its policy allows and the browser does not ask not to be tracked, and limits it), once the page is read;
+    the page sets no cookie and shows the same whatever is recorded. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Page">
   <parameter name="routePath"/>
+  <parameter name="tc"/>
   <actions>
     <script><![CDATA[
         const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
@@ -23,6 +27,14 @@
             throw Object.assign(new Error('Page not found'),{moquiErrorKind:'NotFound'})
         }
         landingPage=found.result.page
+        // P15: a tracking link's code on the page's address records one visit (never a click, a consent or a conversion)
+        const tracking=ec.resource.script('component://mr-pass/script/TrackingLib.js')
+        if(tc && tracking.codePattern.test(String(tc))){
+            const request=ec.web.request
+            const robot=tracking.automated(request)
+            tracking.attempt('recordTrackingEvent',{siteId:resolvedSiteId,code:String(tc),kind:robot ? 'visitFetch' : 'visit',
+                visitorKey:!robot && !tracking.doNotTrack(request) ? tracking.heldKey(request) : null})
+        }
         marketingBase=passBases?.marketing ?? '/marketing'
         // each part in order: the page's text sanitized again, or an embedded component the site offers now (else nothing)
         landingParts=[]
