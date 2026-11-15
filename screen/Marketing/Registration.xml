@@ -70,7 +70,8 @@
         }
         if(view && view.limited){view=null;failure=notAvailable}
         placeList=view?Array.from(view.places || []):[]
-        livePlaces=placeList.filter(p=>['EvrHeld','EvrPending','EvrConfirmed','EvrWaitlisted','EvrReview'].includes(p.statusId))
+        // the places the accepted terms' cancellation rule lets the buyer cancel online now (follow-up 1)
+        livePlaces=placeList.filter(p=>p.canCancel)
         operationId=marketing.portal.operationId()
         registerPath=String(publicPath).replace(/\/Registration$/,'/Register')
     ]]></script>

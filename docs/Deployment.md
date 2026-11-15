@@ -425,8 +425,10 @@ published confirmation template, and the site has a canonical host.
   where the organization's Sales approval setting is on, the registration showing "payment received, awaiting the organizer's
   confirmation" with no ticket until then. The reservation's capability is kept in the visitor's session; the receipt's link opens
   `/marketing/Registration?token=...` (read once into the session, the address then `?ref=`), where the buyer sees each place, shows a
-  confirmed place's entry code (a new code each time, revoking the last) and cancels before the event starts, a refund showing pending
-  until the provider answers. A signed-in buyer whose own verified account bought it reaches it without a link. The payment step
+  confirmed place's entry code (the same code as in the ticket; the organizer issues a new one when it is lost) and cancels as the
+  offer's cancellation rule allows (shown on Event, Register and Registration: until its deadline for its refund percentage, after it
+  with no refund only where the rule allows, never after the start), a refund showing pending until the provider answers. The order is
+  invoiced when it is approved, which captures its payment. A signed-in buyer whose own verified account bought it reaches it without a link. The payment step
   shows the amount due and Pay sends its key, so a price changed since is shown again, not charged. A provider page that takes a
   posted form (Authorize.Net Accept Hosted) is reached through `/marketing/RegistrationRelay` (`getRegistrationPaymentForm`, a fresh
   token each visit), the one Marketing route whose CSP adds `form-action https://accept.authorize.net https://test.authorize.net`; a

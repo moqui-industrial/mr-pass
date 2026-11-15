@@ -3,11 +3,13 @@
 // EventRegistrationPlaces.js): the Register page offers the tickets; a reservation's capability reads and cancels only its own
 // reservation, a forged one nothing; the answer names each place's attendee and state and never an answer, a code or anything
 // internal; a client's reservations past its limit are refused and hold no seat; the five operations are in both schema copies and
-// route lists and in the three TOKEN_WRITES lists alike. Mantle's EventRegistrations spec covers the holds, payment, order and
-// refunds.
+// route lists and in the three TOKEN_WRITES lists alike. Follow-up 1: the answer states the cancellation rule of the accepted terms,
+// and past its deadline cancelRegistration is refused (CANCELLATION_CLOSED) with nothing changed. Mantle's EventRegistrations spec
+// covers the holds, payment, order, capture, refunds and entry codes.
 const fx = ec.resource.script("component://mr-pass/test/Marketing/MarketingFixtures.js")
 const host = "register.marketing.example.test"
 let ids, offer
+let firstToken = null
 let keys = 0
 const key = () => "PMRk" + ++keys + "x" + Math.floor(Math.random() * 1e9)
 const reserve = (quantity, email) =>
@@ -50,6 +52,7 @@ feature(
                     null
                 )
             const first = reserve(2, "first@register.example.test")
+            firstToken = first.token
             const second = reserve(1, "second@register.example.test")
             const completed = fx.call("completeRegistration", {
                 siteId: ids.siteId,
@@ -92,7 +95,7 @@ feature(
             r.own.registration.places.every(
                 place =>
                     Object.keys(place).sort().join() ==
-                    "attendeeName,canShowCode,refundText,registrationId,stateText,statusId,ticketName"
+                    "attendeeName,canCancel,canShowCode,refundText,registrationId,stateText,statusId,ticketName"
             )
             !JSON.stringify(r.own).includes("formResponse") &&
                 !JSON.stringify(r.own).includes("credential") &&
@@ -102,6 +105,38 @@ feature(
             new Set([r.forged.error, r.elsewhere.error, r.wrongKey.error]).size == 1
             r.firstAfter.registration.state == "confirmed"
             r.cancelOther.registration.reference == r.second.registration.reference
+        }
+    }
+)
+feature(
+    "the answer states the accepted terms' cancellation rule; past its deadline a cancellation is refused and changes nothing",
+    {
+        when() {
+            const before = fx.call("getRegistration", {siteId: ids.siteId, token: firstToken})
+            // the accepted revision's rule moved: cancellation closes 200 hours before the start (five days on), so it has closed
+            ec.service
+                .sync()
+                .name("update#mantle.work.registration.EventRegistrationTerms")
+                .parameters({registrationPolicyId: offer.offer, termsRevision: 0, cancelDeadlineHours: 200, refundPercent: 50})
+                .disableAuthz()
+                .call()
+            const closed = fx.call("getRegistration", {siteId: ids.siteId, token: firstToken})
+            const refused = fx.call("cancelRegistration", {
+                siteId: ids.siteId,
+                token: firstToken,
+                confirm: "Y",
+                operationId: key()
+            })
+            const after = fx.call("getRegistration", {siteId: ids.siteId, token: firstToken})
+            return {before, closed, refused, after}
+        },
+        then(r) {
+            r.before.registration.canCancel == true && r.before.registration.cancelRule.includes("until the event starts")
+            r.closed.registration.canCancel == false && r.closed.registration.places.every(place => !place.canCancel)
+            r.closed.registration.cancelRule.includes("up to 200 hours before") &&
+                r.closed.registration.cancelRule.includes("50%")
+            r.refused.kind == "Conflict" && r.refused.error.includes("CANCELLATION_CLOSED")
+            r.after.registration.places.every(place => place.statusId == "EvrConfirmed")
         }
     }
 )
