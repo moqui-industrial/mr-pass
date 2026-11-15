@@ -7,7 +7,7 @@
 const token = name => ("PASS_HTTP_SO" + name + "0".repeat(48)).slice(0, 48)
 const BASE = "http://127.0.0.1:" + server.port
 const overflow = page => page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
-const orderId = text => (/Order (\S+)/.exec(text) || [])[1] || null
+const orderId = text => (/Order ([^\s<]+)/.exec(text) || [])[1] || null
 const operationId = () => "op" + Date.now() + Math.floor(Math.random() * 1e6)
 feature("the confirmation's link at 390 px shows the order, its tracking and its open invoice, and no form", {
     when() {
