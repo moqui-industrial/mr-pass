@@ -7,8 +7,9 @@
       the reservation's capability is kept in the session, never in an address;
     - RegistrationAnswers (?ref=): each attendee's name (and optional address), the offer's questions (each attendee's or the buyer's
       once) and the terms to accept (completeRegistration); a free registration is confirmed here;
-    - RegistrationPayment: the amount after its hold ends, and Pay (startRegistrationPayment), which sends the payer to the payment
-      provider's page; the provider returns to ?ref=&key= and the page reads the verified result, never the browser's claim;
+    - RegistrationPayment: when the hold ends and the amount due (the tickets' prices now, before tax), and Pay
+      (startRegistrationPayment with that amount's key, so a price changed since is shown again rather than charged), which sends the
+      payer to the payment provider's page; the provider returns to ?ref=&key= and the page reads the verified result, never the browser's claim;
     - RegistrationReceipt: the opaque reference and the state (confirmed, payment received and awaiting the organizer's confirmation,
       waitlisted, under review), with the link to the registration's page.
     An unknown, draft, closed or past offer and a lost or another site's reservation show the same "not available". Plain HTML
@@ -72,7 +73,7 @@
         const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
         const page=marketing.base(publicPath,'pay')
         const ref=marketing.param('ref')
-        const out=reg.call('startRegistrationPayment',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{operationId:marketing.param('operationId')})
+        const out=reg.call('startRegistrationPayment',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{priceKey:marketing.param('priceKey'),operationId:marketing.param('operationId')})
         const redirectUrl=out.result?.payment?.provider?.redirectUrl
         // the provider's own page (an https address or a path of this site); anything else stays here with the state
         if(redirectUrl && /^(https:\/\/|\/(?!\/))/.test(redirectUrl))ec.web.response.sendRedirect(redirectUrl)
