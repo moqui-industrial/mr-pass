@@ -14,13 +14,17 @@ function answer(request, response) {
     const [siteId, code] = parts
     const token = lib.tokenOf(request)
     const resolved = lib.attempt('resolveTrackingLink', { siteId, code, token })
-    if (!resolved) return lib.neutral(response)
-    const robot = lib.automated(request)
-    const visitorKey = lib.visitorKey(request, response, resolved.visitorKeys === true)
-    lib.attempt('recordTrackingEvent', { siteId, code, token, visitorKey, kind: robot ? 'fetch' : 'click' })
-    const destination = typeof resolved.destination === 'string' ? resolved.destination : ''
-    if (/^https:\/\/[^\s]+$/.test(destination)) response.sendRedirect(destination)
-    else lib.neutral(response)
+    const destination = resolved && typeof resolved.destination === 'string' ? resolved.destination : ''
+    // no destination (an unknown code, or a disabled or ended link with no safe destination): the same neutral page, with no
+    // cookie and nothing recorded, so the answer does not tell them apart
+    if (!/^https:\/\/[^\s]+$/.test(destination)) return lib.neutral(response)
+    // a current link's click is recorded (a disabled or ended one's safe destination counts nothing and sets no key)
+    if (resolved.available === true) {
+        const robot = lib.automated(request)
+        const visitorKey = lib.visitorKey(request, response, resolved.visitorKeys === true)
+        lib.attempt('recordTrackingEvent', { siteId, code, token, visitorKey, kind: robot ? 'fetch' : 'click' })
+    }
+    response.sendRedirect(destination)
 }
 ;({
     doGet(request, response) {

@@ -96,6 +96,21 @@ spec({
                         fromDate: ago
                     })
             })
+        // P15 review: a disabled link with no safe destination
+        if (!row("mantle.marketing.tracking.TrackingCode", {trackingCodeId: "PMT_OFF"}))
+            system(() =>
+                make("mantle.marketing.tracking.TrackingCode", {
+                    trackingCodeId: "PMT_OFF",
+                    marketingCampaignId: "PMT_CAMPAIGN",
+                    organizationPartyId: ids.org,
+                    siteId: ids.siteId,
+                    publicCode: "PmtOff00001",
+                    destinationKindEnumId: "TdkUrl",
+                    redirectUrl: "https://" + host + "/marketing/Subscribe",
+                    disabled: "Y",
+                    fromDate: new Date(Date.now() - 86400000)
+                })
+            )
         setProperty("pass_client_" + CLIENT + "_secret", "pass-mkt-track-secret")
         setProperty("pass_client_" + CLIENT + "_sites", ids.siteId)
     },
@@ -174,7 +189,18 @@ feature(
             const unknown = hit(redirect(), "/" + ids.siteId + "/NoSuchCode1", {headers: browser})
             const otherSite = hit(redirect(), "/" + ids.siteNone + "/PmtLink0001", {headers: browser})
             const malformed = hit(redirect(), "/" + ids.siteId + "/https:/evil.example.test", {headers: browser})
-            return {named, refused, unknown, otherSite, malformed, added: eventsOf("PMT_LINK").length - before}
+            // a disabled link with no safe destination answers as an unknown code: the neutral page, no cookie, nothing recorded
+            const off = hit(redirect(), "/" + ids.siteId + "/PmtOff00001", {headers: browser})
+            return {
+                named,
+                refused,
+                unknown,
+                otherSite,
+                malformed,
+                off,
+                offEvents: eventsOf("PMT_OFF").length,
+                added: eventsOf("PMT_LINK").length - before
+            }
         },
         then(r) {
             r.named.status == 302 &&
@@ -184,6 +210,8 @@ feature(
             r.unknown.status == 404 && r.unknown.location == null && r.unknown.body.includes("This link is not available")
             r.otherSite.status == 404 && r.otherSite.location == null && r.malformed.status == 404
             !r.unknown.body.includes("NoSuchCode1")
+            r.off.status == 404 && r.off.location == null && r.off.added.length == 0 && r.off.body == r.unknown.body
+            r.offEvents == 0 && r.unknown.added.length == 0
             r.added == 1
         }
     }
