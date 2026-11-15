@@ -5,7 +5,9 @@
 // internal; a client's reservations past its limit are refused and hold no seat; the five operations are in both schema copies and
 // route lists and in the three TOKEN_WRITES lists alike. Follow-up 1: the answer states the cancellation rule of the accepted terms,
 // and past its deadline cancelRegistration is refused (CANCELLATION_CLOSED) with nothing changed. Mantle's EventRegistrations spec
-// covers the holds, payment, order, capture, refunds and entry codes.
+// covers the holds, payment, order, capture, refunds and entry codes. Follow-up 5: Register's payment start sends the browser's visitor
+// key (TrackingLib checkoutKeyInput: the held mkt_vk cookie of the key's form, never under Do Not Track or Global Privacy Control),
+// and the facade admits it on startRegistrationPayment (Mantle's EventRegistrations covers what the authority keeps).
 const fx = ec.resource.script("component://mr-pass/test/Marketing/MarketingFixtures.js")
 const host = "register.marketing.example.test"
 let ids, offer
@@ -193,5 +195,40 @@ feature("the operations are in both schema copies and route lists, and in the th
         written && same
         headers.policyOf("marketing", "/RegistrationRelay", false).formAction.includes("https://accept.authorize.net")
         headers.policyOf("marketing", "/Register", false).formAction.length == 0
+    }
+})
+feature("follow-up 5: the payment start sends the held visitor key, never under Do Not Track or GPC; the facade admits it", {
+    when() {
+        const tracking = ec.resource.script("component://mr-pass/script/TrackingLib.js")
+        const held = "PmrVisitorKey_0123456789abcd"
+        const request = (headers = {}, cookies = [{name: "mkt_vk", value: held}]) => ({
+            getHeader: name => headers[String(name).toLowerCase()] ?? null,
+            getCookies: () => cookies
+        })
+        const inputs = {
+            held: tracking.checkoutKeyInput(request()),
+            dnt: tracking.checkoutKeyInput(request({dnt: "1"})),
+            gpc: tracking.checkoutKeyInput(request({"sec-gpc": "1"})),
+            malformed: tracking.checkoutKeyInput(request({}, [{name: "mkt_vk", value: "short"}])),
+            other: tracking.checkoutKeyInput(request({}, [{name: "session", value: held}])),
+            none: tracking.checkoutKeyInput(null)
+        }
+        // through the facade with the key: the authority answers the first (free, confirmed) reservation, never "Unsupported"
+        const started = fx.call("startRegistrationPayment", {
+            siteId: ids.siteId,
+            token: firstToken,
+            priceKey: "PmrPriceKey0001",
+            operationId: key(),
+            visitorKey: held
+        })
+        const empty = [inputs.dnt, inputs.gpc, inputs.malformed, inputs.other, inputs.none].every(
+            input => Object.keys(input).length == 0
+        )
+        return {held, inputs, empty, started}
+    },
+    then({held, inputs, empty, started}) {
+        inputs.held.visitorKey == held && Object.keys(inputs.held).join() == "visitorKey"
+        empty
+        !!started.kind && !started.error.includes("Unsupported")
     }
 })

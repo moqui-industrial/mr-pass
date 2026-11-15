@@ -38,6 +38,14 @@ function heldKey(request) {
         if (cookie.name === COOKIE && keyPattern.test(String(cookie.value))) return String(cookie.value)
     return null
 }
+/* The visitor key a checkout sends with its submit (Shop's submitCheckout, follow-up 4; Register's startRegistrationPayment,
+   follow-up 5) so the authority may keep its digest with the order for attribution: the one this browser holds (set by a tracking
+   link only where the seller's policy or the recipient's consent allows it), as an input field, or none when there is no request or
+   the browser asks not to be tracked. The authority decides whether it is kept; nothing new is set here. */
+function checkoutKeyInput(request) {
+    const key = request && !doNotTrack(request) ? heldKey(request) : null
+    return key ? { visitorKey: key } : {}
+}
 /* The visitor key to send with an event: the one held, or a new one set by a Set-Cookie header, when the authority says a key may be
    kept and the browser does not ask not to be tracked and the request is not automated; else null and no cookie. */
 function visitorKey(request, response, allowed) {
@@ -83,4 +91,18 @@ function neutral(response) {
             '<p>It may have ended, or the address may be mistyped.</p></body></html>',
     )
 }
-;({ COOKIE, sitePattern, codePattern, pathParts, tokenOf, automated, doNotTrack, visitorKey, privateHeaders, attempt, neutral, heldKey })
+;({
+    COOKIE,
+    sitePattern,
+    codePattern,
+    pathParts,
+    tokenOf,
+    automated,
+    doNotTrack,
+    visitorKey,
+    privateHeaders,
+    attempt,
+    neutral,
+    heldKey,
+    checkoutKeyInput,
+})
