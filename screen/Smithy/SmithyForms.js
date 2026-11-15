@@ -1896,6 +1896,15 @@ const PREVIEWED = ["createIssue", "publishPost", "updatePost", "setIssueConfiden
 const SECRET = ["password", "code", "secret", "confirmPath", "value", "token"]
 /* The addresses kept for the next page without a user part (a mirror's, and DG10 an environment's target and clone). */
 const ADDRESSES = ["url", "targetUrl", "cloneUrl"]
+/* An address as it is kept: with an @ anywhere, everything to the last @ goes, after a scheme with its slashes when it
+ * has one (https://, https:/), so no form of a user part (user:pw@host, https:/u:pw@host, a / or another @ in the
+ * password) is kept; leading space is trimmed first. */
+function addressKept(text) {
+    const t = String(text).trimStart()
+    if (!t.includes("@")) return t
+    const scheme = /^[A-Za-z][A-Za-z0-9+.-]*:\/+/.exec(t)?.[0] || ""
+    return scheme + t.slice(t.lastIndexOf("@") + 1)
+}
 /* An operation's input from the posted form, by its entry of DO; and what was typed, to show again after a refusal. */
 function inputOf(spec) {
     const parameters = ec.web.parameters
@@ -1912,9 +1921,7 @@ function inputOf(spec) {
     const keep = (name, value) => {
         if (SECRET.includes(name) || (spec.notKept || []).includes(name) || value == null) return
         const text = String(value).slice(0, name === "content" ? 2000000 : name === "body" ? 100000 : 4000)
-        // leading space is trimmed first, so " https://user:secret@host" keeps no user part either; everything to the
-        // last @ goes, so a / or another @ in the password ("https://u:pa/ss@host") is not kept either
-        typed[name] = ADDRESSES.includes(name) ? text.trimStart().replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/).*@/, "$1") : text
+        typed[name] = ADDRESSES.includes(name) ? addressKept(text) : text
     }
     for (const name of spec.fields || [])
         if (posted.has(name)) {

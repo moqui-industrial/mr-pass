@@ -791,10 +791,9 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
     if (param("confirm") === "refuse" && caps.canDecide && waiting) {
         const f = formOf(c, "decideDeploy", "refuse")
         return {
-            html: h`${head}${open(c, f, {title: "Refuse the deployment to " + target, returnTo: page + "?confirm=refuse", successTo: page})}<p>This refuses the deployment of ${what} to ${target}. Nothing is deployed, and deploying it later takes a new request.</p><p>Who asked for it is told, with your reason.</p>${Object.entries(
+            html: h`${head}${open(c, f, {title: "Refuse the deployment to " + target, returnTo: page + "?confirm=refuse", successTo: page})}<p>This refuses the deployment of ${what} to ${target}. Nothing is deployed, and deploying it later takes a new request.</p><p>Who asked for it is told that it was refused. Your reason is kept in the repository's audit, for its Maintainers.</p>${Object.entries(
                 fields
-            ).map(([field, value]) => hidden(field, value))}${hidden("decision", "refuse")}${hidden("confirm", "yes")}${textarea(f, "reason", "Reason", {
-                required: true,
+            ).map(([field, value]) => hidden(field, value))}${hidden("decision", "refuse")}${hidden("confirm", "yes")}${textarea(f, "reason", "Reason (optional)", {
                 maxlength: 1000
             })}<p><button>Refuse the deployment</button> <a href="${page}">Back</a></p></form>`.html
         }
@@ -820,7 +819,17 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
     const actions = caps.canCancel
         ? h`<p class="card" id="SmithyDeployActions"><a href="${page}?confirm=cancel" id="SmithyDeployCancel">Cancel the deployment</a></p>`
         : ""
-    return {html: h`${head}${approval}${actions}${stepsHtml}${deployResult(pu, d.result)}`.html}
+    // a refused Approve, Refuse or Cancel whose form this page no longer shows (another Maintainer decided first, the
+    // deployment moved on): its refusal is shown here; Approve's own form shows its refusal where it is still there
+    const approveShown = waiting && caps.canDecide
+    const refusals = [
+        ...(approveShown ? [] : [formOf(c, "decideDeploy", "approve")]),
+        formOf(c, "decideDeploy", "refuse"),
+        formOf(c, "cancelDeploy")
+    ]
+        .filter(f => f.error)
+        .map(f => h`<p role="alert" class="card error" id="${f.id}_error">${f.error.message}</p>`)
+    return {html: h`${head}${refusals}${approval}${actions}${stepsHtml}${deployResult(pu, d.result)}`.html}
 }
 
 /* The pools, the approval of outside runs and the month's runner minutes of a group or a repository (getPipelineSettings),
@@ -1045,9 +1054,10 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
                 value: env?.targetUrl || "",
                 was: true,
                 maxlength: 2000,
-                pattern: "https://[^@\\s]+",
+                // https, or http to a loopback IP literal (the framework's rule)
+                pattern: "https://[^@\\s]+|http://127\\.0\\.0\\.1(:[0-9]+)?(/.*)?|http://\\[::1\\](:[0-9]+)?(/.*)?",
                 autocomplete: "off",
-                hint: "The instance it deploys to: an https address, with no user or password in it."
+                hint: "The instance it deploys to: an https address (or http to 127.0.0.1 or [::1]), with no user or password in it."
             }
         )}${input(f, "token", "Target token", {
             type: "password",
@@ -1086,7 +1096,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
             : "None yet"
         return h`<article class="card smithy-row" id="SmithyEnvironment_${env.environmentId}"><h3 class="wrap">${env.name}${
             env.approvalFor === "every" ? h` <small class="smithy-chip">Approval required</small>` : ""
-        }</h3><dl class="wrap"><dt>Target</dt><dd>${env.targetUrl ? plain(env.targetUrl) : "None"}</dd><dt>Token</dt><dd>${
+        }</h3><dl class="wrap"><dt>Target</dt><dd>${env.targetUrl ? plain(env.targetUrl) : environments.canChange ? "None" : "Hidden"}</dd><dt>Token</dt><dd>${
             env.hasToken ? "Set (not shown)" : "None"
         }</dd><dt>Required pipeline</dt><dd>${env.requiredPipeline ? plain(env.requiredPipeline) : "None"}</dd><dt>Approval</dt><dd>${
             env.approvalFor === "every"
@@ -1095,7 +1105,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
         }</dd><dt>Data types</dt><dd>${
             (env.dataTypes || []).length ? env.dataTypes.map(plain).join(", ") : "The target's defaults"
         }</dd><dt>Branches allowed</dt><dd>${env.allowedRefs ? plain(env.allowedRefs) : "Protected branches only"}</dd><dt>Clone URL</dt><dd>${
-            env.cloneUrl ? plain(env.cloneUrl) : "The repository's clone address"
+            env.cloneUrl ? plain(env.cloneUrl) : environments.canChange ? "The repository's clone address" : "Hidden"
         }</dd><dt>Last deployment</dt><dd>${last}</dd></dl>${
             environments.canChange && !closed
                 ? h`<details${attributes({open: !!f.error})}><summary>Edit</summary>${open(c, f, {plain: true})}${common}${hidden("environmentId", env.environmentId)}${envFields(

@@ -1,43 +1,24 @@
 // Smithy's deploy environments and deployments (Dogfood DG10; plan/design-smithy.md §10 "Deploy environments", §11 Pipelines):
 // an environment's target stored through Smithy/Do and shown on the Settings › Pipelines tab through its page function, its
-// token in no page, address or flash, after a refusal too; one render of Deployments (the list and Request deploy) and one
-// of DeploymentDetail (the steps with the run linked, Approve and Refuse for an approver, Cancel, the authority's message
-// escaped); access through the page functions (a Reporter has no Request deploy, a Developer no Approve, an account with no
-// role Not Found on a private repository's deployment); and Refuse and Cancel refused through Smithy/Do without their
-// confirmation page's answer, Refuse with it. The deployments are rows made here, since a spec cannot play the engine's
-// runner; the routes are in Smithy's spec, and Mantle's SmithyDeployments covers the rules behind the operations.
+// token in no page, address or flash and an address kept without its user part after a refusal; one render of Deployments
+// (the list and Request deploy, whose post goes to the new deployment's page) and one of DeploymentDetail (the steps with
+// the run linked, Approve and Refuse for an approver, Cancel, the authority's message escaped, a refusal whose form the
+// page does not show); and Refuse and Cancel refused through Smithy/Do without their confirmation page's answer, Refuse
+// with it. The deployment shown is a row made here, since a spec cannot play the engine's runner; the routes are in
+// Smithy's spec, and Mantle's SmithyDeployments covers the rules behind the operations (who reads, decides and cancels).
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_DEPLOY"
 const HOST = "smithy-deploy.example.test"
 const DEV = "pass.smd.dev"
-const REPORTER = "pass.smd.reporter"
-const STRANGER = "pass.smd.stranger"
 const TOKEN = "smd-target-token-0123456789abcdef"
 const R = "/code/pass-smd/deploy"
 const BASES = {smithy: "/code", account: "/account"}
 const INFO = {authenticated: true, site: {}, profile: {}}
 const s = {}
-const as = (username, work) => {
-    login(username, "moqui1!!")
-    try {
-        return work()
-    } finally {
-        login("john.doe")
-    }
-}
 const scripts = () => ({
     smithy: ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js"),
     pipelines: ec.resource.script("component://mr-pass/screen/Smithy/SmithyPipelines.js")
 })
-/* A page function's html, or the kind of its refusal. */
-const pageOf = work => {
-    try {
-        return work().html
-    } catch (error) {
-        ec.message.clearErrors()
-        return "refused:" + (error.moquiErrorKind || String(error.message))
-    }
-}
 /* Rows written in a transaction of their own, so the engine's moves (each in its own) read them. */
 const committed = work => ec.transaction.runRequireNew(null, "Smithy deploy spec rows", work)
 const userIdOf = username => ec.entity.find("moqui.security.UserAccount").condition("username", username).disableAuthz().one().userId
@@ -53,8 +34,6 @@ spec({
         s.commit = made.commitId
         f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "Y"})
         f.account(SITE, DEV, {confirmed: true, handle: "smddev", role: "SmrDeveloper", repositoryId: s.repo})
-        f.account(SITE, REPORTER, {confirmed: true, role: "SmrReporter", repositoryId: s.repo})
-        f.account(SITE, STRANGER, {confirmed: true})
     },
     cleanup() {
         login("john.doe")
@@ -84,12 +63,14 @@ feature("an environment's target is stored through Do and listed on Settings ›
             operationId: ec.user.randomString(32),
             returnTo: tab
         })
-        // refused (a name with a space), with a user part in the target's address: neither the token nor the user part kept
+        // refused (a name with a space), with a user part in the addresses (one with no scheme): neither the token nor a user
+        // part kept
         const refused = f.post(SITE, HOST, "storeCiEnvironment", {
             repositoryId: s.repo,
             environmentId: "",
             name: "bad name!",
-            targetUrl: "https://someone:pw@deploy.smd.example.com",
+            targetUrl: "someone:pw@deploy.smd.example.com",
+            cloneUrl: " https://someone:pw@git.smd.example.com/deploy.git",
             token: TOKEN,
             operationId: ec.user.randomString(32),
             returnTo: tab
@@ -111,7 +92,8 @@ feature("an environment's target is stored through Do and listed on Settings ›
         !!refused.flash.error
         refused.flash.values.name === "bad name!"
         !Object.hasOwn(refused.flash.values, "token")
-        refused.flash.values.targetUrl === "https://deploy.smd.example.com"
+        refused.flash.values.targetUrl === "deploy.smd.example.com"
+        refused.flash.values.cloneUrl === "https://git.smd.example.com/deploy.git"
         !JSON.stringify(refused).includes(TOKEN)
         !JSON.stringify(refused).includes("someone:pw")
         // the list: the target, the token set but not shown, the pipeline, the approval; the edit form's token field empty
@@ -130,9 +112,9 @@ feature("an environment's target is stored through Do and listed on Settings ›
         unasked.flash.error.message === "Confirm this change on its own page first."
     }
 })
-feature("Deployments lists a repository's deployments with Request deploy for who may deploy; a Reporter has none", {
+feature("Deployments lists a repository's deployments with Request deploy, which goes to the new deployment's page", {
     when() {
-        const {smithy, pipelines} = scripts()
+        const f = fixtures()
         const now = ec.user.nowTimestamp
         s.deploymentId = "PSMD_DEP1"
         committed(() => {
@@ -151,13 +133,16 @@ feature("Deployments lists a repository's deployments with Request deploy for wh
                 errorText: "<script>alert(1)</script> waits",
                 createdDate: now
             }).disableAuthz().call()
+            // runner minutes, so a request is not refused for its quota
+            ec.service.sync().name("update#mantle.smithy.SmithyGroup").parameters({groupId: s.group, runnerMinutesMonthly: 1000}).disableAuthz().call()
         })
-        const page = fixtures().render(SITE, HOST, R + "/-/pipelines/deployments", "Smithy/RepositoryDetail/Deployments", {repositoryId: s.repo, namePath: "pass-smd/deploy"})
+        const page = f.render(SITE, HOST, R + "/-/pipelines/deployments", "Smithy/RepositoryDetail/Deployments", {repositoryId: s.repo, namePath: "pass-smd/deploy"})
+        // the commit has no ci.xml, so the deployment fails at once; it is made all the same, and the form goes to its page
         const list = R + "/-/pipelines/deployments"
-        const reporter = as(REPORTER, () => pageOf(() => pipelines.deployments(smithy.repositoryShell(SITE, s.repo, "/code", list), BASES, INFO, list)))
-        return {page, html: page.html, reporter}
+        const requested = f.post(SITE, HOST, "requestDeploy", {repositoryId: s.repo, environmentId: s.environmentId, refName: "main", operationId: ec.user.randomString(32), returnTo: list})
+        return {page, html: page.html, requested}
     },
-    then({page, html, reporter}) {
+    then({page, html, requested}) {
         page.errors.length === 0
         page.header("Cache-Control") === "no-store"
         html.includes('aria-current="page">Pipelines</a>')
@@ -170,22 +155,22 @@ feature("Deployments lists a repository's deployments with Request deploy for wh
         html.includes('id="Smithy_requestDeploy"')
         html.includes('<option value="' + s.environmentId + '">demo (a Maintainer approves each deployment)</option>')
         html.includes('name="refName" value="main"')
-        // a Reporter has no form (and, where the read is a Developer's, no list)
-        !reporter.includes("Smithy_requestDeploy")
+        requested.status === 303
+        new RegExp("^" + R + "/-/pipelines/deployments/[A-Za-z0-9_-]+$").test(requested.location)
+        requested.location !== R + "/-/pipelines/deployments/PSMD_DEP1"
+        requested.flash.notice.startsWith("The deployment did not start")
     }
 })
-feature("DeploymentDetail shows the steps with the run linked and the approver's forms; a Developer has no Approve, an account with no role Not Found; Refuse and Cancel ask again", {
+feature("DeploymentDetail shows the steps with the run linked, the approver's forms and a refusal whose form is not on the page; Refuse and Cancel ask again", {
     when() {
         const f = fixtures()
-        const {smithy, pipelines} = scripts()
+        const {pipelines} = scripts()
         const self = R + "/-/pipelines/deployments/" + s.deploymentId
-        const page = f.render(SITE, HOST, self, "Smithy/DeploymentDetail", {repositoryId: s.repo, namePath: "pass-smd/deploy", deploymentId: s.deploymentId})
-        const detail = () => pageOf(() => pipelines.deploymentPage(smithy.repositoryShell(SITE, s.repo, "/code", self), s.deploymentId, BASES, INFO, self))
-        const developer = as(DEV, detail)
-        const stranger = as(STRANGER, detail)
         const key = {repositoryId: s.repo, deploymentId: s.deploymentId, returnTo: self}
         const refuseUnasked = f.post(SITE, HOST, "decideDeploy", {...key, decision: "refuse", reason: "Not today"})
-        const cancelUnasked = f.post(SITE, HOST, "cancelDeploy", key)
+        // Cancel without its page's answer, its refusal left for the page, which has no Cancel form of its own
+        const cancelUnasked = f.post(SITE, HOST, "cancelDeploy", key, true, true)
+        const page = f.render(SITE, HOST, self, "Smithy/DeploymentDetail", {repositoryId: s.repo, namePath: "pass-smd/deploy", deploymentId: s.deploymentId})
         const before = f.operation("getDeployment", {siteId: SITE, repositoryId: s.repo, deploymentId: s.deploymentId}).deployment?.state
         const refused = f.post(SITE, HOST, "decideDeploy", {...key, decision: "refuse", reason: "Not today", confirm: "yes", returnTo: self + "?confirm=refuse", successTo: self})
         const after = f.operation("getDeployment", {siteId: SITE, repositoryId: s.repo, deploymentId: s.deploymentId}).deployment?.state
@@ -194,9 +179,9 @@ feature("DeploymentDetail shows the steps with the run linked and the approver's
             .deploySteps({state: "failed", startedAt: 1, approvedBy: "x"}, true)
             .map(step => step.mark)
             .join(" ")
-        return {page, html: page.html, developer, stranger, refuseUnasked, cancelUnasked, before, refused, after, failed}
+        return {page, html: page.html, refuseUnasked, cancelUnasked, before, refused, after, failed}
     },
-    then({page, html, developer, stranger, refuseUnasked, cancelUnasked, before, refused, after, failed}) {
+    then({page, html, refuseUnasked, cancelUnasked, before, refused, after, failed}) {
         page.errors.length === 0
         page.header("Cache-Control") === "no-store"
         html.includes("<h2>Deployment to demo</h2>")
@@ -213,12 +198,7 @@ feature("DeploymentDetail shows the steps with the run linked and the approver's
         html.includes('<input type="hidden" name="decision" value="approve">')
         html.includes('href="' + R + '/-/pipelines/deployments/PSMD_DEP1?confirm=refuse"')
         html.includes('href="' + R + '/-/pipelines/deployments/PSMD_DEP1?confirm=cancel"')
-        // the Developer who asked: no Approve, but Cancel of their own
-        !developer.startsWith("refused:")
-        !developer.includes("decideDeploy")
-        developer.includes("A Maintainer of this repository other than who asked decides it.")
-        developer.includes("?confirm=cancel")
-        stranger === "refused:NotFound"
+        html.includes('<p role="alert" class="card error" id="Smithy_cancelDeploy_error">Confirm this change on its own page first.</p>')
         refuseUnasked.flash.error.message === "Confirm this change on its own page first."
         cancelUnasked.flash.error.message === "Confirm this change on its own page first."
         before === "waiting-approval"
