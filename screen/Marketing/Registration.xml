@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Registration (design-marketing §13 Registration; IronStone impl-marketing P17): MyRegistration and CancelRegistration for a
+    reservation reached by its capability (the link in the receipt or ticket: ?token=, kept in the session and the address replaced
+    by ?ref=) or by the signed-in buyer's own verified account (?ref=): the event, each place's attendee, ticket and state, the payment
+    and any refund pending, the terms accepted, the link to join an online event for a confirmed place only; Show my entry code
+    (getRegistration with showTicket and a fresh request key) issues a new code for one confirmed place, shown once with its QR and
+    revoking the earlier one. A place whose paid order awaits the organizer's approval shows "payment received, awaiting the
+    organizer's confirmation" with no code or link. Cancel (cancelRegistration) asks for confirmation and a request key; a paid
+    place's refund shows pending until the provider's result. Another attendee's answers are never shown. An unknown, expired or
+    another site's capability shows the same "not available". Plain HTML. -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Registration">
+  <transition name="showTicket" method="post">
+    <actions>
+      <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        const page=marketing.base(publicPath,'showTicket')
+        const ref=marketing.param('ref')
+        const out=reg.call('getRegistration',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{showTicket:marketing.param('registrationId'),
+            operationId:marketing.param('operationId')})
+        if(out.result?.registration?.ticket)reg.keepTicket(out.result.registration.ticket)
+        reg.back(page,{ref},out.error || null)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="cancel" method="post">
+    <actions>
+      <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        const page=marketing.base(publicPath,'cancel')
+        const ref=marketing.param('ref')
+        const out=reg.call('cancelRegistration',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{registrationIds:marketing.params('registrationId'),
+            reason:marketing.param('reason'),confirm:marketing.param('confirm'),operationId:marketing.param('operationId')})
+        reg.back(page,{ref},out.error || null)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <pre-actions>
+    <script><![CDATA[
+        // a link's token is read once, kept in the session, and the address replaced by the reservation's reference
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        const token=marketing.param('token')
+        if(token){
+            const found=reg.call('getRegistration',resolvedSiteId,{token},{})
+            if(found.result){
+                reg.keep(resolvedSiteId,found.result.registration.reference,token)
+                sri.sendRedirectAndStopRender(String(publicPath)+marketing.query({ref:found.result.registration.reference}))
+            }
+        }
+    ]]></script>
+  </pre-actions>
+  <actions>
+    <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        flash=marketing.take()
+        ticket=reg.takeTicket()
+        const ref=marketing.param('ref')
+        view=null;failure=null
+        const notAvailable={kind:'NotFound',message:'This registration is not available. The link may have expired: open the latest one from your email.'}
+        const reach=ref?reg.reachOf(resolvedSiteId,ref,null):null
+        if(!reach)failure=notAvailable
+        else{
+            const found=reg.call('getRegistration',resolvedSiteId,reach,{})
+            if(found.error)failure=found.error.kind==='NotFound'?notAvailable:found.error
+            else view=found.result.registration
+        }
+        if(view && view.limited){view=null;failure=notAvailable}
+        placeList=view?Array.from(view.places || []):[]
+        livePlaces=placeList.filter(p=>['EvrHeld','EvrPending','EvrConfirmed','EvrWaitlisted','EvrReview'].includes(p.statusId))
+        operationId=marketing.portal.operationId()
+        registerPath=String(publicPath).replace(/\/Registration$/,'/Register')
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/Registration.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>

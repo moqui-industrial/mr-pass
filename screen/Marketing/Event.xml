@@ -6,7 +6,7 @@
     confirmation), each ticket's price from its product (or free) and its availability, which is advisory until a place is reserved,
     whether registration is open, and the terms. No attendee, room, budget or campaign is shown. A draft, closed, past or another
     site's offer and an unknown id are Not Found (404) alike. A landing page embeds the same offer as a card linking here
-    ([[event ID]], Page). Registering is P17's Register page. Plain HTML without JavaScript; the route keeps PASS's default headers
+    ([[event ID]], Page). P17: its Register link opens the Register page while registration is open. Plain HTML without JavaScript; the route keeps PASS's default headers
     (no-store, the shell's CSP). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
@@ -27,6 +27,8 @@
         // the description's paragraphs, each shown as text (never markup)
         descriptionParagraphs=String(publicEvent.description || '').split(/\n\s*\n/).map(s=>s.trim()).filter(s=>s)
         termsParagraphs=String(publicEvent.terms || '').split(/\n\s*\n/).map(s=>s.trim()).filter(s=>s)
+        // P17: the Register page beside this one
+        registerPath=String(publicPath || '').replace(/\/Event$/,'/Register')
     ]]></script>
   </actions>
   <widgets>

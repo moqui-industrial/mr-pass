@@ -8,6 +8,7 @@
 <#list publicEvent.tickets as ticket><tr><td>${ticket.name}</td><td>${ticket.priceText}</td><td>${ticket.availability}</td></tr></#list>
 </tbody></table><p><small>Availability is a guide until a place is reserved.</small></p></section>
 <p id="EventRegistration"><strong>${publicEvent.registrationText}</strong></p>
+<#if publicEvent.registrationOpen><p><a class="button" id="EventRegister" href="${registerPath}?offer=${encodeURIComponent(publicEvent.registrationPolicyId)}">Register</a></p></#if>
 <#if termsParagraphs.length || publicEvent.cancellationTerms><section id="EventTerms"><h2>Terms</h2><#list termsParagraphs as paragraph><p>${paragraph}</p></#list>
 <#if publicEvent.cancellationTerms><h3>Cancellation</h3><p>${publicEvent.cancellationTerms}</p></#if></section></#if>
 </article>

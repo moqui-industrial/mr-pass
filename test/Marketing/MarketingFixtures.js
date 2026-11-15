@@ -436,6 +436,61 @@ function events(prefix, ids) {
     })
     return out
 }
+/* P17: a free published offer on the site for the registration pages (MarketingRegistration and the acceptance test
+ * MarketingRegisterHttp): three seats of one free ticket (two a registration) with a waitlist of two, its terms, an occurrence five
+ * days on. Answers its ids. */
+function registrations(prefix, ids) {
+    const out = {offer: prefix + "_OFFER_FREE", ticket: prefix + "_OFFER_FREE_T", workEffortId: prefix + "_EV_FREE"}
+    if (row("mantle.work.registration.EventRegistrationPolicy", {registrationPolicyId: out.offer})) return out
+    system(() => {
+        const start = Date.now() + 5 * dayMs
+        make("mantle.work.effort.WorkEffort", {
+            workEffortId: out.workEffortId,
+            workEffortTypeEnumId: "WetEvent",
+            workEffortName: "Free talk (internal)",
+            statusId: "WeInPlanning",
+            estimatedStartDate: new Date(start),
+            estimatedCompletionDate: new Date(start + 3600000),
+            location: "Garden hall"
+        })
+        make("mantle.work.registration.RegistrationEvent", {
+            workEffortId: out.workEffortId,
+            organizationPartyId: ids.org,
+            createdDate: new Date()
+        })
+        make("mantle.work.registration.EventRegistrationPolicy", {
+            registrationPolicyId: out.offer,
+            workEffortId: out.workEffortId,
+            occurrenceStart: new Date(start),
+            occurrenceEnd: new Date(start + 3600000),
+            organizationPartyId: ids.org,
+            statusId: "ErpPublished",
+            publicTitle: "Free garden talk",
+            timeZone: "UTC",
+            siteId: ids.siteId,
+            totalSeats: 3,
+            holdMinutes: 15,
+            waitlistEnabled: "Y",
+            waitlistLimit: 2,
+            termsText: "Doors open ten minutes before.",
+            cancellationTerms: "Cancel any time.",
+            questionScopeEnumId: "ErqAttendee",
+            policyRevision: 1,
+            termsRevision: 0,
+            publishedDate: new Date()
+        })
+        make("mantle.work.registration.EventTicketType", {
+            ticketTypeId: out.ticket,
+            registrationPolicyId: out.offer,
+            ticketName: "Free place",
+            priceSourceEnumId: "EtpFree",
+            perOrderLimit: 2,
+            sequenceNum: 1,
+            fromDate: new Date(Date.now() - dayMs)
+        })
+    })
+    return out
+}
 /* A PASS operation through the facade (local mode), as a page calls it: its result, or the error's kind and message. */
 function call(operation, input) {
     try {
@@ -468,4 +523,4 @@ const partyOf = address =>
     rows("mantle.party.contact.PartyContactMechInfo", {contactMechTypeEnumId: "CmtEmailAddress"}).find(
         info => String(info.infoString).toLowerCase() === address
     )?.partyId || null
-;({setup, onSite, forms, pages, events, call, tokenTo, membership, partyOf, lib})
+;({setup, onSite, forms, pages, events, registrations, call, tokenTo, membership, partyOf, lib})

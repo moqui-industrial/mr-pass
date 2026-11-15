@@ -1,0 +1,5 @@
+<#if failure><h1>Payment</h1><p role="alert" class="error">${failure.message}</p><#if reference><p><a href="${registerPath}?ref=${encodeURIComponent(reference)}">Back to your registration</a></p></#if>
+<#else><section class="card" id="RegistrationRelay"><h1>Payment</h1>
+<form method="post" id="RegistrationPaymentRelay" action="${form.formUrl}"><#list fieldList as f><input type="hidden" name="${f.name}" value="${f.value}"></#list>
+<p>You pay on the payment provider's page. Your registration is confirmed by the provider's answer, not by returning here.</p>
+<p><button>Continue to the payment page</button></p></form></section></#if>

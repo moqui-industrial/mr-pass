@@ -126,6 +126,15 @@ const TOKEN_WRITES = [
     // IronStone Marketing P15: a tracking event of the redirect, the pixel or a page carrying a code (anonymous: the authority's limits
     // per client and code and per site bound it, and its answer is the same; a personalized link's or pixel's input.token)
     'recordTrackingEvent',
+    // IronStone Marketing P17: a registration's reservation (anonymous: PASS's request key and the authority's limits bound it) and
+    // its completion, payment, read and cancellation by its capability (input.token) or the provider's return (input.key)
+    'reserveRegistration',
+    'completeRegistration',
+    'startRegistrationPayment',
+    // the provider's posted form of a pending payment, by the capability (the user's call, Nov 15)
+    'getRegistrationPaymentForm',
+    'getRegistration',
+    'cancelRegistration',
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
@@ -230,6 +239,8 @@ function routeOf(operation, input) {
         operation !== 'submitMarketingForm' &&
         // IronStone Marketing P15: a tracking event of a generic link or page has no token (the authority's limits bound it)
         operation !== 'recordTrackingEvent' &&
+        // IronStone Marketing P17: a visitor's registration request has no token yet (PASS's request key and the authority's limits)
+        operation !== 'reserveRegistration' &&
         // a link's or cart's token, or (Shop P5) a checkout's return key or a guest's order link
         !(
             TOKEN_WRITES.includes(operation) &&

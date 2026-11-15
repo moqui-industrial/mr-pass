@@ -414,6 +414,25 @@ published confirmation template, and the site has a canonical host.
   call link goes to registrants only), each ticket's price and availability (a guide until a place is reserved) and the terms. A
   draft, closed, past or another site's offer is Not Found. A landing page's paragraph `[[event OFFER_ID]]` shows the offer as a
   card linking its page.
+- **Registrations.** The Event page's Register link opens `/marketing/Register?offer={id}`: the visitor chooses places of each
+  ticket and gives a name and an address (`reserveRegistration`, an anonymous write bounded by PASS's request key and the authority's
+  limits: ten requests a client in ten minutes, 500 a site an hour, five a buyer's address an hour, past which a request is refused
+  and holds nothing); the places are held for the offer's hold minutes, or all waitlisted when they do not fit. The visitor names the
+  attendees, answers the questions and accepts the terms (`completeRegistration`); a free registration is confirmed, a paid one pays
+  on the payment provider's page (`startRegistrationPayment`; the offer's store's gateway, else the organization's), which returns to
+  `/marketing/Register?ref=...&key=...`. The provider's verified answer, never the return, confirms: the ticket order (storeless and
+  taxed by the organization's own tax gateway, or the store's) is placed and approved, or waits in Sales' Awaiting approval list
+  where the organization's Sales approval setting is on, the registration showing "payment received, awaiting the organizer's
+  confirmation" with no ticket until then. The reservation's capability is kept in the visitor's session; the receipt's link opens
+  `/marketing/Registration?token=...` (read once into the session, the address then `?ref=`), where the buyer sees each place, shows a
+  confirmed place's entry code (a new code each time, revoking the last) and cancels before the event starts, a refund showing pending
+  until the provider answers. A signed-in buyer whose own verified account bought it reaches it without a link. The payment step
+  shows the amount due and Pay sends its key, so a price changed since is shown again, not charged. A provider page that takes a
+  posted form (Authorize.Net Accept Hosted) is reached through `/marketing/RegistrationRelay` (`getRegistrationPaymentForm`, a fresh
+  token each visit), the one Marketing route whose CSP adds `form-action https://accept.authorize.net https://test.authorize.net`; a
+  proxy or CDN must pass its own `Content-Security-Policy` through. The six operations are POSTs in the deployment's token-write
+  list. Jobs: `run_EventRegistrations` (every two minutes: payment results, hold expiry, waitlist offers, refunds) and
+  `run_EventRegistrationNotices` (every fifteen minutes).
 - **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi (`getMarketingEvent` a read,
   as `getMarketingPage`); `requestSubscription` and
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
