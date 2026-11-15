@@ -1,0 +1,11 @@
+<article class="card" id="LandingPage"><h1>${landingPage.title}</h1>
+<#list landingParts as part><#if part.kind == 'html'>${raw(part.html)}
+<#elseif part.kind == 'subscribe'><form method="post" class="card landing-subscribe" action="${marketingBase}/Subscribe/request"><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="operationId" value="${part.operationId}"><input type="hidden" name="list" value="${part.topic.contactListId}"><input type="hidden" name="contactListId" value="${part.topic.contactListId}">
+<h2>${part.topic.name}</h2><#if part.topic.description><p>${part.topic.description}</p></#if>
+<label>Your email address <input type="email" name="emailAddress" maxlength="254" required autocomplete="email"></label>
+<label>Your name (optional) <input name="displayName" maxlength="100" autocomplete="name"></label>
+<label><input type="checkbox" name="consent" value="Y" required> ${part.topic.consentText}</label>
+<p><small>We send one message to this address first; nothing more until you confirm from it. You can unsubscribe from any message.</small></p>
+<p><button>Subscribe</button></p></form>
+<#elseif part.kind == 'form'><section class="card landing-form"><h2>${part.title}</h2><#if part.intro><p>${part.intro}</p></#if><p><a href="${marketingBase}/SubmitForm?publication=${encodeURIComponent(part.publicationId)}">Answer</a></p></section>
+</#if></#list></article>

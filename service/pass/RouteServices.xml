@@ -56,6 +56,10 @@
                     // P3: the id and the slug as screen parameters (F47); the page redirects an old slug after its access check
                     if(parts[0]==='products'){screenPath='/Shop/Products/ProductDetail';screenParameters={productId:parts[1],productSlug:parts[2] || ''}}
                     else{screenPath='/Shop/Categories/CategoryDetail';screenParameters={productCategoryId:parts[1],categorySlug:parts[2] || ''}}}
+            }else if(mounted.app==='marketing' && parts[0]==='pages'){
+                // IronStone Marketing P14: a landing page of the marketing mount, pages/{route} (the page reads its route)
+                if(parts.length<2 || parts.length>7 || !parts.slice(1).every(p=>/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p)))fail()
+                screenPath='/Marketing/Page';screenParameters={routePath:parts.slice(1).join('/')}
             }else if(mounted.app==='shop' && parts[0]==='Orders' && parts.length===2 && !['OrderList','OrderDetail','Status','Document','reorder'].includes(parts[1])){
                 // P6 (F82): an order's page, Orders/{orderId}; the page checks the buyer or the session's order link
                 if(!/^[A-Za-z0-9_-]{1,40}$/.test(parts[1]))fail()

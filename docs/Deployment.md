@@ -326,10 +326,10 @@ has the app, a quote goes out with no link and customers cannot accept online (S
 
 The Marketing app (`screen/Marketing.xml`, the `marketing` mount) is IronStone Marketing's public subscription pages for one
 organization, its mount's target: `{"app": "marketing", "pathPrefix": "/marketing", "targetId": "ORG_ID"}`, and `/marketing` in the
-runtime's `<public-site>` mounts (screen `Marketing`). Its pages are Subscribe, VerifySubscription and SubmitForm (a published
-survey's form); unsubscribing and changing topics are the Account app's Email preferences page, so mount Account too. Readiness
-adds the app's checks: the target is an internal organization, a list is offered or a form publication open on the site (a mount
-with nothing published is named), the organization has a ready transactional sending profile, each offered list's policy names a
+runtime's `<public-site>` mounts (screen `Marketing`). Its pages are Subscribe, VerifySubscription, SubmitForm (a published
+survey's form) and the landing pages at `pages/{route}`; unsubscribing and changing topics are the Account app's Email preferences page, so mount Account too. Readiness
+adds the app's checks: the target is an internal organization, a list is offered, a form publication open or a landing page
+published on the site (a mount with nothing published is named), the organization has a ready transactional sending profile, each offered list's policy names a
 published confirmation template, and the site has a canonical host.
 
 - **Publishing a list.** A list is offered only by its subscription policy (BOSS Marketing › Audiences › a list › Subscription
@@ -367,6 +367,15 @@ published confirmation template, and the site has a canonical host.
   kept. Limits: 30 answers in ten minutes from a client and 1,000 an hour on a site; over either, an answer over 64 KB, or one naming
   a field the page never offered, gets the same receipt and nothing is kept. Responses are read in BOSS Marketing › Surveys ›
   Responses, never on PASS.
+- **Landing pages.** A content author writes a storeless landing page in BOSS Marketing › Content › Landing pages on a site whose
+  Marketing mount serves the organization (no store, no policy role or theme template; the site's default page template), saves
+  versions of its text and publishes one from a date; the page is served at `/marketing/pages/{route}` in its window, the exact
+  published version (`getMarketingPage`, read only), and a draft, scheduled, withdrawn or unknown page is Not Found. Its text is
+  Markdown made clean HTML by the authority and sanitized again on the page (no script, event handler or style; the shell's CSP
+  holds), and a paragraph of its own `[[subscribe LIST_ID]]` or `[[form PUBLICATION_ID]]` embeds a subscribe box (Subscribe's
+  request, consent box and receipt) or a form's card linking SubmitForm, at most five a page, each shown only for a list offered or
+  a form open on this site. Its text is kept in the organization's page space (a wiki space with restricted updates, made with the
+  first page), which only the site page services write; themes stay Commerce's.
 - **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` and
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
   answer carries its link's token) and `verifySubscription` (a link's token) are `TOKEN_WRITES`, accepted from a registered

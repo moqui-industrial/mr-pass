@@ -270,6 +270,54 @@ function forms(prefix, ids) {
         }
     })
 }
+/* IronStone Marketing P14: two landing pages of the site's marketing mount (setup's ids first), their text in a page space of their
+ * own: "spring" (Spring sale) published with the text given, "summer" a draft never published. Answers their sitePageIds. */
+function pages(ids, springText) {
+    const found = rows("mantle.public.PublicSitePage", {siteId: ids.siteId, appMountId: "marketing"})
+    if (found.length)
+        return {
+            spring: found.find(r => r.routePath === "spring")?.sitePageId,
+            summer: found.find(r => r.routePath === "summer")?.sitePageId
+        }
+    return system(() => {
+        const wiki = "org.moqui.resource.WikiServices."
+        const wikiSpaceId = (ids.org.split("_")[0] + "PG").slice(0, 8)
+        lib.run(wiki + "create#WikiSpace", {
+            wikiSpaceId,
+            description: "Landing pages",
+            restrictView: "N",
+            restrictUpdate: "Y",
+            addCreator: false
+        })
+        const page = (routePath, title, pageText, publish) => {
+            const written = lib.run(wiki + "update#WikiPage", {
+                wikiSpaceId,
+                pageName: "page-" + routePath,
+                wikiType: "md",
+                pageText
+            })
+            if (publish)
+                lib.run(wiki + "set#PublishedVersion", {
+                    wikiPageId: written.wikiPageId,
+                    publishedVersionName: written.versionName
+                })
+            return make("mantle.public.PublicSitePage", {
+                siteId: ids.siteId,
+                appMountId: "marketing",
+                routePath,
+                title,
+                wikiPageId: written.wikiPageId,
+                versionName: publish ? written.versionName : null,
+                fromDate: publish ? new Date(Date.now() - dayMs) : null,
+                publicationRevision: publish ? 1 : 0
+            }).sitePageId
+        }
+        return {
+            spring: page("spring", "Spring sale", springText, true),
+            summer: page("summer", "Summer sale", "# Summer\n", false)
+        }
+    })
+}
 /* A PASS operation through the facade (local mode), as a page calls it: its result, or the error's kind and message. */
 function call(operation, input) {
     try {
@@ -302,4 +350,4 @@ const partyOf = address =>
     rows("mantle.party.contact.PartyContactMechInfo", {contactMechTypeEnumId: "CmtEmailAddress"}).find(
         info => String(info.infoString).toLowerCase() === address
     )?.partyId || null
-;({setup, onSite, forms, call, tokenTo, membership, partyOf, lib})
+;({setup, onSite, forms, pages, call, tokenTo, membership, partyOf, lib})
