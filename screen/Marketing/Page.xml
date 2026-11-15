@@ -18,7 +18,8 @@
         require-authentication="false" default-menu-title="Page">
   <parameter name="routePath"/>
   <parameter name="tc"/>
-  <actions>
+  <!-- the lookup in pre-actions, before the shell writes the response, so a Not Found is the response's 404 -->
+  <pre-actions>
     <script><![CDATA[
         const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
         const found=marketing.portal.attempt('getMarketingPage',{siteId:resolvedSiteId,routePath:String(routePath || ''),
@@ -61,7 +62,7 @@
             }
         }
     ]]></script>
-  </actions>
+  </pre-actions>
   <widgets>
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Marketing/Page.html.fancy"/>

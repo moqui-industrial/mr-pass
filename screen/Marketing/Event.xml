@@ -12,7 +12,8 @@
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Event">
   <parameter name="offer"/>
-  <actions>
+  <!-- the lookup in pre-actions, before the shell writes the response, so a Not Found is the response's 404 -->
+  <pre-actions>
     <script><![CDATA[
         const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
         const offerParam=marketing.param('offer')
@@ -30,7 +31,7 @@
         // P17: the Register page beside this one
         registerPath=String(publicPath || '').replace(/\/Event$/,'/Register')
     ]]></script>
-  </actions>
+  </pre-actions>
   <widgets>
     <render-mode>
       <text type="html" location="component://mr-pass/screen/Marketing/Event.html.fancy"/>
