@@ -16,7 +16,7 @@
     Hide), the Forum tab of the settings and the page of a held report's link (Smithy/SmithyScope.js). DG5 adds pipelines
     (Smithy/SmithyPipelines.js): a repository's Pipelines, PipelineDetail (a run, a job with its log, failed tests and uploads,
     and the log's island Islands/JobLog), the runs on a merge request's Checks and a commit's page, and the Pipelines tab of
-    the settings. DG7 adds the site (Smithy/SmithySite.js): a group's Overview with its landing text, Explore's components,
+    the settings; DG10 the deployments (Deployments, DeploymentDetail) and an environment's deploy target there. DG7 adds the site (Smithy/SmithySite.js): a group's Overview with its landing text, Explore's components,
     Search, a repository's Docs and Releases, ReleaseDetail with its files' download, a group's addons.xml and the Redirects
     tab of Site. The redirect transition answers the resolver's redirects (a path not in its stored case, a .git suffix, a
     renamed path, and from DG7 an old path of the site's table): 301 to a path on this site, or for the table an https

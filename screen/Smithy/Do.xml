@@ -487,6 +487,25 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- DG10 (design-smithy §10 Deploy environments): a deployment asked for, decided and cancelled -->
+  <transition name="requestDeploy" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('requestDeploy',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="decideDeploy" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('decideDeploy',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <transition name="cancelDeploy" method="post">
+    <actions>
+      <script>ec.resource.script('component://mr-pass/screen/Smithy/SmithyForms.js').run('cancelDeploy',resolvedSiteId,passBases)</script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <!-- DG7 (design-smithy §13, §15.8): a group's landing page, a release and its files, the site's table of old paths -->
   <transition name="setGroupLanding" method="post">
     <actions>

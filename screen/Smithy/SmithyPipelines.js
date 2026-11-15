@@ -2,7 +2,9 @@
  * filtered, with Run pipeline), PipelineDetail (a run: its header, the approval it waits for, its jobs by stage; and one job:
  * its steps, its log, its failed tests and its uploads), an upload's download and a job's log as JSON for the log's island,
  * the runs on a merge request's Checks tab, and the Pipelines tab of a repository's and a group's Settings (the runner pools,
- * when outside runs wait, the month's runner minutes; a repository's secrets and environments). Every read is the
+ * when outside runs wait, the month's runner minutes; a repository's secrets and environments). DG10: Deployments (a
+ * repository's deployments, Request deploy), DeploymentDetail (a deployment's steps, Approve, Refuse and Cancel) and an
+ * environment's deploy target on the Settings tab. Every read is the
  * authority's (Mantle's SmithyPipelines.js through pass.Facade.call#Operation), which decides who reads a run and who moves
  * one; a page leaves out only what would be refused. Pages are plain HTML built as escaped markup (SmithyForms.js h); a job's
  * log is text from a job, so it is shown as escaped lines with its terminal escapes taken out, never as markup. The forms
@@ -11,7 +13,7 @@
 const smithy = ec.resource.script("component://mr-pass/screen/Smithy/Smithy.js")
 const forms = ec.resource.script("component://mr-pass/screen/Smithy/SmithyForms.js")
 const {portal, fail, need, maybe, param, enc, query, dateText, sizeText, shortId, plain, ANSI, CONTROL} = smithy
-const {Markup, h, attributes, hidden, contextOf, gate, formOf, open, input, select, check, submit, hint, confirmCard} = forms
+const {Markup, h, attributes, hidden, contextOf, gate, formOf, open, input, textarea, select, check, submit, hint, tabsOf, confirmCard} = forms
 
 /* A job's or a run's states that are final: nothing more is written to its log. */
 const ENDED = ["success", "failure", "error", "cancelled", "skipped"]
@@ -56,11 +58,15 @@ function urlsOf(base, repositoryPath) {
     const list = u.section("pipelines")
     const run = runNum => list + "/" + encodeURIComponent(runNum)
     const job = (runNum, jobRunId) => run(runNum) + "/jobs/" + encodeURIComponent(jobRunId)
+    const deployments = list + "/deployments"
     return {
         u,
         list,
         run,
         job,
+        // DG10: the deployments and one deployment
+        deployments,
+        deployment: deploymentId => deployments + "/" + encodeURIComponent(deploymentId),
         log: (runNum, jobRunId) => job(runNum, jobRunId) + "/log",
         artifact: (artifactId, name) =>
             u.section("artifacts") + "/" + encodeURIComponent(artifactId) + "/" + encodeURIComponent(name || "file")
@@ -148,7 +154,7 @@ function pipelines(shell, bases, siteInfo, self) {
         key => h`<option value="${key}"${attributes({selected: filters.state === key})}>${stateText(key)}</option>`
     )}</select></label> <button>Filter</button>${filtered ? h` <a href="${pu.list}">Clear</a>` : ""}</form>`
     return {
-        html: h`<h2>Pipelines</h2>${runForm(c, shell, found)}${filterForm}<section id="SmithyRunList" aria-label="Pipeline runs">${
+        html: h`<h2>Pipelines</h2>${pipelineTabs(pu, "runs")}${runForm(c, shell, found)}${filterForm}<section id="SmithyRunList" aria-label="Pipeline runs">${
             rows.length
                 ? rows
                 : h`<p class="card">${filtered ? "No run matches these filters." : "No pipeline has run in this repository yet. A push runs the pipelines of the ci.xml at its commit; a Moqui component with no ci.xml runs the built-in pipeline."}</p>`
@@ -598,6 +604,234 @@ function requestRuns(c, shell, request) {
     )}</section>`
 }
 
+/* Runs and Deployments, the two lists of a repository's Pipelines (DG10). */
+const pipelineTabs = (pu, current) =>
+    tabsOf("Pipelines", [["runs", "Runs", pu.list], ["deployments", "Deployments", pu.deployments]], current)
+/* A deployment's states (the engine's statusId) as the pages write them. */
+const DEPLOY_STATE_TEXT = {
+    requested: "Requested",
+    "waiting-pipeline": "Waiting for the pipeline",
+    "waiting-approval": "Waiting for approval",
+    deploying: "Deploying",
+    deployed: "Deployed",
+    failed: "Failed",
+    refused: "Refused",
+    cancelled: "Cancelled"
+}
+const DEPLOY_ENDED = ["deployed", "failed", "refused", "cancelled"]
+const deployStateText = state => DEPLOY_STATE_TEXT[state] || plain(state)
+const deployChip = (state, id) => h`<strong class="smithy-chip"${attributes({id: id || null})}>${deployStateText(state)}</strong>`
+const handleText = handle => (handle ? "@" + plain(handle) : "")
+const DEPLOY_PAGE = 20
+
+/* Deployments (design §10 Deploy environments), at -/pipelines/deployments: a repository's deployments, newest first, a page
+ * at a time (?pageIndex=), each with its environment, commit, branch, state, who asked and its dates; Request deploy for a
+ * Developer (canDeploy). The read is a Developer's: who may not read it gets the authority's refusal. */
+function deployments(shell, bases, siteInfo, self) {
+    requirePipelines(shell)
+    const c = contextOf(bases, siteInfo, self, shell.flash)
+    const r = shell.repository
+    const pu = urlsOf(c.base, r.repositoryPath)
+    const pageIndex = whole("pageIndex", 0)
+    const found = need("findDeployments", {siteId: shell.siteId, repositoryId: r.repositoryId, pageIndex, limit: DEPLOY_PAGE})
+    const list = found.deploymentList || []
+    const count = Number(found.deploymentCount) || 0
+    const limit = Number(found.limit) || DEPLOY_PAGE
+    const rows = list.map(d => {
+        const dates = [
+            d.createdAt ? "asked " + dateText(d.createdAt) : null,
+            d.finishedAt ? "ended " + dateText(d.finishedAt) : null
+        ].filter(Boolean)
+        return h`<tr id="SmithyDeployment_${d.deploymentId}"><th scope="row"><a href="${pu.deployment(d.deploymentId)}">${plain(d.environment) || "(no environment)"}</a></th><td>${
+            d.commitId ? h`<a href="${pu.u.commit(d.commitId)}"><code>${shortId(d.commitId)}</code></a>` : ""
+        }</td><td class="wrap">${refText(d.refName)}</td><td>${deployChip(d.state)}</td><td>${handleText(d.requestedBy)}</td><td>${dates.join(" · ")}</td></tr>`
+    })
+    const pages = [
+        pageIndex > 0 ? h`<a href="${pu.deployments}${query({pageIndex: pageIndex > 1 ? pageIndex - 1 : null})}" id="SmithyDeploymentsNewer">Newer</a>` : null,
+        (pageIndex + 1) * limit < count ? h`<a href="${pu.deployments}${query({pageIndex: pageIndex + 1})}" id="SmithyDeploymentsOlder">Older</a>` : null
+    ].filter(Boolean)
+    return {
+        html: h`<h2>Deployments</h2>${pipelineTabs(pu, "deployments")}${deployForm(c, shell, pu, found)}${
+            rows.length
+                ? h`<div class="card table-wrap"><table class="lines" id="SmithyDeploymentList"><thead><tr><th scope="col">Environment</th><th scope="col">Commit</th><th scope="col">Branch</th><th scope="col">State</th><th scope="col">Asked by</th><th scope="col">Dates</th></tr></thead><tbody>${rows}</tbody></table></div>`
+                : h`<p class="card" id="SmithyDeploymentsNone">${pageIndex ? "No more deployments." : "Nothing has been deployed from this repository yet."}</p>`
+        }${pages.length ? h`<p id="SmithyDeploymentPages">${pages.map((link, i) => h`${i ? " · " : ""}${link}`)}</p>` : ""}`.html
+    }
+}
+/* Request deploy (design §10): an environment of the repository and a branch, whose head commit is deployed once the
+ * environment's pipeline passed for it (and, where it needs one, a Maintainer approved it), for who may ask (canDeploy). */
+function deployForm(c, shell, pu, found) {
+    if (!found.canDeploy) return ""
+    const r = shell.repository
+    const environments = maybe("findCiEnvironments", {siteId: shell.siteId, repositoryId: r.repositoryId})?.environmentList || []
+    if (!environments.length)
+        return h`<p class="card" id="SmithyDeployNone">This repository has no deploy environment yet. A Maintainer adds one in <a href="${pu.u.section("settings")}/pipelines">Settings › Pipelines</a>.</p>`
+    const f = formOf(c, "requestDeploy")
+    return h`<details class="card" id="SmithyRequestDeploy"${attributes({open: !!f.error})}><summary><strong>Request deploy</strong></summary>${open(c, f, {plain: true})}${hidden(
+        "repositoryId",
+        r.repositoryId
+    )}${hidden("operationId", portal.operationId())}${select(
+        f,
+        "environmentId",
+        "Environment",
+        environments.map(env => [env.environmentId, plain(env.name) + (env.approvalFor === "every" ? " (a Maintainer approves each deployment)" : "")])
+    )}${input(f, "refName", "Branch", {
+        value: r.defaultBranch || "main",
+        required: true,
+        maxlength: 250,
+        hint: "Its head commit is deployed, after the environment's pipeline has passed for it. A protected branch, or one the environment allows."
+    })}${submit("Request deploy")}</details>`
+}
+
+/* A deployment's steps (design §10): waiting for its pipeline, waiting for approval (where it needed one), deploying, and its
+ * end. Each is done, now, where it ended, or not reached yet. */
+function deploySteps(d, approvalRequired) {
+    const state = d.state
+    const ended = DEPLOY_ENDED.includes(state)
+    const decided = !!d.approvedBy || !!d.refusedBy
+    const deploying = state === "deploying" || state === "deployed" || !!d.startedAt
+    const pipelinePassed = state === "waiting-approval" || decided || deploying
+    const here = {mark: "ended", text: deployStateText(state)}
+    const now = {mark: "now", text: "Now"}
+    const done = text => ({mark: "done", text: text || "Done"})
+    const notYet = {mark: "pending", text: ended ? "Not reached" : "Not yet"}
+    const steps = [
+        {
+            label: "Waiting for the pipeline",
+            run: true,
+            ...(["requested", "waiting-pipeline"].includes(state) ? now : pipelinePassed ? done("Passed") : ended ? here : notYet)
+        }
+    ]
+    if (approvalRequired || state === "waiting-approval" || decided)
+        steps.push({
+            label: "Waiting for approval",
+            ...(state === "waiting-approval"
+                ? now
+                : d.approvedBy
+                  ? done("Approved by " + handleText(d.approvedBy))
+                  : d.refusedBy
+                    ? {mark: "ended", text: "Refused by " + handleText(d.refusedBy)}
+                    : deploying
+                      ? done()
+                      : ended && pipelinePassed
+                        ? here
+                        : notYet)
+        })
+    steps.push({
+        label: "Deploying",
+        ...(state === "deploying" ? now : state === "deployed" ? done() : state === "failed" && deploying ? here : notYet)
+    })
+    steps.push({label: ended ? deployStateText(state) : "Deployed or failed", ...(ended ? {mark: state === "deployed" ? "done" : "ended", text: ""} : notYet)})
+    return steps
+}
+/* The target's answer (the engine's deployResult: status, component, commitId, problems), as plain text. */
+function deployResult(pu, result) {
+    if (!result || typeof result !== "object") return ""
+    const problems = Array.isArray(result.problems) ? result.problems : []
+    const problemText = p => (typeof p === "string" ? p : p && typeof p === "object" ? p.message || JSON.stringify(p) : String(p))
+    return h`<section class="card" id="SmithyDeployResult" aria-label="Result"><h3>Result</h3><dl>${result.status ? h`<dt>Target's answer</dt><dd>${plain(result.status)}</dd>` : ""}${
+        result.component ? h`<dt>Component</dt><dd>${plain(result.component)}</dd>` : ""
+    }${
+        result.commitId && /^[0-9a-f]{7,40}$/.test(String(result.commitId))
+            ? h`<dt>Commit</dt><dd><a href="${pu.u.commit(result.commitId)}"><code>${shortId(result.commitId)}</code></a></dd>`
+            : ""
+    }</dl>${problems.length ? h`<p>Problems:</p><ul>${problems.slice(0, 50).map(p => h`<li class="wrap">${plain(problemText(p))}</li>`)}</ul>` : ""}</section>`
+}
+/* DeploymentDetail (design §10), at -/pipelines/deployments/<deploymentId>: the deployment's header and steps with its run
+ * linked, who asked and who decided, why it failed (only what the authority gives the caller) and the target's result;
+ * Approve and Refuse for an approver (canDecide; Refuse with a reason, asked again on ?confirm=refuse), Cancel for who may
+ * cancel it (canCancel; asked again on ?confirm=cancel). */
+function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
+    requirePipelines(shell)
+    if (!deploymentId) fail()
+    const c = contextOf(bases, siteInfo, self, shell.flash)
+    const r = shell.repository
+    const pu = urlsOf(c.base, r.repositoryPath)
+    const found = need("getDeployment", {siteId: shell.siteId, repositoryId: r.repositoryId, deploymentId})
+    const d = found.deployment
+    const caps = found.capabilities || {}
+    const page = pu.deployment(d.deploymentId)
+    const target = plain(d.environment) || "its environment"
+    const what = (d.commitId ? "commit " + shortId(d.commitId) : "the commit") + (d.refName ? " of " + refText(d.refName) : "")
+    const fields = {repositoryId: r.repositoryId, deploymentId: d.deploymentId}
+    const waiting = d.state === "waiting-approval"
+    const facts = [
+        d.requestedBy ? "asked by " + handleText(d.requestedBy) : null,
+        d.createdAt ? "asked " + dateText(d.createdAt) : null,
+        d.approvedBy ? "approved by " + handleText(d.approvedBy) + (d.approvedAt ? " " + dateText(d.approvedAt) : "") : null,
+        d.refusedBy ? "refused by " + handleText(d.refusedBy) : null,
+        d.startedAt ? "deploy began " + dateText(d.startedAt) : null,
+        d.finishedAt ? "ended " + dateText(d.finishedAt) : null
+    ].filter(Boolean)
+    const head = h`<article id="SmithyDeployment" class="wrap"><h2>Deployment to ${target}</h2><p>${deployChip(d.state, "SmithyDeploymentState")}${
+        d.refName ? h` · ${refText(d.refName)}` : ""
+    }${d.commitId ? h` · <a href="${pu.u.commit(d.commitId)}"><code>${shortId(d.commitId)}</code></a>` : ""}${
+        d.componentName ? " · component " + plain(d.componentName) : ""
+    } · <a href="${pu.deployments}">All deployments</a></p>${
+        d.approvalRequired ? h`<p id="SmithyDeploymentApproval">Needs a Maintainer's approval.</p>` : ""
+    }${facts.length ? h`<p><small>${facts.join(" · ")}</small></p>` : ""}${
+        d.message ? h`<p class="wrap" id="SmithyDeploymentMessage">${messageText(d.message)}</p>` : ""
+    }</article>`
+    // Cancel and Refuse are asked again on a page of their own
+    if (param("confirm") === "cancel" && caps.canCancel)
+        return {
+            html: h`${head}${confirmCard(c, "cancelDeploy", {
+                title: "Cancel the deployment to " + target,
+                lines: [
+                    "This cancels the deployment of " + what + " to " + target + ", and its pipeline run if it is still running.",
+                    "Nothing is deployed. Deploying it later takes a new request."
+                ],
+                fields,
+                button: "Cancel the deployment",
+                cancelHref: page,
+                returnTo: page + "?confirm=cancel",
+                successTo: page
+            })}`.html
+        }
+    if (param("confirm") === "refuse" && caps.canDecide && waiting) {
+        const f = formOf(c, "decideDeploy", "refuse")
+        return {
+            html: h`${head}${open(c, f, {title: "Refuse the deployment to " + target, returnTo: page + "?confirm=refuse", successTo: page})}<p>This refuses the deployment of ${what} to ${target}. Nothing is deployed, and deploying it later takes a new request.</p><p>Who asked for it is told that it was refused. Your reason is kept in the repository's audit, for its Maintainers.</p>${Object.entries(
+                fields
+            ).map(([field, value]) => hidden(field, value))}${hidden("decision", "refuse")}${hidden("confirm", "yes")}${textarea(f, "reason", "Reason (optional)", {
+                maxlength: 1000
+            })}<p><button>Refuse the deployment</button> <a href="${page}">Back</a></p></form>`.html
+        }
+    }
+    // whether it waits for an approver once its pipeline passes (its environment's rule, or a branch no rule protects)
+    const steps = deploySteps(d, !!d.approvalRequired)
+    const stepsHtml = h`<section class="card" id="SmithyDeploySteps" aria-label="Steps"><h3>Steps</h3><ol>${steps.map(
+        step =>
+            h`<li class="wrap smithy-step-${step.mark}"${attributes({"aria-current": step.mark === "now" ? "step" : null})}><strong>${step.label}</strong>${
+                step.text ? " · " + step.text : ""
+            }${step.run && d.runNum ? h` · <a href="${pu.run(d.runNum)}" id="SmithyDeploymentRun">run #${d.runNum}</a>` : ""}</li>`
+    )}</ol></section>`
+    const approval = waiting
+        ? h`<section role="status" class="card" id="SmithyDeployWaiting"><p>The pipeline passed. This deployment waits for a Maintainer's approval, never from who asked for it.</p>${
+              caps.canDecide
+                  ? h`${open(c, formOf(c, "decideDeploy", "approve"), {plain: true})}${hidden("repositoryId", r.repositoryId)}${hidden(
+                        "deploymentId",
+                        d.deploymentId
+                    )}${hidden("decision", "approve")}<p><button>Approve and deploy</button> <a href="${page}?confirm=refuse" id="SmithyDeployRefuse">Refuse</a></p></form>`
+                  : h`<p><small>A Maintainer of this repository other than who asked decides it.</small></p>`
+          }</section>`
+        : ""
+    const actions = caps.canCancel
+        ? h`<p class="card" id="SmithyDeployActions"><a href="${page}?confirm=cancel" id="SmithyDeployCancel">Cancel the deployment</a></p>`
+        : ""
+    // a refused Approve, Refuse or Cancel whose form this page no longer shows (another Maintainer decided first, the
+    // deployment moved on): its refusal is shown here; Approve's own form shows its refusal where it is still there
+    const approveShown = waiting && caps.canDecide
+    const refusals = [
+        ...(approveShown ? [] : [formOf(c, "decideDeploy", "approve")]),
+        formOf(c, "decideDeploy", "refuse"),
+        formOf(c, "cancelDeploy")
+    ]
+        .filter(f => f.error)
+        .map(f => h`<p role="alert" class="card error" id="${f.id}_error">${f.error.message}</p>`)
+    return {html: h`${head}${refusals}${approval}${actions}${stepsHtml}${deployResult(pu, d.result)}`.html}
+}
+
 /* The pools, the approval of outside runs and the month's runner minutes of a group or a repository (getPipelineSettings),
  * with the form a group's Owner saves them with (storePipelineSettings); found is the read, closed the gate in place of
  * the form. */
@@ -792,6 +1026,9 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
               )}${value(freshSecret, "Value")}${scopeFields(freshSecret, null)}${submit("Add secret")}`
             : ""
     }</section>`
+    // DG10: the deploy target (an https address, its token written and never shown again), the pipeline that must pass, the
+    // approval and the address the target fetches from; each text sent only when changed (was_<name>), the token only when
+    // typed
     const envFields = (f, env) =>
         h`${input(f, "name", "Name", {value: env?.name || "", required: true, maxlength: 64, autocomplete: "off"})}${input(
             f,
@@ -802,14 +1039,74 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
                 // sent only when changed, so a save of the name or the approval keeps the branches as they are
                 was: true,
                 maxlength: 1000,
-                hint: "Branch names or patterns such as release/*, separated by spaces. Runs of a protected branch and of these get its secrets."
+                hint: "Branch names or patterns such as release/*, separated by spaces. Runs of a protected branch and of these get its secrets, and they deploy to it."
             }
-        )}${check("approvalRequired", "Only an approved run gets its secrets", !!env?.approvalRequired)}`
+        )}${check(
+            "approvalRequired",
+            "Every deployment waits for a Maintainer's approval, and only an approved run gets its secrets. Without it only a deployment of a branch no rule protects waits.",
+            !!env?.approvalRequired
+        )}${input(
+            f,
+            "targetUrl",
+            "Target URL",
+            {
+                type: "url",
+                value: env?.targetUrl || "",
+                was: true,
+                maxlength: 2000,
+                // https, or http to a loopback IP literal (the framework's rule)
+                pattern: "https://[^@\\s]+|http://127\\.0\\.0\\.1(:[0-9]+)?(/.*)?|http://\\[::1\\](:[0-9]+)?(/.*)?",
+                autocomplete: "off",
+                hint: "The instance it deploys to: an https address (or http to 127.0.0.1 or [::1]), with no user or password in it."
+            }
+        )}${input(f, "token", "Target token", {
+            type: "password",
+            secret: true,
+            autocomplete: "new-password",
+            maxlength: 4096,
+            hint: env?.hasToken
+                ? "It has a token, which is not shown. Leave this empty to keep it."
+                : "The attestation secret the target gave, at least 32 characters. It is never shown again."
+        })}${input(f, "requiredPipeline", "Required pipeline", {
+            value: env?.requiredPipeline || "",
+            was: true,
+            maxlength: 64,
+            pattern: "[A-Za-z0-9._\\-]{1,64}",
+            autocomplete: "off",
+            hint: "The pipeline of the commit's ci.xml, with the deploy event, that must pass before it is deployed."
+        })}${input(f, "dataTypes", "Data types", {
+            value: (env?.dataTypes || []).join(", "),
+            was: true,
+            maxlength: 1300,
+            autocomplete: "off",
+            hint: "The data types the target loads of the component's data files, separated by commas or spaces (at most 20); empty for the target's defaults."
+        })}${input(f, "cloneUrl", "Clone URL", {
+            value: env?.cloneUrl || "",
+            was: true,
+            maxlength: 2000,
+            autocomplete: "off",
+            hint: "Where the target fetches from (https or ssh); the repository's clone address when empty. An https address has no user or password in it."
+        })}`
     const envRows = envList.map(env => {
         const f = formOf(c, "storeCiEnvironment", env.environmentId)
+        const last = env.lastDeploymentId
+            ? h`<a href="${urlsOf(c.base, r.repositoryPath).deployment(env.lastDeploymentId)}">${env.lastDeployAt ? dateText(env.lastDeployAt) : "the last one"}</a>${
+                  env.lastCommitId ? h` · <code>${shortId(env.lastCommitId)}</code>` : ""
+              }`
+            : "None yet"
         return h`<article class="card smithy-row" id="SmithyEnvironment_${env.environmentId}"><h3 class="wrap">${env.name}${
-            env.approvalRequired ? h` <small class="smithy-chip">Approval required</small>` : ""
-        }</h3><p><small>${env.allowedRefs ? "Branches allowed: " + env.allowedRefs : "Protected branches only"}</small></p>${
+            env.approvalFor === "every" ? h` <small class="smithy-chip">Approval required</small>` : ""
+        }</h3><dl class="wrap"><dt>Target</dt><dd>${env.targetUrl ? plain(env.targetUrl) : environments.canChange ? "None" : "Hidden"}</dd><dt>Token</dt><dd>${
+            env.hasToken ? "Set (not shown)" : "None"
+        }</dd><dt>Required pipeline</dt><dd>${env.requiredPipeline ? plain(env.requiredPipeline) : "None"}</dd><dt>Approval</dt><dd>${
+            env.approvalFor === "every"
+                ? "Every deployment waits for a Maintainer's approval"
+                : "Only a deployment of a branch no rule protects waits for a Maintainer's approval"
+        }</dd><dt>Data types</dt><dd>${
+            (env.dataTypes || []).length ? env.dataTypes.map(plain).join(", ") : "The target's defaults"
+        }</dd><dt>Branches allowed</dt><dd>${env.allowedRefs ? plain(env.allowedRefs) : "Protected branches only"}</dd><dt>Clone URL</dt><dd>${
+            env.cloneUrl ? plain(env.cloneUrl) : environments.canChange ? "The repository's clone address" : "Hidden"
+        }</dd><dt>Last deployment</dt><dd>${last}</dd></dl>${
             environments.canChange && !closed
                 ? h`<details${attributes({open: !!f.error})}><summary>Edit</summary>${open(c, f, {plain: true})}${common}${hidden("environmentId", env.environmentId)}${envFields(
                       f,
@@ -819,7 +1116,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
         }</article>`
     })
     const freshEnv = formOf(c, "storeCiEnvironment")
-    const envHtml = h`<section id="SmithyEnvironments" aria-label="Environments"><h3>Environments</h3><p>An environment's secrets are given only to the runs its rules allow.</p>${
+    const envHtml = h`<section id="SmithyEnvironments" aria-label="Environments"><h3>Environments</h3><p>An environment's secrets are given only to the runs its rules allow. With a target, a token and a required pipeline, a Developer deploys a branch's head to it from Pipelines › Deployments.</p>${
         envRows.length ? envRows : h`<p class="card">This repository has no environment.</p>`
     }${
         environments.canChange
@@ -848,6 +1145,9 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
     artifact,
     logJson,
     requestRuns,
+    deployments,
+    deploymentPage,
+    deploySteps,
     groupSettings,
     repositorySettings
 })
