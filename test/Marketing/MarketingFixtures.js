@@ -318,6 +318,124 @@ function pages(ids, springText) {
         }
     })
 }
+/* IronStone Marketing P16: registration offers of the fixture organization's events: one published on the site (its event online, a
+ * paid ticket of a ticket product priced in the organization's currency and a free ticket whose two places are confirmed), a draft, a
+ * closed one, one published on the site without the mount, and one published whose occurrence is over; setup's ids first. Rows as the
+ * system (Mantle's EventRegistrationSetup spec covers the services). Answers the offers' ids. */
+function events(prefix, ids) {
+    const offer = name => prefix + "_OFFER_" + name
+    const out = {
+        published: offer("OPEN"),
+        draft: offer("DRAFT"),
+        closed: offer("CLOSED"),
+        otherSite: offer("ELSEWHERE"),
+        past: offer("PAST"),
+        callUrl: "https://call.example.test/c/" + prefix
+    }
+    if (row("mantle.work.registration.EventRegistrationPolicy", {registrationPolicyId: out.published})) return out
+    system(() => {
+        if (!row("mantle.ledger.config.PartyAcctgPreference", {organizationPartyId: ids.org}))
+            make("mantle.ledger.config.PartyAcctgPreference", {organizationPartyId: ids.org, baseCurrencyUomId: "USD"})
+        make("mantle.product.Product", {
+            productId: prefix + "_SEAT",
+            productName: "Workshop seat",
+            productTypeEnumId: "PtService",
+            ownerPartyId: ids.org
+        })
+        make("mantle.product.ProductPrice", {
+            productId: prefix + "_SEAT",
+            pricePurposeEnumId: "PppPurchase",
+            priceTypeEnumId: "PptCurrent",
+            fromDate: 0,
+            minQuantity: 1,
+            price: "25.00",
+            priceUomId: "USD"
+        })
+        const start = Date.now() + 5 * dayMs
+        const workshop = (key, name, startMs, extra = {}) => {
+            const workEffortId = prefix + "_EV_" + key
+            make(
+                "mantle.work.effort.WorkEffort",
+                Object.assign(
+                    {
+                        workEffortId,
+                        workEffortTypeEnumId: "WetEvent",
+                        workEffortName: name,
+                        statusId: "WeInPlanning",
+                        estimatedStartDate: new Date(startMs),
+                        estimatedCompletionDate: new Date(startMs + 2 * 3600000),
+                        location: "Garden hall",
+                        description: "Internal note: budget 900"
+                    },
+                    extra
+                )
+            )
+            make("mantle.work.registration.RegistrationEvent", {
+                workEffortId,
+                organizationPartyId: ids.org,
+                createdDate: new Date()
+            })
+            return workEffortId
+        }
+        const policy = (registrationPolicyId, workEffortId, startMs, statusId, siteId) =>
+            make("mantle.work.registration.EventRegistrationPolicy", {
+                registrationPolicyId,
+                workEffortId,
+                occurrenceStart: new Date(startMs),
+                occurrenceEnd: new Date(startMs + 2 * 3600000),
+                organizationPartyId: ids.org,
+                statusId,
+                publicTitle: "Pruning workshop",
+                publicDescription: "Bring gloves.\n\nWe prune <b>roses</b>.",
+                timeZone: "UTC",
+                siteId,
+                totalSeats: 12,
+                holdMinutes: 15,
+                waitlistEnabled: "Y",
+                termsText: "Places are held for 15 minutes.",
+                cancellationTerms: "Cancel up to a day before.",
+                policyRevision: 1,
+                termsRevision: 0,
+                publishedDate: statusId === "ErpDraft" ? null : new Date()
+            })
+        const open = workshop("OPEN", "Pruning (internal name)", start, {infoUrl: out.callUrl})
+        policy(out.published, open, start, "ErpPublished", ids.siteId)
+        make("mantle.work.registration.EventTicketType", {
+            ticketTypeId: out.published + "_STD",
+            registrationPolicyId: out.published,
+            ticketName: "Standard",
+            priceSourceEnumId: "EtpProduct",
+            productId: prefix + "_SEAT",
+            perOrderLimit: 4,
+            sequenceNum: 1,
+            fromDate: new Date(Date.now() - dayMs)
+        })
+        make("mantle.work.registration.EventTicketType", {
+            ticketTypeId: out.published + "_GUEST",
+            registrationPolicyId: out.published,
+            ticketName: "Guest",
+            priceSourceEnumId: "EtpFree",
+            capacity: 2,
+            perOrderLimit: 1,
+            sequenceNum: 2,
+            fromDate: new Date(Date.now() - dayMs)
+        })
+        for (const n of [1, 2])
+            make("mantle.work.registration.EventRegistration", {
+                registrationId: out.published + "_R" + n,
+                registrationPolicyId: out.published,
+                ticketTypeId: out.published + "_GUEST",
+                statusId: "EvrConfirmed",
+                createdDate: new Date()
+            })
+        policy(out.draft, workshop("DRAFT", "Draft workshop", start), start, "ErpDraft", ids.siteId)
+        policy(out.closed, workshop("CLOSED", "Closed workshop", start), start, "ErpClosed", ids.siteId)
+        policy(out.otherSite, workshop("ELSEWHERE", "Elsewhere workshop", start), start, "ErpPublished", ids.siteNone)
+        const over = Date.now() - 3 * dayMs
+        policy(out.past, workshop("PAST", "Past workshop", over), over, "ErpPublished", ids.siteId)
+    })
+    return out
+}
 /* A PASS operation through the facade (local mode), as a page calls it: its result, or the error's kind and message. */
 function call(operation, input) {
     try {
@@ -350,4 +468,4 @@ const partyOf = address =>
     rows("mantle.party.contact.PartyContactMechInfo", {contactMechTypeEnumId: "CmtEmailAddress"}).find(
         info => String(info.infoString).toLowerCase() === address
     )?.partyId || null
-;({setup, onSite, forms, pages, call, tokenTo, membership, partyOf, lib})
+;({setup, onSite, forms, pages, events, call, tokenTo, membership, partyOf, lib})

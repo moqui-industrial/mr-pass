@@ -4,7 +4,7 @@
     (IronStone impl-marketing P7; design-marketing §13; mr-mantle mantle.marketing.MarketingPortalServices): Subscribe (the lists
     the site offers, the request and its neutral receipt) and VerifySubscription (a confirmation link's page: what was asked, and
     the Confirm button); P12: SubmitForm (a published survey's form, by its id or an invitation's link, and its neutral receipt); P14: Page (a published landing page of the
-    mount, at pages/{route} by resolve#Route, with the components it embeds). Unsubscribe and preferences are the Account app's Email preferences page. Every page calls the authority
+    mount, at pages/{route} by resolve#Route, with the components it embeds); P16: Event (a published event registration offer, by ?offer=, and its card on a landing page). Unsubscribe and preferences are the Account app's Email preferences page. Every page calls the authority
     through pass.Facade.call#Operation only (Marketing/Marketing.js, Shared/Portal.js); no ironstone service or BOSS screen. Plain
     HTML without JavaScript. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

@@ -327,9 +327,9 @@ has the app, a quote goes out with no link and customers cannot accept online (S
 The Marketing app (`screen/Marketing.xml`, the `marketing` mount) is IronStone Marketing's public subscription pages for one
 organization, its mount's target: `{"app": "marketing", "pathPrefix": "/marketing", "targetId": "ORG_ID"}`, and `/marketing` in the
 runtime's `<public-site>` mounts (screen `Marketing`). Its pages are Subscribe, VerifySubscription, SubmitForm (a published
-survey's form) and the landing pages at `pages/{route}`; unsubscribing and changing topics are the Account app's Email preferences page, so mount Account too. Readiness
-adds the app's checks: the target is an internal organization, a list is offered, a form publication open or a landing page
-published on the site (a mount with nothing published is named), the organization has a ready transactional sending profile, each offered list's policy names a
+survey's form), the landing pages at `pages/{route}` and Event (a published event registration offer); unsubscribing and changing topics are the Account app's Email preferences page, so mount Account too. Readiness
+adds the app's checks: the target is an internal organization, a list is offered, a form publication open, a landing page or an
+event's registration offer published on the site (a mount with nothing published is named), the organization has a ready transactional sending profile, each offered list's policy names a
 published confirmation template, and the site has a canonical host.
 
 - **Publishing a list.** A list is offered only by its subscription policy (BOSS Marketing › Audiences › a list › Subscription
@@ -403,7 +403,19 @@ published confirmation template, and the site has a canonical host.
   link's direct destination and no pixel. Commerce's Home counts the visits of a store's sites. The paths `/trk` and `/trk-o` are
   taken on every host of the deployment, so the framework reserves them (`ec.web.reservedPaths`, each declared servlet's
   first segment): no Smithy group, handle, site page, redirect or mount can take them.
-- **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` and
+- **Events.** An events manager makes a campaign's event in BOSS Marketing › Events (a calendar event they organize; its calendar's
+  editors may change it there) and sets up its registration: one offer per occurrence (a repeating event's occurrences each their
+  own), its seats, hold, waitlist, terms, this site and an optional store (a store order; storeless by default), its ticket types
+  (free, or priced by a ticket product's own prices in the organization's currency), registration questions built in Surveys and
+  its notices. Publishing asks that it is ready: an occurrence still to come, seats, a ticket type, a window that ends by the
+  occurrence's end, this site published, a ready transactional sending profile, a payment gateway of the organization (or of the
+  store) when a ticket has a price, and the questions published. The page is `/marketing/Event?offer={id}` (`getMarketingEvent`,
+  read only): the offer's title and description (as text), its dates in the offer's time zone, where (an online event says so; the
+  call link goes to registrants only), each ticket's price and availability (a guide until a place is reserved) and the terms. A
+  draft, closed, past or another site's offer is Not Found. A landing page's paragraph `[[event OFFER_ID]]` shows the offer as a
+  card linking its page.
+- **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi (`getMarketingEvent` a read,
+  as `getMarketingPage`); `requestSubscription` and
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
   answer carries its link's token), `verifySubscription` (a link's token) and `recordTrackingEvent` (an anonymous write the authority's
   limits bound; a personalized link's token) are `TOKEN_WRITES`, accepted from a registered deployment without a member session.

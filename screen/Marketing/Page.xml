@@ -5,7 +5,8 @@
     getMarketingPage, with no store. Its text is clean HTML from the authority, sanitized again here (the theme's rich text rule:
     no script, no event handler, no style), and each component it embeds is rendered through its own public operation: a list
     offered on this site as a subscribe box posting to Subscribe (getMarketingPublication; the same request, consent box and
-    neutral receipt), a form publication open on this site as a card linking its SubmitForm page (getMarketingForm). A component
+    neutral receipt), a form publication open on this site as a card linking its SubmitForm page (getMarketingForm), and (P16) an
+    event's registration offer published on this site as a card linking its Event page (getMarketingEvent). A component
     naming a list or form that is not offered here shows nothing. A draft, scheduled, withdrawn or unknown page is Not Found (404).
     Plain HTML without JavaScript; the route keeps PASS's default headers (no-store, the shell's CSP).
     Marketing P15: a page carrying a tracking link's code (?tc=, a printed or shared address) records a page visit through the tracking
@@ -45,6 +46,13 @@
                 if(!offer.error && offer.result.topics.length)
                     landingParts.push({kind:'subscribe',topic:offer.result.topics[0],organizationName:offer.result.organizationName,
                         operationId:marketing.portal.operationId()})
+            }else if(part.kind==='event'){
+                // P16: a registration offer published on this site, as a card linking its Event page
+                const offer=marketing.portal.attempt('getMarketingEvent',{siteId:resolvedSiteId,registrationPolicyId:part.registrationPolicyId})
+                if(!offer.error)
+                    landingParts.push({kind:'event',registrationPolicyId:offer.result.event.registrationPolicyId,title:offer.result.event.title,
+                        whenText:offer.result.event.startText,location:offer.result.event.location || (offer.result.event.online ? 'Online' : ''),
+                        availability:offer.result.event.availability})
             }else if(part.kind==='form'){
                 const form=marketing.portal.attempt('getMarketingForm',{siteId:resolvedSiteId,publicationId:part.publicationId})
                 if(!form.error && form.result.form.publicationId)
