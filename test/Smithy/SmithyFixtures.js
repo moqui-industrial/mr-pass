@@ -158,10 +158,14 @@ function forumOn(siteId, target) {
 }
 /* A topic the current user starts in a category (the forum's publishPost), in Markdown: its rootCommEventId. */
 function topic(siteId, contactListId, title, body) {
-    // the forum asks ten seconds between two posts of an account, and a fixture's posts are not that far apart
+    // the forum asks ten seconds between two posts of an account, and a fixture's posts are not that far apart: the account's
+    // last post is forgotten before and after, so neither the next fixture nor a walk that signs in as it right after waits
     const partyId = ec.user.userAccount.partyId
-    if (ec.entity.find("mantle.forum.ForumMemberState").condition({siteId, partyId}).disableAuthz().one())
-        run("update#mantle.forum.ForumMemberState", {siteId, partyId, lastPostedAt: null})
+    const forget = () => {
+        if (ec.entity.find("mantle.forum.ForumMemberState").condition({siteId, partyId}).disableAuthz().one())
+            run("update#mantle.forum.ForumMemberState", {siteId, partyId, lastPostedAt: null})
+    }
+    forget()
     const out = operation("publishPost", {
         siteId,
         contactListId,
@@ -171,6 +175,7 @@ function topic(siteId, contactListId, title, body) {
         operationId: ec.user.randomString(32)
     })
     if (!out.rootCommEventId) throw new Error("Smithy fixture publishPost failed: " + (out.message || "no topic"))
+    forget()
     return out.rootCommEventId
 }
 /* One operation through the facade as the current user: its result, or {kind, message} of its refusal. */

@@ -10,7 +10,8 @@ feature('anonymous HTML reading and API use the same public projection', {
         html.status === 200
         html.text.includes('Welcome to the community')
         api.status === 200
-        api.json().topicList[0].title === 'Welcome to the community'
+        // the site's own list has every category's topics, a Smithy group's too (SmithyWalkFixtures' Walk topic, DG6)
+        api.json().topicList.some((t) => t.title === 'Welcome to the community')
         !api.text.includes('emailAddress')
     },
 })

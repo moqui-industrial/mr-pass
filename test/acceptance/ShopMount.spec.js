@@ -110,9 +110,12 @@ feature(
                     m.app !== 'billing' &&
                     m.app !== 'support',
             )
+            // each kept with its id and target (Marketing's demo mount serves ORG_ZIZI_RETAIL), as the Sites page sends them
             const core = others.map((m) => ({
                 app: m.app,
                 pathPrefix: m.pathPrefix,
+                appMountId: m.appMountId,
+                ...(m.targetId ? { targetId: m.targetId } : {}),
             }))
             const reserved = ['/static', '/rest', '/s', '/u', '/assets'].map(
                 (p) =>
