@@ -5,7 +5,7 @@
 <#if flash.error><p role="alert" class="error" id="RegistrationError">${flash.error}</p></#if>
 <#if view.state == 'held' && !view.completed><p><a href="${registerPath}?ref=${encodeURIComponent(view.reference)}">Complete your registration</a> before ${view.holdEndsText}.</p>
 <#elseif view.state == 'held' && view.paymentDue><p><a href="${registerPath}?ref=${encodeURIComponent(view.reference)}">Pay for your registration</a> before ${view.holdEndsText}.</p></#if>
-<#if ticket><section id="EntryCode" class="card"><h2>Your entry code</h2><div class="qr">${raw(ticket.qrSvg)}</div><p><strong>${ticket.code}</strong></p><p><small>Show this at the entrance. It replaces any earlier code for this place; it is shown only now.</small></p></section></#if>
+<#if ticket><section id="EntryCode" class="card"><h2>Your entry code</h2><div class="qr">${raw(ticket.qrSvg)}</div><p><strong>${ticket.code}</strong></p><p><small>Show this at the entrance. It is the same code as in your ticket email; the organizer can issue a new one if it is lost.</small></p></section></#if>
 <table><thead><tr><th scope="col">Attendee</th><th scope="col">Ticket</th><th scope="col">State</th><th scope="col"></th></tr></thead><tbody>
 <#list placeList as place><tr><td>${place.attendeeName}</td><td>${place.ticketName}</td><td>${place.stateText}<#if place.refundText><br><small>${place.refundText}</small></#if></td>
 <td><#if place.canShowCode><form method="post" action="${publicPath}/showTicket"><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="operationId" value="${operationId}"><input type="hidden" name="ref" value="${view.reference}"><input type="hidden" name="registrationId" value="${place.registrationId}"><button>Show my entry code</button></form></#if></td></tr></#list>
@@ -16,8 +16,9 @@
 <#if view.termsAccepted><details><summary>The terms you accepted</summary><p>${view.termsAccepted}</p></details></#if>
 </article>
 <#if view.canCancel && livePlaces.length><form method="post" id="CancelRegistration" class="card" action="${publicPath}/cancel"><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="operationId" value="${operationId}"><input type="hidden" name="ref" value="${view.reference}">
-<h2>Cancel</h2><#if view.cancellationTerms><p>${view.cancellationTerms}</p></#if>
+<h2>Cancel</h2><p id="CancelRule">${view.cancelRule}</p><#if view.cancellationTerms><p>${view.cancellationTerms}</p></#if>
 <#if (livePlaces.length > 1)><fieldset><legend>Places to cancel (none chosen: all)</legend><#list livePlaces as place><label><input type="checkbox" name="registrationId" value="${place.registrationId}"> ${place.attendeeName}: ${place.ticketName}</label></#list></fieldset></#if>
 <label>Reason (optional) <input name="reason" maxlength="200"></label>
 <label><input type="checkbox" name="confirm" value="Y" required> Yes, cancel. A refund, where one is due, shows here until it is done.</label>
-<p><button>Cancel my registration</button></p></form></#if></#if>
+<p><button>Cancel my registration</button></p></form>
+<#elseif livePlaces.length == 0 && view.cancelRule && view.state != 'cancelled' && view.state != 'expired'><section class="card" id="CancelClosed"><h2>Cancel</h2><p>${view.cancelRule}</p><p>Your places can no longer be cancelled online; contact the organizer.</p></section></#if></#if>

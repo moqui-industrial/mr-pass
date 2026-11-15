@@ -55,7 +55,7 @@ feature(
             // nothing internal: the event's own name and notes, its call link, the organization's ids
             !page.html.includes("internal name") && !page.html.includes("budget 900") && !page.html.includes("call.example.test")
             Object.keys(answer.event).sort().join() ===
-                "availability,cancellationTerms,description,endText,location,online,organizationName,registrationOpen,registrationPolicyId,registrationText,startText,terms,tickets,timeZone,title"
+                "availability,cancelRule,cancellationTerms,description,endText,location,online,organizationName,registrationOpen,registrationPolicyId,registrationText,startText,terms,tickets,timeZone,title"
             answer.event.tickets.map(ticket => ticket.name + ": " + ticket.availability).join(", ") ===
                 "Standard: Places available, Guest: Full: join the waitlist"
             misses.every(miss => miss.kind === "NotFound")
