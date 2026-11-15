@@ -25,7 +25,7 @@
             values[name]=Array.isArray(value)?value.map(String):(typeof value==='object' && value.length!=null?Array.from(value).map(String):String(value))
         }
         const out=portal.attempt('submitCaseFeedback',{siteId:resolvedSiteId,token,values:JSON.stringify(values),
-            operationId:p.operationId || null})
+            operationId:p.operationId || null},{newTransaction:true})
         if(out.error)ec.web.sessionAttributes.passFeedbackError=out.error.message
         ec.web.response.sendRedirect(base+(token?'?token='+encodeURIComponent(token):''))
     ]]></script>

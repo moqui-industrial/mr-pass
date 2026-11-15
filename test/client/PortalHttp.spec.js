@@ -57,25 +57,31 @@ feature("a supplier's order link takes a bill at phone width, and a repeat answe
         const form = { text: page.text(), overflow: overflow(page) }
         const s = session()
         s.get('/supplier/BillUpload?token=' + ORDER_TOKEN)
-        const send = (operationId) =>
+        const send = (operationId, text = '%PDF-1.4 portal bill') =>
             s.post('/supplier/BillUpload/submit', {
                 multipart: {
                     token: ORDER_TOKEN,
                     operationId,
                     referenceNumber: 'HTTP-BILL-1',
                     amount: '99.00',
-                    file: { fileName: 'bill.pdf', text: '%PDF-1.4 portal bill', contentType: 'application/pdf' },
+                    file: { fileName: 'bill.pdf', text, contentType: 'application/pdf' },
                 },
             })
+        // a file that is not what it says is refused back to the form with its reason, not a server error (ACC-UI-018)
+        const refused = send('portal-http-bill-00', 'not a pdf at all')
+        const refusedForm = refused.location ? s.get(refused.location).text : ''
         const first = send('portal-http-bill-01'),
             repeat = send('portal-http-bill-02')
         page.goto(first.location)
-        return { form, first, repeat, receipt: page.text(), receiptOverflow: overflow(page) }
+        return { form, refused, refusedForm, first, repeat, receipt: page.text(), receiptOverflow: overflow(page) }
     },
-    then({ form, first, repeat, receipt, receiptOverflow }) {
+    then({ form, refused, refusedForm, first, repeat, receipt, receiptOverflow }) {
         form.text.includes('Bill for order PASS_PORTAL_PO')
         form.text.includes('Your bill number')
         form.overflow === false
+        refused.status === 302
+        !refused.location.includes('submissionId=')
+        refusedForm.includes('is not the PDF, PNG or JPEG it says it is')
         first.status === 302
         first.location.includes('submissionId=')
         repeat.location === first.location

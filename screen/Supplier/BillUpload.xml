@@ -16,7 +16,7 @@
             .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
         const out=portal.attempt('submitSupplierBill',{siteId:resolvedSiteId,token,orderId,operationId:p.operationId,
             referenceNumber:p.referenceNumber,invoiceDate:p.invoiceDate || null,amount:p.amount || null,
-            file:ec.web.multiPartParameters?.file})
+            file:ec.web.multiPartParameters?.file},{newTransaction:true})
         if(out.error){
             ec.web.sessionAttributes.passBillError=out.error.message
             ec.web.response.sendRedirect(base+query({token,orderId}))

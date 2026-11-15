@@ -15,7 +15,7 @@
         const query=(values)=>'?'+Object.entries(values).filter(([k,v])=>v)
             .map(([k,v])=>k+'='+encodeURIComponent(v)).join('&')
         const out=portal.attempt('startInvoicePayment',{siteId:resolvedSiteId,token,invoiceId,
-            operationId:p.operationId,confirm:['true','on'].includes(String(p.confirm))})
+            operationId:p.operationId,confirm:['true','on'].includes(String(p.confirm))},{newTransaction:true})
         if(out.error){
             ec.web.sessionAttributes.passPayError=out.error.message
             ec.web.response.sendRedirect(base+query({token,invoiceId}))

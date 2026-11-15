@@ -23,8 +23,8 @@
             estimatedDeliveryDate:p.estimatedDeliveryDate || null,note:p.note || null,lines}
         const send=p.formAction === 'send'
         const out=send ? portal.attempt('submitQuoteResponse',Object.assign(fields,{operationId:p.operationId,
-                confirm:['true','on'].includes(String(p.confirm)),file:ec.web.multiPartParameters?.file}))
-            : portal.attempt('saveQuoteResponse',fields)
+                confirm:['true','on'].includes(String(p.confirm)),file:ec.web.multiPartParameters?.file}),{newTransaction:true})
+            : portal.attempt('saveQuoteResponse',fields,{newTransaction:true})
         if(out.error)ec.web.sessionAttributes.passQuoteError=out.error.message
         else if(!send)ec.web.sessionAttributes.passQuoteSaved='Draft saved. Only you see it until you send the quote.'
         ec.web.response.sendRedirect(base+query({token,orderId}))
