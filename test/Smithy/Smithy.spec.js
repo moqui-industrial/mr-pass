@@ -18,10 +18,10 @@
 // and a deployment, and Do's three deployment transitions; the pages are SmithyDeploy's spec. DG7 (§4.4, §13): the paths of the
 // site's pages (Search, Docs, Releases, a release and its file, a group's addons.xml, the site's Redirects tab), an old path
 // of the site's table answered by the resolver with its redirect and its target checked again (another host, a port, a user
-// part, a backslash, //, the preview host, a loop), one render of Search at the screen its request path resolves to (-/search, at a root mount too, whose first segment the
-// framework does not take; what was asked and found escaped), one of a Docs
-// page (its links made Docs, Blob and raw links) and one of ReleaseDetail (its files, a Maintainer's forms; the same page as
-// an account with no role through its page function; Make it a draft refused without confirm=yes), and a group's
+// part, a backslash, //, the preview host, a loop), one render of Search at the screen its request path resolves to
+// (-/search, at a root mount too, whose first segment the framework does not take; what was asked and found escaped), one
+// of a Docs page (its links made Docs, Blob and raw links) and one of ReleaseDetail (its files, a Maintainer's forms; the
+// same page as an account with no role through its page function; Make it a draft refused without confirm=yes), and a group's
 // addons.xml as text/xml (a visitor's kept by a cache for five minutes). Mantle's SmithyDocs,
 // SmithyReleases, SmithyComponents, SmithySearch and SmithyRedirects specs cover the rules behind them.
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
@@ -311,7 +311,7 @@ feature("the grammar: names, then a section after /-/, with the authority tellin
             heldReport: parse("-/held-report/abcDEF_123-456"),
             heldReportBad: parse("-/held-report/a/b"),
             // DG7: the site's pages
-            // Search is under -/: the framework's /search proxy takes /search on every host (the user's call, Nov 15)
+            // Search is under -/: the framework's /search proxy takes /search on every host (the user's call)
             search: parse("-/search"),
             searchDeeper: parse("-/search/x"),
             // the old path is a name now (a reserved word, so no group has it)
@@ -1631,7 +1631,7 @@ feature("Docs shows a page of the docs directory: its links made Docs, Blob and 
 feature("Search is reached by its request path, at a root mount too, where the framework takes no segment of it; it escapes what was asked and what it found, and links a result by the authority's path", {
     when() {
         const f = fixtures()
-        // Smithy at a site's root (the user's call, Nov 15): the framework's /search proxy (a servlet of the default conf)
+        // Smithy at a site's root (the user's call): the framework's /search proxy (a servlet of the default conf)
         // answers /search on every host ahead of any screen, so the page, the header's box and the docs box use -/search
         f.run("create#mantle.public.PublicSite", {siteId: ROOT_SITE, name: "Smithy at the root", state: "published", registrationMode: "invitation", locale: "en", timeZone: "UTC", policyRevision: 1, generation: 1})
         f.run("create#mantle.public.PublicSiteParty", {siteId: ROOT_SITE, partyId: ec.user.userAccount.partyId, state: "active", role: "owner", revision: 1})

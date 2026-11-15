@@ -172,7 +172,7 @@ function fixed(parts) {
         const tab = tabOf(rest, SITE_TABS)
         return page("/Smithy/Site", tab ? {tab} : {})
     }
-    // the Search page is under -/ (the user's call, Nov 15): the framework's /search proxy takes /search on every host
+    // the Search page is under -/ (the user's call): the framework's /search proxy takes /search on every host
     if (second === "search") return exact(2, "/Smithy/Search")
     if (second === "do") return page("/Smithy/Do/" + one(rest, DO_NAME))
     // DG6: the link of a held report's reply (design §12.4), a page of Do that writes nothing
