@@ -5,5 +5,7 @@
 # Nov 6, 2026: raised by Shop P3–P5's measured share in Wave 9's ./moq test-apps (the user's agreement): the Shop specs'
 # server feature time grew to 13.9 s (from 1.8 s at Wave 4), mr-pass 18.2 s of 17; the client by ShopCheckoutWalk, 3.9 s,
 # mr-pass 8.2 s of 6; each rounded up.
-server = 20
+# Nov 14, 2026: raised to the final suites of the Dogfood build (DG0 to DG10, Dev AIDE P11 to P13) with the Sales and
+# Marketing apps merged, with the user's agreement: 22.5 s measured, rounded up. A review of regression vs acceptance follows.
+server = 23
 client = 9
