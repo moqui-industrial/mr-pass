@@ -177,9 +177,20 @@ function preferences(siteId, publicPath) {
           esc(marketing.organizationName) +
           '</legend>' +
           marketing.topics
-              .map(
-                  (topic) =>
-                      box(
+              .map((topic) =>
+                  // IronStone Marketing P22: a text message topic the person is not on is named, never turned on here (it is
+                  // joined with a phone number where it is offered); one they are on may be left, as an email topic is
+                  topic.channelEnumId === 'MdcSms' &&
+                  topic.state !== 'subscribed' &&
+                  topic.state !== 'pending'
+                      ? '<p>' +
+                        esc(topic.name + ' (' + topic.channelText + ')') +
+                        '<br><small>' +
+                        esc(
+                            'Join it with your phone number where it is offered. Reply STOP to any text to leave.',
+                        ) +
+                        '</small></p>'
+                      : box(
                           'mkt_' + topic.contactListId,
                           topic.state === 'subscribed' ||
                               topic.state === 'pending',
