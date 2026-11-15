@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
+<!-- Event (design-marketing §13 Event: PublicEvent; IronStone impl-marketing P16): a published registration offer of the organization
+    the site's marketing mount serves, at /marketing/Event?offer={id} (getMarketingEvent): its title and description, the
+    occurrence's dates in the offer's time zone, where (or that it is online; the call link goes to registrants only, with their
+    confirmation), each ticket's price from its product (or free) and its availability, which is advisory until a place is reserved,
+    whether registration is open, and the terms. No attendee, room, budget or campaign is shown. A draft, closed, past or another
+    site's offer and an unknown id are Not Found (404) alike. A landing page embeds the same offer as a card linking here
+    ([[event ID]], Page). Registering is P17's Register page. Plain HTML without JavaScript; the route keeps PASS's default headers
+    (no-store, the shell's CSP). -->
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        require-authentication="false" default-menu-title="Event">
+  <parameter name="offer"/>
+  <actions>
+    <script><![CDATA[
+        const marketing=ec.resource.script('component://mr-pass/screen/Marketing/Marketing.js')
+        const offerParam=marketing.param('offer')
+        const notFound=()=>{throw Object.assign(new Error('Page not found'),{moquiErrorKind:'NotFound'})}
+        if(!offerParam || !/^[A-Za-z0-9_-]{1,40}$/.test(offerParam))notFound()
+        const found=marketing.portal.attempt('getMarketingEvent',{siteId:resolvedSiteId,registrationPolicyId:offerParam})
+        if(found.error){
+            if(found.error.kind!=='NotFound')throw Object.assign(new Error(found.error.message),{moquiErrorKind:found.error.kind})
+            notFound()
+        }
+        publicEvent=found.result.event
+        // the description's paragraphs, each shown as text (never markup)
+        descriptionParagraphs=String(publicEvent.description || '').split(/\n\s*\n/).map(s=>s.trim()).filter(s=>s)
+        termsParagraphs=String(publicEvent.terms || '').split(/\n\s*\n/).map(s=>s.trim()).filter(s=>s)
+    ]]></script>
+  </actions>
+  <widgets>
+    <render-mode>
+      <text type="html" location="component://mr-pass/screen/Marketing/Event.html.fancy"/>
+    </render-mode>
+  </widgets>
+</screen>
