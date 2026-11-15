@@ -35,13 +35,13 @@ function placeOf(siteId, within) {
     if (found?.kind === "repository") return {repositoryId: found.repositoryId, path: found.canonicalPath || within, kind: "repository"}
     return null
 }
-/* Search (design §6), at /search?q=: one box over the public projections, the kinds as a filter, narrowed to a group or a
+/* Search (design §6), at -/search?q=: one box over the public projections, the kinds as a filter, narrowed to a group or a
  * repository by ?in=. Several kinds give at most ten results each, with a link to more of one kind; one kind is paged.
  * Each result is what the operation answers: its kind, title, snippet, place and day. Never kept by a cache (an issue may
  * become confidential). */
 function search(siteId, bases, siteInfo, self) {
     const c = contextOf(bases, siteInfo, self, smithy.takeFlash())
-    const action = c.base + "/search"
+    const action = c.base + "/-/search"
     const q = String(param("q") || "")
         .trim()
         .slice(0, 200)
@@ -138,7 +138,7 @@ function docs(shell, refPath, bases, siteInfo, self) {
             }</li>`
     )}</ul>`
     const headings = (found.headingList || []).filter(heading => Number(heading.level) >= 2 && Number(heading.level) <= 3)
-    const searchBox = h`<form method="get" action="${c.base}/search" role="search" class="card" id="SmithyDocsSearch"><label>Search the docs <input type="search" name="q" maxlength="200" required></label>${hidden("kind", "docs")}${hidden("in", r.repositoryPath)} <button>Search</button><br><small>The docs at the default branch.</small></form>`
+    const searchBox = h`<form method="get" action="${c.base}/-/search" role="search" class="card" id="SmithyDocsSearch"><label>Search the docs <input type="search" name="q" maxlength="200" required></label>${hidden("kind", "docs")}${hidden("in", r.repositoryPath)} <button>Search</button><br><small>The docs at the default branch.</small></form>`
     const editHref = c.signedIn && !r.archived ? rooted(found.editPath) : null
     return {
         html: h`<div class="smithy-docs"><nav class="card smithy-toc smithy-wide" aria-label="Contents" id="SmithyDocsContents"><h2>Contents</h2>${contents}</nav><div>${searchBox}<details class="card smithy-toc smithy-narrow" id="SmithyDocsDrawer"><summary>Contents</summary>${contents}</details><p class="wrap">${picker}${

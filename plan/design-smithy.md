@@ -296,9 +296,9 @@ longer than 255 bytes, or a control character is Not Found.
 | --- | --- | --- |
 | (empty) | `/Smithy/Home` | none |
 | `explore` | `/Smithy/Explore` | none |
-| `search` | `/Smithy/Search` | none |
 | `new/group`, `new/repository` | `/Smithy/New/Group`, `/Smithy/New/Repository` | none (the namespace is a query parameter) |
 | `import`, `import/<importId>` | `/Smithy/Import` | `importId` |
+| `-/search` | `/Smithy/Search` (not `search`: the framework's `/search` proxy, a servlet of its default conf, takes that path on every host; the user's call) | none |
 | `-/site`, `-/site/<tab>` | `/Smithy/Site` | `tab` of `settings`, `requests`, `quotas`, `redirects` |
 | `-/do/<name>` | `/Smithy/Do/<name>` | none; `<name>` matches `^[a-z][A-Za-z]{1,60}$` |
 | `-/island/<Name>.qvue` (also `.qvt`, `.qjs`) | `/Smithy/Islands/<Name>.qvue` (a subscreen of `Smithy/Islands`, which has no page of its own) | none; ids are query parameters |
@@ -629,7 +629,7 @@ is a GET form. **Phone** one list at a time, chosen by the kind filter.
 
 ### Search
 
-**Path** `B/search?q=`. **Shows** results over the public projections: repositories, issues, merge requests, docs
+**Path** `B/-/search?q=`. **Shows** results over the public projections: repositories, issues, merge requests, docs
 pages, forum topics, each with its kind, title, a snippet and its place. A scope (a group or a repository) narrows it.
 **Operations** `searchSite`. **Without JavaScript** all of it. Rules in [§13.5](#135-search).
 
