@@ -7,7 +7,7 @@
 const token = name => ("PASS_HTTP_SQ" + name + "0".repeat(48)).slice(0, 48)
 const BASE = "http://127.0.0.1:" + server.port
 const overflow = page => page.evaluate(() => document.documentElement.scrollWidth > innerWidth)
-const quoteId = text => (/Quote (\S+)/.exec(text) || [])[1] || null
+const quoteId = text => (/Quote ([^\s<]+)/.exec(text) || [])[1] || null
 const operationId = () => "op" + Date.now() + Math.floor(Math.random() * 1e6)
 feature(
     "the customer opens the mailed link at 390 px, reads the offer and its PDF, accepts with a PO and sees the receipt twice",

@@ -9,10 +9,18 @@ const c = (name, parameters) => {
     if (ec.message.hasError()) throw new Error(ec.message.getErrorsString())
     return out
 }
-/* Mantle's fixtures under a prefix, and an inviter of A (a manager holding SALES_CUSTOMER_INVITE). */
+/* Mantle's fixtures under a prefix, and an inviter of A (a manager holding SALES_CUSTOMER_INVITE), the spec grant's services
+   widened to Invite to Sales (the inviter's call, as Sales' screen makes it). */
 function setup(prefix) {
     const f = fx().setup(prefix)
     fx().system(() => {
+        c("create#moqui.security.ArtifactGroupMember", {
+            artifactGroupId: prefix + "_SERVICES",
+            artifactName: "mantle\\.sales\\.AccountServices\\.invite#SalesContact",
+            artifactTypeEnumId: "AT_SERVICE",
+            nameIsPattern: "Y",
+            inheritAuthz: "Y"
+        })
         f.users.inviter = fx().addUser(
             f,
             "inviter",

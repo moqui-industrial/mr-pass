@@ -115,7 +115,9 @@ feature("a contact follows the shipped order under My orders, its tracking, and 
         page.includes("Invoice " + shipped.invoiceId) && page.includes("Open in Billing")
         !page.includes("<form")
         view.invoices[0].billingUrl.endsWith("/billing/InvoicePay?invoiceId=" + shipped.invoiceId)
-        invoice.includes(shipped.invoiceId) && !invoice.includes("not available")
+        // opened, not refused: the refusal is "This page is not available" (a Billing invoice with no gateway says its online
+        // payment is not available)
+        invoice.includes("Invoice " + shipped.invoiceId) && !invoice.includes("This page is not available")
         hub.cards.some(card => card.app === "sales" && card.lines.some(line => line.includes("open order")))
         bearerView.invoices[0].billingUrl == null && bearerView.shipments[0].tracking[0].code === "SOS-TRACK-1"
     }

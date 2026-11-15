@@ -30,9 +30,9 @@ function linkIds() {
     const receipt = visitor.get(BASE + "/sales/QuoteResponse?token=" + phoneToken("Answered")).text
     const order = visitor.get(BASE + "/sales/CustomerOrder?token=" + orderToken("Walk")).text
     return {
-        plainId: firstId(/Quote (\S+)/, quote),
+        plainId: firstId(/Quote ([^\s<]+)/, quote),
         answeredId: firstId(/<dt>Quote<\/dt><dd>([^<\s,·]+)/, receipt),
-        orderId: firstId(/Order (\S+)/, order)
+        orderId: firstId(/Order ([^\s<]+)/, order)
     }
 }
 
