@@ -649,20 +649,13 @@ function recurringFields(c) {
         '</fieldset>'
     )
 }
-/* Marketing follow-up 4: the visitor key this browser holds (Marketing's first-party mkt_vk cookie, set by a tracking link only
-   where the seller's policy or the recipient's consent allows it), sent with the submit so the authority may keep its digest with
-   the order for attribution; none when the browser asks not to be tracked. The authority decides whether it is kept. */
-function visitorKeyInput() {
-    const request = ec.web?.request
-    if (!request) return {}
-    const tracking = ec.resource.script(
-        'component://mr-pass/script/TrackingLib.js',
-    )
-    const key = tracking.doNotTrack(request)
-        ? null
-        : tracking.heldKey(request)
-    return key ? { visitorKey: key } : {}
-}
+/* Marketing follow-up 4: the visitor key this browser holds (Marketing's first-party mkt_vk cookie), sent with the submit so the
+   authority may keep its digest with the order for attribution; none when the browser asks not to be tracked (TrackingLib.js
+   checkoutKeyInput, shared with Register's payment start). The authority decides whether it is kept. */
+const visitorKeyInput = () =>
+    ec.resource
+        .script('component://mr-pass/script/TrackingLib.js')
+        .checkoutKeyInput(ec.web?.request)
 /* Checkout/submit: frozen and paid; the result page links the provider's page (a change found is shown on the checkout). */
 function submit(context) {
     const found = call(context, 'submitCheckout', {

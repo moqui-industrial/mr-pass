@@ -74,7 +74,10 @@
         const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
         const page=marketing.base(publicPath,'pay')
         const ref=marketing.param('ref')
-        const out=reg.call('startRegistrationPayment',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{priceKey:marketing.param('priceKey'),operationId:marketing.param('operationId')})
+        // follow-up 5: the browser's Marketing visitor key (never under Do Not Track or Global Privacy Control), whose digest the
+        // authority keeps with the ticket order only where it allows it
+        const visitorKey=ec.resource.script('component://mr-pass/script/TrackingLib.js').checkoutKeyInput(ec.web.request)
+        const out=reg.call('startRegistrationPayment',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),Object.assign({priceKey:marketing.param('priceKey'),operationId:marketing.param('operationId')},visitorKey))
         const redirectUrl=out.result?.payment?.provider?.redirectUrl
         // the provider's own page (an https address or a path of this site); a page that takes a posted form (Accept Hosted) through
         // the relay (RegistrationRelay, the user's call Nov 15); anything else stays here with the state
