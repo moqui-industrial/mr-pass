@@ -12,8 +12,8 @@ is IronStone Sales' customer pages: a quote's mailed link, the offer and its PDF
 its receipt, a contact's quotes, and a customer's orders with their delivery and invoices by the order confirmation's link or
 signed in (over Mantle's SalesPortalServices). Its Marketing app is IronStone Marketing's public subscription and forms: an
 organization's offered lists, a request with its neutral receipt and the confirmation link's page, a published survey's form
-answered by anyone, a signed-in account or an invitation's link, its storeless landing pages with their embedded subscribe
-boxes, a published event registration offer's page, and its registration (choosing places, the attendees' answers and the terms, payment on the provider's page) and the registration's own page with entry codes and cancellation (over Mantle's MarketingPortalServices); unsubscribing and topics are the Account app's Email preferences page. PASS's own
+answered by anyone, a signed-in account or an invitation's link (and the one public lead page, a lead form whose answers go to Sales), its storeless landing pages with their embedded subscribe
+boxes, a published event registration offer's page, and its registration (choosing places, the attendees' answers and the terms, payment on the provider's page) and the registration's own page with entry codes and cancellation (over Mantle's MarketingPortalServices); unsubscribing and topics are the Account app's Email preferences page (a text message topic may be left there, not joined). PASS's own
 `MoquiConf.xml` registers Marketing's tracking redirect and pixel (`script/TrackingRedirect.js`, `TrackingPixel.js` at `/trk/*` and
 `/trk-o/*`), web scripts over Mantle's TrackingServices through PASS's transport.
 
@@ -73,7 +73,7 @@ Run from the mr-moqui workspace root with the existing compiler and incremental 
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 ./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, SalesQuoteScenarios, SalesQuoteHttp, SalesOrderScenarios, SalesOrderHttp, SalesPhonePages, MarketingSubscribeHttp, MarketingRemoteHttp, MarketingFormHttp, MarketingPagesHttp, MarketingTrackingHttp, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
+# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, SalesQuoteScenarios, SalesQuoteHttp, SalesOrderScenarios, SalesOrderHttp, SalesPhonePages, MarketingSubscribeHttp, MarketingRemoteHttp, MarketingFormHttp, MarketingPagesHttp, MarketingTrackingHttp, MarketingRegisterHttp, MarketingPhonePages, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
 ```
 
@@ -103,7 +103,10 @@ and walk (`SalesOrderHttp`, with `SalesOrderFixtures`), its pages at 390 px (`Sa
 receipt, My orders and an order, signed in and by a link, none scrolling sideways), PASS Marketing's subscription walk (`MarketingSubscribeHttp`, with
 `MarketingSubscribeFixtures`, plain requests, and `MarketingRemoteHttp` through a remote frontend) and its form walk (`MarketingFormHttp`, with
 `MarketingFormFixtures`: an anonymous answer with the subscription choice, an invitation's link answered once) and its landing page
-walk (`MarketingPagesHttp`, with `MarketingPagesFixtures`: a visitor subscribes from a published page's box, a draft not found), the large
+walk (`MarketingPagesHttp`, with `MarketingPagesFixtures`: a visitor subscribes from a published page's box, a draft not found), its tracking
+walk (`MarketingTrackingHttp`, with `MarketingTrackingFixtures`), its registration walk (`MarketingRegisterHttp`, with
+`MarketingRegisterFixtures`) and its public pages at 390 px (`MarketingPhonePages`: language, heading, named controls and image
+alternatives, none scrolling sideways), the large
 fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
 two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
 suites) in the mr-moqui repository.
