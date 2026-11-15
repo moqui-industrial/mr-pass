@@ -156,7 +156,6 @@ function fixed(parts) {
     const exact = (count, screenPath, parameters) => (parts.length === count ? page(screenPath, parameters) : fail())
     if (!parts.length) return page("/Smithy/Home")
     if (first === "explore") return exact(1, "/Smithy/Explore")
-    if (first === "search") return exact(1, "/Smithy/Search")
     if (first === "new")
         return second === "group"
             ? exact(2, "/Smithy/New/Group")
@@ -173,6 +172,8 @@ function fixed(parts) {
         const tab = tabOf(rest, SITE_TABS)
         return page("/Smithy/Site", tab ? {tab} : {})
     }
+    // the Search page is under -/ (the user's call, Nov 15): the framework's /search proxy takes /search on every host
+    if (second === "search") return exact(2, "/Smithy/Search")
     if (second === "do") return page("/Smithy/Do/" + one(rest, DO_NAME))
     // DG6: the link of a held report's reply (design §12.4), a page of Do that writes nothing
     if (second === "held-report") return page("/Smithy/Do/heldReport", {token: one(rest, TOKEN)})

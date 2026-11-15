@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
-<!-- Search (design-smithy §6 Search, §13.5), at /search?q=: one box over the public projections (searchSite: repositories,
+<!-- Search (design-smithy §6 Search, §13.5), at -/search?q=: one box over the public projections (searchSite: repositories,
     groups, components, issues, merge requests, docs and forum topics, each kept by its own rule), the kinds as a filter,
     narrowed to a group or a repository by ?in=<path>; several kinds give ten results each, one kind is paged. Never kept
     by a cache (Shared/Headers.js). -->
