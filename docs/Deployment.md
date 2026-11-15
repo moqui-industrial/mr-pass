@@ -367,6 +367,12 @@ published confirmation template, and the site has a canonical host.
   kept. Limits: 30 answers in ten minutes from a client and 1,000 an hour on a site; over either, an answer over 64 KB, or one naming
   a field the page never offered, gets the same receipt and nothing is kept. Responses are read in BOSS Marketing › Surveys ›
   Responses, never on PASS.
+- **Lead forms.** A lead form opens only once a content author gives it a lead rule in BOSS Marketing › Leads › Lead rules: the
+  sales team whose queue its answers go to, the Sales source, the questions mapped to the inquiry's name, organization, email and
+  phone and to its notes, and a notice the page shows above Send. After an answer is kept, the server hands it to Sales once (a lead
+  in that team's queue with the form's campaign, or the open lead with the same email it joins); the page never waits on it and
+  shows the same receipt. A failed handoff keeps the answer and is tried again by the job `run_MarketingLeadCaptures` (registered in
+  Admin's Jobs and recovery); no answer subscribes anyone, and a typed email address identifies nobody.
 - **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` and
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
   answer carries its link's token) and `verifySubscription` (a link's token) are `TOKEN_WRITES`, accepted from a registered
