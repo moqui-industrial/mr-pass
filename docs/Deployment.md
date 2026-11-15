@@ -401,7 +401,8 @@ published confirmation template, and the site has a canonical host.
   tracking policy is "consented recipients" each of the organization's tracking links with a personalized token (`?token=`, its
   digest kept, ninety days; the framework's request log redacts a `token` parameter) and the pixel; every other recipient gets each
   link's direct destination and no pixel. Commerce's Home counts the visits of a store's sites. The paths `/trk` and `/trk-o` are
-  taken on every host of the deployment: no Smithy group, site page or redirect should use them.
+  taken on every host of the deployment, so the framework reserves them (`ec.web.reservedPaths`, each declared servlet's
+  first segment): no Smithy group, handle, site page, redirect or mount can take them.
 - **Remote frontend.** The `marketing/...` operations are PASS operations served by Mantle's PassApi; `requestSubscription` and
   `submitMarketingForm` (anonymous writes the transport lets through, bounded by the request key and the limits; an invitation's
   answer carries its link's token), `verifySubscription` (a link's token) and `recordTrackingEvent` (an anonymous write the authority's

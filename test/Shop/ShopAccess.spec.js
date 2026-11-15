@@ -70,7 +70,16 @@ feature(
                     { app: 'forum', pathPrefix: '/' },
                     shop('/', store),
                 ]),
-                reserved: ['/static', '/assets', '/rest', '/s', '/WebPush'].map(
+                // the framework's, with each declared servlet's first segment (PASS's tracking scripts)
+                reserved: [
+                    '/static',
+                    '/assets',
+                    '/rest',
+                    '/s',
+                    '/WebPush',
+                    '/trk',
+                    '/trk-o',
+                ].map(
                     (p) =>
                         l.mounts(SITE, [...core, shop(p, store)]).kind ||
                         'saved',
