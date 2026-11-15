@@ -27,6 +27,9 @@ spec({
                     "",
                     "Plant now. <script>alert('x')</script><img src=x onerror=alert(1)>",
                     "",
+                    '[Tap](javascript:alert(2)) <a href="data:text/html,<b>x</b>">Data</a> <svg onload="alert(3)"><circle r="1"/></svg>',
+                    '<div style="background:url(javascript:alert(4))">Styled</div>',
+                    "",
                     "[[subscribe " + ids.garden + "]]",
                     "",
                     "[[subscribe " + ids.hidden + "]]",
@@ -62,6 +65,13 @@ feature("a published landing page is served with no store, its subscribe box for
         page.errors.length === 0
         page.html.includes('id="LandingPage"') && page.html.includes("Spring sale") && page.html.includes("Plant now.")
         !page.html.includes("<script>alert") && !page.html.includes("onerror")
+        // the page's own article: no script URL, data URL, SVG or style from its text
+        ;(article => !/javascript:|data:text|<svg|onload|style=/i.test(article) && article.includes("Tap"))(
+            page.html.slice(
+                page.html.indexOf('id="LandingPage"'),
+                page.html.indexOf("</article>", page.html.indexOf('id="LandingPage"'))
+            )
+        )
         page.html.includes('action="/marketing/Subscribe/request"') && page.html.includes("Garden news")
         page.html.includes("Yes, send me Garden news")
         !page.html.includes("Hidden news") && !page.html.includes("NO_SUCH_FORM")
