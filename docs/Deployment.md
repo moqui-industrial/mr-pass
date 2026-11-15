@@ -367,6 +367,12 @@ published confirmation template, and the site has a canonical host.
   kept. Limits: 30 answers in ten minutes from a client and 1,000 an hour on a site; over either, an answer over 64 KB, or one naming
   a field the page never offered, gets the same receipt and nothing is kept. Responses are read in BOSS Marketing › Surveys ›
   Responses, never on PASS.
+- **Lead forms.** A lead form opens only once a content author gives it a lead rule in BOSS Marketing › Leads › Lead rules: the
+  sales team whose queue its answers go to, the Sales source, the questions mapped to the inquiry's name, organization, email and
+  phone and to its notes, and a notice the page shows above Send. After an answer is kept, the server hands it to Sales once (a lead
+  in that team's queue with the form's campaign, or the open lead with the same email it joins); the page never waits on it and
+  shows the same receipt. A failed handoff keeps the answer and is tried again by the job `run_MarketingLeadCaptures` (registered in
+  Admin's Jobs and recovery); no answer subscribes anyone, and a typed email address identifies nobody.
 - **Landing pages.** A content author writes a storeless landing page in BOSS Marketing › Content › Landing pages on a site whose
   Marketing mount serves the organization (no store, no policy role or theme template; the site's default page template), saves
   versions of its text and publishes one from a date; the page is served at `/marketing/pages/{route}` in its window, the exact

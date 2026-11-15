@@ -15,4 +15,5 @@
 <#else><label>${f.title}<#if f.required> <span aria-hidden="true">*</span></#if> <input name="f_${f.fieldName}" maxlength="255"<#if f.required> required</#if>></label></#if>
 <#if f.tooltip><p><small>${f.tooltip}</small></p></#if></div></#list>
 <#if form.subscription><fieldset id="FormSubscription"><legend>Email from ${form.organizationName} (optional)</legend><label><input type="checkbox" name="subscribe" value="Y"> ${form.subscription.consentText}</label><label>Your email address <input type="email" name="subscriptionEmail" maxlength="254" autocomplete="email"></label><p><small>A separate choice: we send one message to this address first, and nothing more until you confirm from it. Your answers do not subscribe you.</small></p></fieldset></#if>
+<#if form.notice><p id="FormNotice"><small>${form.notice}</small></p></#if>
 <p><button>Send my answer</button></p><#if form.access == 'invited'><p><small>You can answer once.</small></p></#if></form><script src="/js/moqui-form-when.js"></script></#if></#if>

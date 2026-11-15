@@ -7,7 +7,9 @@
     rules again); the subscription choice is a separate box with its own address. Send posts (submitMarketingForm) and shows
     FormReceipt, the publication's own neutral words, the same whatever the server kept; a repeat answers the first. A GET only
     reads, so a mail scanner following an invitation changes nothing. An unpublished, closed or another site's form, and a forged or
-    expired link, show the same "not available". Inputs are named f_<field>, so no question meets a page parameter. -->
+    expired link, show the same "not available". Inputs are named f_<field>, so no question meets a page parameter. P13: a lead form
+    shows its lead rule's notice of the follow-up above Send; its answer, once kept, is handed to the organization's Sales queue on the
+    server (MarketingLeads.js), never from the page. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Form">
