@@ -110,7 +110,8 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
             const shown = page.goto(path)
             if (shown.status !== 200 || overflow(page)) wide.push(path + " " + shown.status)
         }
-        // the signed-in account downloads the tree; a visitor's request for it is sent to sign in
+        // the signed-in account downloads the tree; so does a visitor, the repository being public (DG7: the authority serves a
+        // public repository's archive to anyone, for ./moq component-get; a private one's visitor is sent to sign in)
         const archive = page.evaluate(async () => {
             const answer = await fetch("/code/walk/guide/-/archive/main.zip")
             const bytes = new Uint8Array(await answer.arrayBuffer())
@@ -150,7 +151,7 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
             slug,
             untokened: untokened.status,
             archive,
-            visitorArchive: visitorArchive.status + " " + visitorArchive.location
+            visitorArchive: [visitorArchive.status, visitorArchive.header("content-disposition"), String(visitorArchive.text).slice(0, 2)].join(" | ")
         }
     },
     then({status, home, group, repository, file, commit, created, title, rich, previewed, issue, issueBody, editors, source, edited, closed, wide, slug, untokened, archive, visitorArchive}) {
@@ -165,7 +166,7 @@ feature("a visitor browses a group, a repository, a file and a commit; a Maintai
         edited.includes("edited")
         closed === "Closed as completed"
         archive === "200 | attachment; filename=\"guide-main.zip\"; filename*=UTF-8''guide-main.zip | no-store | PK"
-        visitorArchive === "302 /account/Login?returnTo=%2Fcode%2Fwalk%2Fguide%2F-%2Farchive%2Fmain.zip"
+        visitorArchive === "200 | attachment; filename=\"guide-main.zip\"; filename*=UTF-8''guide-main.zip | PK"
         wide.join(", ") === ""
         untokened === 401
         status === 200
