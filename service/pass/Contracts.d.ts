@@ -1186,7 +1186,7 @@ export interface OperationInputs {
     selectDelivery: { siteId: string; token?: string; carrierPartyId: string; shipmentMethodEnumId: string; expectedRevision: string; operationId?: string }
     getPaymentOptions: { siteId: string; token?: string }
     selectPayment: { siteId: string; token?: string; paymentOptionId: string; savePaymentMethod?: string; operationId?: string }
-    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string; optIns?: string; recurringConsent?: string }
+    submitCheckout: { siteId: string; token?: string; expectedRevision: string; termsVersion?: string; acceptTerms?: string; operationId?: string; optIns?: string; recurringConsent?: string; visitorKey?: string }
     getCheckoutPaymentResult: { siteId: string; token?: string; reference?: string; key?: string; returned?: string }
     getCheckoutPaymentForm: { siteId: string; reference: string; key: string }
     getOrderConfirmation: { siteId: string; token?: string; reference?: string; key?: string; orderToken?: string }

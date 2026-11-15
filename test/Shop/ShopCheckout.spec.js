@@ -3,8 +3,8 @@
 // and operation id, the review's submit with the store's optional emails unchecked, never a capability); only the payment relay's route allows the provider's
 // form-action; the checkout's writes and capability reads (POSTs) in all three TOKEN_WRITES lists, with getCart a POST;
 // a remote frontend's checkout, its refusal of a stale submit, its submit and a provider's return read by the reference
-// and key alone, the same as a local page's; a sign-in on a Shop site landing on its root app. The checkout's rules are
-// Mantle's (mr-mantle test/order/ShopCheckout).
+// and key alone, the same as a local page's, its visitor key kept as its digest with the order (Marketing follow-up 4); a
+// sign-in on a Shop site landing on its root app. The checkout's rules are Mantle's (mr-mantle test/order/ShopCheckout).
 const lib = () =>
     ec.resource.script('component://mr-pass/test/Shop/ShopSpecLib.js')
 const shopCart = () =>
@@ -20,6 +20,7 @@ const ids = {
     gateway: 'PSCHK_HOSTED',
 }
 const state = {}
+const VISITOR_KEY = 'PassChkVisitor_0123456789ab'
 const context = () => lib().facade('getShopContext', { siteId: SITE }).result
 const CHECKOUT_OPS = [
     'beginCheckout',
@@ -296,13 +297,35 @@ feature(
                     token,
                     expectedRevision: '0',
                 })
+                // Marketing follow-up 4: the frontend's visitor key, kept as its digest where the seller's policy keeps keys
+                lib().run('create#mantle.marketing.campaign.MarketingPolicy', {
+                    marketingPolicyId: 'PSCHK_MKT_POLICY',
+                    organizationPartyId: lib().ids.org,
+                    fromDate: new Date(Date.now() - 60000),
+                    visitorKeys: 'Y',
+                })
                 const submitted = remote('submitCheckout', {
                     token,
                     expectedRevision: remoteView.result.checkout.revision,
+                    visitorKey: VISITOR_KEY,
                 })
                 const reference = submitted.result.checkout.reference
                 const key = submitted.result.returnKey
+                const orderOf = () => {
+                    const checkoutRow = ec.entity
+                        .find('mantle.order.StoreCheckout')
+                        .condition({ returnReference: reference })
+                        .disableAuthz()
+                        .one()
+                    return ec.entity
+                        .find('mantle.order.OrderHeader')
+                        .condition({ orderId: checkoutRow.orderId })
+                        .disableAuthz()
+                        .one()
+                }
+                const frozenKey = orderOf().marketingVisitorKeyHash
                 return {
+                    frozenKey,
                     lists,
                     routes: ec.resource.script(
                         'component://mr-pass/service/pass/Routes.js',
@@ -348,8 +371,15 @@ feature(
                         token,
                     }),
                     noKey: remote('getCheckoutPaymentResult', { reference }),
+                    // after the return's placement (keptVisitorKey reads the policy again before place#Order)
+                    placed: orderOf(),
                 }
             } finally {
+                ec.entity
+                    .find('mantle.marketing.campaign.MarketingPolicy')
+                    .condition({ marketingPolicyId: 'PSCHK_MKT_POLICY' })
+                    .disableAuthz()
+                    .deleteAll()
                 login('john.doe')
             }
         },
@@ -385,6 +415,18 @@ feature(
             r.confirmation.result.confirmation.totals.total.amount == '20.00'
             r.confirmation.result.orderToken.length == 48
             r.noKey.kind == 'NotFound'
+            // Marketing follow-up 4: the remote frontend's visitor key reached the authority, which kept only its digest (the one
+            // Marketing's events keep) with the order, through its placement
+            r.frozenKey ==
+                String(
+                    ec.resource.digestText(
+                        'mkt-visitor:' + VISITOR_KEY,
+                        'sha256',
+                    ),
+                )
+            r.frozenKey != VISITOR_KEY
+            r.placed.marketingVisitorKeyHash == r.frozenKey
+            r.placed.placedDate != null
         },
     },
 )
