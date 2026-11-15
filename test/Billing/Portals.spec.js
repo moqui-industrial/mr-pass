@@ -212,7 +212,12 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
         ec.artifactExecution.disableAuthz()
         const lib = settlement().lib
         const bill = lib.one('mantle.account.invoice.Invoice', { invoiceId: first.submission?.billReference })
+        // the finance detail names the order the supplier sent the bill for (ACC-UI-019)
+        const detail = ec.service.sync().name('mantle.account.InvoiceServices.get#InvoiceFinanceDetail')
+            .parameters({ invoiceId: bill?.invoiceId, organizationPartyId: f.org }).call() || {}
+        ec.message.clearErrors()
         return {
+            submittedOrderId: detail.submittedOrderId,
             order,
             mislabeled,
             renamed,
@@ -229,7 +234,8 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
             bills: lib.rows('mantle.account.invoice.Invoice', { fromPartyId: 'PASS_PORTALS_SUPPLIER' }),
         }
     },
-    then({ order, mislabeled, renamed, badDate, quarantined, first, sameOperation, sameReference, receipt, foreign, bill, items, content, bills }) {
+    then({ order, mislabeled, renamed, badDate, quarantined, first, sameOperation, sameReference, receipt, foreign, bill, items, content, bills, submittedOrderId }) {
+        submittedOrderId === 'PASS_PORTALS_PO'
         mislabeled.errorKind === 'Unprocessable'
         mislabeled.errorMessage.includes('not the PDF')
         renamed.submission.filename === 'scan.pdf'
