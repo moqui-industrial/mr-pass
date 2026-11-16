@@ -110,9 +110,10 @@ feature(
         }
     }
 )
-// an address that belongs to a directory party: the reservation is that party's, but the answer names the attendee as typed,
-// never the party's stored name (SEC-PSS-41, SEC-PSS-61)
-feature("a reservation for an address the directory knows answers the name typed, not the party's stored name", {
+// an address that belongs to a directory party: the answer names the attendee as typed, never the party's stored name
+// (SEC-PSS-41), and the reservation is a new person's, not that party's, until the address is confirmed (SEC-PSS-61; Mantle's
+// EventRegistrations covers the attendees and a verified account's own address)
+feature("a reservation for an address the directory knows answers the name typed and is not that party's", {
     when() {
         const address = "known.person@register.example.test"
         const c = (name, parameters) => ec.service.sync().name(name).parameters(parameters).disableAuthz().call()
@@ -129,7 +130,7 @@ feature("a reservation for an address the directory knows answers the name typed
     then({partyId, known, row}) {
         known.registration.places.map(place => place.attendeeName).join() == "Page buyer"
         !JSON.stringify(known).includes("Directoryname")
-        row.attendeePartyId == partyId
+        !!row.attendeePartyId && row.attendeePartyId != partyId
     }
 })
 feature(
