@@ -463,6 +463,82 @@ feature('site pages expose only their explicitly approved wiki version', {
     },
 })
 
+// a site owner who is no wiki administrator publishes a page of the site's publishing space, not a page of another space
+// the wiki leaves open, and may not name such a space as the publishing space; one refusal whatever the reason (SEC-PSS-42)
+feature("a site owner publishes only a page of the site's publishing space", {
+    when() {
+        const wiki = (verb, input) =>
+            call('org.moqui.resource.WikiServices.' + verb, input)
+        const published = (wikiSpaceId, pageName) => {
+            const wikiPageId = wiki('update#WikiPage', {
+                wikiSpaceId,
+                pageName,
+                pageText: pageName + ' text\n',
+            }).wikiPageId
+            const versionName = wiki('get#WikiPageHistory', { wikiPageId })
+                .versionList[0].versionName
+            wiki('set#PublishedVersion', {
+                wikiPageId,
+                publishedVersionName: versionName,
+            })
+            return { wikiPageId, versionName }
+        }
+        login('john.doe')
+        const ownedSite = run(S + 'create#Site', {
+            name: 'Owner pages',
+            ownerPartyId: party.bob,
+        }).siteId
+        const { other, own } = sys(() => {
+            wiki('create#WikiSpace', {
+                wikiSpaceId: 'PASSOWNP',
+                description: "The owner site's publishing space",
+            })
+            run(S + 'update#Site', {
+                siteId: ownedSite,
+                publishingWikiSpaceId: 'PASSOWNP',
+                expectedRevision: 1,
+            })
+            return {
+                other: published('PASSWIKI', 'Elsewhere'),
+                own: published('PASSOWNP', 'Owner guidelines'),
+            }
+        })
+        login('pass.access.bob', 'moqui1!!')
+        const elsewhere = failure(S + 'publish#SitePage', {
+            siteId: ownedSite,
+            pageRole: 'about',
+            ...other,
+            expectedRevision: 0,
+        })
+        const unknown = failure(S + 'publish#SitePage', {
+            siteId: ownedSite,
+            pageRole: 'about',
+            wikiPageId: 'NO_SUCH_PAGE',
+            versionName: other.versionName,
+            expectedRevision: 0,
+        })
+        const ownPage = run(S + 'publish#SitePage', {
+            siteId: ownedSite,
+            pageRole: 'guidelines',
+            ...own,
+            expectedRevision: 0,
+        })
+        const otherSpace = failure(S + 'update#Site', {
+            siteId: ownedSite,
+            publishingWikiSpaceId: 'PASSWIKI',
+            expectedRevision: 2,
+        })
+        login('john.doe')
+        return { elsewhere, unknown, ownPage, otherSpace }
+    },
+    then({ elsewhere, unknown, ownPage, otherSpace }) {
+        elsewhere.includes("a page in the site's publishing space")
+        elsewhere === unknown
+        ownPage.revision === 1
+        otherSpace.includes('a wiki space you administer')
+    },
+})
+
 feature(
     'the last bound category owner cannot leave through a legacy mailbox service',
     {
