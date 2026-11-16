@@ -31,11 +31,22 @@ const places = () =>
             .disableAuthz()
             .list()
     )
+// the spec's own client bucket: a server-side call is the one requester "service", whose ten-minute registration count other
+// specs on this worker may have used already (as SubmitForm)
+const requester = "spec-marketing-registration-" + Date.now()
+let requesterBefore
 spec({
     setupSpec() {
         ids = fx.setup("PMR", "PASS_MKT_REGISTER", host)
         offer = fx.registrations("PMR", ids)
         logout()
+    },
+    setup() {
+        requesterBefore = ec.user.context.passRequester
+        ec.user.context.passRequester = requester
+    },
+    cleanup() {
+        ec.user.context.passRequester = requesterBefore
     },
     cleanupSpec() {
         login("john.doe")
