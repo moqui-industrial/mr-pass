@@ -279,6 +279,8 @@ function authorityClient(siteId, path, method) {
         .method(method)
         .timeout(30)
         .followRedirects(false)
+        // the authority is this deployment's own, configured by the operator: it may be on a private network
+        .allowInternal()
         .addHeader('x-pass-client', clientId)
         .addPropertyHeader('x-pass-client-secret', 'pass_client_secret', 'pass_backend_url')
     const address = ec.web?.request?.remoteAddr
