@@ -540,9 +540,9 @@ feature("a site owner publishes only a page of the site's publishing space", {
 })
 
 // in local mode a page's operation runs in process with no authority's run(): the facade applies its login-key rule, so a
-// user signed in by an access token (as a header login is) calls no operation, and the same user signed in by password does
-// (SEC-PSF-01)
-feature('in local mode an access token calls no PASS operation; a password sign-in does', {
+// user signed in by a login key (as a header login is) calls no operation but an installed app's with a device's key, and
+// the same user signed in by password does (SEC-PSF-01); an access token signs in to git only (SEC-PFS-61)
+feature("in local mode a device's key calls no PASS operation but an app's, an access token signs in to none; a password does", {
     when() {
         const facade = (operation, input) => {
             try {
@@ -559,25 +559,38 @@ feature('in local mode an access token calls no PASS operation; a password sign-
         }
         login('pass.access.bob', 'moqui1!!')
         // as Smithy's Account/GitAccess makes one for its user
-        const token = sys(() =>
+        const made = sys(() =>
             call('org.moqui.impl.UserServices.create#UserAccessToken', {
                 description: 'Laptop',
             }),
-        ).accessToken
+        )
         const byPassword = facade('getMembership', { siteId })
         logout()
-        ec.user.loginUserKey(token)
+        const tokenSignedIn = ec.user.loginUserKey(made.accessToken)
+        ec.message.clearErrors()
+        logout()
+        // the row made a device's, as /sso/appToken's issue_device_key leaves one (deviceName, no description or scope)
+        sys(() => {
+            const row = ec.entity
+                .find('moqui.security.UserLoginKey')
+                .condition('loginKey', made.loginKey)
+                .one()
+            row.setFields({ deviceName: 'Laptop', description: null, scope: null }, true, null, null)
+            row.update()
+        })
+        ec.user.loginUserKey(made.accessToken)
         const kind = ec.user.loginKeyKind
-        const byToken = facade('getMembership', { siteId })
+        const byDevice = facade('getMembership', { siteId })
         logout()
         login('john.doe')
-        return { byPassword, kind, byToken }
+        return { byPassword, tokenSignedIn, kind, byDevice }
     },
-    then({ byPassword, kind, byToken }) {
+    then({ byPassword, tokenSignedIn, kind, byDevice }) {
         byPassword.membership.state === 'active'
-        kind === 'token'
-        byToken.kind === 'Unauthorized'
-        byToken.message.includes('A login key calls only')
+        tokenSignedIn === false
+        kind === 'device'
+        byDevice.kind === 'Unauthorized'
+        byDevice.message.includes('A login key calls only')
     },
 })
 
