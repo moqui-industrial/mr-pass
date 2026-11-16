@@ -245,3 +245,76 @@ feature(
         },
     },
 )
+// a case's file is staged under the media root only for a caller the operation serves and only for a new operation: a repeat
+// of an operation answers its first case and stages nothing, and a caller with no credential stages nothing (SEC-PSS-21, 22)
+feature(
+    'a repeated case operation answers its first case and leaves no staged file; a caller with no credential stages none',
+    {
+        when() {
+            const folder =
+                String(System.getProperty('pass_media_root')).replace(/\/$/, '') + '/support'
+            const stagedCount = () => {
+                try {
+                    return Array.from(
+                        ec.resource.getLocationReference(folder).getDirectoryEntries() || [],
+                    ).length
+                } catch (error) {
+                    return 0
+                }
+            }
+            const create = (user, input) =>
+                parallel(
+                    1,
+                    (thread, args) => {
+                        if (args.user) login(args.user, 'moqui')
+                        else logout()
+                        const text = '%PDF-1.4 a case file'
+                        try {
+                            return ec.resource
+                                .script('component://mr-mantle/service/mantle/request/SupportPortal.js')
+                                .execute('createCustomerCase', {
+                                    ...args.input,
+                                    file: {
+                                        name: 'case.pdf',
+                                        size: text.length,
+                                        contentType: 'application/pdf',
+                                        write: (location) =>
+                                            ec.resource.getLocationReference(location).putText(text),
+                                    },
+                                })
+                        } catch (error) {
+                            ec.message.clearErrors()
+                            return { kind: error.moquiErrorKind || 'Error' }
+                        }
+                    },
+                    { user, input: { siteId, ...input } },
+                    { transaction: true, timeout: 30 },
+                )[0]
+            const before = stagedCount()
+            const input = {
+                requestName: 'Case with a file',
+                description: 'The photo of the part',
+                operationId: 'case-file-' + ec.user.randomString(12),
+            }
+            const first = create(people.contact, input)
+            const afterFirst = stagedCount()
+            const repeat = create(people.contact, input)
+            const afterRepeat = stagedCount()
+            const anonymous = create(null, {
+                ...input,
+                operationId: 'case-anon-' + ec.user.randomString(12),
+            })
+            const afterAnonymous = stagedCount()
+            login('john.doe')
+            return { before, first, afterFirst, repeat, afterRepeat, anonymous, afterAnonymous }
+        },
+        then({ before, first, afterFirst, repeat, afterRepeat, anonymous, afterAnonymous }) {
+            !!first.requestId
+            afterFirst === before
+            repeat.requestId === first.requestId
+            afterRepeat === before
+            anonymous.kind === 'AuthenticationRequired'
+            afterAnonymous === before
+        },
+    },
+)
