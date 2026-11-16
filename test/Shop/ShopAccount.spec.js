@@ -16,7 +16,8 @@ const ids = {
     store: 'PASS_SHOP_ACC_STORE',
     gateway: 'PSACC_HOSTED',
     buyer: 'PSACC_BUYER',
-    file: 'dbresource://mr-pass/spec/psacc/guide.txt',
+    // a download's file is in its product's content folder (Mantle serves no other location)
+    file: 'dbresource://mantle/content/product/PSACC_GUIDE/guide.txt',
 }
 const state = {}
 // one render under Pass.xml with request parameters (a link's query)

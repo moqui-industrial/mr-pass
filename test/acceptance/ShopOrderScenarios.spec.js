@@ -19,7 +19,8 @@ const list = (entity, fields) =>
 const sys = (name, parameters) => lib().run(name, parameters)
 const ids = {
     guide: 'PASS_HTTP_PDF',
-    file: 'dbresource://mr-pass/acceptance/eguide.txt',
+    // a download's file is in its product's content folder (Mantle serves no other location)
+    file: 'dbresource://mantle/content/product/PASS_HTTP_PDF/eguide.txt',
     buyer: 'PASS_ACC_BUYER',
     unverified: 'PASS_ACC_UNVERIFIED',
 }
