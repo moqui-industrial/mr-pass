@@ -260,12 +260,12 @@ function signedOut() {
 }
 
 /* ---- REST ---- */
-/* Every authority call names this deployment with its secret and its browser's address (for rate limits). */
+/* Every authority call names this deployment with its secret and its browser's address (for rate limits). The secret is
+   never read here: the host adds it as a header only to a URL under pass_backend_url (RestClient.addPropertyHeader). */
 function authorityClient(siteId, path, method) {
     const backend = System.getProperty('pass_backend_url'),
-        clientId = System.getProperty('pass_client_id'),
-        secret = System.getProperty('pass_client_secret')
-    if (!backend || !clientId || !secret)
+        clientId = System.getProperty('pass_client_id')
+    if (!backend || !clientId || !System.isPropertySet('pass_client_secret'))
         fail('Unavailable', 'Remote authority is not configured')
     const client = ec.service
         .rest()
@@ -280,7 +280,7 @@ function authorityClient(siteId, path, method) {
         .timeout(30)
         .followRedirects(false)
         .addHeader('x-pass-client', clientId)
-        .addHeader('x-pass-client-secret', secret)
+        .addPropertyHeader('x-pass-client-secret', 'pass_client_secret', 'pass_backend_url')
     const address = ec.web?.request?.remoteAddr
     if (address) client.addHeader('x-pass-client-ip', String(address))
     return client
