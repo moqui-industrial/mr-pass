@@ -539,6 +539,48 @@ feature("a site owner publishes only a page of the site's publishing space", {
     },
 })
 
+// in local mode a page's operation runs in process with no authority's run(): the facade applies its login-key rule, so a
+// user signed in by an access token (as a header login is) calls no operation, and the same user signed in by password does
+// (SEC-PSF-01)
+feature('in local mode an access token calls no PASS operation; a password sign-in does', {
+    when() {
+        const facade = (operation, input) => {
+            try {
+                return ec.service
+                    .sync()
+                    .throwOnError(true)
+                    .name('pass.Facade.call#Operation')
+                    .parameters({ operation, input })
+                    .call().result
+            } catch (error) {
+                ec.message.clearErrors()
+                return { kind: error.moquiErrorKind || 'Error', message: String(error.message) }
+            }
+        }
+        login('pass.access.bob', 'moqui1!!')
+        // as Smithy's Account/GitAccess makes one for its user
+        const token = sys(() =>
+            call('org.moqui.impl.UserServices.create#UserAccessToken', {
+                description: 'Laptop',
+            }),
+        ).accessToken
+        const byPassword = facade('getMembership', { siteId })
+        logout()
+        ec.user.loginUserKey(token)
+        const kind = ec.user.loginKeyKind
+        const byToken = facade('getMembership', { siteId })
+        logout()
+        login('john.doe')
+        return { byPassword, kind, byToken }
+    },
+    then({ byPassword, kind, byToken }) {
+        byPassword.membership.state === 'active'
+        kind === 'token'
+        byToken.kind === 'Unauthorized'
+        byToken.message.includes('A login key calls only')
+    },
+})
+
 feature(
     'the last bound category owner cannot leave through a legacy mailbox service',
     {

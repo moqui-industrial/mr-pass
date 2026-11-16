@@ -18,11 +18,33 @@ const statusKind = (status) => transport().statusKind(status)
 /* The REST client of an authority path (Transport.js), kept for callers of the REST API. */
 const authorityClient = (siteId, path, method) =>
     transport().authorityClient(siteId, path, method)
+/* In local mode no authority's run() checks the caller, so the authority's login-key rule (Mantle's PassAuthority.js) is
+   applied here: a user who came by a login key (the api_key or login_key header, ec.user.loginKeyKind, or a session that
+   such a header started) calls only an installed app's operations (APP_KEY_OPERATIONS), and only with a device's key; an
+   access token or a session's key calls none (SEC-PSF-01). */
+function checkLoginKey(operation) {
+    const request = ec.web?.request
+    const headerKey = request
+        ? request.getHeader('api_key') || request.getHeader('login_key') || ''
+        : ''
+    const headerLogin = !!ec.web?.sessionAttributes?.moquiHeaderLogin
+    const kind = ec.user.userId ? ec.user.loginKeyKind || null : null
+    if (!headerKey && !headerLogin && !kind) return
+    const appOperations = ec.resource.script(
+        'component://mr-mantle/script/PassAuthority.js',
+    ).APP_KEY_OPERATIONS
+    if (kind !== 'device' || !appOperations.includes(operation))
+        fail(
+            'Unauthorized',
+            "accessDenied: A login key calls only an installed app's operations, and an access token none; sign in to the site",
+        )
+}
 function call(operation, input) {
     const def = schema[operation]
     if (!def || Object.keys(input).some((k) => !def.fields.includes(k)))
         fail('Unprocessable', 'Unsupported operation or input')
     const backend = System.getProperty('pass_backend_url')
+    if (!backend) checkLoginKey(operation)
     if (!backend)
         return ec.service
             .sync()
