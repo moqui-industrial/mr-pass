@@ -110,6 +110,28 @@ feature(
         }
     }
 )
+// an address that belongs to a directory party: the reservation is that party's, but the answer names the attendee as typed,
+// never the party's stored name (SEC-PSS-41, SEC-PSS-61)
+feature("a reservation for an address the directory knows answers the name typed, not the party's stored name", {
+    when() {
+        const address = "known.person@register.example.test"
+        const c = (name, parameters) => ec.service.sync().name(name).parameters(parameters).disableAuthz().call()
+        const partyId = c("create#mantle.party.Party", {partyTypeEnumId: "PtyPerson"}).partyId
+        c("create#mantle.party.Person", {partyId, firstName: "Stored", lastName: "Directoryname"})
+        const contactMechId = c("create#mantle.party.contact.ContactMech", {contactMechTypeEnumId: "CmtEmailAddress", infoString: address})
+            .contactMechId
+        c("create#mantle.party.contact.PartyContactMech", {partyId, contactMechId, contactMechPurposeId: "EmailPrimary",
+            fromDate: ec.user.nowTimestamp})
+        const known = reserve(1, address)
+        const row = places().find(place => place.reservationId === known.registration?.reference)
+        return {partyId, known, row}
+    },
+    then({partyId, known, row}) {
+        known.registration.places.map(place => place.attendeeName).join() == "Page buyer"
+        !JSON.stringify(known).includes("Directoryname")
+        row.attendeePartyId == partyId
+    }
+})
 feature(
     "the answer states the accepted terms' cancellation rule; past its deadline a cancellation is refused and changes nothing",
     {
