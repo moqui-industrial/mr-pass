@@ -88,7 +88,7 @@ function takeNotice(siteId) {
 /* Whether this page carries the session's form token: a visitor with a session (its cookie, or signed in), whose posts the
  * framework checks, on a page no shared cache keeps (Pass.xml passPublicPage). A visitor with no session posts without
  * one: the post starts the session. */
-const SESSION_COOKIES = /^(?:moqui\.session|moquiSession|JSESSIONID)$/
+const SESSION_COOKIES = /^(?:__Host-moqui\.session|moqui\.session|moquiSession|JSESSIONID)$/
 function privatePage() {
     if (ec.context.get('passPublicPage')) return false
     if (ec.user.userId) return true

@@ -86,7 +86,7 @@ const ROUTES = [
     },
 ]
 /* The cookies of a session (the framework's, and a servlet container's): a request with one is not anonymous. */
-const SESSION_COOKIES = /^(?:moqui\.session|moquiSession|JSESSIONID)$/
+const SESSION_COOKIES = /^(?:__Host-moqui\.session|moqui\.session|moquiSession|JSESSIONID)$/
 /* Whether this request is anonymous and session-less: no signed-in user and no session cookie. */
 function anonymous() {
     const request = ec.web?.request

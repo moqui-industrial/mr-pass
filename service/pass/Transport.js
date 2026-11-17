@@ -440,7 +440,7 @@ const rest = {
             .headerList('set-cookie')
             .map((c) => String(c).split(';')[0])
             .filter((c) =>
-                /^moqui\.session=|^JSESSIONID=|^moquiSession=/.test(c),
+                /^__Host-moqui\.session=|^moqui\.session=|^JSESSIONID=|^moquiSession=/.test(c),
             )
         if (cookies.length)
             ec.web.sessionAttributes.passAuthorityCookie = cookies.join('; ')
