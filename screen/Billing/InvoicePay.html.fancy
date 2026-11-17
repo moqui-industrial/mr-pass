@@ -1,4 +1,10 @@
 <#if failure><h1>Invoice</h1><p role="alert" class="error">${failure.message}</p><#if failure.kind == 'AuthenticationRequired' || !siteInfo.authenticated><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath)}">Sign in</a></p></#if>
+<#elseif stateOnly><h1>Payment</h1><section class="card" id="PaymentResult" aria-live="polite"><h2>Payment</h2>
+<#if attempt.state == 'paid'><p><strong>Payment received.</strong></p>
+<#elseif attempt.state == 'pending'><p><strong>Your payment is not confirmed yet.</strong></p><p><a href="?attemptId=${encodeURIComponent(attempt.attemptId)}&amp;returnToken=${encodeURIComponent(returnKey)}">Check the payment again</a></p>
+<#elseif attempt.state == 'declined'><p><strong>The payment was declined.</strong></p>
+<#else><p><strong>The payment did not complete.</strong></p></#if></section>
+<p>Open the link in your invoice email<#if !siteInfo.authenticated> or <a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath)}">sign in</a></#if> to see the invoice.</p>
 <#else><h1>Invoice ${view.invoice.invoiceId}</h1>
 <#if payError><p role="alert" class="error">${payError}</p></#if>
 <#if shareUrl><section class="card" aria-label="Pay link"><h2>Pay link created</h2><p>Share it with the person who pays; it is shown once.</p><p class="wrap"><a href="${shareUrl}">${shareUrl}</a></p></section></#if>

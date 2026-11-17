@@ -308,17 +308,29 @@ feature('a sixth bill for an order is refused while five wait for review, and ta
     },
 })
 
-feature('the pay link page shows the invoice with no internal navigation; a bad link and an unknown field are refused', {
+feature('the pay link page shows the invoice with no internal navigation; a bad link and an unknown field are refused; the gateway return\'s reference alone shows only the payment\'s state', {
     when() {
         logout()
         const page = render('Billing/InvoicePay', { token: INVOICE_TOKEN })
         const bad = render('Billing/InvoicePay', { token: 'x'.repeat(48) })
         const bill = render('Supplier/BillUpload', { token: ORDER_TOKEN })
         const unknownField = facade('getInvoice', { token: INVOICE_TOKEN, organizationPartyId: f.org })
+        // the return on another device: the reference, no link and no sign-in (SEC-PSS-27)
+        const started = facade('startInvoicePayment', { token: INVOICE_TOKEN, operationId: 'portals-pay-0001', confirm: true })
+        const returnToken = decodeURIComponent((/[?&]returnToken=([^&]+)/.exec(started.attempt?.redirectUrl || '') || [])[1] || '')
+        const returned = render('Billing/InvoicePay', { attemptId: started.attempt?.attemptId, returnToken })
         login('john.doe')
-        return { page, bad, bill, unknownField }
+        return { page, bad, bill, unknownField, returnToken, returned }
     },
-    then({ page, bad, bill, unknownField }) {
+    then({ page, bad, bill, unknownField, returnToken, returned }) {
+        returnToken.length > 0
+        returned.errors.length === 0
+        // the gateway approves when asked: paid, with no amount, reference or invoice
+        returned.html.includes('Payment received.')
+        returned.html.includes('to see the invoice')
+        !returned.html.includes(invoiceId)
+        !returned.html.includes('$90.00')
+        !returned.html.includes('Error rendering')
         page.errors.length === 0
         page.html.includes('Invoice ' + invoiceId)
         page.html.includes('$90.00')

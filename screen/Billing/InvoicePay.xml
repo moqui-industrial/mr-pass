@@ -2,7 +2,8 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- InvoicePay (design-accounting §4): PublicInvoice, PayInvoice and PaymentResult for an invoice's pay link (token) or a
     signed-in contact (invoiceId). The gateway sends the payer back to the registered local path return, which reads only
-    the attempt and shows what the gateway says, never what the return's parameters claim. -->
+    the attempt and shows what the gateway says, never what the return's parameters claim. The return's reference alone
+    shows only the attempt's state; the invoice and the payment's amount need the link or a sign-in (SEC-PSS-27). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Invoice">
@@ -33,8 +34,8 @@
     <actions>
       <script><![CDATA[
         // Only the attempt and its reference are read; anything else the gateway or the browser adds is ignored. The
-        // reference reads this attempt without the session (another device, an expired session); the session's link,
-        // when it has one, shows the invoice with it. The reference is returnToken, a name the request log leaves out
+        // reference reads this attempt's state without the session (another device, an expired session); the session's
+        // link, when it has one, shows the invoice with it. The reference is returnToken, a name the request log leaves out
         // (SEC-PSS-27); key is its name in a return address made before.
         const clean=(value)=>String(value || '').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64)
         const attemptId=clean(ec.web.parameters.attemptId),key=clean(ec.web.parameters.returnToken || ec.web.parameters.key)
@@ -68,22 +69,27 @@
         shareUrl=ec.web.sessionAttributes.passShareUrl || null
         if(payError)ec.web.sessionAttributes.remove('passPayError')
         if(shareUrl)ec.web.sessionAttributes.remove('passShareUrl')
-        attempt=null;failure=null;view=null
-        let invoiceId=token ? null : p.invoiceId || null,resultInvoice=null
+        attempt=null;failure=null;view=null;stateOnly=false
+        let invoiceId=token ? null : p.invoiceId || null
         if(p.attemptId){
-            const found=portal.attempt('getPaymentResult',
-                {siteId:resolvedSiteId,attemptId:String(p.attemptId),token:returnKey ? null : token,returnToken:returnKey})
-            if(found.error)failure=found.error
-            else{
-                attempt=found.result.attempt;resultInvoice=found.result.invoice
-                if(!token && !invoiceId && siteInfo.authenticated)invoiceId=resultInvoice.invoiceId
+            const attemptId=String(p.attemptId)
+            // the pay link or a signed-in contact reads the attempt with its invoice; the gateway return's reference alone
+            // reads only the attempt's state (SEC-PSS-27)
+            let found=token || invoiceId || siteInfo.authenticated
+                ? portal.attempt('getPaymentResult',{siteId:resolvedSiteId,attemptId,token}) : null
+            if(returnKey && (!found || found.error)){
+                found=portal.attempt('getPaymentResult',{siteId:resolvedSiteId,attemptId,returnToken:returnKey})
+                stateOnly=!found.error
+            }
+            if(found?.error)failure=found.error
+            else if(found){
+                attempt=found.result.attempt
+                if(!token && !invoiceId && found.result.invoice)invoiceId=found.result.invoice.invoiceId
             }
         }
-        if(!failure){
+        if(!failure && !stateOnly){
             const found=token || invoiceId ? portal.attempt('getInvoice',{siteId:resolvedSiteId,token,invoiceId}) : null
             if(found?.result){view=found.result;if(!attempt)attempt=view.attempt}
-            // the gateway return's reference shows the attempt and its invoice, and offers nothing else
-            else if(resultInvoice)view={invoice:resultInvoice,attempt:null,capabilities:{canPay:false,canShare:false}}
             else if(found?.error)failure=found.error
             else failure={kind:'NotFound',message:'Open the link in your invoice email to see the invoice.'}
         }

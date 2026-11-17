@@ -33,6 +33,9 @@ feature("a pay link at phone width starts a payment, and the provider's return n
         elsewhere.status === 200
         elsewhere.text.includes('not confirmed yet')
         !elsewhere.text.includes('Pay this invoice')
+        // the reference alone shows the payment's state, not the invoice or its amount (SEC-PSS-27)
+        !elsewhere.text.includes('$125.00')
+        elsewhere.text.includes('to see the invoice')
         invoice.status === 200
         invoice.text.includes('Due')
         invoice.text.includes('$125.00')
