@@ -15,6 +15,17 @@ const fail = (kind, text) => {
 const transport = () =>
     ec.resource.script('component://mr-pass/service/pass/Transport.js')
 const statusKind = (status) => transport().statusKind(status)
+/* The type a file is answered with from the site's origin (SEC-PSF-08): its own when inert (an image, a font, audio or
+   video, a PDF, plain text or CSV, an archive), else application/octet-stream, so no file a visitor uploaded or pushed (a
+   release file named x.js) is a script or a style sheet the site's pages could load; with a sandboxing policy, as
+   Smithy's raw route answers. Mantle's PassAuthority.js keeps the same list for the remote transports. */
+const INERT_TYPES =
+    /^(?:image\/(?:png|jpeg|gif|webp|avif|svg\+xml)|font\/(?:woff2?|ttf|otf)|(?:audio|video)\/[a-z0-9.+-]+|application\/(?:pdf|zip|gzip|x-gzip|x-tar|octet-stream)|text\/(?:plain|csv))$/
+function servedType(type) {
+    const base = String(type || '').split(';')[0].trim().toLowerCase()
+    return INERT_TYPES.test(base) ? String(type) : 'application/octet-stream'
+}
+const SANDBOX = "default-src 'none'; sandbox"
 /* The REST client of an authority path (Transport.js), kept for callers of the REST API. */
 const authorityClient = (siteId, path, method) =>
     transport().authorityClient(siteId, path, method)
@@ -123,7 +134,8 @@ function downloadFile(siteId, operation, input, options) {
         // Smithy DG5: the authority's operation sent the file as this response itself (a run's artifact, send#RunArtifact)
         if (result.sent === true) return
         const headers = () => {
-            ec.web.response.setContentType(result.file.mimeType)
+            ec.web.response.setContentType(servedType(result.file.mimeType))
+            ec.web.response.setHeader('Content-Security-Policy', SANDBOX)
             // Shop P8 (F75): the authority lets a public product image of the current generation be kept a minute; else no-store
             ec.web.response.setHeader(
                 'Cache-Control',
@@ -202,7 +214,8 @@ function downloadRanged(siteId, operation, input) {
         response.setHeader('Content-Range', 'bytes */' + result.file.size)
         return
     }
-    response.setContentType(result.file.mimeType)
+    response.setContentType(servedType(result.file.mimeType))
+    response.setHeader('Content-Security-Policy', SANDBOX)
     if (r) {
         response.setStatus(206)
         response.setHeader(
@@ -243,4 +256,5 @@ function downloadRanged(siteId, operation, input) {
     downloadRanged,
     authorityClient,
     statusKind,
+    servedType,
 })

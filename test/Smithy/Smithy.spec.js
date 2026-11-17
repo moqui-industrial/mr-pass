@@ -976,6 +976,57 @@ feature("archive serves a ref's tree as an attachment, never cached, to a signed
         visitorCache === "no-store"
     }
 })
+feature("a release's file is answered as an inert type with a sandbox: a script's name gives no script of the site (SEC-PSF-08)", {
+    when() {
+        const f = fixtures()
+        const image = ec.entity.find("mantle.smithy.SmithyReleaseAsset").condition({assetId: "PASS_SMG_A1"}).disableAuthz().one()
+        f.run("create#mantle.smithy.SmithyReleaseAsset", {
+            assetId: "PASS_SMG_A2",
+            siteId: SITE,
+            repositoryId: state.repo,
+            workEffortId: image.workEffortId,
+            tagName: "v1.0",
+            name: "x.js",
+            assetKindEnumId: "SakFile",
+            contentLocation: "dbresource://pass-smg/x.js",
+            sizeBytes: 9,
+            sha256: "cd".repeat(32),
+            createdAt: Date.now()
+        })
+        const was = ec.artifactExecution.disableAuthz()
+        try {
+            ec.resource.getLocationReference("dbresource://pass-smg/x.js").putText("alert(8);")
+        } finally {
+            if (!was) ec.artifactExecution.enableAuthz()
+        }
+        const file = f.render(SITE, HOST, "/code/pass-smg/web/-/release-assets/PASS_SMG_A2/x.js", "Smithy/ReleaseDetail/asset", {
+            repositoryId: state.repo,
+            assetId: "PASS_SMG_A2"
+        })
+        const facade = ec.resource.script("component://mr-pass/service/pass/Facade.js")
+        const authority = ec.resource.script("component://mr-mantle/script/PassAuthority.js")
+        const types = ["application/javascript", "text/javascript; charset=utf-8", "text/css", "text/html", "image/svg+xml", "image/png",
+            "text/plain; charset=utf-8", "application/pdf", "font/woff2", "application/zip"]
+        return {
+            file,
+            type: file.header("Content-Type"),
+            csp: file.header("Content-Security-Policy"),
+            local: types.map(type => facade.servedType(type)),
+            remote: types.map(type => authority.servedType(type))
+        }
+    },
+    then({file, type, csp, local, remote}) {
+        file.errors.length === 0
+        file.html === "alert(8);"
+        type.startsWith("application/octet-stream")
+        csp === "default-src 'none'; sandbox"
+        local ==
+            ["application/octet-stream", "application/octet-stream", "application/octet-stream", "application/octet-stream", "image/svg+xml",
+                "image/png", "text/plain; charset=utf-8", "application/pdf", "font/woff2", "application/zip"]
+        // the remote transports answer the same types (Mantle's PassAuthority.js keeps the list)
+        remote == local
+    }
+})
 feature("a form's post answers 303: to its page after a write, back to the form with the refusal; an ending action asks again", {
     when() {
         const f = fixtures()
