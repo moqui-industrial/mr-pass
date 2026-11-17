@@ -249,7 +249,7 @@ function groupIssues(shell, bases, siteInfo, self) {
 /* The composer's island (design §8 NewIssue): where JavaScript runs it takes the place of the plain textarea of the form
  * formId, with a Markdown and rich text toggle and a preview in the page. The plain form stays as it is without it. */
 const ISLAND_SCRIPTS = [
-    "/libs/vue/vue.global.prod.js",
+    "/libs/vue/vue.runtime.global.prod.js",
     "/libs/quasar/quasar.umd.prod.js",
     "/libs/quasar/lang/en-US.umd.prod.js",
     "/libs/quasar/icon-set/material-symbols-outlined.umd.prod.js",
@@ -270,7 +270,7 @@ function islandOf(mount, name, c, siteInfo, context, o = {}) {
         timeZone: siteInfo.site?.timeZone || "UTC",
         quasar: {dark: "auto"},
         quasarLang: "enUS",
-        qvt: {build: "compiler", handles: ["merged-fragment", "static-template"]},
+        qvt: {build: "runtime", handles: ["static-template", "bundled-qvue"]},
         route: {name: "smithy-" + name.toLowerCase(), basePath: c.base + "/-/island/" + name, title: name, renderModes: ["qvue"]},
         context,
         labels: {loading: o.loading || "Loading", notFound: ""}
@@ -294,7 +294,7 @@ function island(c, siteInfo, f, label, o) {
         timeZone: siteInfo.site?.timeZone || "UTC",
         quasar: {dark: "auto"},
         quasarLang: "enUS",
-        qvt: {build: "compiler", handles: ["merged-fragment", "static-template"]},
+        qvt: {build: "runtime", handles: ["static-template", "bundled-qvue"]},
         route: {name: "smithy-composer", basePath: c.base + "/-/island/Composer", title: "Composer", renderModes: ["qvue"]},
         context: {formId: f.id, previewOf: f.name, previewUrl: c.base + "/-/do/previewPost", label},
         labels: {loading: "Loading the editor", notFound: ""}

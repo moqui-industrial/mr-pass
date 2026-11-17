@@ -9,6 +9,8 @@ feature(
             // the purchase island's component (Purchase.qvue, the screen's file served as content), loaded by a cookieless
             // visitor, starts no session and may be cached (F72)
             const island = session().get('/shop/Purchase.qvue')
+            // SEC-PSF-04: the runtime build of Vue loads it compiled by the server
+            const bundle = session().get('/shop/Purchase.qvue?_qvt=bundle')
             const page = browser.newPage({
                 viewport: { width: 390, height: 844 },
             })
@@ -56,6 +58,11 @@ feature(
                 { timeout: 15 },
             )
             return {
+                bundle: {
+                    status: bundle.status,
+                    qvt: bundle.header('X-Moqui-Qvt'),
+                    type: bundle.header('Content-Type'),
+                },
                 island: {
                     status: island.status,
                     cookies: island.headers('Set-Cookie').length,
@@ -73,7 +80,10 @@ feature(
                 ),
             }
         },
-        then({ island, pending, provider, confirmation, url, overflow, qr }) {
+        then({ bundle, island, pending, provider, confirmation, url, overflow, qr }) {
+            bundle.status === 200
+            bundle.qvt === 'bundled-qvue'
+            String(bundle.type).includes('javascript')
             island.status === 200
             island.cookies === 0
             island.cache.includes('public')

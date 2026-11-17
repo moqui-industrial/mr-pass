@@ -119,7 +119,7 @@ const noticeHtml = (notice) =>
         : ''
 /* The island's scripts (WebrootPublic.qvt.js and what it needs): the trusted Vue enhancement, no theme stylesheet. */
 const ISLAND_SCRIPTS = [
-    '/libs/vue/vue.global.prod.js',
+    '/libs/vue/vue.runtime.global.prod.js',
     '/libs/quasar/quasar.umd.prod.js',
     '/libs/quasar/lang/en-US.umd.prod.js',
     '/js/MoquiLib.js',
@@ -138,8 +138,8 @@ function island(context, mountId, screen, islandContext) {
         quasar: { dark: false },
         quasarLang: 'enUS',
         qvt: {
-            build: 'compiler',
-            handles: ['merged-fragment', 'static-template'],
+            build: 'runtime',
+            handles: ['static-template', 'bundled-qvue'],
         },
         route: {
             name: 'shop-' + screen.toLowerCase(),

@@ -7,11 +7,11 @@
  */
 /* default-src 'self' (SEC-PSF-04): what no other directive names (frames, fonts, connections, workers, manifests) comes
  * from the site alone, so injected markup loads no frame of another origin and sends nothing to one with fetch or CSS.
- * Styles may be inline (the theme's and the brand's <style>, Quasar's style attributes). 'unsafe-eval' stays while the
- * islands compile their templates in the browser. */
+ * Styles may be inline (the theme's and the brand's <style>, Quasar's style attributes). The islands run on the runtime
+ * build of Vue, loaded as bundled qvue, so scripts need no 'unsafe-eval'. */
 const CSP = {
     'default-src': ["'self'"],
-    'script-src': ["'self'", "'unsafe-eval'"],
+    'script-src': ["'self'"],
     'style-src': ["'self'", "'unsafe-inline'"],
     'font-src': ["'self'", 'data:'],
     'connect-src': ["'self'"],
