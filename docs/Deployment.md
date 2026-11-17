@@ -15,11 +15,12 @@ frontend through deployment configuration or environment variables:
 
 | Property | Purpose |
 | --- | --- |
-| `pass_backend_url` | Fixed authority origin/base URL; use TLS in production. `edge:` on an edge node: its local node, over the edge link |
+| `pass_backend_url` | Fixed authority origin/base URL, `https://`: an `http://` URL (or a `grpc://` `pass_backend_grpc_url`) to a host other than loopback is refused unless `pass_backend_insecure=true`. `edge:` on an edge node: its local node, over the edge link |
 | `pass_client_id` | Registered deployment ID |
 | `pass_client_secret` | Server-side deployment secret |
 | `pass_backend_transport` | `rest`, `grpc`, or empty for automatic (below) |
 | `pass_backend_grpc_url` | The authority's gRPC listener for direct gRPC, such as `grpcs://boss.example.test:4317` |
+| `pass_backend_insecure` | `true` lets the transport send the client secret and the visitors' delegations in clear text (`http://`, `grpc://`) to another host, on a private link only |
 | `pass_backend_web_url` | The authority's web address for the browser's SSO front channel; defaults to an http(s) `pass_backend_url`, and is needed with `edge:` (the local node's host name, through the edge node's web access) |
 
 The same operations go to the authority by one of three transports, which callers cannot tell apart (the same results
@@ -39,8 +40,9 @@ supported mode for the long term. `grpc` with no `pass_backend_grpc_url` dials t
 4317, and `edge:` takes gRPC only. Settings that cannot work fail each call as unavailable, naming the setting in the
 log.
 
-`grpc://` is plain HTTP/2: to an authority on another host it sends the client's secret, and the visitors' credentials
-and data, in clear; use it on loopback or a private link only, and `grpcs://` otherwise. `grpcs://` trusts the WebPKI
+`grpc://` is plain HTTP/2: to an authority on another host it would send the client's secret, and the visitors'
+credentials and data, in clear, so it is refused there (as `http://` is) unless `pass_backend_insecure=true` (a private
+link); use `grpcs://` otherwise. `grpcs://` trusts the WebPKI
 roots only; an authority certificate from a private CA is not accepted yet.
 
 On the authority, register `pass_client_<id>_secret` and comma-separated

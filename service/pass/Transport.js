@@ -149,10 +149,38 @@ function grpcEndpointOf(backend) {
     if (!match) return ''
     return (match[1] === 'https' ? 'grpcs://' : 'grpc://') + match[2] + ':4317'
 }
+/* Whether a URL (http://, https://, grpc://, grpcs://) is in clear text to a host other than this one's loopback: such
+   a URL would carry the client's secret and the visitors' delegations unencrypted (SEC-PSF-05). */
+function clearToAnotherHost(url) {
+    const match = /^(https?|grpcs?):\/\/(\[[^\]]+\]|[^/:?#]+)/i.exec(String(url || ''))
+    if (!match || !/^(http|grpc)$/i.test(match[1])) return false
+    const host = match[2].toLowerCase().replace(/^\[|\]$/g, '')
+    return !(host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host))
+}
 /* The transport for the settings: {kind: 'local'}, {kind: 'rest'} or {kind: 'grpc', endpoint}. backend is
    pass_backend_url, setting pass_backend_transport, grpcUrl pass_backend_grpc_url, available whether the host has the
-   gRPC binding. Settings that cannot work are an Unavailable error naming them. */
-function select({ backend, setting, grpcUrl, available }) {
+   gRPC binding, insecure pass_backend_insecure. Settings that cannot work are an Unavailable error naming them, and so is
+   a transport in clear text (http://, grpc://) to another host, unless insecure is true (as the authority's gRPC
+   listener takes clear text from another host only with pass_authority_grpc_insecure). */
+function select(settings) {
+    const chosen = selectTransport(settings)
+    const url =
+        chosen.kind === 'rest'
+            ? settings.backend
+            : chosen.kind === 'grpc'
+              ? chosen.endpoint
+              : ''
+    if (settings.insecure !== true && clearToAnotherHost(url))
+        fail(
+            'Unavailable',
+            (chosen.kind === 'rest'
+                ? 'pass_backend_url'
+                : 'pass_backend_grpc_url') +
+                ' sends the client secret in clear text to another host: use https:// (grpcs://), or set pass_backend_insecure=true',
+        )
+    return chosen
+}
+function selectTransport({ backend, setting, grpcUrl, available }) {
     if (!backend) return { kind: 'local' }
     const chosen = String(setting || '').toLowerCase()
     if (chosen && chosen !== 'grpc' && chosen !== 'rest')
@@ -208,6 +236,7 @@ function current() {
         setting: property('pass_backend_transport'),
         grpcUrl: property('pass_backend_grpc_url'),
         available: grpcAvailable(),
+        insecure: property('pass_backend_insecure') === 'true',
     })
 }
 /* The authority's web address, for the SSO front channel the browser follows: pass_backend_web_url, else an http(s)
@@ -267,6 +296,9 @@ function authorityClient(siteId, path, method) {
         clientId = System.getProperty('pass_client_id')
     if (!backend || !clientId || !System.isPropertySet('pass_client_secret'))
         fail('Unavailable', 'Remote authority is not configured')
+    // the same rule as select's for a caller that comes here directly: no secret in clear text to another host
+    if (property('pass_backend_insecure') !== 'true' && clearToAnotherHost(backend))
+        fail('Unavailable', 'pass_backend_url sends the client secret in clear text to another host')
     const client = ec.service
         .rest()
         .uri(
@@ -675,6 +707,7 @@ const account = (action, input, siteId) =>
     current,
     grpcAvailable,
     grpcEndpointOf,
+    clearToAnotherHost,
     webBase,
     call,
     download,

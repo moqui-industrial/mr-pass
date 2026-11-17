@@ -109,6 +109,84 @@ feature(
     },
 )
 feature(
+    'a transport in clear text to another host is refused unless pass_backend_insecure says so (SEC-PSF-05)',
+    {
+        when() {
+            return {
+                restClear: chosen({
+                    backend: 'http://authority.example.test',
+                    setting: 'rest',
+                    available: false,
+                }),
+                restLoopback: chosen({
+                    backend: 'http://127.0.0.1:8091',
+                    setting: 'rest',
+                    available: false,
+                }),
+                restLocalhost: chosen({
+                    backend: 'http://localhost:8091/',
+                    setting: '',
+                    available: false,
+                }),
+                restInsecure: chosen({
+                    backend: 'http://authority.example.test',
+                    setting: 'rest',
+                    available: false,
+                    insecure: true,
+                }),
+                grpcClear: chosen({
+                    backend: 'https://authority.example.test',
+                    setting: '',
+                    grpcUrl: 'grpc://authority.example.test:4317',
+                    available: true,
+                }),
+                grpcDerived: chosen({
+                    backend: 'http://10.0.0.5:8080',
+                    setting: 'grpc',
+                    available: true,
+                }),
+                grpcLoopback: chosen({
+                    backend: 'https://authority.example.test',
+                    setting: 'grpc',
+                    grpcUrl: 'grpc://[::1]:4317',
+                    available: true,
+                }),
+                // a lookalike of a loopback name is another host
+                lookalike: chosen({
+                    backend: 'http://127.0.0.1.example.test',
+                    setting: 'rest',
+                    available: false,
+                }),
+                // the property is read by current(), and a direct REST client is refused the same
+                current: withProperty(
+                    'pass_backend_url',
+                    'http://authority.example.test',
+                    () => {
+                        try {
+                            return transport().current()
+                        } catch (error) {
+                            return { refused: String(error.message) }
+                        }
+                    },
+                ),
+            }
+        },
+        then(c) {
+            c.restClear.kind == 'Unavailable'
+            c.restClear.refused.includes('clear text')
+            c.restLoopback.kind == 'rest'
+            c.restLocalhost.kind == 'rest'
+            c.restInsecure.kind == 'rest'
+            c.grpcClear.kind == 'Unavailable'
+            c.grpcClear.refused.includes('pass_backend_grpc_url')
+            c.grpcDerived.kind == 'Unavailable'
+            c.grpcLoopback.kind == 'grpc'
+            c.lookalike.kind == 'Unavailable'
+            c.current.refused.includes('clear text')
+        },
+    },
+)
+feature(
     'with no gRPC in the host the binding says so, and the configured transport is REST',
     {
         when() {
