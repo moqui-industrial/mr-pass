@@ -5,7 +5,7 @@
     the authority on each visit (getRegistrationPaymentForm, by the reservation's capability kept in the session or the buyer's
     account) and posted by the payer to the provider's page. Reached from Register's payment step by ?ref=; no-store, the token in this
     page alone; only this route's CSP allows the provider's form-action (Shared/Headers.js). Nothing confirms here or on the way back:
-    the provider returns to Register's ?ref=&key=, which reads the state, and the verified result decides. Plain HTML: the payer
+    the provider returns to Register's ?ref=&returnToken=, which reads the state, and the verified result decides. Plain HTML: the payer
     presses Continue (PASS's Marketing pages carry no script). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"

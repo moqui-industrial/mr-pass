@@ -41,7 +41,7 @@ feature("a pay link at phone width starts a payment, and the provider's return n
         invoice.overflow === false
         pendingText.includes('not confirmed yet')
         provider.includes('/billing/InvoicePay/return?attemptId=')
-        provider.includes('&key=')
+        provider.includes('&returnToken=')
         provider.includes('result=paid')
         resultText.includes('not confirmed yet')
         !resultText.includes('Payment received')

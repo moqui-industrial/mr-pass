@@ -220,7 +220,7 @@ host, from which every link Mantle mails is built.
   orders and bills on Supplier's SupplierHome. Set the site's registration to invitation so invited contacts can register.
 - **Payment.** Set the organization's invoice payment gateway (`PartyAcctgPreference.invoicePayGatewayConfigId`, one of
   its PaymentGatewayOrganization bindings; BOSS Accounting Preferences). A hosted gateway takes the payer to its page from
-  a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=&key=`, whose
+  a link on the payment result and sends them back to `<billing mount>/InvoicePay/return?attemptId=&returnToken=`, whose
   reference reads that attempt on any device; the result comes from the gateway's details service, never from the
   return's parameters. The reference reads the attempt while it is pending and for a day after it settles. Keep the
   `resolve_PortalPayments` job running: it settles payments whose payer never comes back, and an attempt pending for
@@ -424,7 +424,7 @@ published confirmation template, and the site has a canonical host.
   and holds nothing); the places are held for the offer's hold minutes, or all waitlisted when they do not fit. The visitor names the
   attendees, answers the questions and accepts the terms (`completeRegistration`); a free registration is confirmed, a paid one pays
   on the payment provider's page (`startRegistrationPayment`; the offer's store's gateway, else the organization's), which returns to
-  `/marketing/Register?ref=...&key=...`. The provider's verified answer, never the return, confirms: the ticket order (storeless and
+  `/marketing/Register?ref=...&returnToken=...`. The provider's verified answer, never the return, confirms: the ticket order (storeless and
   taxed by the organization's own tax gateway, or the store's) is placed and approved, or waits in Sales' Awaiting approval list
   where the organization's Sales approval setting is on, the registration showing "payment received, awaiting the organizer's
   confirmation" with no ticket until then. The reservation's capability is kept in the visitor's session; the receipt's link opens
@@ -496,7 +496,7 @@ freezes it and starts the payment on the store's hosted payment gateway for the 
 (`ProductStorePaymentGateway`, one whose gateway type has a hosted page: Authorize.Net with
 `AuthorizeNetServices.authorizeHosted#Payment`, or the test gateway's `hostedPending`); `PaymentResult` links the provider's
 page and polls the outcome (a same-origin script, `Checkout/enhance`); the provider returns the payer to
-`{mount}/Checkout/return?ref=&key=`, built from the site's canonical host, so the site needs one. For Authorize.Net Accept
+`{mount}/Checkout/return?ref=&returnToken=`, built from the site's canonical host, so the site needs one. For Authorize.Net Accept
 Hosted the link goes to `PaymentRelay`, which asks the authority for a fresh form token on each visit and posts it to
 Authorize.Net at once: only that route's CSP adds `form-action https://accept.authorize.net https://test.authorize.net`, and it
 is `no-store`. Configure Authorize.Net's webhooks as `docs/AuthorizeNet.md` in mr-mantle says: a payer who never comes back
@@ -546,7 +546,7 @@ page. Automatic renewal needs a gateway that charges a kept card off-session (Au
 credential indicators are untried against the sandbox, impl-shop F115). Review photos (PNG or JPEG) are staged under
 `pass_media_root/reviews` and scanned by `pass_scanner_service` as the Billing and Support files are; with no scanner the
 review keeps its text and refuses the photo. Cart recovery mails a signed-in customer who turned on the store's cart
-reminders (`/account/EmailPreferences`) a link to `/Recover?r=`, which the frontend keeps in its session; guests never get
+reminders (`/account/EmailPreferences`) a link to `/Recover?recoveryToken=`, which the frontend keeps in its session; guests never get
 one. A published product feed is served at `{mount}/feeds/{key}.xml` (or `.csv`) from its active build.
 
 **Deploying a Shop site** (impl-shop P9). In order:

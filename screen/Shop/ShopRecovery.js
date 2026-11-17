@@ -1,5 +1,5 @@
 /* Shop's cart recovery link (Commerce P10; design-shop §6 Cart, §7.1, §13.2 recoverCart; design-commerce §6 RecoverCart). The
- * email's link is /Recover?r={token}: the token is kept in this server session (never in a page) and the page opened without
+ * email's link is /Recover?recoveryToken={token}: the token is kept in this server session (never in a page) and the page opened without
  * it, so it does not travel on as a referrer. The cart is a signed-in account's, so a visitor is asked to sign in (the token
  * stays kept); the signed-in shopper's Open my cart posts here and recoverCart spends the token: the authority rotates the
  * cart's capability into this session (kept as Shop/ShopCart.js keeps one), reprices it and names the lines that cannot be
@@ -41,11 +41,12 @@ function notAvailable(context) {
             '">Continue shopping</a></p>',
     )
 }
-/* Recover: with r, the token kept and the page opened without it; else the sign-in prompt or the Open my cart form. */
+/* Recover: with recoveryToken (or r), the token kept and the page opened without it; else the sign-in prompt or the Open my cart form. */
 function render(context) {
     const { esc, page, signIn, formToken, takeNotice } = account()
     const siteId = context.site.siteId
-    const presented = cleanToken(account().param('r'))
+    // recoveryToken, a name the request log leaves out (SEC-PSF-03); r is its name in a mail sent before
+    const presented = cleanToken(account().param('recoveryToken') || account().param('r'))
     if (presented) {
         const attributes = session()
         if (attributes) attributes[linkKey(siteId)] = presented

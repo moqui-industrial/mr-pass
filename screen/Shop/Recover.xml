@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Recover (Commerce P10; design-shop §6 Cart, §7.1, §13.2 recoverCart; design-commerce §6 RecoverCart): a cart recovery
-    link. Recover?r= keeps the link's token in this session and opens the page without it in the address; the page asks a
+    link. Recover?recoveryToken= keeps the link's token in this session and opens the page without it in the address; the page asks a
     visitor to sign in, and offers the signed-in shopper Open my cart, whose post spends the token (recoverCart: the cart's
     capability rotated into this session, repriced, its unavailable lines named) and opens the cart. A spent, expired or
     another account's link gets the not-available page. Shop/ShopRecovery.js; no-store. -->

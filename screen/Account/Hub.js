@@ -3,7 +3,7 @@
  * Shop's AccountOverview summary, Billing's invoices, Support's cases and returns); EmailPreferences combines a list link's
  * unsubscribe (its token from ConsentServices' link, /EmailPreferences?token=, with RFC 8058's one-click POST), the
  * signed-in account's lists and each store's topics, cart reminders and review requests (getEmailPreferences,
- * storeEmailPreferences), and the Forum opt-out's page. A receipt's confirmation link (?confirm=, Commerce P9 follow-up)
+ * storeEmailPreferences), and the Forum opt-out's page. A receipt's confirmation link (?confirmToken=, Commerce P9 follow-up)
  * shows the checkout's optional emails waiting for it, read only, and its one button confirms them. Plain forms; no-store.
  * CC0 plus patent grant. */
 const portal = () =>
@@ -31,8 +31,10 @@ const tokenParam = () =>
     String(param('token') || '')
         .replace(/[^A-Za-z0-9_-]/g, '')
         .slice(0, 128)
+/* A receipt's confirmation code: confirmToken, a name the request log leaves out (SEC-PSF-03); confirm is its name in a
+   receipt sent before. */
 const confirmParam = () =>
-    String(param('confirm') || '')
+    String(param('confirmToken') || param('confirm') || '')
         .replace(/[^A-Za-z0-9_.-]/g, '')
         .slice(0, 180)
 const hidden = (name, value) =>
@@ -292,7 +294,7 @@ function confirmation(v, confirm, publicPath) {
               esc(publicPath + '/save') +
               '">' +
               formToken() +
-              hidden('confirm', confirm) +
+              hidden('confirmToken', confirm) +
               hidden('confirmNow', 'true') +
               '<p><button type="submit">Confirm these emails</button></p><p><small>Nothing is sent until you confirm. Your receipt and order updates come either way.</small></p></form>')
     )
@@ -314,7 +316,7 @@ function save(siteId, publicPath) {
             ? confirmed.error.message
             : 'Your choices are confirmed.'
         return ec.web.response.sendRedirect(
-            back + '?confirm=' + encodeURIComponent(confirm),
+            back + '?confirmToken=' + encodeURIComponent(confirm),
         )
     }
     const parameters = ec.web.parameters

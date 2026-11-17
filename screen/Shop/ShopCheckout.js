@@ -683,10 +683,11 @@ function submit(context) {
     )
 }
 /* Checkout/return: a provider's return. Only the reference and key are read (kept in this session, so a return on another
- * device or after the session ended reads the result too); whatever else the provider or browser adds is ignored. */
+ * device or after the session ended reads the result too); whatever else the provider or browser adds is ignored. The key
+ * is returnToken, a name the request log leaves out (SEC-PSS-02); key is its name in a return address made before. */
 function returned(context) {
     const reference = cleanRef(param('ref'))
-    const key = String(param('key') || '')
+    const key = String(param('returnToken') || param('key') || '')
         .replace(/[^A-Za-z0-9_-]/g, '')
         .slice(0, 128)
     if (reference && key) keepIn(keysKey(context.site.siteId), reference, key)

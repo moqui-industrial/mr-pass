@@ -34,13 +34,14 @@
       <script><![CDATA[
         // Only the attempt and its reference are read; anything else the gateway or the browser adds is ignored. The
         // reference reads this attempt without the session (another device, an expired session); the session's link,
-        // when it has one, shows the invoice with it.
+        // when it has one, shows the invoice with it. The reference is returnToken, a name the request log leaves out
+        // (SEC-PSS-27); key is its name in a return address made before.
         const clean=(value)=>String(value || '').replace(/[^A-Za-z0-9_-]/g,'').slice(0,64)
-        const attemptId=clean(ec.web.parameters.attemptId),key=clean(ec.web.parameters.key)
+        const attemptId=clean(ec.web.parameters.attemptId),key=clean(ec.web.parameters.returnToken || ec.web.parameters.key)
         const token=attemptId ? ec.web.sessionAttributes['passPayToken.'+attemptId] || null : null
         const base=publicPath.replace(/\/return$/,'')
         ec.web.response.sendRedirect(base+'?attemptId='+encodeURIComponent(attemptId)
-            +(key?'&key='+encodeURIComponent(key):'')+(token?'&token='+encodeURIComponent(token):''))
+            +(key?'&returnToken='+encodeURIComponent(key):'')+(token?'&token='+encodeURIComponent(token):''))
     ]]></script>
     </actions>
     <default-response type="none"/>
@@ -62,7 +63,7 @@
     <script><![CDATA[
         const portal=ec.resource.script('component://mr-pass/screen/Shared/Portal.js'),p=ec.web.parameters
         token=p.token || null
-        returnKey=p.key || null
+        returnKey=p.returnToken || p.key || null
         payError=ec.web.sessionAttributes.passPayError || null
         shareUrl=ec.web.sessionAttributes.passShareUrl || null
         if(payError)ec.web.sessionAttributes.remove('passPayError')
@@ -71,7 +72,7 @@
         let invoiceId=token ? null : p.invoiceId || null,resultInvoice=null
         if(p.attemptId){
             const found=portal.attempt('getPaymentResult',
-                {siteId:resolvedSiteId,attemptId:String(p.attemptId),token:returnKey ? null : token,returnKey})
+                {siteId:resolvedSiteId,attemptId:String(p.attemptId),token:returnKey ? null : token,returnToken:returnKey})
             if(found.error)failure=found.error
             else{
                 attempt=found.result.attempt;resultInvoice=found.result.invoice

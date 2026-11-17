@@ -10,7 +10,7 @@
     - RegistrationPayment: when the hold ends and the amount due (the tickets' prices now, before tax), and Pay
       (startRegistrationPayment with that amount's key, so a price changed since is shown again rather than charged), which sends the
       payer to the payment provider's page (one that takes a posted form, Accept Hosted, through RegistrationRelay); the provider
-      returns to ?ref=&key= and the page reads the verified result, never the browser's claim;
+      returns to ?ref=&returnToken= (key before SEC-PSF-03) and the page reads the verified result, never the browser's claim;
     - RegistrationReceipt: the opaque reference and the state (confirmed, payment received and awaiting the organizer's confirmation,
       waitlisted, under review), with the link to the registration's page.
     An unknown, draft, closed or past offer and a lost or another site's reservation show the same "not available". Plain HTML
@@ -92,7 +92,7 @@
     <script><![CDATA[
         const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
         flash=marketing.take()
-        const offerParam=marketing.param('offer'),ref=marketing.param('ref'),returnKey=marketing.param('key')
+        const offerParam=marketing.param('offer'),ref=marketing.param('ref'),returnKey=marketing.param('returnToken') || marketing.param('key')
         view=null;event=null;failure=null;step=null
         const notAvailable={kind:'NotFound',message:'This registration is not available. It may have closed, or this page was opened in another browser: use the link in your email.'}
         if(ref){

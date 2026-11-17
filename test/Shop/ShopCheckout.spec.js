@@ -409,6 +409,9 @@ feature(
             r.submitted.result.checkout.attempt.providerUrl.startsWith(
                 'https://' + HOST + '/shop/Checkout/return?ref=',
             )
+            // the return key rides as returnToken, a name the request log's secret rule leaves out (SEC-PSS-02)
+            r.submitted.result.checkout.attempt.providerUrl.includes('&returnToken=')
+            !r.submitted.result.checkout.attempt.providerUrl.includes('&key=')
             r.returned.result.checkout.state == 'completed'
             r.byReference.result.confirmation.minimal == true
             !r.byReference.result.orderToken
