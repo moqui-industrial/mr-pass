@@ -1012,10 +1012,18 @@ feature("a release's file is answered as an inert type with a sandbox: a script'
             type: file.header("Content-Type"),
             csp: file.header("Content-Security-Policy"),
             local: types.map(type => facade.servedType(type)),
-            remote: types.map(type => authority.servedType(type))
+            remote: types.map(type => authority.servedType(type)),
+            // a PDF shown inline is not sandboxed, so it displays (the framework's rule); anything else is
+            sandbox: [
+                ["application/pdf", "inline"],
+                ["application/pdf", 'attachment; filename="q.pdf"'],
+                ["image/png", "inline"],
+                ["application/octet-stream", 'attachment; filename="x.js"']
+            ].map(([kind, disposition]) => facade.sandboxed(kind, disposition))
         }
     },
-    then({file, type, csp, local, remote}) {
+    then({file, type, csp, local, remote, sandbox}) {
+        sandbox == [false, true, true, true]
         file.errors.length === 0
         file.html === "alert(8);"
         type.startsWith("application/octet-stream")

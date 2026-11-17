@@ -26,6 +26,13 @@ function servedType(type) {
     return INERT_TYPES.test(base) ? String(type) : 'application/octet-stream'
 }
 const SANDBOX = "default-src 'none'; sandbox"
+/* Whether a download is sandboxed: always, but a PDF shown inline, which a browser will not display in a sandbox and whose
+   viewer has an origin of its own (the framework's web::user_file_inline). */
+const sandboxed = (type, disposition) =>
+    !(
+        /^inline\b/i.test(String(disposition || '')) &&
+        String(type || '').split(';')[0].trim().toLowerCase() === 'application/pdf'
+    )
 /* The REST client of an authority path (Transport.js), kept for callers of the REST API. */
 const authorityClient = (siteId, path, method) =>
     transport().authorityClient(siteId, path, method)
@@ -134,21 +141,19 @@ function downloadFile(siteId, operation, input, options) {
         // Smithy DG5: the authority's operation sent the file as this response itself (a run's artifact, send#RunArtifact)
         if (result.sent === true) return
         const headers = () => {
-            ec.web.response.setContentType(servedType(result.file.mimeType))
-            ec.web.response.setHeader('Content-Security-Policy', SANDBOX)
+            const type = servedType(result.file.mimeType)
+            const disposition =
+                options?.disposition ||
+                'attachment; filename="' + String(result.file.filename).replace(/["\\\r\n]/g, '_') + '"'
+            ec.web.response.setContentType(type)
+            if (sandboxed(type, disposition)) ec.web.response.setHeader('Content-Security-Policy', SANDBOX)
             // Shop P8 (F75): the authority lets a public product image of the current generation be kept a minute; else no-store
             ec.web.response.setHeader(
                 'Cache-Control',
                 result.file.cacheControl === 'public, max-age=60' ? result.file.cacheControl : 'no-store',
             )
             ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
-            ec.web.response.setHeader(
-                'Content-Disposition',
-                options?.disposition ||
-                    'attachment; filename="' +
-                        String(result.file.filename).replace(/["\\\r\n]/g, '_') +
-                        '"',
-            )
+            ec.web.response.setHeader('Content-Disposition', disposition)
         }
         // the authority checked the asker; the file is read as the authority reads it (a record's content may sit in the
         // database resource store, which a public account may not read itself), before anything is written
@@ -257,4 +262,5 @@ function downloadRanged(siteId, operation, input) {
     authorityClient,
     statusKind,
     servedType,
+    sandboxed,
 })
