@@ -23,6 +23,12 @@
                 <rate-limit name="pass-tracking" path="/trk/**" methods="GET,HEAD" requests="60" seconds="60" burst="60"/>
                 <rate-limit name="pass-tracking-pixel" path="/trk-o/**" methods="GET,HEAD" requests="120" seconds="60" burst="120"/>
             </web-protection>
+            <!-- PASS's bearer path segments (SEC-PSF-03): recorded as :token by the request log, log lines, Visits and
+                 telemetry (screen/token_route.rs token-path); the forum's held mail under any mount or Smithy scope, a held
+                 report's link, and the theme preview host's page and assets -->
+            <token-path pattern="/**/held-mail/{token}"/>
+            <token-path pattern="/**/-/held-report/{token}"/>
+            <token-path pattern="/preview/{token}"/>
         </webapp>
     </webapp-list>
 </moqui-conf>
