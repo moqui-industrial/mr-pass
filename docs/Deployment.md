@@ -482,8 +482,10 @@ keyed by the site's generation and release, and serves nothing cached when it ca
 **Cart** (impl-shop P4; design-shop §6, §7.1). A cart is an open order of the store; the frontend keeps only the cart's
 capability, in its own server session under the site (never a cookie or a URL), and sends it with each cart call. The cart
 writes (`addCartItem`, `updateCartItem`, `removeCartItem`, `applyPromoCode`, `removePromoCode`) are `TOKEN_WRITES`, accepted
-from a registered deployment; a visitor's first add has no capability yet and makes the cart. Cart creation, code tries
-and capability lookups are rate limited by the visitor's address (a registered deployment's `x-pass-client-ip`). Sign-in
+from a registered deployment; a visitor's first add has no capability yet and makes the cart. A guest's cart has no
+party until its checkout begins, when its guest party is made. Cart creation, code tries and capability lookups are rate
+limited by the visitor's address (a registered deployment's `x-pass-client-ip`), and a store's new guest carts by its
+`PsstGuestCartsHourly` setting (1,000 an hour when unset; a store setting staff may change). Sign-in
 attaches the session's cart to the account, or merges it into the account's own cart once; sign-out rotates the account's
 carts' capabilities, so a shared browser keeps none. The Cart page (`/Cart`) and its transitions are `no-store`; a product
 image is served at `media?productContentId=` after the authority checks its product is public. The purchase selection and
@@ -511,7 +513,9 @@ authority. A sign-in with no return path lands on the site's root app (Forum or 
 guest reaches the order of the session's order link (kept from the confirmation), or of an emailed link
 `/Orders/Status?token=`, which the frontend keeps in its session and drops from the address. The order page links the
 site's own Support pages with the order (Request a return, Ask a question, Request cancellation), so a Shop site needs a
-Support mount targeting the store's organization (Commerce's readiness requires it). A download (`/Downloads/file?grant=`)
+Support mount targeting the store's organization (Commerce's readiness requires it). The order link reads; a guest's
+return, question or cancellation by it also needs a one-time code the page emails to the order's address ("Email me a
+code", 15 minutes, used once), so the organization needs an email address to send it from. A download (`/Downloads/file?grant=`)
 issues a capability of ten minutes and streams the file at once with the browser's byte range; through a remote frontend
 over REST the authority answers the range (206) itself. Cards are added on the store's gateway's hosted profile page:
 for Authorize.Net through `MethodRelay`, whose CSP alone (with `PaymentRelay`) adds Authorize.Net's form-action. A Shop

@@ -249,7 +249,8 @@ signed-in account so renewals and paid resource access have a stable owner.
 
 Creating an account or completing checkout does not opt a shopper into a public profile,
 community directory or marketing list. Guest email does not prove ownership of an existing
-Party/account. Create or use the guest purchase identity scoped to the cart; merge/link only
+Party/account. Create or use the guest purchase identity scoped to the cart (made when its checkout
+begins, not at the first add: Nov 17, SEC-PSS-05); merge/link only
 after proof through the existing account verification process. As built (Nov 6, impl-shop P6): an
 account whose email is verified claims the store's completed guest checkouts made with that email
 whose anonymous guest party has no account of its own (`merge#Parties` of the guest party into the
@@ -280,7 +281,9 @@ purchase access on email alone.
   impl-shop F16).
 - Customer Service's customer services (`request#CustomerReturn`, `create#CustomerCase`,
   `request#CustomerCancel`) admit the `SalesOrder` OrderView capability for its one order, beside a
-  contact and the self relationship (Nov 5, impl-shop F27).
+  contact and the self relationship (Nov 5, impl-shop F27). The link itself reads; each of these
+  writes by it also needs a one-time code emailed to the order's address ("Email me a code",
+  `sendOrderChangeCode`: 15 minutes, used once; Nov 17, SEC-PSS-23).
 
 For every operation, intersect routed site/store, active shopper/cart capability, resource
 ownership, publication and business eligibility. Signed-in order lists require customer identity;

@@ -743,7 +743,10 @@ Design-shop §4.2, §6 Cart and §7.1; SHOP-CART, SHOP-ACCOUNT's identity part.
     signed-in account's own cart in the site, store and currency; a token of another scope, expired, retired or of another
     account's cart reaches nothing, and no operation takes an order id. The first add makes the cart: `create#Order` (open,
     `ScWeb`, the store's organization the vendor) with the account's party, else an anonymous guest Party (Person "Guest",
-    Customer role) as the part's customer (F36/impl-commerce F40), and a new 48-character capability in `result.token`;
+    Customer role) as the part's customer (F36/impl-commerce F40), and a new 48-character capability in `result.token`
+    (since Nov 17, SEC-PSS-05: a guest's cart has no party until `begin#Checkout` makes its guest party under the order's
+    lock, sets the part's customer and `guestPartyId` and applies the promotions again; a guest's new carts are limited by
+    the store's `PsstGuestCartsHourly` setting, 1,000 an hour by default);
     creation throttled (30 per 10 minutes). Lines: the selection through ShopCatalog.js `selectionOf` (the product or a
     listed option), `add#OrderProductQuantity` / `update#OrderItem` / `delete#OrderItem` with the line's `unitAmount` the
     store authority's price at the line's quantity (`offersOf`: `get#StoreProductPrice`; F18, so a visitor's line has the
@@ -1187,7 +1190,8 @@ Stage C2/S2 ends with Commerce P11.
   Support mount targeting the store's organization (Commerce P6's readiness); the receipts link them too. The owner
   contract, written into design-customer-service §8: Customer Service's `request#CustomerReturn`, `create#CustomerCase`
   and `request#CustomerCancel`, and the Support pages, admit the `SalesOrder` OrderView capability for its one order as
-  they admit a contact or the self relationship, the capability carried to the page by its token route; and
+  they admit a contact or the self relationship, the capability carried to the page by its token route (since Nov 17,
+  SEC-PSS-23: the link reads, and these writes also need the one-time code emailed to the order's address); and
   `contactCase` sets `Request.productStoreId` from the order's store (impl-commerce F37).
 - **The PASS Account hub and email preferences** (F6; X6, X15; owner contract, unless Customer Service P15 built them):
   `Account/Home` with a card registered by each app (Shop's AccountOverview summary, Billing's, Support's) and
@@ -1291,6 +1295,9 @@ Stage C2/S2 ends with Commerce P11.
     carries its store (`Request.productStoreId`, impl-commerce F37) and goes to the store's checkout support queue when the mount
     offers it; a guest's case has no filer. `get#CaseIntake` and `get#ReturnableOrder` are POSTs now (capability reads, F75).
     The Support pages take the link from the session (Support.js `orderLink`) and keep a guest's receipt on the page.
+    Since Nov 17 (SEC-PSS-23, the owner's decision) the link reads only: its case, return and cancel need a one-time code
+    `sendOrderChangeCode` emails to the order's address (eight digits, only a digest kept on an `OrderChange` capability
+    bound to the link, 15 minutes, once, the fifth wrong try ending it), entered on the page after "Email me a code".
   - The PASS Account hub and email preferences (F6): `mantle.public.AccountHubServices` (AccountHub.js) `get#AccountHub` (a
     card per mounted app that registers PublicApps `accountCard`: Shop's, Billing's `PortalServices.get#AccountCard`, Support's
     `SupportCaseServices.get#AccountCard`, each in its own transaction), `get#`/`store#EmailPreferences` (a list link's token
