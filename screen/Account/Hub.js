@@ -157,14 +157,19 @@ function preferences(siteId, publicPath) {
         '</label>' +
         (description ? '<p><small>' + esc(description) + '</small></p>' : '') +
         hidden(name + '__shown', 'true')
+    // a list link subscribes again only a list it unsubscribed itself, within a day; any other needs the sign-in (SEC-PSS-44)
+    const signInNote = (label) =>
+        '<p>' + esc(label) + '<br><small>Sign in to subscribe.</small></p>'
     const lists = v.lists
         .map((list) =>
-            box(
-                'list_' + list.contactListId,
-                list.subscribed,
-                list.name + (list.confirmPending ? waiting : ''),
-                list.description,
-            ) + decline('list_' + list.contactListId, list.confirmPending),
+            v.mode === 'token' && list.canSubscribe === false
+                ? signInNote(list.name)
+                : box(
+                      'list_' + list.contactListId,
+                      list.subscribed,
+                      list.name + (list.confirmPending ? waiting : ''),
+                      list.description,
+                  ) + decline('list_' + list.contactListId, list.confirmPending),
         )
         .join('')
     // IronStone Marketing P7: the sending organization's offered lists, with the recipient's state, the opt-out reasons and leaving
@@ -192,6 +197,8 @@ function preferences(siteId, publicPath) {
                             'Join it with your phone number where it is offered. Reply STOP to any text to leave.',
                         ) +
                         '</small></p>'
+                      : v.mode === 'token' && topic.canSubscribe === false
+                      ? signInNote(topic.name + ' (' + topic.channelText + ')')
                       : box(
                           'mkt_' + topic.contactListId,
                           topic.state === 'subscribed' ||
@@ -261,6 +268,10 @@ function preferences(siteId, publicPath) {
             ? '<p><button type="submit">Save preferences</button></p>'
             : '<p>You are on no lists.</p>') +
         '</form>' +
+        (v.signInToSubscribe
+            ? '<p id="SignInToSubscribe">This link unsubscribes, and can undo that for a day. To subscribe to anything else, sign in.</p>' +
+              loginLink(publicPath)
+            : '') +
         (v.forumUrl
             ? '<p><a href="' + esc(v.forumUrl) + '">Forum email</a></p>'
             : '')
