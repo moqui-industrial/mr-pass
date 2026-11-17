@@ -4,7 +4,8 @@
     lines it may return now (getReturnableOrder: a self-service policy's, within the window and what is left), each with a
     customer reason, a remedy of the policy and a word on its condition, the evidence file and the customer's reference
     (requestCustomerReturn). The server picks the facility and keeps the policy and window; a requested remedy is not an approved
-    refund; a line outside self-service says to ask us. -->
+    refund; a line outside self-service says to ask us. A guest's order link reads; its request needs the code "Email me a code"
+    mails to the order's address (sendOrderChangeCode, SEC-PSS-23). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Request a return">
@@ -19,8 +20,21 @@
             return {orderItemSeqId:seq,quantity:support.param('quantity_'+seq),returnReasonEnumId:support.param('reason_'+seq),
                 returnResponseEnumId:support.param('remedy_'+seq),condition:support.param('condition_'+seq)}})
         support.post('requestCustomerReturn',{siteId:resolvedSiteId,orderToken,orderId,lines:JSON.stringify(lines),customerReference:support.param('customerReference'),
-            note:support.param('note'),file:support.file(),operationId:support.param('operationId')},{path:support.base(publicPath,'submit'),params:{orderId}},
+            note:support.param('note'),file:support.file(),changeCode:support.param('changeCode'),operationId:support.param('operationId')},
+            {path:support.base(publicPath,'submit'),params:{orderId}},
             result=>orderToken?{path:support.base(publicPath,'submit'),params:{orderId,received:'Y'}}:{path:passBases.support+'/CustomerReturn',params:{returnId:result.returnId}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- SEC-PSS-23: a guest's order link asks for the code its request needs, mailed to the order's address -->
+  <transition name="sendCode" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const orderId=support.param('orderId')
+        support.post('sendOrderChangeCode',{siteId:resolvedSiteId,orderToken:support.orderLink(resolvedSiteId,orderId)},
+            {path:support.base(publicPath,'sendCode'),params:{orderId}})
     ]]></script>
     </actions>
     <default-response type="none"/>

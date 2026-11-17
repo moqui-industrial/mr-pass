@@ -6,7 +6,9 @@
     queue's form token, the queue's public form (the sender's name and email; the answer is a receipt and reads no case).
     Nothing internal is posted: the queue's priority, assignment and service level are the server's. Help the subject finds is
     offered first; the outside-working-hours notice. With an order selected, OrderCancelRequest asks to cancel its open lines
-    (requestOrderCancel), which says "Cancellation requested" unless the organization cancels at once. -->
+    (requestOrderCancel), which says "Cancellation requested" unless the organization cancels at once. A guest's order link
+    reads; its request and cancel need the code "Email me a code" mails to the order's address (sendOrderChangeCode,
+    SEC-PSS-23). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="New request">
@@ -31,7 +33,8 @@
             requestCategoryId:support.param('requestCategoryId'),requestTypeEnumId:support.param('requestTypeEnumId'),
             customerPartyId:support.param('customerPartyId'),orderId:support.param('orderId'),wikiPageId:support.param('wikiPageId'),
             templateValues:JSON.stringify(values),firstName:support.param('firstName'),lastName:support.param('lastName'),
-            emailAddress:support.param('emailAddress'),website:support.param('website'),file:support.file(),operationId:support.param('operationId')}
+            emailAddress:support.param('emailAddress'),website:support.param('website'),file:support.file(),
+            changeCode:support.param('changeCode'),operationId:support.param('operationId')}
         support.post('createCustomerCase',input,back,result=>result.requestId && !orderToken
             ? {path:passBases.support+'/CustomerCase',params:{requestId:result.requestId}}
             : {path:back.path,params:{token,received:'Y'}})
@@ -48,7 +51,20 @@
         const lines=Object.keys(p).filter(k=>/^cancel_[A-Za-z0-9]{1,20}$/.test(k)).map(k=>{const seq=k.slice(7)
             return {orderItemSeqId:seq,quantity:support.param('quantity_'+seq)}})
         support.post('requestOrderCancel',{siteId:resolvedSiteId,orderToken,orderId,lines:JSON.stringify(lines),reason:support.param('reason'),
-            consent:support.param('consent'),operationId:support.param('operationId')},{path:support.base(publicPath,'cancelOrder'),params:{orderId}})
+            consent:support.param('consent'),changeCode:support.param('changeCode'),operationId:support.param('operationId')},
+            {path:support.base(publicPath,'cancelOrder'),params:{orderId}})
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
+  <!-- SEC-PSS-23: a guest's order link asks for the code its request and cancel need, mailed to the order's address -->
+  <transition name="sendCode" method="post">
+    <actions>
+      <script><![CDATA[
+        const support=ec.resource.script('component://mr-pass/screen/Support/Support.js')
+        const orderId=support.param('orderId')
+        support.post('sendOrderChangeCode',{siteId:resolvedSiteId,orderToken:support.orderLink(resolvedSiteId,orderId)},
+            {path:support.base(publicPath,'sendCode'),params:{orderId}})
     ]]></script>
     </actions>
     <default-response type="none"/>

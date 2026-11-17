@@ -3,12 +3,13 @@
 <#if failure><p role="alert" class="error">${failure.message}</p><#if failure.kind == 'AuthenticationRequired'><p><a href="${passBases.account}/Login?returnTo=${encodeURIComponent(publicPath || '')}">Sign in</a></p></#if>
 <#elseif received><section class="card" id="CaseReceipt" aria-live="polite"><h2>Thank you</h2><p>We have your request and will answer you by email.</p></section>
 <#else>
+<#if orderToken && orderId><section class="card" id="OrderChangeCode"><h2>Your code</h2><p>To send a request about this order from its link, enter the code we email to the order's address. It works once, for 15 minutes.</p><form method="post" action="${publicPath}/sendCode"><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="orderId" value="${orderId}"><button>Email me a code</button></form></section></#if>
 <#if view.order><section class="card" id="OrderCancelRequest"><h2>Cancel order ${view.order.orderId}</h2><#if view.order.placedText><p><small>Placed ${view.order.placedText}</small></p></#if>
 <#list view.order.requestList as r><p><strong>${r.stateText}</strong> · asked ${r.requestedText}<#list r.lines as l> · ${l.productText} × ${l.quantity}</#list></p></#list>
 <#if view.order.capabilities.canRequestCancel><form method="post" action="${publicPath}/cancelOrder"><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="orderId" value="${view.order.orderId}"><input type="hidden" name="operationId" value="${cancelOperationId}">
 <fieldset><legend>Lines to cancel</legend><#list view.order.lines as l><div class="field"><label><input type="checkbox" name="cancel_${l.orderItemSeqId}" value="Y"> ${l.productText}</label><label>Quantity (up to ${l.openQuantity}) <input name="quantity_${l.orderItemSeqId}" value="${l.openQuantity}" inputmode="decimal" size="6"></label></div></#list></fieldset>
 <label>Why do you want to cancel? <textarea name="reason" rows="3" maxlength="2000"></textarea></label>
-<label><input type="checkbox" name="consent" value="Y" required> I ask ${view.organizationName} to cancel these lines</label>
+<label><input type="checkbox" name="consent" value="Y" required> I ask ${view.organizationName} to cancel these lines</label><#if orderToken><label>Code from the email * <input name="changeCode" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" required></label></#if>
 <p><button>Ask to cancel</button></p><p><small>Anything already shipped cannot be cancelled here; we confirm what we cancel.</small></p></form>
 <#else><p>Nothing on this order can be cancelled here now. Send us a request below.</p></#if></section></#if>
 <#if queue && queue.hoursNotice><p class="card" role="status">${queue.hoursNotice.message}. We still take your request now.</p></#if>
@@ -33,5 +34,5 @@
 <#elseif f.kind == 'date'><label>${f.title}<#if f.required> *</#if> <input type="date" name="tv_${f.fieldName}"<#if f.required> required</#if>></label>
 <#else><label>${f.title}<#if f.required> *</#if> <input name="tv_${f.fieldName}" maxlength="255"<#if f.required> required</#if>></label></#if>
 <#if f.tooltip><p><small>${f.tooltip}</small></p></#if></div></#list>
-<label>A file (PDF, PNG or JPEG, at most 10 MB) <input type="file" name="file" accept="application/pdf,image/png,image/jpeg"></label>
+<label>A file (PDF, PNG or JPEG, at most 10 MB) <input type="file" name="file" accept="application/pdf,image/png,image/jpeg"></label><#if orderToken><label>Code from the email * <input name="changeCode" inputmode="numeric" pattern="[0-9]{8}" maxlength="8" autocomplete="one-time-code" required></label></#if>
 <p><button>Send request</button></p></form><#if caseFields.length><script src="/js/moqui-form-when.js"></script></#if></#if></#if>
