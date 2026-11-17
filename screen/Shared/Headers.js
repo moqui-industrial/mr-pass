@@ -5,8 +5,16 @@
  * matches decides. A publicly cached answer varies by Cookie. Pass.xml applies this before any page renders; a page's own
  * headers still win. CC0 plus patent grant.
  */
+/* default-src 'self' (SEC-PSF-04): what no other directive names (frames, fonts, connections, workers, manifests) comes
+ * from the site alone, so injected markup loads no frame of another origin and sends nothing to one with fetch or CSS.
+ * Styles may be inline (the theme's and the brand's <style>, Quasar's style attributes). 'unsafe-eval' stays while the
+ * islands compile their templates in the browser. */
 const CSP = {
+    'default-src': ["'self'"],
     'script-src': ["'self'", "'unsafe-eval'"],
+    'style-src': ["'self'", "'unsafe-inline'"],
+    'font-src': ["'self'", 'data:'],
+    'connect-src': ["'self'"],
     'img-src': ["'self'", 'data:'],
     'media-src': ["'self'"],
     'object-src': ["'none'"],

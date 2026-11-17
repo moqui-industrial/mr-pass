@@ -228,8 +228,9 @@ feature(
             home.html.includes('/account/Settings')
             !home.html.includes('moquiSessionToken')
             policy.cacheControl === 'no-store'
+            // SEC-PSF-04: a default-src, so frames, fonts and connections are the site's own
             csp ===
-                "script-src 'self' 'unsafe-eval'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+                "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; img-src 'self' data:; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
             logo === 'https://cdn.example.test'
             forged === undefined
         },
