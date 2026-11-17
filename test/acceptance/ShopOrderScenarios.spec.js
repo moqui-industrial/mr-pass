@@ -4,7 +4,7 @@
 // is captured, invoiced and its receipt and download notice sent, and the notice's link downloads only that file, while the
 // physical part ships on its own invoice; the guest's return request and question by the order link are a ReturnHeader in
 // ReturnRequested and a case in the store's queue carrying the store, and a cancel request of another order says
-// "Cancellation requested"; the guest registers with the purchase email and, verified, sees the order, its invoice in
+// "Cancellation requested", each write with the code the link asks for by email (SEC-PSS-23); the guest registers with the purchase email and, verified, sees the order, its invoice in
 // Billing and the case in Support from the hub, which an unverified account does not; a signed-in buyer adds a card
 // through the hosted setup and an address, ending the card names the recurring order it pays, and a refund of the digital
 // item ends its download. Run: ./moq accept mr-pass --spec ShopOrderScenarios (with ShopFixtures, its dependsOn)
@@ -37,6 +37,26 @@ function call(username, operation, input) {
     }
 }
 const guest = (operation, input) => call(null, operation, input)
+// SEC-PSS-23: the code an order link's write needs, asked for by the link (sendOrderChangeCode) and read from the email
+// it sends to the order's address
+function changeCode(orderToken) {
+    capture.clear()
+    const sent = lib().facade('sendOrderChangeCode', { siteId: SITE, orderToken })
+    assert(sent.result?.sent, 'code not sent: ' + JSON.stringify(sent))
+    ec.factory.waitWorkerPoolEmpty(100)
+    const mail = capture
+        .getMessages()
+        .find((message) => /^Your code for order/.test(message.subject || ''))
+    const code = /: ([0-9]{8})/.exec(
+        String(mail?.bodyText || mail?.body || ''),
+    )?.[1]
+    assert(
+        code,
+        'no code mailed: ' +
+            JSON.stringify(capture.getMessages().map((m) => m.subject)),
+    )
+    return code
+}
 // a guest's checkout of the products as email, through the hosted test page; {orderId, orderToken, token}
 function buy(email, productIds) {
     let token = null
@@ -387,6 +407,7 @@ feature(
                         siteId: SITE,
                         orderToken: state.mixed.orderToken,
                         orderId: state.mixed.orderId,
+                        changeCode: changeCode(state.mixed.orderToken),
                         lines: JSON.stringify([
                             {
                                 orderItemSeqId: line?.orderItemSeqId,
@@ -409,6 +430,7 @@ feature(
                     orderId: state.mixed.orderId,
                     requestName: 'About my e-guide',
                     description: 'Is there a printed edition?',
+                    changeCode: changeCode(state.mixed.orderToken),
                     operationId: 'accept-case-' + Date.now(),
                 })
                 const intake = lib().facade('getCaseIntake', {
@@ -426,6 +448,7 @@ feature(
                         })) || [],
                     ),
                     consent: 'Y',
+                    changeCode: changeCode(state.other.orderToken),
                     operationId: 'accept-cancel-' + Date.now(),
                 })
                 state.requestId = asked.result?.requestId
