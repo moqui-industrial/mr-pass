@@ -3,6 +3,7 @@
 // and payment services themselves.
 const settlement = () => ec.resource.script('component://mr-mantle/test/account/AccountingSettlementFixtures.js')
 const ORDER_TOKEN = 'PortalsSpecOrderLinkToken00000000000000000000001'
+const CAPPED_TOKEN = 'PortalsSpecCappedOrderLinkToken00000000000000001'
 const INVOICE_TOKEN = 'PortalsSpecInvoiceLinkToken000000000000000000001'
 const siteId = 'PASS_PORTALS'
 let f, invoiceId
@@ -131,6 +132,23 @@ spec({
                 thruDate: new Date(Date.now() + 86400000),
             })
         capability('Order', 'PASS_PORTALS_PO', 'PASS_PORTALS_SUPPLIER', 'BillUpload', ORDER_TOKEN)
+        // an order of its own for the open bill cap
+        c('create#mantle.order.OrderHeader', {
+            orderId: 'PASS_PORTALS_PO_CAP',
+            orderName: 'Portals capped purchase',
+            statusId: 'OrderApproved',
+            currencyUomId: 'USD',
+            grandTotal: 600,
+            placedDate: ec.user.nowTimestamp,
+        })
+        c('create#mantle.order.OrderPart', {
+            orderId: 'PASS_PORTALS_PO_CAP',
+            orderPartSeqId: '01',
+            vendorPartyId: 'PASS_PORTALS_SUPPLIER',
+            customerPartyId: f.org,
+            statusId: 'OrderApproved',
+        })
+        capability('Order', 'PASS_PORTALS_PO_CAP', 'PASS_PORTALS_SUPPLIER', 'BillUpload', CAPPED_TOKEN)
         capability('Invoice', invoiceId, f.customer, 'InvoicePay', INVOICE_TOKEN)
     },
     setup() {
@@ -259,6 +277,34 @@ feature('a supplier bill upload is scanned, makes an incoming draft and never ap
         toDecimal(items[0].amount).eq(toDecimal('120.50'))
         content.length === 1
         bills.length === 2
+    },
+})
+
+feature('a sixth bill for an order is refused while five wait for review, and taken once one of them is declined (SEC-PSS-26)', {
+    when() {
+        logout()
+        const bill = (n) =>
+            submit(
+                { token: CAPPED_TOKEN, referenceNumber: 'CAP-' + n, operationId: 'portals-cap-000' + n },
+                upload('cap-' + n + '.pdf', '%PDF-1.4 capped bill ' + n),
+            )
+        const five = [1, 2, 3, 4, 5].map(bill)
+        const sixth = bill(6)
+        const repeat = bill(5)
+        login('john.doe')
+        ec.artifactExecution.disableAuthz()
+        ec.service.sync().name('update#mantle.account.invoice.Invoice')
+            .parameters({ invoiceId: five[0].submission?.billReference, statusId: 'InvoiceCancelled' }).call()
+        logout()
+        const afterDecline = bill(6)
+        return { five, sixth, repeat, afterDecline }
+    },
+    then({ five, sixth, repeat, afterDecline }) {
+        five.every((one) => one.submission?.stateText === 'Received for review')
+        sixth.errorKind === 'Conflict'
+        sixth.errorMessage.includes('Five bills for this order')
+        repeat.alreadyApplied === true
+        afterDecline.submission.referenceNumber === 'CAP-6'
     },
 })
 
