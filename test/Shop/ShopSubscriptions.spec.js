@@ -47,6 +47,8 @@ spec({
         login('john.doe')
         const l = lib()
         l.records()
+        // the remote frontend's client serves this site (a client's call for a site it does not serve is Not Found)
+        setProperty('pass_client_' + l.ids.client + '_sites', SITE)
         l.run('create#mantle.product.store.ProductStore', {
             productStoreId: ids.store,
             storeName: 'Shop Spec Subscriptions',
