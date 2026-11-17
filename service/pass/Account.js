@@ -36,11 +36,18 @@ function startSso(parameters, siteId) {
             .call().result
         const base =
             info.mounts.find((m) => m.app === 'forum')?.pathPrefix || '/forum'
+        // an account already signed in that starts a provider sign-in is signing in again (Smithy's "Sign in again" before
+        // a git credential, SEC-PFS-63): asked as a re-authentication, an OpenID provider signs the user in afresh
+        // (prompt=login) and an OAuth provider's sign-in counts as recent (check#RecentAuth)
         ec.service
             .sync()
             .throwOnError(true)
             .name('org.moqui.sso.AuthServices.login#User')
-            .parameters({ authFlowId: parameters.authFlowId, returnTo: base })
+            .parameters({
+                authFlowId: parameters.authFlowId,
+                returnTo: base,
+                ...(ec.user.userId ? { reauth: true } : {}),
+            })
             .call()
         return { externalRedirect: true }
     }
