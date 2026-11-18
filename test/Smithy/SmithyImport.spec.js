@@ -1,5 +1,5 @@
 // Smithy's GitHub import and push mirrors (Dogfood DG8; plan/design-smithy.md §6 GroupSettings, §11 RepositorySettings and
-// Import): an import started through its form's post on recorded GitHub answers (smithy_github_api names a directory of
+// Import): an import started through its form's post on recorded GitHub answers (mantle@smithy-github-api names a directory of
 // them, so GitHub is never called), the token in no address, no flash and no page; one render of a group's Import tab (the
 // start form with a refusal on it and what was typed, the warning of publishPrivate, the group's imports), one of an
 // import's page (stage, counts, the rate limit's wait with the time it goes on, the report escaped, Resume and Stop); Stop
@@ -30,7 +30,7 @@ spec({
                 body: {id: 7001, full_name: "acme/tools", private: false, default_branch: "main"}
             })
         )
-        setProperty("smithy_github_api", RECORDED.replace(/\/$/, ""))
+        setConf("mantle@smithy-github-api", RECORDED.replace(/\/$/, ""))
     }
 })
 feature(
