@@ -633,45 +633,8 @@ function checks(shell, request, bases, siteInfo, self) {
     return {html: h`${checksHtml(request.found, "SmithyChecks", shell.base)}${runs}`.html}
 }
 
-/* A unified diff's lines with the line numbers of both sides: {kind: h (a hunk's header), m (the file's header lines), a
- * (added), d (deleted) or c (context), text, oldNo, newNo}. */
-function diffLines(unifiedDiff) {
-    const lines = String(unifiedDiff ?? "").split("\n")
-    if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop()
-    let oldNo = 0
-    let newNo = 0
-    let inHunk = false
-    return lines.map(raw => {
-        const line = raw.replace(/\r$/, "")
-        const hunk = /^@@ -([0-9]+)(?:,[0-9]+)? \+([0-9]+)(?:,[0-9]+)? @@/.exec(line)
-        if (hunk) {
-            oldNo = Number(hunk[1])
-            newNo = Number(hunk[2])
-            inHunk = true
-            return {kind: "h", text: line}
-        }
-        if (!inHunk || line.startsWith("\\")) return {kind: "m", text: line}
-        if (line.startsWith("+")) return {kind: "a", text: line.slice(1), newNo: newNo++}
-        if (line.startsWith("-")) return {kind: "d", text: line.slice(1), oldNo: oldNo++}
-        return {kind: "c", text: line.slice(1), oldNo: oldNo++, newNo: newNo++}
-    })
-}
-/* The same lines from the host's hunks ({oldStart, oldLines, newStart, newLines, lines: [{tag, oldNo, newNo, text}]}). */
-function hunkLines(hunks) {
-    const out = []
-    for (const hunk of hunks || []) {
-        out.push({kind: "h", text: "@@ -" + hunk.oldStart + "," + hunk.oldLines + " +" + hunk.newStart + "," + hunk.newLines + " @@"})
-        for (const line of hunk.lines || [])
-            out.push(
-                line.tag === "insert"
-                    ? {kind: "a", text: line.text ?? "", newNo: line.newNo}
-                    : line.tag === "delete"
-                      ? {kind: "d", text: line.text ?? "", oldNo: line.oldNo}
-                      : {kind: "c", text: line.text ?? "", oldNo: line.oldNo, newNo: line.newNo}
-            )
-    }
-    return out
-}
+const diff = ec.resource.script("component://mr-pass/screen/Smithy/SmithyDiff.js")
+const {diffLines, hunkLines} = diff
 /* A line's key in the page: the file's place, the side (R the new text, L the old) and the line's number. */
 const lineKey = (fileIndex, line) => "F" + fileIndex + (line.kind === "d" ? "L" + line.oldNo : "R" + line.newNo)
 const LINE_KEY = /^F([1-9][0-9]{0,4})([LR])([1-9][0-9]{0,8})$/
@@ -699,10 +662,12 @@ function threadHtml(c, o, thread) {
         ? h`<details class="smithy-thread" id="${id}"${attributes({open: !!reply.error})}><summary>Comments on ${where}${marks}${thread.lineText ? h` <code>${String(thread.lineText).slice(0, 120)}</code>` : ""}</summary>${body}</details>`
         : h`<div class="smithy-thread" id="${id}"><p><small>Comments on ${where}</small></p>${body}</div>`
 }
-/* MergeRequestChanges (design §9): the file list and each file's diff as unified text with a number and an anchor for each
- * line, the review threads at their lines (an outdated one above its file's diff, folded), a reply form and Resolve per
- * thread, and "comment on this line": the line's number is a link (?line=) that shows the form under that line. Where
- * JavaScript runs the DiffReview island opens that form in place and shows a file side by side. */
+/* MergeRequestChanges (design §9): the file tree, and each file's diff (SmithyDiff.js) as rows with both line numbers and
+ * an anchor for each line, the changed words of a changed line marked, the unchanged lines between hunks as a link to them,
+ * unified or (view=split) side by side, each file folded open in a <details>; a binary image as its two versions. The review
+ * threads are at their lines (an outdated one above its file's diff, folded), with a reply form and Resolve per thread, and
+ * "comment on this line": a line's number is a link (?line=) that shows the form under that line. Where JavaScript runs the
+ * DiffReview island opens that form in place and shows a file in its editor's side-by-side view. */
 function changes(shell, request, bases, siteInfo, self, asked) {
     const ask = name => (asked ? (asked[name] ?? null) : param(name))
     const c = contextOf(bases, siteInfo, self, shell.flash)
@@ -712,6 +677,7 @@ function changes(shell, request, bases, siteInfo, self, asked) {
     const live = ["open", "draft"].includes(request.found.mergeRequest.state)
     const canComment = !!caps.canComment && live && c.signedIn && shell.capabilities.confirmed !== false
     const onePath = ask("path")
+    const split = ask("view") === "split"
     const found = need("getMergeRequestChanges", {
         siteId: shell.siteId,
         repositoryId,
@@ -722,16 +688,23 @@ function changes(shell, request, bases, siteInfo, self, asked) {
     const u = smithy.urls(c.base, shell.repository.repositoryPath)
     const diffs = new Map((found.fileDiffList || []).map(d => [d.path, d]))
     const threads = found.threadList || []
-    const o = {repositoryId, number, canComment, self: self + query({path: onePath})}
+    // the page's own address keeps the file asked for and the view; a line's link adds the line
+    const keep = extra => self + query({path: onePath, view: split ? "split" : null, ...extra})
+    const o = {repositoryId, number, canComment, self: keep({})}
     const wanted = LINE_KEY.exec(ask("line") || "")
     const islandFiles = []
     const fresh = formOf(c, "createReviewComment")
+    const status = file => file.status || file.changeType || ""
     const files = (found.fileList || []).map((file, i) => {
         const index = i + 1
-        const diff = diffs.get(file.path)
-        const text = diff?.unifiedDiff ?? diff?.diff ?? null
+        const fileDiff = diffs.get(file.path)
+        const text = fileDiff?.unifiedDiff ?? fileDiff?.diff ?? null
         // the host's hunks, as data (never its markup); a unified text where that is what there is
-        const lines = diff?.hunks?.length ? hunkLines(diff.hunks) : text ? diffLines(text) : []
+        const lines = diff.marked(fileDiff?.hunks?.length ? hunkLines(fileDiff.hunks) : text ? diffLines(text) : [])
+        const before = diff.gaps(lines)
+        const deleted = /^(deleted|delete|removed|D)$/i.test(status(file))
+        const added = /^(added|add|new|A)$/i.test(status(file))
+        const fileHref = found.headCommitId && !deleted ? line => u.blob(found.headCommitId, file.path) + "#L" + line : null
         const mine = threads.filter(thread => thread.path === file.path)
         const keys = new Set(lines.filter(line => line.kind !== "h" && line.kind !== "m").map(line => lineKey(index, line)))
         const at = new Map()
@@ -741,18 +714,12 @@ function changes(shell, request, bases, siteInfo, self, asked) {
             if (key) at.set(key, [...(at.get(key) || []), thread])
             else above.push(thread)
         }
-        const rows = lines.map(line => {
-            if (line.kind === "h" || line.kind === "m") return h`<div class="l ${line.kind}">${line.text}</div>`
-            const key = lineKey(index, line)
-            const shown = line.kind === "d" ? line.oldNo : line.newNo
-            const sign = line.kind === "a" ? "+" : line.kind === "d" ? "-" : " "
+        // what follows a line: its threads and, for the line asked for, the comment form
+        const follow = (key, line, shown) => {
             const formHere = canComment && wanted && wanted[0] === key
-            return h`<div class="l ${line.kind}" id="${key}"><a class="n" href="${canComment ? self + query({path: onePath, line: key}) + "#" + key : "#" + key}"${attributes({
-                "data-line": canComment ? key : null,
-                "aria-label": (canComment ? "Comment on line " : "Line ") + shown
-            })}>${shown}</a>${sign}${line.text}</div>${(at.get(key) || []).map(thread => threadHtml(c, o, thread))}${
+            return h`${(at.get(key) || []).map(thread => threadHtml(c, o, thread))}${
                 formHere
-                    ? h`${open(c, fresh, {returnTo: self + query({path: onePath, line: key}) + "#" + fresh.id, successTo: o.self + "#" + key})}${hidden("repositoryId", repositoryId)}${hidden("mergeRequestNum", number)}${hidden(
+                    ? h`${open(c, fresh, {returnTo: keep({line: key}) + "#" + fresh.id, successTo: o.self + "#" + key})}${hidden("repositoryId", repositoryId)}${hidden("mergeRequestNum", number)}${hidden(
                           "commitId",
                           found.headCommitId || ""
                       )}${hidden("path", file.path)}${hidden(line.kind === "d" ? "oldLine" : "newLine", shown)}${hidden("operationId", portal.operationId())}${hidden("sourceFormat", "markdown")}${textarea(
@@ -763,19 +730,67 @@ function changes(shell, request, bases, siteInfo, self, asked) {
                       )}<p><button>Comment</button> <a href="${o.self}#${key}">Cancel</a></p></form>`
                     : ""
             }`
-        })
-        islandFiles.push({index, path: file.path, oldPath: file.oldPath || file.path, status: file.status || file.changeType || "", binary: !!file.binary})
-        return h`<section class="card" id="file-${index}"><h3 class="wrap">${file.oldPath && file.oldPath !== file.path ? file.oldPath + " → " : ""}${file.path} <small>${file.status || file.changeType || ""} +${Number(file.insertions) || 0} −${Number(file.deletions) || 0}</small> <span data-smithy-tools="${index}"></span></h3>${above.map(
-            thread => threadHtml(c, o, thread)
-        )}${
-            rows.length
-                ? h`<div class="smithy-lines" data-file="${index}">${rows}</div><div data-smithy-side="${index}"></div>`
-                : file.binary
-                  ? h`<p>Binary file.</p>`
-                  : found.truncated && !onePath
-                    ? h`<p><a href="${self}${query({path: file.path})}#file-${index}">Show this file's changes</a></p>`
-                    : h`<p>No text changes to show.</p>`
-        }</section>`
+        }
+        // a line's number: the link to its comment form, or to itself
+        const numberLink = (key, shown, cls, id) =>
+            h`<a class="${cls}"${attributes({id})} href="${canComment ? keep({line: key}) + "#" + key : "#" + key}"${attributes({
+                "data-line": canComment ? key : null,
+                "aria-label": (canComment ? "Comment on line " : "Line ") + shown
+            })}>${shown}</a>`
+        let rows
+        if (!split) {
+            rows = lines.map((line, li) => {
+                const gap = before.has(li) ? new Markup(diff.gapHtml(before.get(li), fileHref)) : ""
+                if (line.kind === "h") return h`${gap}<div class="l h">${new Markup(diff.hunkHtml(line.text))}</div>`
+                if (line.kind === "m") return h`<div class="l m">${line.text}</div>`
+                const key = lineKey(index, line)
+                const shown = line.kind === "d" ? line.oldNo : line.newNo
+                const sign = line.kind === "a" ? "+" : line.kind === "d" ? "-" : " "
+                // the other side's number, after the link; the style puts the old side's number first
+                const other = line.kind === "c" ? line.oldNo : ""
+                return h`<div class="l ${line.kind}" id="${key}">${numberLink(key, shown, "n", null)}<span class="o">${other}</span>${sign}${new Markup(line.html)}</div>${follow(key, line, shown)}`
+            })
+        } else {
+            rows = diff.splitRows(lines).map(row => {
+                if (row.kind === "h")
+                    return h`${before.has(row.index) ? new Markup(diff.gapHtml(before.get(row.index), fileHref, true)) : ""}<div class="sr h">${new Markup(diff.hunkHtml(row.line.text))}</div>`
+                if (row.kind === "m") return h`<div class="sr m">${row.line.text}</div>`
+                const half = (line, side) => {
+                    if (!line) return h`<span class="n e"></span><span class="t e"></span>`
+                    const shown = side === "L" ? line.oldNo : line.newNo
+                    const key = "F" + index + side + shown
+                    const cls = line.kind === "c" ? "c" : side === "L" ? "d" : "a"
+                    return h`${numberLink(key, shown, "n", key)}<span class="t ${cls}">${new Markup(line.html)}</span>`
+                }
+                const leftKey = row.left ? "F" + index + "L" + row.left.oldNo : null
+                const rightKey = row.right ? "F" + index + "R" + row.right.newNo : null
+                // a context line's threads are on its new side
+                const both = row.left && row.right && row.left === row.right
+                return h`<div class="sr">${half(row.left, "L")}${half(row.right, "R")}</div>${row.left && !both ? follow(leftKey, {...row.left, kind: "d"}, row.left.oldNo) : ""}${row.right ? follow(rightKey, row.right, row.right.newNo) : ""}`
+            })
+        }
+        islandFiles.push({index, path: file.path, oldPath: file.oldPath || file.path, status: status(file), binary: !!file.binary})
+        const image = file.binary && diff.IMAGE.test(file.path)
+        const body = rows.length
+            ? h`<div class="${split ? "smithy-split" : "smithy-lines"}" data-file="${index}">${rows}</div><div data-smithy-side="${index}"></div>`
+            : image
+              ? new Markup(
+                    diff.imageHtml(
+                        !added && found.mergeBaseId ? u.raw(found.mergeBaseId, file.oldPath || file.path) : null,
+                        !deleted && found.headCommitId ? u.raw(found.headCommitId, file.path) : null,
+                        file.path
+                    )
+                )
+              : file.binary
+                ? h`<p>Binary file.</p>`
+                : found.truncated && !onePath
+                  ? h`<p><a href="${keep({path: file.path})}#file-${index}">Show this file's changes</a></p>`
+                  : h`<p>No text changes to show.</p>`
+        return h`<section class="card smithy-file" id="file-${index}"><details open><summary><h3 class="wrap">${file.oldPath && file.oldPath !== file.path ? file.oldPath + " → " : ""}${file.path} <small>${status(file)}</small> ${new Markup(
+            diff.statHtml(file.insertions, file.deletions)
+        )} <span data-smithy-tools="${index}"></span>${fileHref ? h` <a class="smithy-viewfile" href="${u.blob(found.headCommitId, file.path)}">View file</a>` : ""}</h3></summary>${above.map(thread =>
+            threadHtml(c, o, thread)
+        )}${body}</details></section>`
     })
     const config = {
         doUrl: c.base + "/-/do/createReviewComment",
@@ -789,12 +804,19 @@ function changes(shell, request, bases, siteInfo, self, asked) {
         newRaw: found.headCommitId ? u.section("raw", found.headCommitId) : null,
         files: islandFiles
     }
+    const count = (found.fileList || []).length
+    const viewLink = (value, label) =>
+        h`<a href="${self + query({path: onePath, view: value})}"${attributes({"aria-current": (value === "split") === split ? "true" : null})}>${label}</a>`
+    const threadCount = file => threads.filter(thread => thread.path === file.path && !thread.resolved).length
     return {
-        html: h`<section id="SmithyChanges" aria-label="Changed files"><h3>${(found.fileList || []).length} ${(found.fileList || []).length === 1 ? "file" : "files"} changed <small>+${Number(found.insertions) || 0} −${Number(found.deletions) || 0}</small></h3>${
+        html: h`<section id="SmithyChanges" aria-label="Changed files"><div class="smithy-difftools"><h3>${count} ${count === 1 ? "file" : "files"} changed <small>+${Number(found.insertions) || 0} −${Number(found.deletions) || 0}</small></h3><nav aria-label="Diff view" class="smithy-seg">${viewLink(null, "Unified")}${viewLink("split", "Split")}</nav></div>${
             found.truncated ? h`<p class="card">This change is large; only part of its diff is shown.</p>` : ""
-        }${onePath ? h`<p><a href="${self}">Show every file</a></p>` : ""}<ul class="card" id="SmithyFileList">${(found.fileList || []).map(
-            (file, i) => h`<li class="wrap"><a href="#file-${i + 1}">${file.path}</a> <small>${file.status || file.changeType || ""} +${Number(file.insertions) || 0} −${Number(file.deletions) || 0}</small></li>`
-        )}</ul>${files}</section>${c.signedIn && shell.capabilities.confirmed !== false ? reviewForm(c, shell, request, o.self + "#SmithyReview") : ""}<div id="SmithyDiffReview"></div>${issuePages.islandOf(
+        }${onePath ? h`<p><a href="${self + query({view: split ? "split" : null})}">Show every file</a></p>` : ""}<div class="smithy-review"><nav aria-label="Files" class="smithy-filetree"><ul class="card" id="SmithyFileList">${(found.fileList || []).map(
+            (file, i) =>
+                h`<li class="wrap"><a href="#file-${i + 1}" title="${file.path}"><span class="st st-${String(status(file)).toLowerCase()}" aria-hidden="true"></span>${file.path}</a> <small>${status(file)} +${Number(file.insertions) || 0} −${Number(file.deletions) || 0}${
+                    threadCount(file) ? h` · ${threadCount(file)} ${threadCount(file) === 1 ? "thread" : "threads"}` : ""
+                }</small></li>`
+        )}</ul></nav><div class="smithy-filelist">${files}</div></div></section>${c.signedIn && shell.capabilities.confirmed !== false ? reviewForm(c, shell, request, o.self + "#SmithyReview") : ""}<div id="SmithyDiffReview"></div>${issuePages.islandOf(
             "SmithyDiffReview",
             "DiffReview",
             c,

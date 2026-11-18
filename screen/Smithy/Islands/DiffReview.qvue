@@ -86,7 +86,7 @@ module.exports = {
                 ...file,
                 tools: document.querySelector('[data-smithy-tools="' + file.index + '"]'),
                 target: document.querySelector('[data-smithy-side="' + file.index + '"]'),
-                lines: document.querySelector('.smithy-lines[data-file="' + file.index + '"]'),
+                lines: document.querySelector('[data-file="' + file.index + '"]'),
                 canSide: !file.binary && !!context.oldRaw && !!context.newRaw,
                 side: false,
                 loaded: false,
@@ -113,7 +113,7 @@ module.exports = {
     methods: {
         // the form goes under the line's own row, in the page's diff
         open(link) {
-            const row = link.closest('.l')
+            const row = link.closest('.l, .sr')
             const found = /^F([0-9]+)([LR])([0-9]+)$/.exec(link.getAttribute('data-line') || '')
             const file = found && this.files.find((item) => String(item.index) === found[1])
             if (!row || !file) return

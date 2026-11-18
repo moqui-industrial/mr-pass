@@ -980,34 +980,41 @@ function diffHtml(unifiedDiff) {
         .join("\n")
 }
 /* The changed files of a commit or a comparison, each with its counts and its diff as unified text. */
-function changedFiles(fileList, fileDiffList) {
+/* The changed files of a commit or a comparison with each file's diff rows (SmithyDiff.js): unified, or side by side where
+ * the page asks for view=split. at: {u, oldRef, newRef}, the commits each side is read at, for the "unchanged lines" links, a
+ * file's View file link and a binary image's two versions; a side without a ref has none of those. */
+function changedFiles(fileList, fileDiffList, at = {}) {
+    const diff = ec.resource.script("component://mr-pass/screen/Smithy/SmithyDiff.js")
+    const split = param("view") === "split"
     const diffs = new Map((fileDiffList || []).map(d => [d.path, d]))
     return (fileList || []).map((f, i) => {
-        const diff = diffs.get(f.path)
+        const fileDiff = diffs.get(f.path)
+        const text = fileDiff?.unifiedDiff ?? fileDiff?.diff ?? null
         // a comparison's diff comes as hunks of lines (data, never the host's markup); a commit's as unified text
-        const text =
-            diff?.unifiedDiff ??
-            diff?.diff ??
-            (diff?.hunks?.length
-                ? diff.hunks
-                      .map(
-                          hunk =>
-                              "@@ -" + hunk.oldStart + "," + hunk.oldLines + " +" + hunk.newStart + "," + hunk.newLines + " @@\n" +
-                              (hunk.lines || [])
-                                  .map(line => (line.tag === "insert" ? "+" : line.tag === "delete" ? "-" : " ") + (line.text ?? ""))
-                                  .join("\n")
-                      )
-                      .join("\n")
-                : null)
+        const lines = fileDiff?.hunks?.length ? diff.hunkLines(fileDiff.hunks) : text ? diff.diffLines(text) : []
+        const status = f.status || f.changeType || ""
+        const deleted = /^(deleted|delete|removed|D)$/i.test(status)
+        const added = /^(added|add|new|A)$/i.test(status)
+        const viewHref = at.u && at.newRef && !deleted ? at.u.blob(at.newRef, f.path) : null
+        const image =
+            f.binary && diff.IMAGE.test(f.path) && at.u
+                ? diff.imageHtml(
+                      !added && at.oldRef ? at.u.raw(at.oldRef, f.oldPath || f.path) : null,
+                      !deleted && at.newRef ? at.u.raw(at.newRef, f.path) : null,
+                      f.path
+                  )
+                : null
         return {
             anchor: "file-" + (i + 1),
             path: f.path,
             oldPath: f.oldPath && f.oldPath !== f.path ? f.oldPath : null,
-            status: f.status || f.changeType || "",
+            status,
             insertions: Number(f.insertions) || 0,
             deletions: Number(f.deletions) || 0,
             binary: !!f.binary,
-            diffHtml: text != null && text !== "" ? diffHtml(text) : null
+            statHtml: diff.statHtml(f.insertions, f.deletions),
+            viewHref,
+            diffHtml: lines.length ? diff.plainHtml(lines, {split, fileHref: viewHref ? line => viewHref + "#L" + line : null}) : image
         }
     })
 }
@@ -1082,7 +1089,8 @@ function commit(shell, commitId) {
         insertions: Number(found.insertions) || 0,
         deletions: Number(found.deletions) || 0,
         truncated: !!found.truncated,
-        files: changedFiles(found.fileList, found.fileDiffList)
+        split: param("view") === "split",
+        files: changedFiles(found.fileList, found.fileDiffList, {u, oldRef: (c.parentIds || [])[0] || null, newRef: c.commitId})
     }
 }
 /* The address the Compare form's choice goes to (the screen's pre-actions redirect there before anything renders), or null
@@ -1144,7 +1152,8 @@ function compare(shell, base, head, headRepositoryPath) {
         commitsTruncated: !!r.commitsTruncated,
         insertions: Number(r.insertions) || 0,
         deletions: Number(r.deletions) || 0,
-        files: changedFiles(r.fileList, r.fileDiffList)
+        split: param("view") === "split",
+        files: changedFiles(r.fileList, r.fileDiffList, {u, oldRef: r.mergeBaseId || r.baseCommitId || null, newRef: r.headCommitId || null})
     }
     // the head is ahead: a merge request may be opened from it (the page of the new one says who may)
     if (view.result.aheadBy > 0 && shell.repository.features?.mergeRequests !== false)

@@ -207,8 +207,8 @@ feature("Changes shows the diff as escaped text with an anchor a line, a line's 
     then({page, html, at, scripts, lines}) {
         page.errors.length === 0
         html.includes("1 file changed")
-        // the pushed text is escaped, each line with its number, its anchor and the link to its comment form
-        html.includes("console.log(&#39;&lt;script&gt;alert(1)&lt;/script&gt;&#39;, a)</div>")
+        // the pushed text is escaped, its changed words marked, each line with its number, its anchor and the link to its comment form
+        html.includes('+console.log(<span class="x">&#39;&lt;script&gt;alert(1)&lt;/script&gt;&#39;, </span>a)</div>')
         html.includes('<div class="l a" id="F1R2"><a class="n" href="' + R + '/-/merge-requests/1/changes?line=F1R2#F1R2" data-line="F1R2"')
         html.includes('<div class="l d" id="F1L2">')
         // the thread is under its line, its Markdown rendered and cleaned, with a reply form and Resolve
@@ -227,6 +227,41 @@ feature("Changes shows the diff as escaped text with an anchor a line, a line's 
         scripts[1] > scripts[0]
         // a hunk's lines are numbered on both sides, and a line of the text that begins like a header is text
         lines === "m: m: h: c3:3 d4: a:4 a:5"
+    }
+})
+feature("Changes side by side (view=split): each side's number is its own anchor and comment link, the changed words marked, the text escaped", {
+    when() {
+        const page = fixtures().render(SITE, HOST, R + "/-/merge-requests/1/changes", "Smithy/MergeRequestDetail/Changes", {
+            repositoryId: s.repo,
+            namePath: "pass-smr/review",
+            mergeRequestNum: "1",
+            view: "split",
+            line: "F1L2"
+        })
+        const diff = ec.resource.script("component://mr-pass/screen/Smithy/SmithyDiff.js")
+        const lines = diff.marked(diff.diffLines("@@ -1,1 +1,1 @@\n-a <b>\n+a <i>\n@@ -9,1 +9,1 @@ fn x\n-q\n+r\n"))
+        return {
+            page,
+            html: page.html,
+            marks: lines.filter(line => line.html).map(line => line.html).join("|"),
+            gap: diff.gapHtml(diff.gaps(lines).get(3), n => "/f#L" + n),
+            hunk: diff.hunkHtml(lines[3].text),
+            stat: diff.stat(30, 10).join(",")
+        }
+    },
+    then({page, html, marks, gap, hunk, stat}) {
+        page.errors.length === 0
+        html.includes('<div class="smithy-split" data-file="1">')
+        html.includes('<a class="n" id="F1L2" href="' + R + '/-/merge-requests/1/changes?view=split&amp;line=F1L2#F1L2" data-line="F1L2"')
+        html.includes('<span class="t a">console.log(<span class="x">&#39;&lt;script&gt;alert(1)&lt;/script&gt;&#39;, </span>a)</span>')
+        html.includes('<input type="hidden" name="oldLine" value="2">')
+        html.includes('aria-current="true">Split</a>')
+        !html.includes("<script>alert")
+        // a word's change is marked inside the escaped text; the lines between two hunks link to the file
+        marks === "a &lt;<span class=\"x\">b</span>&gt;|a &lt;<span class=\"x\">i</span>&gt;|q|r"
+        gap === '<div class="l g"><a href="/f#L2">⋯ 7 unchanged lines (2–8)</a></div>'
+        hunk === '@@ -9,1 +9,1 @@ <span class="fn">fn x</span>'
+        stat === "4,1,0"
     }
 })
 feature("the Edit page has the file's text, the blob it starts from and, for the agreement's file, how to sign; its save step asks where", {
