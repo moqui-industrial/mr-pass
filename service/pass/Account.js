@@ -23,7 +23,7 @@ function startSso(parameters, siteId) {
     const backend = System.getProperty('pass_backend_url')
     if (!backend) {
         if (
-            !String(System.getProperty('pass_sso_flows') || '')
+            !String(ec.factory.getConfValue('pass-authority@sso-flows') || '')
                 .split(',')
                 .includes(parameters.authFlowId)
         )

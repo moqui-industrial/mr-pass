@@ -72,11 +72,10 @@ spec({
     dependsOn: ['ShopFixtures'],
     setupSpec() {
         login('john.doe')
-        setProperty(
-            'pass_client_' + lib().ids.client + '_secret',
+        setConf('pass-authority/client[' + lib().ids.client + ']@secret',
             'pass-shop-spec-secret',
         )
-        setProperty('pass_client_' + lib().ids.client + '_sites', SITE)
+        setConf('pass-authority/client[' + lib().ids.client + ']@sites', SITE)
     },
     cleanup() {
         login('john.doe')

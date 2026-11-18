@@ -60,11 +60,10 @@ spec({
             { app: 'shop', pathPrefix: '/shop', targetId: ids.store },
         ])
         l.setState(SITE, 'published')
-        setProperty(
-            'pass_client_' + l.ids.client + '_secret',
+        setConf('pass-authority/client[' + l.ids.client + ']@secret',
             'pass-shop-spec-secret',
         )
-        setProperty('pass_client_' + l.ids.client + '_sites', SITE)
+        setConf('pass-authority/client[' + l.ids.client + ']@sites', SITE)
         l.run('create#mantle.product.Product', {
             productId: ids.mug,
             productName: 'Spec review mug',

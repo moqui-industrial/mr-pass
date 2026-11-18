@@ -580,7 +580,7 @@ each read returns `capabilities`.
   - **A provider sign-in.** Today a sign-in through a provider writes no `VerifiedAddress` row: the flow's
     `AflVerifiedEmail` rule only links an existing account when the provider's `email_verified` claim is true and its
     `email` equals the account's address (`crates/moqui-core/src/service/sso.rs`). So "an address the site trusts" is
-    not a session fact here. DG2 makes it a row: when a sign-in through a flow listed in `pass_sso_flows` carries
+    not a session fact here. DG2 makes it a row: when a sign-in through a flow listed in `pass-authority@sso-flows` carries
     `email_verified` true for the account's current address, the `VerifiedAddress` row is written then (N-SSO-VERIFIED).
     Until that is built, an account that registered through a provider confirms its address by the mail link.
 - **Every Smithy write** calls `requireConfirmed()` after `requireUser()`: the operations marked `confirmed` or a role
@@ -2441,7 +2441,7 @@ the N items are what this design adds to them.
 | N-KEYS | framework | DG2 | List services for an account's SSH keys and access tokens (`find#UserSshKeys`, `find#UserAccessTokens`), for the caller only. |
 | N-PRERECEIVE | framework | DG2 | A pre-receive gitECA rule refuses a push with a message today (checked). Still needed: the rule is told the pushing user, the refs (`refs/for/*` included) and the size of the incoming pack. |
 | N-CONFIRMED | mantle | DG1/DG2 | `mantle/public/ConfirmedAddress.js` (built in DG1 for public accounts). DG2: the internal-account branch (§5.5), and the copies of R17 replaced by it (`Forum.js`, whose copies do not check `verifiedAt`, `AccountHub.js`, `ExternalAccess.js`, `StoreTopics.js`, `CartRecovery.js`, `StoreOperations.js`, `DeliveryWorker.js`, `ForumImport.js`). |
-| N-SSO-VERIFIED | framework | DG2 | A sign-in through a flow of `pass_sso_flows` whose provider gives `email_verified` true for the account's current address writes the `VerifiedAddress` row. Today only the registration verify writes one. |
+| N-SSO-VERIFIED | framework | DG2 | A sign-in through a flow of `pass-authority@sso-flows` whose provider gives `email_verified` true for the account's current address writes the `VerifiedAddress` row. Today only the registration verify writes one. |
 | N-DELETE | framework | DG2 | `org.moqui.git.GitServices.delete#GitRepository` (needs delete; removes the rows, the objects not shared with a fork network, the refs, rules, webhooks, statuses and redirects). None exists. |
 | N-USAGE | framework | DG2 | `get#GitRepositoryUsage` (`repositoryId` or a list): stored bytes without the objects shared from a fork parent, LFS bytes, object count. Smithy does not read `GitObject` or `GitLfsObject`. |
 | N-LFS-HOOK | framework | DG2 | The LFS batch API asks a configured service before it accepts an upload (repository, user, object sizes) and refuses with its message. LFS uploads do not pass pre-receive. |

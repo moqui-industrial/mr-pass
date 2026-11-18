@@ -22,12 +22,10 @@ spec({
                 logoUrl: 'javascript:alert(1)',
             }),
         })
-        setProperty(
-            'pass_client_' + l.ids.client + '_secret',
+        setConf('pass-authority/client[' + l.ids.client + ']@secret',
             'pass-shop-spec-secret',
         )
-        setProperty(
-            'pass_client_' + l.ids.client + '_sites',
+        setConf('pass-authority/client[' + l.ids.client + ']@sites',
             [SITE, ROOT_SITE].join(','),
         )
     },

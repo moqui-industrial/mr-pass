@@ -48,10 +48,10 @@ roots only; an authority certificate from a private CA is not accepted yet.
 On the authority, register `pass_client_<id>_secret` and comma-separated
 `pass_client_<id>_sites`. Register the exact frontend SSO callback URI in
 `pass_client_<id>_callback`, such as `https://forum.example.test/account/Sso`. For direct gRPC, also set
-`pass_authority_grpc_enabled=true`: the host's gRPC listener (port `pass_authority_grpc_port`, 4317, on
-`pass_authority_grpc_host`; the OTLP receiver's port when that is on too) then takes PASS calls, TLS with the HTTPS
+`moqui_conf__pass_authority__grpc_enabled=true`: the host's gRPC listener (port `pass-authority@grpc-port`, 4317, on
+`pass-authority@grpc-host`; the OTLP receiver's port when that is on too) then takes PASS calls, TLS with the HTTPS
 listener's certificate. With no certificate it serves plain h2c, and then takes PASS calls only on a loopback address,
-unless `pass_authority_grpc_insecure=true`. For an edge node, the local node's client ID for it is
+unless `moqui_conf__pass_authority__grpc_insecure=true`. For an edge node, the local node's client ID for it is
 `pass_edge_client` (default `edge`):
 set `pass_client_edge_sites` and `pass_client_edge_callback` (no secret; the link authenticates it).
 Delegations are hashed, revocable, site/client scoped, and expire after 15 minutes without use;
@@ -111,7 +111,7 @@ At a trusted proxy, configure the framework's proxy/origin settings for the actu
 Do not trust arbitrary forwarded authority headers or use a wildcard origin policy in production.
 Cookie-authenticated changes require the framework session token. Return paths stay local; SSO
 handoffs use the exact registered callback, browser state, a server-held verifier, and an expiring
-single-use exchange code. Configure allowed provider IDs in `pass_sso_flows`; they reuse the
+single-use exchange code. Configure allowed provider IDs in `pass-authority@sso-flows`; they reuse the
 framework OIDC/OAuth facilities and account/second-factor policy. SAML remains unavailable where
 the framework package does not provide it.
 
@@ -920,7 +920,7 @@ ordinal renumbering.
 ## Mail, accounts, and media
 
 Configure a framework EmailServer and verification EmailTemplate, and set
-`pass_verification_template`. The verification template receives `verificationToken`; render a
+`pass-authority@verification-template`. The verification template receives `verificationToken`; render a
 link/code for the deployment's Register page. Never put provider credentials in site records.
 Public signup creates a disabled framework account. Verification is single-use; verified site
 joining links/creates the backend Party without assigning an internal group. Invitation signup
@@ -1092,12 +1092,12 @@ with the Maximal package (`--release`) on both runtimes.
 
 gRPC direct (the authority on loopback serves h2c, which loopback allows). When the authority's conf turns on the
 OTLP/gRPC receiver (`MoquiDevConf.xml` has `<receiver grpc-enabled="true"/>`), the PASS authority shares the receiver's
-port (4317) and `pass_authority_grpc_port` is ignored: run the authority with a conf that leaves the receiver off, or
+port (4317) and `pass-authority@grpc-port` is ignored: run the authority with a conf that leaves the receiver off, or
 point `pass_backend_grpc_url` at 4317.
 
 ```sh
 ./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
-    -D pass_authority_grpc_enabled=true -D pass_authority_grpc_port=18093
+    -D moqui_conf__pass_authority__grpc_enabled=true -D moqui_conf__pass_authority__grpc_port=18093
 # the frontend's conf: the remote properties above, and
 #   pass_backend_grpc_url=grpc://127.0.0.1:18093   pass_backend_transport=grpc
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092

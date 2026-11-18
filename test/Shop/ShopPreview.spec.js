@@ -210,7 +210,7 @@ feature(
                         },
                         ...(clientId ? { clientId, clientVerified: true } : {}),
                     })
-            setProperty('pass_client_' + l.ids.client + '_sites', SITE)
+            setConf('pass-authority/client[' + l.ids.client + ']@sites', SITE)
             const browser = asked(null)
             const frontend = asked(l.ids.client)
             // as publish pinned it before: the digest of the image's base64 text, in the release's manifest and its row

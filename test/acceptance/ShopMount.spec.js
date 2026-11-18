@@ -75,11 +75,10 @@ spec({
                 siteId: row.siteId,
                 appMountId: row.appMountId,
             })
-        setProperty(
-            'pass_client_' + l.ids.client + '_secret',
+        setConf('pass-authority/client[' + l.ids.client + ']@secret',
             'pass-shop-mount-secret',
         )
-        setProperty('pass_client_' + l.ids.client + '_sites', SITE)
+        setConf('pass-authority/client[' + l.ids.client + ']@sites', SITE)
     },
     cleanupSpec() {
         login('john.doe')

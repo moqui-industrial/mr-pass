@@ -163,7 +163,7 @@ function clearToAnotherHost(url) {
    pass_backend_url, setting pass_backend_transport, grpcUrl pass_backend_grpc_url, available whether the host has the
    gRPC binding, insecure pass_backend_insecure. Settings that cannot work are an Unavailable error naming them, and so is
    a transport in clear text (http://, grpc://) to another host, unless insecure is true (as the authority's gRPC
-   listener takes clear text from another host only with pass_authority_grpc_insecure). */
+   listener takes clear text from another host only with pass-authority@grpc-insecure). */
 function select(settings) {
     const chosen = selectTransport(settings)
     const url =

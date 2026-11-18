@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
-  <default-property name="pass_verification_template" value="PASS_TEST_VERIFY"/>
-  <default-property name="pass_client_test_secret" value="test-deployment-secret"/>
-  <default-property name="pass_client_test_sites" value="PASS_AUTH,PASS_HTTP,ZIZI_SHOP,ZIZI_DIGITAL"/>
+  <pass-authority verification-template="PASS_TEST_VERIFY" sso-flows="PASS_TEST_SSO">
+    <client id="test" sites="PASS_AUTH,PASS_HTTP,ZIZI_SHOP,ZIZI_DIGITAL" callback="https://frontend.example.test/account/Sso"
+        secret="test-deployment-secret"/>
+  </pass-authority>
   <default-property name="pass_sender_addresses" value="community@example.test"/>
   <default-property name="pass_mail_template_ids" value="PASS_TEST_NOTICE,PASS_TEST_INBOUND"/>
-  <default-property name="pass_sso_flows" value="PASS_TEST_SSO"/>
-  <default-property name="pass_client_test_callback" value="https://frontend.example.test/account/Sso"/>
   <default-property name="pass_scanner_service" value="pass.test.MediaServices.scan#File"/>
   <default-property name="pass_media_root" value="runtime://tmp/pass-media"/>
   <default-property name="pass_import_dir" value="runtime://tmp/pass-import"/>

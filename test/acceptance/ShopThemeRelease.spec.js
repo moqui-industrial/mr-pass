@@ -133,11 +133,10 @@ spec({
             .one().storeName
         state.path =
             l.facade('getShopContext', { siteId: SITE }).result.mount.base || ''
-        setProperty(
-            'pass_client_' + l.ids.client + '_secret',
+        setConf('pass-authority/client[' + l.ids.client + ']@secret',
             'pass-shop-theme-secret',
         )
-        setProperty('pass_client_' + l.ids.client + '_sites', SITE)
+        setConf('pass-authority/client[' + l.ids.client + ']@sites', SITE)
     },
     cleanupSpec() {
         login('john.doe')

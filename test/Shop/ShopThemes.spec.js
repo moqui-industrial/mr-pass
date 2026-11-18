@@ -61,11 +61,10 @@ spec({
             { app: 'shop', pathPrefix: '/shop', targetId: l.ids.store },
         ])
         l.setState(SITE, 'published')
-        setProperty(
-            'pass_client_' + l.ids.client + '_secret',
+        setConf('pass-authority/client[' + l.ids.client + ']@secret',
             'pass-shop-spec-secret',
         )
-        setProperty('pass_client_' + l.ids.client + '_sites', SITE)
+        setConf('pass-authority/client[' + l.ids.client + ']@sites', SITE)
         state.themeId = l.run(T + 'create#ThemeDraft', {
             productStoreId: l.ids.store,
             starter: 'mr-pass/starter',

@@ -111,8 +111,8 @@ spec({
                     fromDate: new Date(Date.now() - 86400000)
                 })
             )
-        setProperty("pass_client_" + CLIENT + "_secret", "pass-mkt-track-secret")
-        setProperty("pass_client_" + CLIENT + "_sites", ids.siteId)
+        setConf("pass-authority/client[" + CLIENT + "]@secret", "pass-mkt-track-secret")
+        setConf("pass-authority/client[" + CLIENT + "]@sites", ids.siteId)
     },
     cleanupSpec() {
         login("john.doe")
