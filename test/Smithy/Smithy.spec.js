@@ -811,11 +811,13 @@ feature("CommitDetail shows the message, the parent, the changed file and its di
         html.includes('href="/code/pass-smg/web/-/commit/' + state.first + '"')
         html.includes('<a href="/code/pass-smg/web/-/commits" aria-current="page">Commits</a>')
         html.includes("1 file changed")
-        html.includes('<a href="#file-1">src/main.js</a>')
+        html.includes('<a href="#file-1" title="src/main.js"><span class="st st-modified" aria-hidden="true"></span>src/main.js</a>')
         // the issue the commit is linked to, by its number and title (one the caller may not see is only counted)
         html.includes('<a href="/code/pass-smg/web/-/issues/1">#1</a> Tree page breaks &lt;b&gt;</p>')
-        html.includes('<span class="a">+console.log(&#39;hello&#39;)</span>')
-        html.includes('<span class="d">-if (a &lt; 2) console.log(&#39;&lt;script&gt;alert(1)&lt;/script&gt;&#39;)</span>')
+        // both line numbers, the changed words marked, the text escaped
+        html.includes('<div class="l a"><span class="n"></span><span class="n">2</span>+console.log(&#39;<span class="x">hello</span>&#39;)</div>')
+        html.includes('<div class="l d"><span class="n">2</span><span class="n"></span>-<span class="x">if (a &lt; 2) </span>console.log(&#39;<span class="x">&lt;script&gt;alert(1)&lt;/script&gt;</span>&#39;)</div>')
+        html.includes('<a class="smithy-viewfile" href="/code/pass-smg/web/-/blob/' + state.second + '/src/main.js">View file</a>')
         !html.includes("<script")
     }
 })
