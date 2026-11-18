@@ -79,7 +79,7 @@ spec({
     setupSpec() {
         login('john.doe')
         // the mail gateway whose Authentication-Results count (the fixture mail's authserv-id)
-        setProperty('smtp_authserv_id', 'gw.example.test')
+        setConf('smtp-server@authserv-id', 'gw.example.test')
         ec.user.setEffectiveTime(baseTime)
         capture.enable()
         capture.clear()

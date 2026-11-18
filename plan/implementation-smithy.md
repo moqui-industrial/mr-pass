@@ -310,7 +310,7 @@ Matching Mantle's fixes of its DG6 review:
 - `Shared/Portal.js` has the reason `repositoryHidden` (a hidden repository is not forked: "This repository is hidden."),
   last as in Mantle's `PassAuthority.js`; ShopAccess's parity check covers it.
 - Mail counts as authenticated by the gateway only in an `Authentication-Results` field whose authserv-id is in
-  `smtp_authserv_id`: `InboundMail.spec.js` sets it to its fixture mail's `gw.example.test`. No other spec posts by mail.
+  `smtp-server@authserv-id`: `InboundMail.spec.js` sets it to its fixture mail's `gw.example.test`. No other spec posts by mail.
 - A held list message's link is in the forum its list is read in: `SmithyRoutes.js` `forumSection` maps
   `held-mail/<token>[/claim]` under a scope's `/-/forum` to the forum's own `HeldMail` (mounted under the shell with the
   rest of the forum), and `<forum mount>/held-mail/<token>` stays. After a claim `HeldMail` goes to the topic in the
@@ -329,7 +329,7 @@ Matching Mantle's fixes of its DG6 review:
   `SmithyScope.js` `heldReportBody`, the page's content without the site's shell. The grammar test has the scoped
   `held-mail` paths.
 - `docs/Deployment.md`: Smithy's `git-ci` `run-check-service` (`mantle.smithy.SmithyServices.check#PipelineRun`, named
-  by Mantle's `MoquiConf.xml`: a hidden repository runs no CI), `smtp_authserv_id` on the authority for any mail to
+  by Mantle's `MoquiConf.xml`: a hidden repository runs no CI), `smtp-server@authserv-id` on the authority for any mail to
   count, a list's links in its group's or repository's forum with no `/forum` mount, linking a category being the
   site's owners', and the invitations' day limit.
 - The registries (`Schema.js`, `SmithySchema.js`, `Routes.js`) are unchanged copies of Mantle's (compared with `cmp`).

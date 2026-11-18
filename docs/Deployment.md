@@ -946,7 +946,7 @@ topics and accepts replies; an address without a category accepts replies only. 
 carries a reply address with a hashed, expiring token in its plus tag, issued to that recipient for
 that thread. Point the route addresses at a hosted or shared mail account behind the trusted edge
 gateway (`docs/interfaces/Mail-Inbound.md` in mr-moqui) or at a synced account; the `ForumInbound` email ECA
-handles each stored message. Set `smtp_authserv_id` on the authority to the gateway's authserv-id (comma-separated
+handles each stored message. Set `smtp-server@authserv-id` on the authority to the gateway's authserv-id (comma-separated
 for several gateways): mail counts as authenticated by the gateway only in an `Authentication-Results` field with that
 id, and with none set no mail counts, so nothing is posted or filed by mail. A sender must be one verified account
 address with DMARC, or aligned DKIM, passing there. Nothing creates accounts from mail, and unknown senders get no reply.
