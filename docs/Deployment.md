@@ -10,50 +10,50 @@ the authority in the same runtime. A remote presentation runtime loads framework
 PASS, with its own framework session database and no Mantle business entity catalog. It does
 not need BOSS. Do not expose internal worker services through additional REST/RPC routes.
 
-Leave `pass_backend_url` unset for local mode. For remote mode, set these properties on the
+Leave `pass@backend-url` unset for local mode. For remote mode, set these properties on the
 frontend through deployment configuration or environment variables:
 
 | Property | Purpose |
 | --- | --- |
-| `pass_backend_url` | Fixed authority origin/base URL, `https://`: an `http://` URL (or a `grpc://` `pass_backend_grpc_url`) to a host other than loopback is refused unless `pass_backend_insecure=true`. `edge:` on an edge node: its local node, over the edge link |
-| `pass_client_id` | Registered deployment ID |
-| `pass_client_secret` | Server-side deployment secret |
-| `pass_backend_transport` | `rest`, `grpc`, or empty for automatic (below) |
-| `pass_backend_grpc_url` | The authority's gRPC listener for direct gRPC, such as `grpcs://boss.example.test:4317` |
-| `pass_backend_insecure` | `true` lets the transport send the client secret and the visitors' delegations in clear text (`http://`, `grpc://`) to another host, on a private link only |
-| `pass_backend_web_url` | The authority's web address for the browser's SSO front channel; defaults to an http(s) `pass_backend_url`, and is needed with `edge:` (the local node's host name, through the edge node's web access) |
+| `pass@backend-url` | Fixed authority origin/base URL, `https://`: an `http://` URL (or a `grpc://` `pass@backend-grpc-url`) to a host other than loopback is refused unless `moqui_conf__pass__backend_insecure=true`. `edge:` on an edge node: its local node, over the edge link |
+| `pass@client-id` | Registered deployment ID |
+| `pass@client-secret` | Server-side deployment secret |
+| `pass@backend-transport` | `rest`, `grpc`, or empty for automatic (below) |
+| `pass@backend-grpc-url` | The authority's gRPC listener for direct gRPC, such as `grpcs://boss.example.test:4317` |
+| `pass@backend-insecure` | `true` lets the transport send the client secret and the visitors' delegations in clear text (`http://`, `grpc://`) to another host, on a private link only |
+| `pass@backend-web-url` | The authority's web address for the browser's SSO front channel; defaults to an http(s) `pass@backend-url`, and is needed with `edge:` (the local node's host name, through the edge node's web access) |
 
 The same operations go to the authority by one of three transports, which callers cannot tell apart (the same results
 and error kinds; `service/pass/Transport.js`):
 
-- **REST**: the authority's `/rest/s1/pass/v1/sites/<siteId>/...` routes at `pass_backend_url`, the client's ID and
+- **REST**: the authority's `/rest/s1/pass/v1/sites/<siteId>/...` routes at `pass@backend-url`, the client's ID and
   secret in headers. Every package has it.
-- **gRPC, direct**: the authority's gRPC listener (`pass_backend_grpc_url`), one long-lived HTTP/2 connection; the
+- **gRPC, direct**: the authority's gRPC listener (`pass@backend-grpc-url`), one long-lived HTTP/2 connection; the
   client's ID and secret in metadata. In Maximal and Enterprise.
-- **gRPC on the edge link**: `pass_backend_url=edge:` on an edge node; its local node is the authority, and the link
+- **gRPC on the edge link**: `moqui_conf__pass__backend_url=edge:` on an edge node; its local node is the authority, and the link
   is the client (no secret, no public authority). Edge nodes are Maximal.
 
-The transport rule: `pass_backend_transport` `rest` or `grpc` forces one. Empty is gRPC when the package has the
-host's gRPC binding and a gRPC endpoint is set (`pass_backend_url=edge:`, or `pass_backend_grpc_url`), else REST, so
+The transport rule: `pass@backend-transport` `rest` or `grpc` forces one. Empty is gRPC when the package has the
+host's gRPC binding and a gRPC endpoint is set (`moqui_conf__pass__backend_url=edge:`, or `pass@backend-grpc-url`), else REST, so
 a frontend never moves to an authority port nobody opened. Lite and Dev have no gRPC: REST is their default and a
-supported mode for the long term. `grpc` with no `pass_backend_grpc_url` dials the `pass_backend_url` host on port
+supported mode for the long term. `grpc` with no `pass@backend-grpc-url` dials the `pass@backend-url` host on port
 4317, and `edge:` takes gRPC only. Settings that cannot work fail each call as unavailable, naming the setting in the
 log.
 
 `grpc://` is plain HTTP/2: to an authority on another host it would send the client's secret, and the visitors'
-credentials and data, in clear, so it is refused there (as `http://` is) unless `pass_backend_insecure=true` (a private
+credentials and data, in clear, so it is refused there (as `http://` is) unless `moqui_conf__pass__backend_insecure=true` (a private
 link); use `grpcs://` otherwise. `grpcs://` trusts the WebPKI
 roots only; an authority certificate from a private CA is not accepted yet.
 
-On the authority, register `pass_client_<id>_secret` and comma-separated
-`pass_client_<id>_sites`. Register the exact frontend SSO callback URI in
-`pass_client_<id>_callback`, such as `https://forum.example.test/account/Sso`. For direct gRPC, also set
+On the authority, register `pass-authority/client[<id>]@secret` and comma-separated
+`pass-authority/client[<id>]@sites`. Register the exact frontend SSO callback URI in
+`pass-authority/client[<id>]@callback`, such as `https://forum.example.test/account/Sso`. For direct gRPC, also set
 `moqui_conf__pass_authority__grpc_enabled=true`: the host's gRPC listener (port `pass-authority@grpc-port`, 4317, on
 `pass-authority@grpc-host`; the OTLP receiver's port when that is on too) then takes PASS calls, TLS with the HTTPS
 listener's certificate. With no certificate it serves plain h2c, and then takes PASS calls only on a loopback address,
 unless `moqui_conf__pass_authority__grpc_insecure=true`. For an edge node, the local node's client ID for it is
-`pass_edge_client` (default `edge`):
-set `pass_client_edge_sites` and `pass_client_edge_callback` (no secret; the link authenticates it).
+`edge/node@pass-client` (default `edge`):
+set `pass-authority/client[edge]@sites` and `pass-authority/client[edge]@callback` (no secret; the link authenticates it).
 Delegations are hashed, revocable, site/client scoped, and expire after 15 minutes without use;
 use in the last five minutes extends them, up to twelve hours from sign-in, after which sign-in is
 required again. A failed write retains its draft and operation ID. Every authority call carries the
@@ -69,15 +69,15 @@ carries and the authority renews when it rotates the session.
 A business whose authority (its BOSS server) runs in the office, behind a firewall, serves its sites from an edge
 node: a small cloud server the authority dials out to and keeps one link open with (mr-moqui `docs/Run-Deploy.md`,
 "A local server with an edge node", and `plans/archive/Edge-Node.md` §5.5). The edge node runs mr-pass with
-`pass_backend_url=edge:` (set in mr-moqui's `runtime/conf/edge/MoquiEdgeConf.xml`), so it calls the authority over gRPC
+`moqui_conf__pass__backend_url=edge:` (set in mr-moqui's `runtime/conf/edge/MoquiEdgeConf.xml`), so it calls the authority over gRPC
 down the link, and the authority needs no public address, open port or client secret for it.
 
 1. Pair the authority with the edge node: on the edge node, System › Edge Clients, make a pairing code; on the
    authority, System › Edge Node, Pair with an edge node, with the edge node's address and the code.
 2. In the wizard's Discover step turn PASS on, choose the sites the edge node serves and enter the frontend's SSO
-   callback. Apply writes `pass_edge_client` (`edge`), `pass_client_edge_sites` and `pass_client_edge_callback` to the
+   callback. Apply writes `edge/node@pass-client` (`edge`), `pass-authority/client[edge]@sites` and `pass-authority/client[edge]@callback` to the
    authority's `runtime/.env`, and its Test step checks them and that the edge node has mr-pass.
-3. On the edge node, set `pass_backend_web_url` to the authority's web address through the edge node (a host name with
+3. On the edge node, set `pass@backend-web-url` to the authority's web address through the edge node (a host name with
    web access, which the wizard's Discover step sets too), for the SSO front channel, and add the sites' `public-site`
    bindings to its conf.
 
@@ -160,7 +160,7 @@ confs in `runtime/conf/full-stack/`, and `plans/Edge-Node2.md` §3, §4.7):
 ```
  visitors --https--> front node         per-app hosts: forum.example.org, shop.example.com, as terminate hosts
                          |  balanced over the edge members, sticky by the session cookie
-                     edge cluster       the PASS servers: mr-pass with pass_backend_url=edge:
+                     edge cluster       the PASS servers: mr-pass with moqui_conf__pass__backend_url=edge:
                          |  each edge member calls the authority down its own link
                      local cluster      the authority: BOSS with Mantle, the business database
 ```
@@ -171,12 +171,12 @@ confs in `runtime/conf/full-stack/`, and `plans/Edge-Node2.md` §3, §4.7):
   runs no mr-pass. Each edge member gives the front its sites' hosts as terminate hosts, so the front ends their TLS
   with its certificates for them (in its `runtime/cert`, or System › Certificates with ACME) and keeps a browser on one
   edge member by the session cookie.
-- **The edge cluster as the PASS servers.** Every edge member runs mr-pass with `pass_backend_url=edge:` and the same
+- **The edge cluster as the PASS servers.** Every edge member runs mr-pass with `moqui_conf__pass__backend_url=edge:` and the same
   bindings; the frontend's session is a row in the edge cluster's database, so a browser that moves to another member
-  stays signed in. `pass_backend_web_url` is the authority's web address through the stack (one of the local
+  stays signed in. `pass@backend-web-url` is the authority's web address through the stack (one of the local
   cluster's host names), for the SSO front channel.
 - **The local cluster as the authority.** It pairs with the edge cluster once; the Edge Node wizard's PASS step writes
-  `pass_edge_client` (`edge`), `pass_client_edge_sites` and `pass_client_edge_callback` to its `.env`, copied to every
+  `edge/node@pass-client` (`edge`), `pass-authority/client[edge]@sites` and `pass-authority/client[edge]@callback` to its `.env`, copied to every
   local member. Each edge member calls it down its own link, over gRPC with no client secret, balanced over the local
   cluster's live members (sticky by the sign-in in progress). Create the sites and bind their hosts and mounts there
   (`create#Site`, `store#Mounts`), the hosts the edge members' `public-site` bindings name.
@@ -227,12 +227,12 @@ host, from which every link Mantle mails is built.
   seven days is taken as abandoned. The content security policy stays
   `form-action 'self'`: no form posts to the provider. The test gateway (`PaymentTestServices.hostedPending#...`) is for
   tests and demos only.
-- **Bills.** A supplier's file is staged under `pass_media_root/bills`, checked to be the PDF, PNG or JPEG it says by its
-  leading bytes, scanned by `pass_scanner_service` (at most 10 MiB) and becomes the incoming draft bill's file only when clean; a repeat of the request or of the
+- **Bills.** A supplier's file is staged under `pass@media-root/bills`, checked to be the PDF, PNG or JPEG it says by its
+  leading bytes, scanned by `pass@scanner-service` (at most 10 MiB) and becomes the incoming draft bill's file only when clean; a repeat of the request or of the
   supplier's bill number answers the first submission. AP reviews the bill in BOSS; nothing here approves it.
 - **Quotes and acknowledgements.** A supplier saves a private draft of its quote and sends it, or acknowledges an order's
   current revision with its promised dates; either may carry a file, staged and scanned as a bill is (under
-  `pass_media_root/supplier`), and a drop-ship supplier reports what it shipped. Each is a claim the buyers review in
+  `pass@media-root/supplier`), and a drop-ship supplier reports what it shipped. Each is a claim the buyers review in
   BOSS; a repeat answers the first receipt, and the posts are limited per requester.
 
 A remote frontend posts a link's writes (a payment, a bill, a quote and its draft, an acknowledgement, a delivery report)
@@ -267,7 +267,7 @@ queue and every customer and public knowledge source).
   takes evidence and a withdrawal before the goods are received.
 - **Help.** SupportHome and CustomerArticle read the published pages of the organization's customer and public knowledge
   sources (a visitor only public ones); a rating counts once per page view, 30 in ten minutes per requester.
-- **Files.** Case files and return evidence are staged under `pass_media_root/support` and scanned as a bill is (PDF, PNG or
+- **Files.** Case files and return evidence are staged under `pass@media-root/support` and scanned as a bill is (PDF, PNG or
   JPEG, at most 10 MB); downloads go through the facade, which a remote frontend streams.
 
 - **Feedback.** A resolved case's customer gets one invitation by email from the organization's address, after the
@@ -548,7 +548,7 @@ subscribes with recorded off-session consent, and `/Subscriptions` lists the con
 the card, resolve a failed renewal). `store#RecurringOffer` keeps the site's `subscriptionUrl` on Shop's Subscriptions
 page. Automatic renewal needs a gateway that charges a kept card off-session (Authorize.Net's CIM profile; the stored
 credential indicators are untried against the sandbox, impl-shop F115). Review photos (PNG or JPEG) are staged under
-`pass_media_root/reviews` and scanned by `pass_scanner_service` as the Billing and Support files are; with no scanner the
+`pass@media-root/reviews` and scanned by `pass@scanner-service` as the Billing and Support files are; with no scanner the
 review keeps its text and refuses the photo. Cart recovery mails a signed-in customer who turned on the store's cart
 reminders (`/account/EmailPreferences`) a link to `/Recover?recoveryToken=`, which the frontend keeps in its session; guests never get
 one. A published product feed is served at `{mount}/feeds/{key}.xml` (or `.csv`) from its active build.
@@ -570,7 +570,7 @@ one. A published product feed is served at `{mount}/feeds/{key}.xml` (or `.csv`)
 - **Email.** The store's emails (`ProductStoreEmail`): order placed and approved, `PsetInvoiceFinalized` (the receipt),
   `PsetDownloadReady`, `PsetSubscriptionRenewal`, `PsetPaymentRetry` and the cart reminder; an email server the
   authority reaches.
-- **Media.** `pass_media_root` on private storage and `pass_scanner_service` (below, "Mail, accounts, and media") for review
+- **Media.** `pass@media-root` on private storage and `pass@scanner-service` (below, "Mail, accounts, and media") for review
   photos; product images are read only from `dbresource://` and `component://` locations.
 - **Caches.** Anonymous catalog pages are `public, max-age=60` with an ETag under the site's generation; everything with a
   session or a user is `no-store`. A CDN may keep catalog pages for that minute; it must keep nothing marked `no-store` and
@@ -618,7 +618,7 @@ every other path. To give a site one:
   `<public-site host="preview.shop.example.com" site-id="SHOP_SITE" screen-location="component://mr-pass/screen/Pass.xml"
   resolver-service="pass.RouteServices.resolve#Route" host-check-service="mantle.public.ThemeServices.get#PreviewHost">
   <mount path="/" screen="Shop"/></public-site>`;
-- set `pass_preview_frame_origins` to the BOSS origins that may frame it (`https://boss.example.com`; `http://localhost:*`
+- set `pass@preview-frame-origins` to the BOSS origins that may frame it (`https://boss.example.com`; `http://localhost:*`
   in development). Unset, the preview is not framed at all.
 
 Previews are served only by the authority's runtime (a remote frontend has no Mantle in process and treats every host as
@@ -700,7 +700,7 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   A running job's page loads them for the live log (`/-/island/JobLog.qvue`): it reads the job's new lines from
   `…/jobs/<id>/log` every two seconds (a page or a read holds at most about 256 KB, and the next read waits as long), and at
   once when the framework's notification socket says the log grew (a signed-in account only; its path is the
-  `pass_notification_endpoint` property, `/notws` when it is not set, and an empty value turns the socket off; a host
+  `pass@notification-endpoint` property, `/notws` when it is not set, and an empty value turns the socket off; a host
   that refuses the socket is given up after its first try); without it the page has Refresh and Load more. A log, a test's
   name and message and a step are shown as escaped text with terminal escapes, control characters and bidirectional
   overrides taken out.
@@ -821,7 +821,7 @@ off and an owner with no runner minutes left run nothing (Pipelines, below).
   is deleted, and they show it again the same way. What the site's staff hid, an Owner does not show again.
 - **Security reports by mail.** A group's Owner names an address and the repository that takes the reports (Settings,
   Forum tab, "Security reports by mail"); an owner or a moderator of the site turns the address on. The address's
-  domain must be one of `pass_route_domains` and its mail must reach the forum's inbound account, as a route address's
+  domain must be one of `pass@route-domains` and its mail must reach the forum's inbound account, as a route address's
   does (Inbound email, below). Mail to it from an account's confirmed address files a confidential issue as that
   account. Mail from any other address is not posted: it is held for 30 days, its sender gets one reply a day with the
   link `/-/held-report/<token>` under Smithy's mount, and the repository's Owners see it waiting in their review queue.
@@ -926,7 +926,7 @@ Public signup creates a disabled framework account. Verification is single-use; 
 joining links/creates the backend Party without assigning an internal group. Invitation signup
 requires its intended email and a valid invitation token.
 
-Register comma-separated `pass_sender_addresses` and `pass_mail_template_ids` on the authority.
+Register comma-separated `pass@sender-addresses` and `pass@mail-template-ids` on the authority.
 The selected template's configured sender must match the registered sender. Configure per-site
 mail settings through the Mail screen. Notification templates receive `title`, `siteId`,
 `rootCommEventId`, `postId`, `postUrl`, `reason`, and `unsubscribeUrl`; mailing-list (Every post)
@@ -940,7 +940,7 @@ only settings at least as strict as the defaults.
 
 ### Inbound email
 
-Register the domains forum route addresses may use in comma-separated `pass_route_domains` on
+Register the domains forum route addresses may use in comma-separated `pass@route-domains` on
 the authority. Site owners then add route addresses on the Mail screen: a category address starts
 topics and accepts replies; an address without a category accepts replies only. Each email notice
 carries a reply address with a hashed, expiring token in its plus tag, issued to that recipient for
@@ -962,7 +962,7 @@ are on a group's or a repository's Settings, Forum tab, once its forum is on; an
 the address, and the group's or the repository's Owner imports the archive and invites the members.
 
 1. **The address and its mail route.** Choose the list's address (`dev@lists.example.org`) in a domain you receive
-   mail for, and add that domain to `pass_route_domains`. Publish the domain's MX record to the edge gateway (or the
+   mail for, and add that domain to `pass@route-domains`. Publish the domain's MX record to the edge gateway (or the
    mail server whose account the listener syncs), and its SPF, DKIM and DMARC records for the mail the list sends, as
    for every sending domain. Deliver the address to the forum's inbound account as every route address is delivered
    (Inbound email, above). Then set the category's mode to "Mailing list" and save the address ("List address"; on the
@@ -979,7 +979,7 @@ the address, and the group's or the repository's Owner imports the archive and i
 4. **Spam.** Mail the gateway marked as spam (the listener's Junk folder, or `X-Spam-Flag`, `X-Spam-Status` or `X-Spam`
    on the message) is never posted and its sender is not answered: from an account it is held in the review queue with
    the reason `mail-verdict`; from any other address only its receipt is kept (Mail settings, Inbound messages).
-5. **Importing an archive.** Put the old list's mbox file in `pass_import_dir`, take its SHA-256 (`shasum -a 256`), and
+5. **Importing an archive.** Put the old list's mbox file in `pass@import-dir`, take its SHA-256 (`shasum -a 256`), and
    start the import with the file's name and the checksum ("Import an archive"). Messages become topics and posts
    with their dates, threaded by `Message-ID`, `In-Reply-To` and `References`; an author is a profile with no account,
    kept by the hash of the address, and the posts become a person's own when an account verifies that address. No
@@ -997,12 +997,12 @@ the address, and the group's or the repository's Owner imports the archive and i
 
 ### Automated classification
 
-Classification is off by default. To offer it, set `pass_classifier_service` to an internal
+Classification is off by default. To offer it, set `pass@classifier-service` to an internal
 service taking `siteId`, `postId`, `revision`, and `text` and returning `decision` (`review` or
 `ok`), `model`, `version`, and `reason`; owners then enable it on the Policies screen. Results only
 file review items. Keep provider credentials in that service's own configuration.
 
-Set `pass_media_root` to private backend storage and `pass_scanner_service` to an internal service
+Set `pass@media-root` to private backend storage and `pass@scanner-service` to an internal service
 accepting `location` and `mimeType`, returning Boolean `clean`. The scanner must inspect actual
 bytes and reject unsafe/mismatched content. Missing/failed scanning quarantines content. Forum
 uploads accept at most 10 MiB and the S1 raster image, PDF, and plain-text types. HTML/SVG and
@@ -1059,12 +1059,12 @@ page where they manage a subscription; Forum implements no checkout.
 retention, site and personal exports, erasure and Discourse import stages. Each item runs in its own
 transaction and each run advances in its own. Retention runs only when a site owner starts it with
 the previewed policy revision; nothing prunes automatically. Exports and reports are written under
-`pass_media_root/exports`, expire after seven days, recheck the requester's authority when
+`pass@media-root/exports`, expire after seven days, recheck the requester's authority when
 downloaded, and are removed by the cursor cleanup job. Set `publishingWikiSpaceId` on the site to
 let internal staff draft articles from topics into that wiki space.
 
-Set `pass_import_dir` to an operator-managed directory that holds Discourse backup archives. The
-browser only names a file there and its SHA-256; imports expand into `pass_media_root/imports` and
+Set `pass@import-dir` to an operator-managed directory that holds Discourse backup archives. The
+browser only names a file there and its SHA-256; imports expand into `pass@media-root/imports` and
 run into a disabled site. Activation needs the operator's and a site owner's approval of the same
 reconciliation, a frozen source and a backup reference. Proxies can send old community URLs to
 `<forum mount>/legacy?path=...`; old `/t/slug/id` links redirect on their own.
@@ -1093,13 +1093,13 @@ with the Maximal package (`--release`) on both runtimes.
 gRPC direct (the authority on loopback serves h2c, which loopback allows). When the authority's conf turns on the
 OTLP/gRPC receiver (`MoquiDevConf.xml` has `<receiver grpc-enabled="true"/>`), the PASS authority shares the receiver's
 port (4317) and `pass-authority@grpc-port` is ignored: run the authority with a conf that leaves the receiver off, or
-point `pass_backend_grpc_url` at 4317.
+point `pass@backend-grpc-url` at 4317.
 
 ```sh
 ./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
     -D moqui_conf__pass_authority__grpc_enabled=true -D moqui_conf__pass_authority__grpc_port=18093
 # the frontend's conf: the remote properties above, and
-#   pass_backend_grpc_url=grpc://127.0.0.1:18093   pass_backend_transport=grpc
+#   moqui_conf__pass__backend_grpc_url=grpc://127.0.0.1:18093   moqui_conf__pass__backend_transport=grpc
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
 ./moq test-client runtime/components/addon/mr-pass/test/acceptance/client/RemoteHttp.spec.js --nobuild --server http://127.0.0.1:18092
 ```
@@ -1110,9 +1110,11 @@ node's certificate by WebPKI, so its runtime needs a certificate for a public na
 
 ```sh
 ./moq test mr-pass --release --spec ClientFixtures,PortalFixtures --db snapshot --serve 127.0.0.1:18091 \
-    -D pass_client_edge_sites=PASS_AUTH,PASS_HTTP -D pass_client_edge_callback=https://frontend.example.test/account/Sso
-# the frontend's conf: pass_backend_url=edge:, pass_backend_web_url=http://127.0.0.1:18091, moqui_conf__instance__node_role=front_edge,
-#   moqui_conf__webapp_list__webapp__WEBROOT__https_listen_port=18443 (no pass_client_id or secret: the link is the client)
+    -D moqui_conf__pass_authority__client__EDGE__sites=PASS_AUTH,PASS_HTTP \
+    -D moqui_conf__pass_authority__client__EDGE__callback=https://frontend.example.test/account/Sso
+# the frontend's conf: moqui_conf__pass__backend_url=edge:, moqui_conf__pass__backend_web_url=http://127.0.0.1:18091,
+#   moqui_conf__instance__node_role=front_edge, moqui_conf__webapp_list__webapp__WEBROOT__https_listen_port=18443
+#   (no pass@client-id or secret: the link is the client)
 MOQUI_RUNTIME=<frontend runtime> ./moq test mr-pass --release --nobuild --acceptance --spec RemoteFixtures --serve 127.0.0.1:18092
 # on the frontend, signed in as john.doe: System › Edge Clients, make a pairing code; on the authority
 # (http://127.0.0.1:18091): System › Edge Node, pair with https://edge.example.test:18443 and the code, wait for Linked

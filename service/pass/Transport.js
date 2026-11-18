@@ -1,10 +1,10 @@
 /* How PASS reaches its one configured authority (mr-moqui plans/archive/Edge-Node.md §5.5): in process (local mode), or
    remotely by one of two transports behind the same functions, so a caller cannot tell them apart and sees the same
    statusKind error kinds from both:
-   - rest: the authority's REST API (Mantle's PassApi.js) at pass_backend_url, the client's secret in headers;
+   - rest: the authority's REST API (Mantle's PassApi.js) at pass@backend-url, the client's secret in headers;
    - grpc: the host's gRPC binding (ec.service.passAuthority): direct to the authority's gRPC listener
-     (pass_backend_grpc_url), or with pass_backend_url=edge: the edge node's link to its local node.
-   pass_backend_transport chooses: grpc or rest, or empty for automatic, which is gRPC where the host has it and a gRPC
+     (pass@backend-grpc-url), or with pass@backend-url edge: the edge node's link to its local node.
+   pass@backend-transport chooses: grpc or rest, or empty for automatic, which is gRPC where the host has it and a gRPC
    endpoint is configured, else REST (Lite and Dev have no gRPC, so REST stays their supported default). CC0 plus patent
    grant. */
 const fail = (kind, text) => {
@@ -140,11 +140,12 @@ const TOKEN_WRITES = [
 ]
 const MAX_UPLOAD = 10485760
 const SKIP_HEADERS = ['set-cookie', 'x-csrf-token', 'moquisessiontoken']
-const property = (name) => String(System.getProperty(name) || '').trim()
+// a PASS setting by its conf selector (pass@backend-url), empty when not set
+const property = (name) => String(ec.factory.getConfValue(name) || '').trim()
 const routes = () =>
     ec.resource.script('component://mr-pass/service/pass/Routes.js')
 
-/* The gRPC endpoint of an authority's REST URL, for pass_backend_transport=grpc with no pass_backend_grpc_url: its host
+/* The gRPC endpoint of an authority's REST URL, for pass@backend-transport grpc with no pass@backend-grpc-url: its host
    on the gRPC listener's default port. */
 function grpcEndpointOf(backend) {
     const match = /^(https?):\/\/(\[[^\]]+\]|[^/:]+)/.exec(String(backend))
@@ -160,8 +161,8 @@ function clearToAnotherHost(url) {
     return !(host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host))
 }
 /* The transport for the settings: {kind: 'local'}, {kind: 'rest'} or {kind: 'grpc', endpoint}. backend is
-   pass_backend_url, setting pass_backend_transport, grpcUrl pass_backend_grpc_url, available whether the host has the
-   gRPC binding, insecure pass_backend_insecure. Settings that cannot work are an Unavailable error naming them, and so is
+   pass@backend-url, setting pass@backend-transport, grpcUrl pass@backend-grpc-url, available whether the host has the
+   gRPC binding, insecure pass@backend-insecure. Settings that cannot work are an Unavailable error naming them, and so is
    a transport in clear text (http://, grpc://) to another host, unless insecure is true (as the authority's gRPC
    listener takes clear text from another host only with pass-authority@grpc-insecure). */
 function select(settings) {
@@ -176,9 +177,9 @@ function select(settings) {
         fail(
             'Unavailable',
             (chosen.kind === 'rest'
-                ? 'pass_backend_url'
-                : 'pass_backend_grpc_url') +
-                ' sends the client secret in clear text to another host: use https:// (grpcs://), or set pass_backend_insecure=true',
+                ? 'pass@backend-url'
+                : 'pass@backend-grpc-url') +
+                ' sends the client secret in clear text to another host: use https:// (grpcs://), or set pass@backend-insecure to true',
         )
     return chosen
 }
@@ -188,19 +189,19 @@ function selectTransport({ backend, setting, grpcUrl, available }) {
     if (chosen && chosen !== 'grpc' && chosen !== 'rest')
         fail(
             'Unavailable',
-            'pass_backend_transport must be grpc, rest or empty',
+            'pass@backend-transport must be grpc, rest or empty',
         )
     if (backend === 'edge:') {
         // the local node on the edge link is reached over gRPC only
         if (chosen === 'rest')
             fail(
                 'Unavailable',
-                'pass_backend_url=edge: is the edge link, which takes gRPC only',
+                'pass@backend-url edge: is the edge link, which takes gRPC only',
             )
         if (!available)
             fail(
                 'Unavailable',
-                'pass_backend_url=edge: needs gRPC in this host',
+                'pass@backend-url edge: needs gRPC in this host',
             )
         return { kind: 'grpc', endpoint: 'edge:' }
     }
@@ -211,12 +212,12 @@ function selectTransport({ backend, setting, grpcUrl, available }) {
         if (!available)
             fail(
                 'Unavailable',
-                'pass_backend_transport=grpc needs gRPC in this host',
+                'pass@backend-transport grpc needs gRPC in this host',
             )
         if (!endpoint) fail('Unavailable', 'No gRPC endpoint for the authority')
         return { kind: 'grpc', endpoint }
     }
-    // automatic: an authority that has not opened its gRPC listener keeps REST until pass_backend_grpc_url names it
+    // automatic: an authority that has not opened its gRPC listener keeps REST until pass@backend-grpc-url names it
     return available && endpoint ? { kind: 'grpc', endpoint } : { kind: 'rest' }
 }
 /* Whether this host has the gRPC binding: Lite and Dev throw "gRPC not built into this host". */
@@ -231,23 +232,23 @@ function grpcAvailable() {
     }
 }
 function current() {
-    const backend = property('pass_backend_url')
+    const backend = property('pass@backend-url')
     if (!backend) return { kind: 'local' }
     return select({
         backend,
-        setting: property('pass_backend_transport'),
-        grpcUrl: property('pass_backend_grpc_url'),
+        setting: property('pass@backend-transport'),
+        grpcUrl: property('pass@backend-grpc-url'),
         available: grpcAvailable(),
-        insecure: property('pass_backend_insecure') === 'true',
+        insecure: property('pass@backend-insecure') === 'true',
     })
 }
-/* The authority's web address, for the SSO front channel the browser follows: pass_backend_web_url, else an http(s)
-   pass_backend_url. On the edge link that is the local node's host name, through the edge node's web access. */
+/* The authority's web address, for the SSO front channel the browser follows: pass@backend-web-url, else an http(s)
+   pass@backend-url. On the edge link that is the local node's host name, through the edge node's web access. */
 function webBase() {
     const base =
-        property('pass_backend_web_url') || property('pass_backend_url')
+        property('pass@backend-web-url') || property('pass@backend-url')
     if (!/^https?:\/\//.test(base))
-        fail('Unavailable', 'pass_backend_web_url is not configured')
+        fail('Unavailable', 'pass@backend-web-url is not configured')
     return base.replace(/\/$/, '')
 }
 /* The remote call's route (the path/verb catalogue is packaged with PASS, so a remote frontend needs no Mantle
@@ -292,15 +293,15 @@ function signedOut() {
 
 /* ---- REST ---- */
 /* Every authority call names this deployment with its secret and its browser's address (for rate limits). The secret is
-   never read here: the host adds it as a header only to a URL under pass_backend_url (RestClient.addPropertyHeader). */
+   never read here: the host adds it as a header only to a URL under pass@backend-url (RestClient.addPropertyHeader). */
 function authorityClient(siteId, path, method) {
-    const backend = System.getProperty('pass_backend_url'),
-        clientId = System.getProperty('pass_client_id')
-    if (!backend || !clientId || !System.isPropertySet('pass_client_secret'))
+    const backend = ec.factory.getConfValue('pass@backend-url'),
+        clientId = ec.factory.getConfValue('pass@client-id')
+    if (!backend || !clientId || !ec.factory.isConfValueSet('pass@client-secret'))
         fail('Unavailable', 'Remote authority is not configured')
     // the same rule as select's for a caller that comes here directly: no secret in clear text to another host
-    if (property('pass_backend_insecure') !== 'true' && clearToAnotherHost(backend))
-        fail('Unavailable', 'pass_backend_url sends the client secret in clear text to another host')
+    if (property('pass@backend-insecure') !== 'true' && clearToAnotherHost(backend))
+        fail('Unavailable', 'pass@backend-url sends the client secret in clear text to another host')
     const client = ec.service
         .rest()
         .uri(
@@ -316,7 +317,7 @@ function authorityClient(siteId, path, method) {
         // the authority is this deployment's own, configured by the operator: it may be on a private network
         .allowInternal()
         .addHeader('x-pass-client', clientId)
-        .addPropertyHeader('x-pass-client-secret', 'pass_client_secret', 'pass_backend_url')
+        .addPropertyHeader('x-pass-client-secret', 'pass@client-secret', 'pass@backend-url')
     const address = ec.web?.request?.remoteAddr
     if (address) client.addHeader('x-pass-client-ip', String(address))
     return client

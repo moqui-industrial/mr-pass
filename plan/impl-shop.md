@@ -607,7 +607,7 @@ Design-shop §5, §11 and §12.7's caches; SHOP-CATALOG, SHOP-CONTENT, SHOP-REND
     and release; the generation (`getSiteGeneration`) read at most every 2 s, entries kept at most 60 s, an answer naming
     another generation and every refusal not kept, nothing served when the generation cannot be read.
   - Test conf: `test/MoquiConf.xml` names `shop.zizi.localhost` (ZIZI_SHOP, Shop at `/`) and `digital.zizi.localhost`
-    (ZIZI_DIGITAL, `/shop`) public sites, and `pass_client_test_sites` adds both, for the walks.
+    (ZIZI_DIGITAL, `/shop`) public sites, and `pass-authority/client[test]@sites` adds both, for the walks.
   - Specs: Mantle `test/product/ShopCatalog` (2 features, 0.41 s: an unpublished product, a draft, an excluded variant and
     another store's product absent from the list, a category, search and the sitemap, and Not Found as a product; another
     store's category refused; a page's published version shown and its later draft not, a page with no published version
@@ -1793,7 +1793,7 @@ Design-shop §17.1 and §17.2's S4; SHOP-RENDER's remote caches and the S4 gate.
     publication rows set aside, the preview (ZZWR_TMP's footers, the conversion findings, the categories) proposing rows
     with nothing written, a publisher approving five through `publish#StoreProducts`, the rows put back; a ZIZI_SHOP
     checkout whose answer is lost, the Shop mount withdrawn (the Shop context NotFound), the job placing it, the placed
-    orders unchanged, the mount restored; a remote frontend's kept site information, then with `pass_backend_url` naming a
+    orders unchanged, the mount restored; a remote frontend's kept site information, then with `pass@backend-url` naming a
     dead authority `getSiteInfo`, `getShopAccount` and `getCart` all refused. Run: `--spec ShopOperationsScenarios` 6 of 6
     (with ShopFixtures); then `./moq accept mr-pass` once: the first run failed ShopPaymentScenarios' capture feature (Demo Product Three-One's stock used up by this spec's order, F124), fixed by cancelling it; the rerun's server suite 40 passed, 3 ignored, 0 failed, client suite 41 of 41.
   - Lint: `moqui lint --screens` 132 flagged sites as before, none in CartDetail, Shop.xml or the Shop files.

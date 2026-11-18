@@ -411,7 +411,7 @@ feature(
                     .checkpoint,
             )
             exportId = config.exportId
-            const root = String(System.getProperty('pass_media_root')).replace(
+            const root = String(ec.factory.getConfValue('pass@media-root')).replace(
                 /\/$/,
                 '',
             )
@@ -622,7 +622,7 @@ feature("a personal export holds only the member's own data", {
         const request = entity('mantle.forum.ForumDataRequest', {
             requestId: requested.requestId,
         })
-        const root = String(System.getProperty('pass_media_root')).replace(
+        const root = String(ec.factory.getConfValue('pass@media-root')).replace(
             /\/$/,
             '',
         )

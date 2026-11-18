@@ -2,10 +2,10 @@
  * render of a theme draft, `/preview/{token}` and its assets `/preview/{token}/asset/{path}`, for the Commerce editor to
  * frame. Every other route on it is Not Found (resolve#Route, Pass.xml). The token is the preview capability
  * (mantle.public.ThemeServices.create#ThemePreview): it is in the URL, never a cookie, and its page sends no-store,
- * noindex, no referrer and a CSP whose frame-ancestors are the BOSS origins of pass_preview_frame_origins (none: not
+ * noindex, no referrer and a CSP whose frame-ancestors are the BOSS origins of pass@preview-frame-origins (none: not
  * framed). The page is the draft rendered by the same composition adapter and trusted components as the live page,
  * with the view the authority answers (synthetic private state); it sends no mail and makes no cart or payment call
- * and declines a session (no cookie, no token, no Visit: impl-commerce F86). Previews are served by the authority's runtime only: a remote frontend (pass_backend_url) has no preview
+ * and declines a session (no cookie, no token, no Visit: impl-commerce F86). Previews are served by the authority's runtime only: a remote frontend (pass@backend-url) has no preview
  * host. The selection script talks to the editor only through the MessageChannel port the editor transfers with the
  * nonce of the preview's URL, from an allowed origin, and carries section ids only. CC0 plus patent grant. */
 const PREVIEW_SERVICE = 'mantle.public.ThemeServices.get#ThemePreviewPage'
@@ -30,7 +30,7 @@ const fail = (kind, message) => {
     throw error
 }
 const notFound = () => fail('NotFound', 'Page not found')
-const local = () => !System.getProperty('pass_backend_url')
+const local = () => !ec.factory.getConfValue('pass@backend-url')
 /* Whether a host of a site is its preview host: only on the authority's runtime (with Mantle in process). */
 function isPreviewHost(siteId, hostname) {
     if (!local() || !siteId || !hostname) return false
@@ -79,10 +79,10 @@ function route(path) {
         screenParameters: { previewToken: parts[1], assetPath },
     }
 }
-/* The BOSS origins that may frame a preview (pass_preview_frame_origins, space or comma separated): https://host[:port],
+/* The BOSS origins that may frame a preview (pass@preview-frame-origins, space or comma separated): https://host[:port],
  * or http on localhost, 127.0.0.1 or a *.localhost name, with :* for any port; anything else is left out. */
 function frameOrigins() {
-    return String(System.getProperty('pass_preview_frame_origins') || '')
+    return String(ec.factory.getConfValue('pass@preview-frame-origins') || '')
         .split(/[\s,]+/)
         .map((origin) => origin.trim().replace(/\/$/, '').toLowerCase())
         .filter((origin) => {

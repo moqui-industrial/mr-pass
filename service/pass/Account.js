@@ -20,7 +20,7 @@ function remoteAccount(action, input, siteId) {
     return transport().ssoAccount(action, input, siteId)
 }
 function startSso(parameters, siteId) {
-    const backend = System.getProperty('pass_backend_url')
+    const backend = ec.factory.getConfValue('pass@backend-url')
     if (!backend) {
         if (
             !String(ec.factory.getConfValue('pass-authority@sso-flows') || '')
@@ -141,7 +141,7 @@ function call(op, parameters, siteId) {
         rememberReturn(parameters)
         return result
     }
-    if (op === 'endSession' && System.getProperty('pass_backend_url')) {
+    if (op === 'endSession' && ec.factory.getConfValue('pass@backend-url')) {
         // Sign-out always ends the local session; revoking the remote credential is best effort.
         try {
             return callAuthority(op, parameters, siteId)
@@ -183,7 +183,7 @@ function callAuthority(op, parameters, siteId) {
             .filter((k) => parameters[k] != null)
             .map((k) => [k, parameters[k]]),
     )
-    const backend = System.getProperty('pass_backend_url')
+    const backend = ec.factory.getConfValue('pass@backend-url')
     let result
     if (!backend) {
         if (op === 'beginRegistration') {

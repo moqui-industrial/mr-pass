@@ -1460,7 +1460,7 @@ mount, theme and user, twenty minutes, the token's digest only); `get#ThemePrevi
 view: the store's public data through ThemeView when the site is published, else the sample view, a cart, checkout or
 account always synthetic. The page is `no-store`, `X-Robots-Tag: noindex`, `Referrer-Policy: no-referrer`, a CSP with a
 nonce'd script, `form-action 'none'`, `connect-src 'none'` and `frame-ancestors` the origins of
-`pass_preview_frame_origins` (none: `'none'`); its script accepts one MessageChannel port from an allowed parent origin
+`pass@preview-frame-origins` (none: `'none'`); its script accepts one MessageChannel port from an allowed parent origin
 with the URL's nonce and sends `{type: "select", sectionId}` only; links and forms do nothing. A remote frontend serves
 no previews.
 

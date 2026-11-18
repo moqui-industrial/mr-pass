@@ -1,5 +1,5 @@
 // How PASS chooses its authority's transport (service/pass/Transport.js, mr-moqui plans/archive/Edge-Node.md §5.5 and decision
-// 8): local with no pass_backend_url; rest or grpc when pass_backend_transport says; automatic is gRPC where the host
+// 8): local with no pass@backend-url; rest or grpc when pass@backend-transport says; automatic is gRPC where the host
 // has the binding and a gRPC endpoint is configured, else REST; edge: is gRPC on the link. Settings that cannot work
 // are refused by name. This run has no gRPC client installed (Lite and Dev have none; a test run without --serve
 // installs none), so the binding's "not built" is read as REST.
@@ -109,7 +109,7 @@ feature(
     },
 )
 feature(
-    'a transport in clear text to another host is refused unless pass_backend_insecure says so (SEC-PSF-05)',
+    'a transport in clear text to another host is refused unless pass@backend-insecure says so (SEC-PSF-05)',
     {
         when() {
             return {
@@ -158,8 +158,7 @@ feature(
                     available: false,
                 }),
                 // the property is read by current(), and a direct REST client is refused the same
-                current: withProperty(
-                    'pass_backend_url',
+                current: withConf('pass@backend-url',
                     'http://authority.example.test',
                     () => {
                         try {
@@ -178,7 +177,7 @@ feature(
             c.restLocalhost.kind == 'rest'
             c.restInsecure.kind == 'rest'
             c.grpcClear.kind == 'Unavailable'
-            c.grpcClear.refused.includes('pass_backend_grpc_url')
+            c.grpcClear.refused.includes('pass@backend-grpc-url')
             c.grpcDerived.kind == 'Unavailable'
             c.grpcLoopback.kind == 'grpc'
             c.lookalike.kind == 'Unavailable'
@@ -197,17 +196,15 @@ feature(
             } catch (error) {
                 thrown = String(error.message)
             }
-            const rest = withProperty(
-                'pass_backend_url',
+            const rest = withConf('pass@backend-url',
                 'https://authority.example.test',
                 () =>
-                    withProperty(
-                        'pass_backend_grpc_url',
+                    withConf('pass@backend-grpc-url',
                         'grpcs://authority.example.test:4317',
                         () => transport().current(),
                     ),
             )
-            const edge = withProperty('pass_backend_url', 'edge:', () => {
+            const edge = withConf('pass@backend-url', 'edge:', () => {
                 try {
                     return transport().current()
                 } catch (error) {

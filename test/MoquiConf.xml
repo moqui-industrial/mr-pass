@@ -4,16 +4,13 @@
     <client id="test" sites="PASS_AUTH,PASS_HTTP,ZIZI_SHOP,ZIZI_DIGITAL" callback="https://frontend.example.test/account/Sso"
         secret="test-deployment-secret"/>
   </pass-authority>
-  <default-property name="pass_sender_addresses" value="community@example.test"/>
-  <default-property name="pass_mail_template_ids" value="PASS_TEST_NOTICE,PASS_TEST_INBOUND"/>
-  <default-property name="pass_scanner_service" value="pass.test.MediaServices.scan#File"/>
-  <default-property name="pass_media_root" value="runtime://tmp/pass-media"/>
-  <default-property name="pass_import_dir" value="runtime://tmp/pass-import"/>
-  <default-property name="pass_test_scanner" value="true"/>
-  <default-property name="pass_route_domains" value="lists.example.test"/>
-  <default-property name="pass_classifier_service" value="pass.test.ClassifierServices.classify#Post"/>
-  <!-- Commerce P5 (F54): the BOSS origins that may frame a theme preview (any local port, for the walks) -->
-  <default-property name="pass_preview_frame_origins" value="http://localhost:* http://127.0.0.1:*"/>
+  <!-- the test scanner, classifier and mail, the media and import storage under runtime/tmp, and the BOSS origins that
+    may frame a theme preview (any local port, for the walks: Commerce P5, F54) -->
+  <pass sender-addresses="community@example.test" mail-template-ids="PASS_TEST_NOTICE,PASS_TEST_INBOUND"
+      scanner-service="pass.test.MediaServices.scan#File" media-root="runtime://tmp/pass-media"
+      import-dir="runtime://tmp/pass-import" test-scanner="true" route-domains="lists.example.test"
+      classifier-service="pass.test.ClassifierServices.classify#Post"
+      preview-frame-origins="http://localhost:* http://127.0.0.1:*"/>
   <webapp-list>
     <webapp name="webroot">
       <public-site host="127.0.0.1" site-id="PASS_HTTP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">

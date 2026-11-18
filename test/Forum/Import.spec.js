@@ -123,7 +123,7 @@ function dump(sha1, firstSubBody, insider = true) {
 /* Writes a backup archive into the import directory and returns its name and SHA-256. */
 function archive(name, firstSubBody, insider = true) {
     return sys(() => {
-        const root = String(System.getProperty('pass_import_dir')).replace(/\/$/, '')
+        const root = String(ec.factory.getConfValue('pass@import-dir')).replace(/\/$/, '')
         const work = root + '/work-' + name
         const image = 'fake png bytes'
         ec.resource.getLocationReference(work + '/photo.png').putText(image)

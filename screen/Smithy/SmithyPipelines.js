@@ -425,10 +425,10 @@ function runHead(c, pu, run) {
         " · "
     )}</small></p>${run.message ? h`<p class="wrap" id="SmithyRunMessage">${messageText(run.message)}</p>` : ""}</article>`
 }
-/* The framework's notification socket's path for the log's island: the pass_notification_endpoint property (/notws when it
+/* The framework's notification socket's path for the log's island: the pass@notification-endpoint setting (/notws when it
  * is not set; empty: no socket, the island polls), a path on this host only. */
 function notificationEndpoint() {
-    const configured = System.getProperty("pass_notification_endpoint")
+    const configured = ec.factory.getConfValue("pass@notification-endpoint")
     const endpoint = configured == null ? "/notws" : String(configured).trim()
     return /^\/[A-Za-z0-9_\/-]{1,100}$/.test(endpoint) ? endpoint : null
 }

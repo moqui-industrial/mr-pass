@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
-  <!-- Test-only classifier, used only when the test conf names it in pass_classifier_service. It sends text that
+  <!-- Test-only classifier, used only when the test conf names it in pass@classifier-service. It sends text that
        mentions "suspicious" to review and fails on "classifier outage", so specs can check failure tolerance. -->
   <service verb="classify" noun="Post" authenticate="false" allow-remote="false">
     <in-parameters>

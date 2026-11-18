@@ -252,7 +252,7 @@ feature(
     {
         when() {
             const folder =
-                String(System.getProperty('pass_media_root')).replace(/\/$/, '') + '/support'
+                String(ec.factory.getConfValue('pass@media-root')).replace(/\/$/, '') + '/support'
             const stagedCount = () => {
                 try {
                     return Array.from(

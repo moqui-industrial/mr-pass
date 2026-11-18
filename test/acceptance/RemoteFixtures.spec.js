@@ -2,12 +2,12 @@
 feature(
     'remote frontend has no Mantle entity catalog or copied business accounts',
     {
-        ignore: !System.getProperty('pass_backend_url')
+        ignore: !ec.factory.getConfValue('pass@backend-url')
             ? 'Requires the dedicated remote frontend runtime'
             : false,
         when() {
             return {
-                configured: !!System.getProperty('pass_backend_url'),
+                configured: !!ec.factory.getConfValue('pass@backend-url'),
                 mantle: ec.entity.isEntityDefined('mantle.party.Party'),
                 forum: ec.entity.isEntityDefined('mantle.forum.ForumTopic'),
             }

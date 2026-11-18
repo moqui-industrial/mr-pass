@@ -275,7 +275,7 @@ Differences from the design:
 - `heldReport` is a GET that shows a page and writes nothing; the claim is the page's form (the design's link "files the
   report"). So a mail scanner that follows the link files nothing, and the claim has the session token.
 - The archive is not uploaded on the page: as the Discourse import does, the operator puts the file in
-  `pass_import_dir` and the page names it with its checksum (Mantle's `importMbox`). Resume is starting the same file
+  `pass@import-dir` and the page names it with its checksum (Mantle's `importMbox`). Resume is starting the same file
   again; there is no list of a category's past runs (Mantle has no read of them), so a run is reached by its start's
   redirect or its `?importId=` address.
 - Invitations: addresses are pasted, 500 at a time, with no file upload; there are no standing counts of invited and
@@ -354,7 +354,7 @@ From the review of the DG5 pages (81b9b21), matching Mantle's fixes of its DG5 r
 - **Control characters.** A log's lines, a test's suite, name, file and message, a step's name and command, and a run's and
   a job's message lose C0 (but tab and newline), DEL, C1 (U+0080 to U+009F) and the bidirectional overrides and isolates
   (U+202A to U+202E, U+2066 to U+2069), with terminal escapes (`plain`).
-- **The notification socket.** The island's socket path is the `pass_notification_endpoint` property (`/notws` when it is
+- **The notification socket.** The island's socket path is the `pass@notification-endpoint` property (`/notws` when it is
   not set; empty: no socket, the island polls), passed in its configuration; a socket that closes before it ever opened
   (a host that refuses it) is given up, and `stop()` closes the client (its listeners off, no reopening).
 - **Cost.** The merge request's Checks tab reads a run again (`getPipelineRun`) for at most three runs of its list (one that
@@ -377,7 +377,7 @@ From the review of the DG5 pages (81b9b21), matching Mantle's fixes of its DG5 r
 | Area | Implementation |
 | --- | --- |
 | Routes | `SmithyRoutes.js` routes `search` (at `-/search`: the framework's `/search` proxy takes `/search`), a repository's `-/docs[/<refPath>]`, `-/releases`, `-/releases/<tag>` (the tag every remaining segment), `-/release-assets/<assetId>/<name>` (the `asset` transition of `ReleaseDetail`), a group's `-/addons.xml` (the `addons` transition of `GroupDetail`) and the Redirects tab of the site's settings (`-/site/redirects`). The grammar had them |
-| Redirects | `pass.RouteServices.resolve#Route` catches a Not Found (no mount, a Smithy path that names nothing, a page not built) and asks `Smithy.js` `movedPath`, which calls Mantle's `resolve#Redirect` (not an operation) with the site, the request's host and its path, and keeps a target that is a path on this site or an https address of one of the site's own hosts (`getSiteInfo` with that host answers only for one); the answer is `/Smithy/redirect` with the location, a 301 with the request's query. Not on a remote frontend (`pass_backend_url`), which has no Mantle |
+| Redirects | `pass.RouteServices.resolve#Route` catches a Not Found (no mount, a Smithy path that names nothing, a page not built) and asks `Smithy.js` `movedPath`, which calls Mantle's `resolve#Redirect` (not an operation) with the site, the request's host and its path, and keeps a target that is a path on this site or an https address of one of the site's own hosts (`getSiteInfo` with that host answers only for one); the answer is `/Smithy/redirect` with the location, a 301 with the request's query. Not on a remote frontend (`pass@backend-url`), which has no Mantle |
 | Pages | `screen/Smithy/SmithySite.js` builds them as escaped markup with `SmithyForms.js`'s helpers: `Search`, `RepositoryDetail/Docs` (read in `pre-actions`), `RepositoryDetail/Releases`, `ReleaseDetail` (in the repository's shell, read in `pre-actions`), the `asset` and `addons` transitions, the Landing section of a group's General settings and the Redirects tab. `Smithy.js` builds the Overview (with the landing) and Explore (with components) |
 | Overview | `getGroupLanding`: the landing text, its relative links made pages of its repository at the branch it was read at (`rewriteLinks` with `sourceRef` and the file's directory), Source and, for a signed-in account, Edit this page (`editPath`); without it the description. Beside it (one column on a phone): the latest release, news and activity, each linked by the path the read gives; pinned repositories (`pinnedList`) and subgroups below. Home shows the home group's |
 | Explore | Components (`findComponents`): name, version, depends-on, the repository and its latest release; the kind filter has Components, and Everything shows the three lists |

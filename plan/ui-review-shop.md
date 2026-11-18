@@ -106,7 +106,7 @@ is specified below; common preparation does not add a BOSS dependency to the pub
 | Payment cases | Hosted test success, decline/lost answer, pending/unknown, approved-but-unplaced and post-placement capture failure. A real sandbox account, callback route, provider configuration and operator permission are separate prerequisites |
 | Fulfillment and documents | Approved physical, digital and mixed orders; valid digital file and grant; invoice/receipt links; refunded or revoked grant; supported byte ranges; order awaiting approval and capture hold |
 | Subscription cases | Prepaid and recurring offers, resource, paid and manual access sources, saved method, off-session consent, paid-through date, due/failed/unresolved renewal and cancellation/refund cases |
-| Review/media | Arrived-order verified buyer, no-purchase buyer, approved/pending/rejected review and scanned image. Private `pass_media_root`, scanner service and image support are explicit dependencies |
+| Review/media | Arrived-order verified buyer, no-purchase buyer, approved/pending/rejected review and scanned image. Private `pass@media-root`, scanner service and image support are explicit dependencies |
 | Recovery and communications | Signed-in shopper has opted into the store's cart reminders; eligible unpurchased cart, single-use/replaced/expired recovery tokens, mail sink and delivery records. Guests are not recovery recipients |
 | Outputs | Active feed builds for configured XML/CSV/JSON format, current sitemap/robots, current theme assets and product/review media; wrong digest, stale generation and withdrawn product cases |
 | Operations | Checkout reconcile/expire, fulfillment, message delivery, renewal, Shop operations, recovery, feed and access-expiry jobs configured; controlled outage/paused-job fixtures and authorized staff to resolve exceptions |
@@ -872,7 +872,7 @@ spec still needs its dedicated frontend/authority prerequisites; an ignored cond
 | Acceptance source | Actual scenario/assertion coverage and dependency | Activities |
 | --- | --- | --- |
 | [ShopFixtures](../test/acceptance/ShopFixtures.spec.js) | Creates two demo sites/stores if BOSS demo is absent, publishes products/theme/returns/terms, separate shopper carts and test/exception gateways; setup, not an independent customer walkthrough | All dependent scenarios |
-| [ShopRemoteFixtures](../test/acceptance/ShopRemoteFixtures.spec.js) | Dedicated remote runtime requires `pass_backend_url`, asserts no Mantle catalogue and reads authority sites; ignored without that runtime | SHP-33 |
+| [ShopRemoteFixtures](../test/acceptance/ShopRemoteFixtures.spec.js) | Dedicated remote runtime requires `pass@backend-url`, asserts no Mantle catalogue and reads authority sites; ignored without that runtime | SHP-33 |
 | [ShopMount](../test/acceptance/ShopMount.spec.js) | Root Shop mount preserves other app paths; visitor/remote context and refusal reason | SHP-01 |
 | [ShopThemeRelease](../test/acceptance/ShopThemeRelease.spec.js) | Starter publication/render, infinite optional section bounded, `ec` template rejected with location, remote digest check | SHP-06–SHP-07 |
 | [ShopPaymentScenarios](../test/acceptance/ShopPaymentScenarios.spec.js) | Changed-price review and repeated submit local/remote, unknown refresh/provider reconciliation, capture hold and authorized release, approved-but-unplaced resolver | SHP-15–SHP-18 |

@@ -1297,7 +1297,7 @@ function load(name, siteId, parameters, bases, identity, scope) {
             }
         }
     }
-    if (name === 'Sites' && System.getProperty('pass_backend_url'))
+    if (name === 'Sites' && ec.factory.getConfValue('pass@backend-url'))
         view.forms = view.forms.filter((form) => form.op !== 'createSite')
     if (name === 'Login' && identity?.ssoFlows?.length)
         view.forms = [

@@ -376,7 +376,7 @@ function sendBinary(context, release, path, asset, call) {
         digest: asset.digest,
     }
     const response = ec.web?.response
-    if (!call && System.getProperty('pass_backend_url')) {
+    if (!call && ec.factory.getConfValue('pass@backend-url')) {
         if (response) assetHeaders(response)
         ec.resource
             .script('component://mr-pass/service/pass/Transport.js')

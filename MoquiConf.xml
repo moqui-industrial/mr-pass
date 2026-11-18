@@ -7,6 +7,22 @@
     REST or gRPC) by the two schema operations resolveTrackingLink and recordTrackingEvent, and answers the redirect or the image even
     when recording fails; a destination never comes from the request. docs/Deployment.md "Marketing app: Tracking links". -->
 <moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+    <!-- PASS's settings (docs/Deployment.md), each also an environment name (moqui_conf__pass__backend_url) and the same on
+        an authority that runs Mantle without mr-pass, which reads the media, import, scanner and mail ones. The authority:
+        backend-url its final https origin (empty: local mode, with Mantle in this runtime; edge: the edge node's link),
+        client-id the client registered there and client-secret its secret (in .env, never in a conf file);
+        backend-transport rest, grpc or empty for automatic, backend-grpc-url its gRPC listener, backend-web-url its web
+        address for the SSO front channel (backend-url when empty), backend-insecure true to send the secret in clear text
+        to another host. notification-endpoint is the notification socket's path (empty: none, the page polls). Media and
+        imports: media-root and import-dir (storage every cluster member reads), scanner-service and classifier-service
+        (the services that scan an upload and classify a post; none: uploads and classification are off), test-scanner
+        for the test scanner only, mbox-max-message-bytes (10 MB when empty). Mail: route-domains (the list domains),
+        sender-addresses and mail-template-ids (what the Forum may send from and with). preview-frame-origins are the
+        BOSS origins that may frame a theme preview; authority-name is how Operations names the authority. -->
+    <pass backend-url="" client-id="" client-secret="" backend-transport="" backend-grpc-url="" backend-web-url=""
+            backend-insecure="false" notification-endpoint="/notws" media-root="" import-dir="" scanner-service=""
+            classifier-service="" test-scanner="false" mbox-max-message-bytes="" route-domains="" sender-addresses=""
+            mail-template-ids="" preview-frame-origins="" authority-name="local"/>
     <webapp-list>
         <webapp name="webroot">
             <!-- a tracking link: /trk/{siteId}/{publicCode}, with a send's personalized ?token= (redacted from the request log) -->

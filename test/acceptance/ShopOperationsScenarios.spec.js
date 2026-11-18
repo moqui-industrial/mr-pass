@@ -287,8 +287,7 @@ feature(
                 )
                 // the authority stops answering: its generation cannot be read
                 ec.cache.getCache('pass.shop.siteGenerations').remove(SITE)
-                return withProperty(
-                    'pass_backend_url',
+                return withConf('pass@backend-url',
                     'http://127.0.0.1:9',
                     () => {
                         const refused = (operation, extra) => {

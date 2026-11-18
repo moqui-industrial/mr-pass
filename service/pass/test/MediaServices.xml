@@ -10,7 +10,7 @@
       <parameter name="clean" type="Boolean"/>
     </out-parameters>
     <actions>
-      <script>if(System.getProperty('pass_test_scanner')!=='true')throw new Error('Test scanner is disabled');clean=String(mimeType).startsWith('image/') || ec.resource.getLocationReference(location).getText()!=='quarantine fixture'</script>
+      <script>if(ec.factory.getConfValue('pass@test-scanner')!=='true')throw new Error('Test scanner is disabled');clean=String(mimeType).startsWith('image/') || ec.resource.getLocationReference(location).getText()!=='quarantine fixture'</script>
     </actions>
   </service>
 </services>

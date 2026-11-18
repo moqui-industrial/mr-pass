@@ -1,4 +1,4 @@
-/* PASS owns presentation and one configured authority, never a business replica: in process when pass_backend_url is
+/* PASS owns presentation and one configured authority, never a business replica: in process when pass@backend-url is
    empty, else over REST or gRPC (Transport.js). */
 // Smithy's operations are in their own file, a copy of Mantle's SmithySchema.js (plan/design-smithy.md §4.1), as Schema.js is
 // of its ForumSchema.js; a name is in one of the two
@@ -61,7 +61,7 @@ function call(operation, input) {
     const def = schema[operation]
     if (!def || Object.keys(input).some((k) => !def.fields.includes(k)))
         fail('Unprocessable', 'Unsupported operation or input')
-    const backend = System.getProperty('pass_backend_url')
+    const backend = ec.factory.getConfValue('pass@backend-url')
     if (!backend) checkLoginKey(operation)
     if (!backend)
         return ec.service
@@ -73,7 +73,7 @@ function call(operation, input) {
     return transport().call(operation, input, def)
 }
 function download(siteId, attachmentId, variant) {
-    const backend = System.getProperty('pass_backend_url')
+    const backend = ec.factory.getConfValue('pass@backend-url')
     if (!backend) {
         const result = call('getAttachment', {
             siteId,
@@ -106,7 +106,7 @@ function download(siteId, attachmentId, variant) {
 }
 /* An export or report download: the authority rechecks the requester and the expiry. */
 function downloadExport(siteId, exportId) {
-    const backend = System.getProperty('pass_backend_url')
+    const backend = ec.factory.getConfValue('pass@backend-url')
     if (!backend) {
         const result = call('getExport', { siteId, exportId })
         ec.web.response.setContentType(result.export.mimeType)
@@ -135,7 +135,7 @@ function downloadExport(siteId, exportId) {
    Content-Disposition in place of the one made from the file's name, and streamed, to read and write the file a window
    at a time. Every header is set before the body. Through a remote frontend the transport's own answer is forwarded. */
 function downloadFile(siteId, operation, input, options) {
-    const backend = System.getProperty('pass_backend_url')
+    const backend = ec.factory.getConfValue('pass@backend-url')
     if (!backend) {
         const result = call(operation, { siteId, ...input })
         // Smithy DG5: the authority's operation sent the file as this response itself (a run's artifact, send#RunArtifact)
@@ -200,7 +200,7 @@ function downloadRanged(siteId, operation, input) {
         ...input,
         ...(/^bytes=\d*-\d*$/.test(range) ? { range } : {}),
     }
-    if (System.getProperty('pass_backend_url'))
+    if (ec.factory.getConfValue('pass@backend-url'))
         return transport().downloadOperation(siteId, operation, asked)
     const result = call(operation, asked)
     const response = ec.web.response
