@@ -57,6 +57,83 @@ function hunkLines(hunks) {
     return out
 }
 
+/* One part of a long diff: the lines of the hunks from line part*size (0-based) up to size lines, counted without the
+ * hunks' headers, and the count of parts. A part that starts inside a hunk starts with a header marked cont, which has no
+ * gap before it. Only the lines of the part are made. */
+function hunkPart(hunks, part, size) {
+    const lines = []
+    let total = 0
+    for (const hunk of hunks || []) total += (hunk.lines || []).length
+    const parts = Math.max(1, Math.ceil(total / size))
+    const from = Math.min(Math.max(0, part), parts - 1) * size
+    const to = from + size
+    let at = 0
+    for (const hunk of hunks || []) {
+        const count = (hunk.lines || []).length
+        if (at + count <= from || at >= to) {
+            at += count
+            continue
+        }
+        const start = Math.max(0, from - at)
+        const header = {kind: "h", oldStart: Number(hunk.oldStart), newStart: Number(hunk.newStart)}
+        if (start === 0) header.text = "@@ -" + hunk.oldStart + "," + hunk.oldLines + " +" + hunk.newStart + "," + hunk.newLines + " @@"
+        else {
+            const first = hunk.lines[start]
+            header.cont = true
+            header.text = "@@ … continued from line " + (first.newNo ?? first.oldNo) + " @@"
+        }
+        lines.push(header)
+        for (let k = start; k < count && at + k < to; k++) {
+            const line = hunk.lines[k]
+            lines.push(
+                line.tag === "insert"
+                    ? {kind: "a", text: line.text ?? "", newNo: line.newNo}
+                    : line.tag === "delete"
+                      ? {kind: "d", text: line.text ?? "", oldNo: line.oldNo}
+                      : {kind: "c", text: line.text ?? "", oldNo: line.oldNo, newNo: line.newNo}
+            )
+        }
+        at += count
+    }
+    return {lines, parts, part: from / size}
+}
+
+/* The same part of lines already made (from a unified text): {lines, parts, part}, as hunkPart. */
+function linesPart(all, part, size) {
+    const body = line => line.kind === "a" || line.kind === "d" || line.kind === "c"
+    let total = 0
+    for (const line of all) if (body(line)) total++
+    const parts = Math.max(1, Math.ceil(total / size))
+    const from = Math.min(Math.max(0, part), parts - 1) * size
+    const to = from + size
+    const lines = []
+    let at = 0
+    let header = null
+    // the hunk's lines before the part, and whether its header is out yet
+    let skipped = 0
+    let out = false
+    for (const line of all) {
+        if (line.kind === "h") {
+            header = line
+            skipped = 0
+            out = false
+            continue
+        }
+        if (body(line)) at++
+        if (at <= from) {
+            skipped++
+            continue
+        }
+        if (at > to) break
+        if (!out && header) {
+            lines.push(skipped ? {kind: "h", cont: true, text: "@@ … continued from line " + (line.newNo ?? line.oldNo) + " @@"} : header)
+            out = true
+        }
+        lines.push(line)
+    }
+    return {lines, parts, part: from / size}
+}
+
 // words, runs of white space, and each other character are the units a changed line is compared by
 const TOKENS = /[A-Za-z0-9_]+|\s+|[^A-Za-z0-9_\s]/g
 // a pair of lines longer than this, or with more units, is marked as a whole (the comparison is quadratic)
@@ -143,6 +220,7 @@ function gaps(lines) {
     const out = new Map()
     let lastNew = 0
     lines.forEach((line, i) => {
+        if (line.kind === "h" && line.cont) return
         if (line.kind === "h") {
             const from = lastNew + 1
             const to = (line.newStart || 1) - 1
@@ -254,4 +332,4 @@ function plainHtml(lines, {split = false, fileHref = null} = {}) {
     )
 }
 
-;({esc, diffLines, hunkLines, wordMarks, marked, hunkHtml, gaps, gapHtml, splitRows, stat, statHtml, IMAGE, imageHtml, plainHtml})
+;({esc, diffLines, hunkLines, hunkPart, linesPart, wordMarks, marked, hunkHtml, gaps, gapHtml, splitRows, stat, statHtml, IMAGE, imageHtml, plainHtml})

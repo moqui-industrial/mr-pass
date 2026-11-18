@@ -264,6 +264,45 @@ feature("Changes side by side (view=split): each side's number is its own anchor
         stat === "4,1,0"
     }
 })
+feature("a long diff is in parts: each part has its own lines, a part that starts inside a hunk a continued header and no gap", {
+    when() {
+        const diff = ec.resource.script("component://mr-pass/screen/Smithy/SmithyDiff.js")
+        const hunk = (start, count) => ({
+            oldStart: start,
+            oldLines: count,
+            newStart: start,
+            newLines: count,
+            lines: Array.from({length: count}, (_, k) => ({tag: "equal", oldNo: start + k, newNo: start + k, text: "t" + (start + k)}))
+        })
+        const hunks = [hunk(1, 5), hunk(20, 5)]
+        const text = "@@ -1,5 +1,5 @@\n t1\n t2\n t3\n t4\n t5\n@@ -20,5 +20,5 @@\n t20\n t21\n t22\n t23\n t24\n"
+        return {
+            first: diff.hunkPart(hunks, 0, 4),
+            second: diff.hunkPart(hunks, 1, 4),
+            past: diff.hunkPart(hunks, 9, 4),
+            fromText: diff.linesPart(diff.diffLines(text), 1, 4),
+            gaps: diff.gaps(diff.hunkPart(hunks, 1, 4).lines)
+        }
+    },
+    then({first, second, past, fromText, gaps}) {
+        first.parts === 3
+        first.lines.map(line => line.kind).join("") === "hcccc"
+        first.lines[0].text === "@@ -1,5 +1,5 @@"
+        // part 2: line 5 of the first hunk (a continued header), then the second hunk's header and 3 lines
+        second.lines.map(line => line.kind).join("") === "hchccc"
+        second.lines[0].cont === true
+        second.lines[0].text === "@@ … continued from line 5 @@"
+        second.lines[3].newNo === 20
+        // a part past the last is the last
+        past.part === 2
+        past.lines.map(line => line.newNo ?? "h").join(",") === "h,23,24"
+        fromText.lines.map(line => (line.kind === "h" ? (line.cont ? "+" : "h") : line.newNo)).join(",") === "+,5,h,20,21,22"
+        // the continued header has no gap; the second hunk's gap is 6–19
+        gaps.size === 1
+        gaps.get(2).from === 6
+        gaps.get(2).to === 19
+    }
+})
 feature("the Edit page has the file's text, the blob it starts from and, for the agreement's file, how to sign; its save step asks where", {
     when() {
         const f = fixtures()

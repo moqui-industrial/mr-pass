@@ -662,6 +662,27 @@ function threadHtml(c, o, thread) {
         ? h`<details class="smithy-thread" id="${id}"${attributes({open: !!reply.error})}><summary>Comments on ${where}${marks}${thread.lineText ? h` <code>${String(thread.lineText).slice(0, 120)}</code>` : ""}</summary>${body}</details>`
         : h`<div class="smithy-thread" id="${id}"><p><small>Comments on ${where}</small></p>${body}</div>`
 }
+/* A file whose diff the page leaves out, and why: too large for the host to diff, too large for a page of files (a link
+ * to the file alone), too large even alone (a link to the file), or no text change (a mode, an empty file). Also used by
+ * a commit's and a comparison's Changes. */
+// the most diff lines a file's own page shows at once; a longer diff is in parts
+const PART_LINES = 10000
+/* The links between the parts of a long diff: where this part is, and the parts before and after (href(n) for part n). */
+function partsHtml(piece, href) {
+    const n = piece.part + 1
+    return h`<nav class="smithy-parts" aria-label="Diff parts">Part ${n} of ${piece.parts} (lines ${grouped(piece.part * PART_LINES + 1)}–${grouped(
+        n * PART_LINES
+    )} of the diff)${n > 1 ? h` <a href="${href(n - 1)}">Previous part</a>` : ""}${n < piece.parts ? h` <a class="smithy-btn" href="${href(n + 1)}">Next part</a>` : ""}</nav>`
+}
+const grouped = count => String(count).replace(/\B(?=([0-9]{3})+(?![0-9]))/g, ",")
+function omitted(file, onePath, aloneHref, viewHref) {
+    const changed = (Number(file.insertions) || 0) + (Number(file.deletions) || 0)
+    const view = viewHref ? h` <a href="${viewHref}">View file</a>` : ""
+    if (file.tooLarge) return h`<p class="smithy-omitted">This file is too large to diff.${view}</p>`
+    if (!changed) return h`<p class="smithy-omitted">No text changes to show.</p>`
+    if (!onePath) return h`<p class="smithy-omitted">Large diff: ${grouped(changed)} changed lines are not shown here. <a class="smithy-btn" href="${aloneHref}">Load diff</a>${view}</p>`
+    return h`<p class="smithy-omitted">This diff is too large to show (${grouped(changed)} changed lines).${view}</p>`
+}
 /* MergeRequestChanges (design §9): the file tree, and each file's diff (SmithyDiff.js) as rows with both line numbers and
  * an anchor for each line, the changed words of a changed line marked, the unchanged lines between hunks as a link to them,
  * unified or (view=split) side by side, each file folded open in a <details>; a binary image as its two versions. The review
@@ -687,9 +708,15 @@ function changes(shell, request, bases, siteInfo, self, asked) {
     })
     const u = smithy.urls(c.base, shell.repository.repositoryPath)
     const diffs = new Map((found.fileDiffList || []).map(d => [d.path, d]))
+    // each file's hunks are let go once its rows are made
+    found.fileDiffList = null
     const threads = found.threadList || []
     // the page's own address keeps the file asked for and the view; a line's link adds the line
-    const keep = extra => self + query({path: onePath, view: split ? "split" : null, ...extra})
+    // a file alone shows its diff in parts of PART_LINES lines (part= counts from 1)
+    const part = onePath ? Math.max(1, Number(ask("part")) || 1) : 1
+    const keep = extra => self + query({path: onePath, view: split ? "split" : null, part: part > 1 ? part : null, ...extra})
+    // a line's link is the page's address with line= last
+    const linePrefix = keep({line: "X"}).replace(/X$/, "")
     const o = {repositoryId, number, canComment, self: keep({})}
     const wanted = LINE_KEY.exec(ask("line") || "")
     const islandFiles = []
@@ -697,10 +724,17 @@ function changes(shell, request, bases, siteInfo, self, asked) {
     const status = file => file.status || file.changeType || ""
     const files = (found.fileList || []).map((file, i) => {
         const index = i + 1
+        // the page of one file shows that file alone (the file tree still lists them all)
+        if (onePath && file.path !== onePath) return ""
         const fileDiff = diffs.get(file.path)
+        diffs.delete(file.path)
         const text = fileDiff?.unifiedDiff ?? fileDiff?.diff ?? null
         // the host's hunks, as data (never its markup); a unified text where that is what there is
-        const lines = diff.marked(fileDiff?.hunks?.length ? hunkLines(fileDiff.hunks) : text ? diffLines(text) : [])
+        const hunks = fileDiff?.hunks?.length ? fileDiff.hunks : null
+        if (fileDiff) fileDiff.hunks = null
+        const piece = onePath && hunks ? diff.hunkPart(hunks, part - 1, PART_LINES) : null
+        const lines = diff.marked(piece ? piece.lines : hunks ? hunkLines(hunks) : text ? diffLines(text) : [])
+        const parts = piece && piece.parts > 1 ? partsHtml(piece, n => keep({part: n > 1 ? n : null}) + "#file-" + index) : ""
         const before = diff.gaps(lines)
         const deleted = /^(deleted|delete|removed|D)$/i.test(status(file))
         const added = /^(added|add|new|A)$/i.test(status(file))
@@ -712,12 +746,15 @@ function changes(shell, request, bases, siteInfo, self, asked) {
         for (const thread of mine) {
             const key = thread.outdated ? null : thread.newLine != null && keys.has("F" + index + "R" + thread.newLine) ? "F" + index + "R" + thread.newLine : thread.oldLine != null && keys.has("F" + index + "L" + thread.oldLine) ? "F" + index + "L" + thread.oldLine : null
             if (key) at.set(key, [...(at.get(key) || []), thread])
-            else above.push(thread)
+            // a part of a long diff has the threads of its lines; the first part has the outdated ones and the rest
+            else if (!piece || piece.part === 0) above.push(thread)
         }
-        // what follows a line: its threads and, for the line asked for, the comment form
+        // what follows a line: its threads and, for the line asked for, the comment form (markup, or "" for most lines)
         const follow = (key, line, shown) => {
+            const here = at.get(key)
             const formHere = canComment && wanted && wanted[0] === key
-            return h`${(at.get(key) || []).map(thread => threadHtml(c, o, thread))}${
+            if (!here && !formHere) return ""
+            return h`${(here || []).map(thread => threadHtml(c, o, thread))}${
                 formHere
                     ? h`${open(c, fresh, {returnTo: keep({line: key}) + "#" + fresh.id, successTo: o.self + "#" + key})}${hidden("repositoryId", repositoryId)}${hidden("mergeRequestNum", number)}${hidden(
                           "commitId",
@@ -729,50 +766,58 @@ function changes(shell, request, bases, siteInfo, self, asked) {
                           {rows: 3, maxlength: 100000, required: true, hint: "Markdown."}
                       )}<p><button>Comment</button> <a href="${o.self}#${key}">Cancel</a></p></form>`
                     : ""
-            }`
+            }`.html
         }
-        // a line's number: the link to its comment form, or to itself
-        const numberLink = (key, shown, cls, id) =>
-            h`<a class="${cls}"${attributes({id})} href="${canComment ? keep({line: key}) + "#" + key : "#" + key}"${attributes({
-                "data-line": canComment ? key : null,
-                "aria-label": (canComment ? "Comment on line " : "Line ") + shown
-            })}>${shown}</a>`
-        let rows
+        // a line's number: the link to its comment form, or to itself. The rows are built as strings (a page of many
+        // thousand lines stays inside the script's memory); every text in them is escaped by diff.esc.
+        const lineHref = canComment ? diff.esc(linePrefix) : ""
+        const numberLink = (key, shown, id) =>
+            '<a class="n"' + (id ? ' id="' + key + '"' : "") + ' href="' + (canComment ? lineHref + key + "#" + key : "#" + key) + '"' +
+            (canComment ? ' data-line="' + key + '" aria-label="Comment on line ' + shown + '"' : ' aria-label="Line ' + shown + '"') + ">" + shown + "</a>"
+        const out = []
         if (!split) {
-            rows = lines.map((line, li) => {
-                const gap = before.has(li) ? new Markup(diff.gapHtml(before.get(li), fileHref)) : ""
-                if (line.kind === "h") return h`${gap}<div class="l h">${new Markup(diff.hunkHtml(line.text))}</div>`
-                if (line.kind === "m") return h`<div class="l m">${line.text}</div>`
+            lines.forEach((line, li) => {
+                if (before.has(li)) out.push(diff.gapHtml(before.get(li), fileHref))
+                if (line.kind === "h") return out.push('<div class="l h">' + diff.hunkHtml(line.text) + "</div>")
+                if (line.kind === "m") return out.push('<div class="l m">' + diff.esc(line.text) + "</div>")
                 const key = lineKey(index, line)
                 const shown = line.kind === "d" ? line.oldNo : line.newNo
                 const sign = line.kind === "a" ? "+" : line.kind === "d" ? "-" : " "
                 // the other side's number, after the link; the style puts the old side's number first
                 const other = line.kind === "c" ? line.oldNo : ""
-                return h`<div class="l ${line.kind}" id="${key}">${numberLink(key, shown, "n", null)}<span class="o">${other}</span>${sign}${new Markup(line.html)}</div>${follow(key, line, shown)}`
+                out.push('<div class="l ' + line.kind + '" id="' + key + '">' + numberLink(key, shown, false) + '<span class="o">' + other + "</span>" + sign + line.html + "</div>" + follow(key, line, shown))
             })
         } else {
-            rows = diff.splitRows(lines).map(row => {
-                if (row.kind === "h")
-                    return h`${before.has(row.index) ? new Markup(diff.gapHtml(before.get(row.index), fileHref, true)) : ""}<div class="sr h">${new Markup(diff.hunkHtml(row.line.text))}</div>`
-                if (row.kind === "m") return h`<div class="sr m">${row.line.text}</div>`
-                const half = (line, side) => {
-                    if (!line) return h`<span class="n e"></span><span class="t e"></span>`
-                    const shown = side === "L" ? line.oldNo : line.newNo
-                    const key = "F" + index + side + shown
-                    const cls = line.kind === "c" ? "c" : side === "L" ? "d" : "a"
-                    return h`${numberLink(key, shown, "n", key)}<span class="t ${cls}">${new Markup(line.html)}</span>`
+            for (const row of diff.splitRows(lines)) {
+                if (row.kind === "h") {
+                    if (before.has(row.index)) out.push(diff.gapHtml(before.get(row.index), fileHref, true))
+                    out.push('<div class="sr h">' + diff.hunkHtml(row.line.text) + "</div>")
+                    continue
                 }
-                const leftKey = row.left ? "F" + index + "L" + row.left.oldNo : null
-                const rightKey = row.right ? "F" + index + "R" + row.right.newNo : null
+                if (row.kind === "m") {
+                    out.push('<div class="sr m">' + diff.esc(row.line.text) + "</div>")
+                    continue
+                }
+                const half = (line, side) => {
+                    if (!line) return '<span class="n e"></span><span class="t e"></span>'
+                    const shown = side === "L" ? line.oldNo : line.newNo
+                    const cls = line.kind === "c" ? "c" : side === "L" ? "d" : "a"
+                    return numberLink("F" + index + side + shown, shown, true) + '<span class="t ' + cls + '">' + line.html + "</span>"
+                }
                 // a context line's threads are on its new side
                 const both = row.left && row.right && row.left === row.right
-                return h`<div class="sr">${half(row.left, "L")}${half(row.right, "R")}</div>${row.left && !both ? follow(leftKey, {...row.left, kind: "d"}, row.left.oldNo) : ""}${row.right ? follow(rightKey, row.right, row.right.newNo) : ""}`
-            })
+                out.push(
+                    '<div class="sr">' + half(row.left, "L") + half(row.right, "R") + "</div>" +
+                        (row.left && !both ? follow("F" + index + "L" + row.left.oldNo, {...row.left, kind: "d"}, row.left.oldNo) : "") +
+                        (row.right ? follow("F" + index + "R" + row.right.newNo, row.right, row.right.newNo) : "")
+                )
+            }
         }
+        const rows = out.join("")
         islandFiles.push({index, path: file.path, oldPath: file.oldPath || file.path, status: status(file), binary: !!file.binary})
         const image = file.binary && diff.IMAGE.test(file.path)
-        const body = rows.length
-            ? h`<div class="${split ? "smithy-split" : "smithy-lines"}" data-file="${index}">${rows}</div><div data-smithy-side="${index}"></div>`
+        const body = rows
+            ? h`<div class="${split ? "smithy-split" : "smithy-lines"}" data-file="${index}">${new Markup(rows)}</div><div data-smithy-side="${index}"></div>`
             : image
               ? new Markup(
                     diff.imageHtml(
@@ -783,14 +828,12 @@ function changes(shell, request, bases, siteInfo, self, asked) {
                 )
               : file.binary
                 ? h`<p>Binary file.</p>`
-                : found.truncated && !onePath
-                  ? h`<p><a href="${keep({path: file.path})}#file-${index}">Show this file's changes</a></p>`
-                  : h`<p>No text changes to show.</p>`
+                : omitted(file, onePath, keep({path: file.path}) + "#file-" + index, fileHref ? u.blob(found.headCommitId, file.path) : null)
         return h`<section class="card smithy-file" id="file-${index}"><details open><summary><h3 class="wrap">${file.oldPath && file.oldPath !== file.path ? file.oldPath + " → " : ""}${file.path} <small>${status(file)}</small> ${new Markup(
             diff.statHtml(file.insertions, file.deletions)
         )} <span data-smithy-tools="${index}"></span>${fileHref ? h` <a class="smithy-viewfile" href="${u.blob(found.headCommitId, file.path)}">View file</a>` : ""}</h3></summary>${above.map(thread =>
             threadHtml(c, o, thread)
-        )}${body}</details></section>`
+        )}${parts}${body}${parts}</details></section>`
     })
     const config = {
         doUrl: c.base + "/-/do/createReviewComment",
@@ -810,10 +853,10 @@ function changes(shell, request, bases, siteInfo, self, asked) {
     const threadCount = file => threads.filter(thread => thread.path === file.path && !thread.resolved).length
     return {
         html: h`<section id="SmithyChanges" aria-label="Changed files"><div class="smithy-difftools"><h3>${count} ${count === 1 ? "file" : "files"} changed <small>+${Number(found.insertions) || 0} −${Number(found.deletions) || 0}</small></h3><nav aria-label="Diff view" class="smithy-seg">${viewLink(null, "Unified")}${viewLink("split", "Split")}</nav></div>${
-            found.truncated ? h`<p class="card">This change is large; only part of its diff is shown.</p>` : ""
+            found.truncated && !onePath ? h`<p class="card">This change is large; only part of its diff is shown.</p>` : ""
         }${onePath ? h`<p><a href="${self + query({view: split ? "split" : null})}">Show every file</a></p>` : ""}<div class="smithy-review"><nav aria-label="Files" class="smithy-filetree"><ul class="card" id="SmithyFileList">${(found.fileList || []).map(
             (file, i) =>
-                h`<li class="wrap"><a href="#file-${i + 1}" title="${file.path}"><span class="st st-${String(status(file)).toLowerCase()}" aria-hidden="true"></span>${file.path}</a> <small>${status(file)} +${Number(file.insertions) || 0} −${Number(file.deletions) || 0}${
+                h`<li class="wrap"><a href="${onePath && file.path !== onePath ? self + query({path: file.path, view: split ? "split" : null}) : ""}#file-${i + 1}" title="${file.path}"><span class="st st-${String(status(file)).toLowerCase()}" aria-hidden="true"></span>${file.path}</a> <small>${status(file)} +${Number(file.insertions) || 0} −${Number(file.deletions) || 0}${
                     threadCount(file) ? h` · ${threadCount(file)} ${threadCount(file) === 1 ? "thread" : "threads"}` : ""
                 }</small></li>`
         )}</ul></nav><div class="smithy-filelist">${files}</div></div></section>${c.signedIn && shell.capabilities.confirmed !== false ? reviewForm(c, shell, request, o.self + "#SmithyReview") : ""}<div id="SmithyDiffReview"></div>${issuePages.islandOf(
@@ -1086,5 +1129,8 @@ function agreementSettings(target, name, head, bases, siteInfo, self, flash, con
     edit,
     agreementSettings,
     diffLines,
+    omitted,
+    partsHtml,
+    PART_LINES,
     lineKey
 })
