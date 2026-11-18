@@ -1,117 +1,109 @@
-# IronStone PASS — Public Application Software Suite
+# IronStone PASS - Public Application Software Suite
 
-PASS is the public-facing component for Modern Rust Moqui. Its Forum uses Mantle MAILBOX lists and
-CommunicationEvent posts, with a dedicated public shell, explicit publication, public accounts,
-moderation, read markers, protected attachments, and outbound notifications. Its Billing app shows an
-organization's invoices to its customers and takes payment from an invoice's pay link; its Supplier app
-takes a supplier's quote, purchase order acknowledgement and bill (Purchasing's and Accounting's pages, over Mantle's
-SupplierPortalServices and PortalServices). Its Support app is Customer Service's customer pages: help, a customer's
-cases and returns, a cancel request for an order, and Feedback, a resolved case's rating from its invitation link (over Mantle's
-SupportCaseServices, KnowledgeServices, ReturnPolicyServices, OrderChangeServices and CaseFeedbackServices). Its Sales app
-is IronStone Sales' customer pages: a quote's mailed link, the offer and its PDF, the customer's acceptance or decline and
-its receipt, a contact's quotes, and a customer's orders with their delivery and invoices by the order confirmation's link or
-signed in (over Mantle's SalesPortalServices). Its Marketing app is IronStone Marketing's public subscription and forms: an
-organization's offered lists, a request with its neutral receipt and the confirmation link's page, a published survey's form
-answered by anyone, a signed-in account or an invitation's link (and the one public lead page, a lead form whose answers go to Sales), its storeless landing pages with their embedded subscribe
-boxes, a published event registration offer's page, and its registration (choosing places, the attendees' answers and the terms, payment on the provider's page) and the registration's own page with entry codes and cancellation (over Mantle's MarketingPortalServices); unsubscribing and topics are the Account app's Email preferences page (a text message topic may be left there, not joined). PASS's own
-`MoquiConf.xml` registers Marketing's tracking redirect and pixel (`script/TrackingRedirect.js`, `TrackingPixel.js` at `/trk/*` and
-`/trk-o/*`), web scripts over Mantle's TrackingServices through PASS's transport.
+> **Not ready for production (before 0.1.0).** Like [MR Moqui](https://github.com/moqui/mr-moqui#readme), which it
+> runs on, PASS is in early development. Its data model and stored data change without migrations, and a security
+> review is under way with its findings recorded openly in the mr-moqui repository. Run it only on development
+> machines, with no real business data or credentials, and not exposed to the internet. The full notice is at the top
+> of the [mr-moqui README](https://github.com/moqui/mr-moqui#readme).
 
-The component has a framework-only static dependency. Local deployments load Mantle. Remote
-frontends need only framework, webroot, and PASS; they use one operator-configured Mantle authority
-without loading its entity catalog or copying its Party records. BOSS is not a runtime dependency.
+IronStone PASS is the public-facing application suite for [MR Moqui](https://github.com/moqui/mr-moqui), the Moqui
+framework in Rust, and the companion of [IronStone BOSS](https://github.com/moqui/mr-boss). BOSS is where a
+business's own people work. PASS is what its customers, suppliers, members and the public see: a community forum, a
+shop, public git hosting, and the pages where a customer pays an invoice, accepts a quote, opens a support case or
+registers for an event.
 
-The [Forum design](plan/design-forum.md) defines the stages and how an app registers (§13.1); what is built
-and verified, and what is deferred, is in [the implementation record](plan/implementation-forum.md).
-Operators start with [Deployment](docs/Deployment.md), which also covers the Billing, Supplier, Support, Sales, Marketing and Smithy apps.
+PASS has a shell of its own, apart from the one staff use. The Shop's and Smithy's pages are plain HTML that works
+without JavaScript, with small islands where a page needs them (a cart, an editor, a running job's log). A site is
+bound to a host name and puts each app at a path.
 
-Its Shop app ([IronStone Shop](plan/design-shop.md), `screen/Shop.xml`) is a ProductStore's storefront, mounted at
-`/shop` or a site's root: the published catalog and search, a cart, a guest or signed-in checkout paying on the store's
-hosted payment page, orders, downloads, saved addresses and cards, and prepaid and renewing subscriptions, over Mantle's
-Shop services (ShopCatalogServices, ShopCartServices, ShopCheckoutServices, ShopFulfillmentServices,
-ShopSubscriptionServices, ShopOperationsServices). Its pages render the site's published theme (the starter is
-`theme/starter/`) and work without JavaScript, with Vue islands for the purchase selection and the cart. Its theme and
-page editors are [IronStone Commerce](../mr-boss/plan/design-commerce.md)'s; published shops run without BOSS.
-[impl-shop](plan/impl-shop.md) records Shop's build; [Deployment](docs/Deployment.md) "Shop app" its setup and jobs.
+![A product page of the demo shop on the starter theme.](docs/images/shop-product.png)
 
-Its Smithy app ([design](plan/design-smithy.md), `screen/Smithy.xml`) is public git hosting, mounted at `/code` or a
-site's root: groups, repositories and their code (files, a file with line anchors, raw, commits, branches, tags, a commit
-and a comparison), a repository's issues (the public view of its project's tasks, confidential ones for its Owners and
-their reporter, with labels, milestones and a conversation of forum posts written in Markdown), its merge requests (from a
-branch, a fork or a push for review, with line comments on the diff, reviews, the checks, the contributor agreement and
-the merge), its pipelines (the runs, a job's steps, log, failed tests and uploads, Approve and run, secrets, environments
-and the runner pools, and deployments to an environment with their approval), its releases and Docs, a group's landing page and `addons.xml` (the component directory), one search
-box, the site's old paths, forks, editing a file on its page with the save as a commit, the forum's own pages inside a group and a
-repository (limited to its category, with the moderation queue for its Owners, Report and Hide, a mailing list's import
-and invitations, and security reports by mail), and for an account with a confirmed address creating groups and repositories, their settings and
-members, branch rules, webhooks, push mirrors, a GitHub repository's import (its issues and pull requests, on a group's Settings, with
-each import's own page) and its own SSH keys and access tokens (Account's Git access), all without JavaScript
-(a text's editor, the diff's line comments, the code editor and a running job's log are islands over the plain pages),
-over Mantle's `mantle.smithy` services and the framework's git host. What a visitor may not view is Not Found.
-[Deployment](docs/Deployment.md) "Smithy app" has its setup; [the implementation record](plan/implementation-smithy.md)
-what is built.
+## The apps
 
-## Starting a community
+A site mounts the apps it wants. The paths are the defaults.
 
-Install the matching framework and Mantle changes alongside PASS. Provision a disabled site as
-an operator, configure its registered hosts and mounts, configure verification mail and media
-scanning, then explicitly publish the site and selected categories. Registration starts closed.
-An existing mailbox's `isPublic=Y` does not publish it to the internet. Adopted mailboxes must
-finish metadata conversion and reconcile failures before publication.
+| App | Path | What it is | The public side of |
+|---|---|---|---|
+| Forum | `/forum`, or a site's root | Community forums and mailing lists: categories, topics and posts, public accounts, moderation, read markers, protected attachments, notices by mail. [Design](plan/design-forum.md), [built](plan/implementation-forum.md) | Comms' mailboxes |
+| Shop | `/shop`, or a site's root | A store's storefront: the published catalog and search, a cart, guest or signed-in checkout on the store's hosted payment page, orders, downloads, saved addresses and cards, subscriptions, on the site's published theme. [Design](plan/design-shop.md), [built](plan/impl-shop.md), [UI review](plan/ui-review-shop.md) | Commerce |
+| Smithy | `/code`, or a site's root | Public git hosting: groups and repositories, code and commits, issues, merge requests with reviews and checks, pipelines and deployments, releases, docs, forks, a GitHub import. [Design](plan/design-smithy.md), [built](plan/implementation-smithy.md) | Projects' code |
+| Billing | `/billing` | A customer's invoices, and payment from an invoice's link | Accounting |
+| Supplier | `/supplier` | A supplier's quote, purchase order acknowledgement and bill | Purchasing, Accounting |
+| Support | `/support` | Help articles, a customer's cases and returns, a cancel request for an order, feedback on a resolved case | Customer Service |
+| Sales | `/sales` | A quote by its mailed link with accept or decline, a contact's quotes, a customer's orders with delivery and invoices | Sales |
+| Marketing | `/marketing` | Subscribing to a list and confirming, survey and lead forms, landing pages, event registration with payment and entry codes; the tracking links at `/trk` | Marketing |
+| Account | `/account` | Sign-in, registration, single sign-on, second factor, notifications, email preferences and unsubscribe, git access keys | |
+| Members | `/members` | A member's public profile | |
+| Sites | `/sites` | A site's owners manage its identity, hosts and apps | |
 
-Backend URLs, credentials, sender/template allowlists, SSO flows, callback URLs, storage, and
-scanner bindings belong in operator configuration. They are never accepted from public requests.
-See [Deployment](docs/Deployment.md) for configuration examples and recovery procedures.
+![A repository's page in Smithy, with test data.](docs/images/smithy-repository.png)
 
-## Development checks
+## How it runs
 
-Run from the mr-moqui workspace root with the existing compiler and incremental development build:
+PASS depends only on the framework. The business data and logic it shows are Mantle's
+([mr-mantle](https://github.com/moqui/mr-mantle)), reached in one of these ways, all covered in
+[Deployment](docs/Deployment.md):
+
+- **Beside Mantle**, in the same runtime: the simple case, and what a development checkout does
+  ([Components and authority](docs/Deployment.md#components-and-authority)).
+- **As a remote frontend**: a server with only the framework, webroot and PASS, which calls one Mantle authority the
+  operator configures, over REST or gRPC. It does not load Mantle's entities or copy its party records.
+- **On an edge node**, so the authority needs no public port
+  ([An edge node as the PASS server](docs/Deployment.md#an-edge-node-as-the-pass-server)).
+- **Several sites by host name** on one server, each with its own root
+  ([Several sites by host name](docs/Deployment.md#several-sites-by-host-name)).
+
+BOSS is not a runtime dependency: a published shop or forum runs without it. The editors for a shop's theme and
+pages are Commerce's, in BOSS. mr-moqui's
+[Run and Deploy](https://github.com/moqui/mr-moqui/blob/master/docs/Run-Deploy.md#pass-servers-with-a-boss-server-or-cluster)
+has the topologies.
+
+## Publishing is explicit
+
+Nothing is public until an operator makes it so. A site is provisioned disabled; the operator sets its hosts and
+mounts, verification mail and media scanning, and then publishes the site and the categories, store or repositories
+it should show. Registration starts closed. An existing mailbox marked public is not published to the internet by
+that mark; an adopted mailbox must finish its conversion first.
+
+Backend URLs, credentials, sender and template allowlists, SSO flows, callback URLs, storage and scanner bindings are
+operator configuration, and are never taken from a public request.
+[Provisioning and publication](docs/Deployment.md#provisioning-and-publication) has the steps and the recovery
+procedures.
+
+## Get it and try it
+
+In an [mr-moqui](https://github.com/moqui/mr-moqui#quick-start) checkout:
+
+A plain `./moq run` has no public site, since a site is provisioned by an operator. To see the demo sites the specs
+use, serve the test fixtures on a scratch database:
 
 ```sh
-./moq build -- --features moqui-host/image
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess,SmithyDeploy,SalesPortal,SalesPortalAccess,MarketingSubscriptions,MarketingAccess,SubmitForm,FormPublications,MarketingForms,MarketingPages,MarketingTracking,MarketingEvents,MarketingRegistration,Tracking,SitePages,EventRegistrationSetup,EventRegistrations --db snapshot
-# Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
-./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
-./moq run --nobuild lint --screens
-# the acceptance suite (ForumHttp, SupplierPortalHttp, SupportFeedbackHttp, SupportPagesHttp, SupportIsolation, ShopMount, ShopThemeRelease, ShopHttp, ShopRemoteHttp, ShopCartHttp, ShopCartRemoteHttp, ShopCheckoutHttp, ShopAccessibilityHttp, ShopPaymentScenarios, ShopOrderScenarios, ShopSubscriptionScenarios, ShopOperationsScenarios, SmithyWalk, SmithyContribution, SiteHostsHttp, SalesQuoteScenarios, SalesQuoteHttp, SalesOrderScenarios, SalesOrderHttp, SalesPhonePages, MarketingSubscribeHttp, MarketingRemoteHttp, MarketingFormHttp, MarketingPagesHttp, MarketingTrackingHttp, MarketingRegisterHttp, MarketingPhonePages, Scale, RemoteHttp), only when asked or after adding or changing one of its tests
-./moq accept mr-pass
+./moq component-get mr-pass mr-boss   # With mr-mantle; the demo shop's data comes with Commerce, in mr-boss
+./moq test mr-pass --acceptance --spec ClientFixtures,ShopFixtures,SmithyWalkFixtures --db snapshot --serve 8091
 ```
 
-JavaScript service and browser specs run through Moqui, without Node as a test dependency. The specs in `test/` are the
-regression suite, grouped in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
-`Account`, ...). `test/acceptance/` holds the acceptance suite: the forum's, the Supplier app's and the Support app's browser scenarios (`ForumHttp`,
-`SupplierPortalHttp`, `SupportFeedbackHttp` and `SupportPagesHttp`, with their fixtures `SupplierPortalFixtures` and `SupportFixtures`), the
-Support app's isolation between customers (`SupportIsolation`), Shop's mount at a site's root (`ShopMount`), its theme release (`ShopThemeRelease`), its catalog walks over the demo Shop
-sites (`ShopHttp` and `ShopRemoteHttp`, with `ShopFixtures`, and `ShopRemoteFixtures` for the remote frontend), its cart walks
-(`ShopCartHttp` in the browser, `ShopCartRemoteHttp` with plain requests, locally or through a remote frontend), Commerce's
-store operations over the Shop orders (`ShopOrdersInCommerce`, after `ShopOrderScenarios`; it needs mr-boss) and its
-subscription operations over a Shop subscription (`ShopSubscriptionsInCommerce`; it needs mr-boss), Shop's adoption and
-operations (`ShopOperationsScenarios`: a legacy store's adoption preview and approved proposal, a withdrawn mount with an
-attempt reconciled, a remote frontend's outage), Shop's checkout in the browser (`ShopCheckoutHttp`) and its
-accessibility and device checks (`ShopAccessibilityHttp`: a keyboard-only checkout at 390 px with announced totals and a
-labelled, focused refusal, reduced motion, the account pages at 390 px), Smithy's golden-path walk (`SmithyWalk`, with
-`SmithyWalkFixtures`: browsing, then a signed-in account creating a repository, the pages that write at 390 px, and the
-forum inside a group's page at 390 px: a topic, the composer and the report form) and its
-contribution walk (`SmithyContribution`, with `SmithyContributionFixtures`: a fork, a merge request, signing the agreement on
-the page, a Maintainer's merge, a merge request of the kind a push for review opens, and a file fixed on its page; the fork's
-commits and that merge request are made through page saves and the proposal service, with no `git push`, which the
-framework's git-client tests cover), its payment, order and subscription scenarios
-on the server (`ShopPaymentScenarios`, `ShopOrderScenarios`, `ShopSubscriptionScenarios`; design-shop §18.1 maps each
-scenario to its test in impl-shop §8), PASS Sales' quote scenarios (`SalesQuoteScenarios`, standalone) and walk (`SalesQuoteHttp`, with `SalesQuoteFixtures`, at 390 px
-and with plain requests that run the same through a remote frontend) and its order scenarios (`SalesOrderScenarios`, standalone)
-and walk (`SalesOrderHttp`, with `SalesOrderFixtures`), its pages at 390 px (`SalesPhonePages`, with `SalesPhoneFixtures`: My quotes, a quote, a
-receipt, My orders and an order, signed in and by a link, none scrolling sideways), PASS Marketing's subscription walk (`MarketingSubscribeHttp`, with
-`MarketingSubscribeFixtures`, plain requests, and `MarketingRemoteHttp` through a remote frontend) and its form walk (`MarketingFormHttp`, with
-`MarketingFormFixtures`: an anonymous answer with the subscription choice, an invitation's link answered once) and its landing page
-walk (`MarketingPagesHttp`, with `MarketingPagesFixtures`: a visitor subscribes from a published page's box, a draft not found), its tracking
-walk (`MarketingTrackingHttp`, with `MarketingTrackingFixtures`), its registration walk (`MarketingRegisterHttp`, with
-`MarketingRegisterFixtures`) and its public pages at 390 px (`MarketingPhonePages`: language, heading, named controls and image
-alternatives, none scrolling sideways), the large
-fixture (`Scale`, with `-D pass_scale_test=true`) and the remote frontend (`RemoteHttp` and `RemoteFixtures`, which use
-two independent runtimes; see the deployment guide). The two suites are described in `docs/Build-Test.md` (The two
-suites) in the mr-moqui repository.
-Test-only configuration, scanner, and captured email fixtures must not be used as production
-provider configuration.
+Then open `http://shop.zizi.localhost:8091/` for the demo shop, and `http://127.0.0.1:8091/forum` and
+`http://127.0.0.1:8091/code` for a forum and Smithy with test data. Ctrl-C stops the server and removes the scratch
+database. For a site of your own, start with [Deployment](docs/Deployment.md).
+
+## Developing
+
+Read mr-moqui's [AGENTS.md](https://github.com/moqui/mr-moqui/blob/master/AGENTS.md) and
+[application practices](https://github.com/moqui/mr-moqui/blob/master/docs/dev/Practices-App-Dev.md) first.
+
+- [`plan/`](plan/) has the designs and what is built of each. The Forum design also defines the shared foundation
+  and [how an app registers](plan/design-forum.md#131-shared-foundation-and-independent-app-use). The customer pages of Support, Sales and
+  Marketing are designed with their BOSS apps, in mr-boss's `plan/`.
+- `screen/<App>/` and `service/pass/` are the apps, `theme/starter/` the starter shop theme, and `script/` the
+  tracking redirect and pixel.
+- [docs/Deployment.md](docs/Deployment.md) has each app's setup and jobs, and [adding an app](docs/Deployment.md#adding-an-app).
+- Tests are in two suites, described in [test/README.md](test/README.md):
+
+```sh
+./moq test mr-pass --spec Forum,ShopCart   # The regression specs you touched, while working
+./moq test-apps                            # Every app component's regression suite, before a commit
+./moq accept mr-pass                       # The acceptance suite, before a release or when asked
+```
 
 ## License and Contributing
 

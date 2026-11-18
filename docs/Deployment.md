@@ -1,4 +1,4 @@
-# PASS Forum deployment
+# PASS deployment
 
 ## Components and authority
 
