@@ -16,9 +16,9 @@ and usable. This file is kept at a high level, as mr-boss's
 file is the log: phase status and what each built, the decisions made, findings against the code, and what is
 deferred. The ground rules and the open questions Shop shares with Commerce are kept in impl-commerce §2 and §5.
 
-Today mr-pass registers seven apps (Forum, Account, Members, Sites, Billing, Supplier and Customer Service's Support).
-None of the design's Shop services, records or operations exist (F1–F34). Shop is built after Customer
-Service, beside Commerce, on what is built:
+When this plan was written (Nov 5, 2026) mr-pass registered seven apps (Forum, Account, Members, Sites, Billing,
+Supplier and Customer Service's Support) and none of the design's Shop services, records or operations existed
+(F1–F34). Shop was built after Customer Service, beside Commerce, on what was built then:
 - from PASS (design-forum, implementation-forum): sites with hosts and targeted app mounts, the root mount, public
   accounts with verification, recovery, second factor and SSO handoff, invitations, the facade with its operation
   catalogue and Mantle's PassApi and gRPC authority for a remote frontend, CSRF and throttling, media staging and
