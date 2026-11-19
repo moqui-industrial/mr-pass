@@ -436,6 +436,7 @@ export interface OperationInputs {
         reason?: string
         draftId?: string
         attachmentIds?: string[]
+        hideHistory?: boolean
     }
     markRead: {
         siteId: string
@@ -770,6 +771,7 @@ export interface OperationInputs {
         revision?: number
         expectedRevision?: number
         reason?: string
+        hideHistory?: boolean
     }
     deletePost: {
         siteId: string

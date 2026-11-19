@@ -109,6 +109,10 @@
             <label v-if="draft.postId"
                 >Edit reason<input v-model="draft.reason" required
             /></label>
+            <label v-if="draft.postId && draft.canHideHistory"
+                ><input type="checkbox" v-model="draft.hideHistory" /> Hide
+                the earlier versions of this post from readers</label
+            >
             <label v-if="!draft.rootCommEventId && !draft.postId"
                 >Tags (comma separated, up to five)<input
                     v-model="draft.tagsText"
