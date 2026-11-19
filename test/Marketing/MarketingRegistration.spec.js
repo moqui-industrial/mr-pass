@@ -67,7 +67,7 @@ feature(
             const first = reserve(2, "first@register.example.test")
             firstToken = first.token
             const second = reserve(1, "second@register.example.test")
-            const completed = fx.call("completeRegistration", {
+            const completedHeld = fx.call("completeRegistration", {
                 siteId: ids.siteId,
                 token: first.token,
                 attendees: JSON.stringify([{name: "First buyer"}, {name: "Second guest", email: "guest@register.example.test"}]),
@@ -75,6 +75,22 @@ feature(
                 termsRevision: 0,
                 operationId: key()
             })
+            // a visitor's free places wait for the receipt's link, mailed to the buyer's address, which confirms them
+            // (Mantle SEC-PSS-88): its capability made as the receipt makes it
+            const mailed = (() => {
+                const was = ec.artifactExecution.disableAuthz()
+                try {
+                    return ec.resource.script("component://mr-mantle/service/mantle/party/ExternalAccess.js").create({
+                        recordType: "EventRegistration",
+                        recordId: first.registration.reference,
+                        scopes: ["RegistrationView", "RegistrationCancel", "RegistrationConfirm"],
+                        validDays: 1
+                    })
+                } finally {
+                    if (!was) ec.artifactExecution.enableAuthz()
+                }
+            })()
+            const completed = fx.call("getRegistration", {siteId: ids.siteId, token: mailed.token})
             const own = fx.call("getRegistration", {siteId: ids.siteId, token: first.token})
             // the second reservation's capability names the second reservation alone; a forged one and another site nothing
             const other = fx.call("getRegistration", {siteId: ids.siteId, token: second.token})
@@ -93,7 +109,7 @@ feature(
                 operationId: key()
             })
             const firstAfter = fx.call("getRegistration", {siteId: ids.siteId, token: first.token})
-            return {page, first, second, completed, own, other, forged, elsewhere, wrongKey, cancelOther, firstAfter}
+            return {page, first, second, completedHeld, completed, own, other, forged, elsewhere, wrongKey, cancelOther, firstAfter}
         },
         then(r) {
             r.page.errorMessages.length == 0
@@ -102,6 +118,7 @@ feature(
                 r.page.output.includes("quantity_" + offer.ticket)
             !!r.first.token && r.first.registration.state == "held"
             !!r.second.token && r.second.registration.state == "held"
+            r.completedHeld.registration.state == "held"
             r.completed.registration.state == "confirmed"
             r.own.registration.places.map(place => place.attendeeName + ":" + place.statusId).join() ==
                 "First buyer:EvrConfirmed,Second guest:EvrConfirmed"
