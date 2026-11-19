@@ -157,8 +157,8 @@ feature("v5.0.0-5.4.3: an upload the scanner flags stays in quarantine, never po
 })
 
 // The download names the file by the name stored with it, which the upload cleaned to letters, digits, dot, dash,
-// underscore and space; a name or a type the request gives is not read. The file goes as an attachment, with nosniff and
-// no-store, of the type the upload declared (one of the six).
+// underscore and space; a name or a type the request gives is not read. The file goes as an attachment, with nosniff,
+// no-store and a sandboxing policy, of the type the upload declared (one of the six; Facade.js servedType).
 // Does not prove: the remote transports' downloads (the authority names them the same way: mr-mantle PassApi.js), nor
 // the other apps' files.
 feature("v5.0.0-5.4.1: a download's file name is the server's, whatever the request names", {
@@ -180,6 +180,7 @@ feature("v5.0.0-5.4.1: a download's file name is the server's, whatever the requ
         (res.header("content-type") ?? "").startsWith("text/plain")
         res.header("x-content-type-options") == "nosniff"
         res.header("cache-control") == "no-store"
+        (res.header("content-security-policy") ?? "").includes("sandbox")
     },
 })
 

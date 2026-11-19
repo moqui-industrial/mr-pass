@@ -97,7 +97,8 @@ function dump(sha1, firstSubBody, insider = true) {
         ]),
         copy('topic_allowed_users', ['id', 'topic_id', 'user_id'], [['1', '13', '1'], ['2', '13', '2']]),
         copy('uploads', ['id', 'user_id', 'original_filename', 'filesize', 'url', 'sha1'], [
-            ['1', '2', 'photo.png', '12', '/uploads/default/original/1X/' + sha1 + '.png', sha1],
+            // named as an SVG, a type no upload may have, and a size the file does not have (SEC-PFS-87)
+            ['1', '2', 'photo.svg', '12', '/uploads/default/original/1X/' + sha1 + '.png', sha1],
             ['2', '3', 'broken.png', '12', '/uploads/default/original/1X/' + 'b'.repeat(40) + '.png', 'c'.repeat(40)],
             // A URL that tries to leave the archive's uploads tree.
             ['3', '3', 'escape.txt', '12', '/uploads/default/original/1X/../../../dump.sql', 'd'.repeat(40)],
@@ -300,10 +301,12 @@ feature('the import creates the community in order, names a bad upload and sends
         r.chatKind === 'private' && r.participants.length === 2
         !r.replyBody.includes('script') && r.replyBody.includes('I agree')
         r.replyParent === target('topics', '10')
-        r.rootBody.includes('<strong>world</strong>') && r.rootBody.includes('attachment: photo.png')
+        r.rootBody.includes('<strong>world</strong>') && r.rootBody.includes('attachment: photo.svg')
         r.rootSource.startsWith('Hello **world**')
         r.deletedVisibility === 'deleted'
-        r.attachments.length === 1 && r.attachments[0].scanState === 'clean' && r.attachments[0].filename === 'photo.png'
+        r.attachments.length === 1 && r.attachments[0].scanState === 'clean' && r.attachments[0].filename === 'photo.svg'
+        // held to an upload's types (else kept as application/octet-stream), its size the file's own
+        r.attachments[0].mimeType === 'application/octet-stream' && Number(r.attachments[0].byteSize) === 14
         r.likes.length === 1
         r.tagged === 1 && r.accepted === r.reply
         r.poll.voterCount === 1 && r.poll.resultsPolicy === 'always'

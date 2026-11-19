@@ -80,18 +80,21 @@ function download(siteId, attachmentId, variant) {
             attachmentId,
             ...(variant ? { variant } : {}),
         })
-        ec.web.response.setContentType(result.attachment.mimeType)
-        ec.web.response.setHeader('Cache-Control', 'no-store')
-        ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
-        ec.web.response.setHeader(
-            'Content-Disposition',
+        // as downloadFile and the remote authority answer a file (SEC-PSF-08): an inert type, sandboxed
+        const type = servedType(result.attachment.mimeType)
+        const disposition =
             (result.attachment.variant === 'thumbnail'
                 ? 'inline'
                 : 'attachment') +
-                '; filename="' +
-                String(result.attachment.filename).replace(/["\\\r\n]/g, '_') +
-                '"',
-        )
+            '; filename="' +
+            String(result.attachment.filename).replace(/["\\\r\n]/g, '_') +
+            '"'
+        ec.web.response.setContentType(type)
+        ec.web.response.setHeader('Cache-Control', 'no-store')
+        ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
+        ec.web.response.setHeader('Content-Disposition', disposition)
+        if (sandboxed(type, disposition))
+            ec.web.response.setHeader('Content-Security-Policy', SANDBOX)
         const stream = ec.resource
             .getLocationReference(result.location)
             .openStream()
@@ -109,9 +112,11 @@ function downloadExport(siteId, exportId) {
     const backend = ec.factory.getConfValue('pass@backend-url')
     if (!backend) {
         const result = call('getExport', { siteId, exportId })
-        ec.web.response.setContentType(result.export.mimeType)
+        const type = servedType(result.export.mimeType)
+        ec.web.response.setContentType(type)
         ec.web.response.setHeader('Cache-Control', 'no-store')
         ec.web.response.setHeader('X-Content-Type-Options', 'nosniff')
+        ec.web.response.setHeader('Content-Security-Policy', SANDBOX)
         ec.web.response.setHeader(
             'Content-Disposition',
             'attachment; filename="' +
