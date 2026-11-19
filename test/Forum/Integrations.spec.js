@@ -351,7 +351,7 @@ feature(
         },
     },
 )
-feature('a linked product shows publicly only while a site store carries it', {
+feature('a product is linked only while the site store sells it, and shows publicly only then', {
     when() {
         sys(() => {
             call('create#mantle.product.Product', {
@@ -364,25 +364,13 @@ feature('a linked product shows publicly only while a site store carries it', {
                 storeName: 'PASS store',
             })
         })
-        const linked = run(F + 'link#Discussion', {
+        // a product the site's Shop does not sell is no product of the site's (SEC-PFS-91): Not Found, as a wrong id
+        const notSold = failure(F + 'link#Discussion', {
             siteId,
             rootCommEventId: rootId,
             sourceType: 'product',
             sourceId: 'PASS_PRINTER',
         })
-        const again = run(F + 'link#Discussion', {
-            siteId,
-            rootCommEventId: rootId,
-            sourceType: 'product',
-            sourceId: 'PASS_PRINTER',
-        })
-        const hidden = as('ana', () =>
-            run(F + 'get#TopicLinks', { siteId, rootCommEventId: rootId }),
-        ).linkList
-        const staffSees = run(F + 'get#TopicLinks', {
-            siteId,
-            rootCommEventId: rootId,
-        }).linkList.find((l) => l.sourceType === 'product')
         sys(() => {
             call('create#mantle.public.PublicSiteApp', {
                 siteId,
@@ -397,6 +385,18 @@ feature('a linked product shows publicly only while a site store carries it', {
                 productStoreId: 'PASS_STORE',
                 productId: 'PASS_PRINTER',
             })
+        })
+        const linked = run(F + 'link#Discussion', {
+            siteId,
+            rootCommEventId: rootId,
+            sourceType: 'product',
+            sourceId: 'PASS_PRINTER',
+        })
+        const again = run(F + 'link#Discussion', {
+            siteId,
+            rootCommEventId: rootId,
+            sourceType: 'product',
+            sourceId: 'PASS_PRINTER',
         })
         const shown = as('ana', () =>
             run(F + 'get#TopicLinks', { siteId, rootCommEventId: rootId }),
@@ -413,9 +413,30 @@ feature('a linked product shows publicly only while a site store carries it', {
                 sourceId: 'PASS_PRINTER',
             }),
         )
-        return { linked, again, hidden, staffSees, shown, joins, memberLinks }
+        // the store stops selling it: readers no longer see the card, staff see it unpublished
+        sys(() =>
+            ec.entity
+                .find('mantle.product.store.ProductStoreProduct')
+                .condition({ productStoreId: 'PASS_STORE', productId: 'PASS_PRINTER' })
+                .deleteAll(),
+        )
+        const hidden = as('ana', () =>
+            run(F + 'get#TopicLinks', { siteId, rootCommEventId: rootId }),
+        ).linkList
+        const staffSees = run(F + 'get#TopicLinks', {
+            siteId,
+            rootCommEventId: rootId,
+        }).linkList.find((l) => l.sourceType === 'product')
+        sys(() =>
+            call('create#mantle.product.store.ProductStoreProduct', {
+                productStoreId: 'PASS_STORE',
+                productId: 'PASS_PRINTER',
+            }),
+        )
+        return { notSold, linked, again, hidden, staffSees, shown, joins, memberLinks }
     },
-    then({ linked, again, hidden, staffSees, shown, joins, memberLinks }) {
+    then({ notSold, linked, again, hidden, staffSees, shown, joins, memberLinks }) {
+        notSold.includes('not found')
         again.linkId === linked.linkId
         !hidden.some((l) => l.sourceType === 'product')
         staffSees.published === false
@@ -437,6 +458,18 @@ feature(
                 wikiSpaceId: 'PASSPUB',
                 description: 'PASS publishing fixture',
             })
+            // an article is the site's when it is in the site's publishing space (SEC-PFS-91); the space is the
+            // site's for this feature only, as the drafting feature below starts with none
+            const publishing = (wikiSpaceId) =>
+                sys(() => {
+                    const row = ec.entity
+                        .find('mantle.public.PublicSite')
+                        .condition('siteId', siteId)
+                        .one()
+                    row.set('publishingWikiSpaceId', wikiSpaceId)
+                    row.update()
+                })
+            publishing('PASSPUB')
             wikiPageId = wiki('update#WikiPage', {
                 wikiSpaceId: 'PASSPUB',
                 pageName: 'Printer care',
@@ -570,6 +603,7 @@ feature(
                     rootCommEventId: articleTopic,
                 }),
             )
+            publishing(null)
             return {
                 secondTopic,
                 openDeliveries,
