@@ -135,3 +135,55 @@ feature("provision PASS_HTTP's Shop with a guide and a hosted test gateway", {
         mount.enabled == 'Y'
     },
 })
+// The security proofs' theme preview (test/proofs V3WebFrontend, v5.0.0-3.5.5), set again on every run: here, as the
+// walk's store it previews is made here (after ClientFixtures, its site's). A draft of the starter theme for the store,
+// PASS_HTTP's preview host (preview.pass-http.localhost, served by test/MoquiConf.xml's public-site of that name), and a
+// preview of the home page by the owner john.doe, good for an hour from this run, whose token is known here and in the
+// proof: its digest is stored as create#ThemePreview stores one (sha256), as the editor's link would hold the token.
+const PREVIEW_HOST = 'preview.pass-http.localhost',
+    PREVIEW_TOKEN = 'PassProofPreviewToken'.padEnd(40, '0')
+feature("the security proofs' theme preview is made or set again", {
+    when() {
+        const l = lib()
+        const upsert = (entity, key, values) => {
+            const old = ec.entity.find(entity).condition(key).one()
+            if (old) {
+                old.setAll(values)
+                old.update()
+            } else l.run('create#' + entity, { ...key, ...values })
+        }
+        upsert('mantle.public.PublicSiteHost', { hostname: PREVIEW_HOST }, {
+            siteId: 'PASS_HTTP',
+            canonical: 'N',
+            hostKindEnumId: 'PshkPreview',
+        })
+        const themeOf = () => ec.entity.find('mantle.public.PublicTheme').condition({ productStoreId: ids.store }).list()[0]
+        if (!themeOf())
+            l.run('mantle.public.ThemeServices.create#ThemeDraft', { productStoreId: ids.store, starter: 'mr-pass/starter' })
+        const theme = themeOf()
+        const mount = ec.entity.find('mantle.public.PublicSiteApp').condition({ siteId: 'PASS_HTTP', app: 'shop' }).one()
+        const now = ec.user.timestampMillis(ec.user.nowTimestamp)
+        upsert('mantle.public.PublicThemePreview', { previewId: 'PASS_PROOF_PREVIEW' }, {
+            themeId: theme.themeId,
+            siteId: 'PASS_HTTP',
+            appMountId: mount.appMountId,
+            userId: ec.user.userId,
+            tokenDigest: ec.resource.digestText(PREVIEW_TOKEN, 'sha256'),
+            pageKind: 'home',
+            draftRevision: Number(theme.draftRevision || 0),
+            expireDate: new Date(now + 3600000),
+            createdDate: new Date(now),
+        })
+        return {
+            host: ec.entity.find('mantle.public.PublicSiteHost').condition({ hostname: PREVIEW_HOST }).one(),
+            preview: ec.entity.find('mantle.public.PublicThemePreview').condition({ previewId: 'PASS_PROOF_PREVIEW' }).one(),
+            theme,
+        }
+    },
+    then({ host, preview, theme }) {
+        host.siteId === 'PASS_HTTP'
+        host.hostKindEnumId === 'PshkPreview'
+        preview.themeId === theme.themeId
+        theme.productStoreId === ids.store
+    },
+})

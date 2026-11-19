@@ -8,9 +8,10 @@ regression suite is `test/` and `test/client/`, within the budget in `test/budge
 `test/proofs/` holds PASS's security proofs: black-box client specs filed by OWASP ASVS 5.0.0 requirement, one file a
 chapter (`V2Validation`, `V3WebFrontend`, `V4ApiWebService`, `V5FileHandling`, `V6Authentication`, `V10OAuthOidc`,
 `V13Configuration`, `V15SecureCoding`, `V7SessionManagement` last), which `--proofs` runs and joins to
-[ASVS-Matrix](../docs/ASVS-Matrix.md); they need the accounts the last feature of `ClientFixtures` sets again on each run,
-or in the deployment profile `--param user=NAME` (and `site`, `clientId`, `authorityUrl`, `siteHost`, `mfa=required`),
-with `--param bruteForce=yes`, one spec alone, for those that use up the client's rate limits
+[ASVS-Matrix](../docs/ASVS-Matrix.md); they need the accounts the last feature of `ClientFixtures` and the theme preview
+the last feature of `Shop/ShopWalkFixtures` set again on each run, or in the deployment profile `--param user=NAME` (and
+`site`, `clientId`, `authorityUrl`, `siteHost`, `mfa=required`), with `--param bruteForce=yes`, one spec alone, for those
+that use up the client's rate limits
 ([JS-Test-Client, Security proofs](https://github.com/moqui/mr-moqui/blob/master/docs/dev/JS-Test-Client.md#security-proofs)).
 The in-process proofs, of what a client cannot see, are server specs here: `SourceRules` (strict comparisons, no archive
 a visitor sends is unpacked), two features of `Transport` (no default client secret, an unreachable authority) and
@@ -20,8 +21,9 @@ In `test/` the specs are in subdirectories named for the `screen/` directory of 
 
 `test/MoquiConf.xml` merges into the conf in test runs only. It has the test sites (`127.0.0.1` with every app
 mounted, `smithy.localhost`, the demo shops `shop.zizi.localhost` and `digital.zizi.localhost`, a preview host,
-the two `sites.localhost` hosts and `pass.sites.localhost`, the proofs' site on a host of its own), the test scanner and classifier, and mail kept in the capture. Test-only
-configuration, scanner, and captured email fixtures must not be used as production provider configuration.
+the two `sites.localhost` hosts, and for the proofs `pass.sites.localhost`, their site on a host of its own, and
+`preview.pass-http.localhost`, its theme preview host), the test scanner and classifier, and mail kept in the capture.
+Test-only configuration, scanner, and captured email fixtures must not be used as production provider configuration.
 
 ## Development checks
 

@@ -267,3 +267,79 @@ feature("v5.0.0-3.7.2: PASS's sign-in follows a returnTo on the site, never one 
         on.location == `${ACCOUNT}/Settings?from=proof`
     },
 })
+
+// Shop's theme preview (screen/Shop/ShopPreview.js): Commerce's theme editor frames a draft's preview from the preview
+// host and talks to it through a MessageChannel port it sends with the nonce of the frame's URL. The preview's script takes
+// the first message whose source is its parent window, whose origin is one of pass@preview-frame-origins (the BOSS
+// origins), and that is an object of type moqui-theme-preview with that nonce and a port; it answers ready on that port.
+// The fixture is ShopWalkFixtures' preview of PASS_HTTP's store on preview.pass-http.localhost, whose token is known; the
+// test conf's frame origins are http://localhost:* and http://127.0.0.1:*. The editor here is a page on localhost
+// (robots.txt: the framework's policy there limits no frame or script source, so only the preview's rules decide). Its
+// frame gets the malformed messages first and the well-formed one last: as only the first message taken is answered, the
+// ready shows the earlier ones were dropped. Another window is this page writing to a preview framed by a frame of its own;
+// another origin is a sandboxed frame of the page (an opaque origin) that frames a preview and writes to it as its parent.
+// Does not prove: the origin check on its own, since the preview's frame-ancestors (the same origins) refuses a frame
+// under another origin before its script runs, nor Commerce's editor, whose side mr-boss's acceptance ThemeEditorWalk
+// walks; in a deployment a preview is a staff capability of twenty minutes, so this is the project's run.
+const PREVIEW_HOST = "preview.pass-http.localhost"
+const PREVIEW_TOKEN = "PassProofPreviewToken".padEnd(40, "0")
+feature("v5.0.0-3.5.5: the theme preview drops every message but its editor's well-formed one", {
+    given() { needsFixtures(`ShopWalkFixtures' theme preview on ${PREVIEW_HOST}`) },
+    when() {
+        const preview = `http://${PREVIEW_HOST}:${server.port}/preview/${PREVIEW_TOKEN}`
+        const page = browser.newPage()
+        // the sandboxed frame's preview is refused by the preview's frame-ancestors, which Chromium reports
+        page.allowProblems(/ERR_BLOCKED_BY_RESPONSE|violates the following Content Security Policy directive: "frame-ancestors/)
+        page.goto(`http://localhost:${server.port}/robots.txt`)
+        return page.evaluate(([url, nonce]) => new Promise((resolve) => {
+            const answers = {}
+            let foreign = null
+            const channel = (name) => {
+                const c = new MessageChannel()
+                c.port1.onmessage = (m) => { answers[name] = (m.data && m.data.type) || "answer" }
+                return c.port2
+            }
+            const frameIn = (doc, src) => new Promise((loaded) => {
+                const f = doc.createElement("iframe")
+                f.onload = () => loaded(f)
+                f.src = src
+                doc.body.appendChild(f)
+            })
+            // another origin: a sandboxed frame frames the preview, writes to it as its parent and tells this page the answer
+            window.addEventListener("message", (e) => { if (e.data && e.data.proof === "sandboxed") foreign = e.data })
+            const sandboxed = document.createElement("iframe")
+            sandboxed.sandbox = "allow-scripts"
+            sandboxed.srcdoc = "<body><script>const f=document.createElement('iframe');f.onload=()=>{const c=new MessageChannel();let answered=null;" +
+                "c.port1.onmessage=(m)=>{answered=(m.data&&m.data.type)||'answer'};f.contentWindow.postMessage({type:'moqui-theme-preview',nonce:" +
+                JSON.stringify(nonce) + "},'*',[c.port2]);setTimeout(()=>parent.postMessage({proof:'sandboxed',loaded:true,answered},'*'),80)};f.src=" +
+                JSON.stringify(`${url}?n=${nonce}`) + ";document.body.appendChild(f)</script></body>"
+            document.body.appendChild(sandboxed)
+            // a frame of this page, and one inside another frame of this page: this window is not that one's parent
+            const holder = document.createElement("iframe")
+            document.body.appendChild(holder)
+            Promise.all([frameIn(document, `${url}?n=${nonce}`), frameIn(holder.contentDocument, `${url}?n=${nonce}`)]).then(([own, nested]) => {
+                const w = own.contentWindow
+                w.postMessage({ type: "moqui-theme-preview", nonce: `${nonce}x` }, "*", [channel("wrongNonce")])
+                w.postMessage({ type: "moqui-theme-select", nonce }, "*", [channel("wrongType")])
+                w.postMessage(`moqui-theme-preview ${nonce}`, "*", [channel("notAnObject")])
+                w.postMessage({ type: "moqui-theme-preview" }, "*", [channel("noNonce")])
+                nested.contentWindow.postMessage({ type: "moqui-theme-preview", nonce }, "*", [channel("otherWindow")])
+                w.postMessage({ type: "moqui-theme-preview", nonce }, "*", [channel("editor")])
+                const started = Date.now()
+                const wait = () =>
+                    (answers.editor && foreign) || Date.now() - started > 3000
+                        ? setTimeout(() => resolve({ answers, foreign }), 80)
+                        : setTimeout(wait, 5)
+                wait()
+            })
+        }), [preview, `proof${Date.now()}`])
+    },
+    then({ answers, foreign }) {
+        // the control: the editor's well-formed message, from the frame's parent, is answered
+        answers.editor == "ready"
+        Object.keys(answers).length == 1
+        // the sandboxed frame's preview was framed and written to, and nothing answered
+        foreign.loaded
+        foreign.answered == null
+    },
+})

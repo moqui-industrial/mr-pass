@@ -72,6 +72,12 @@
         <mount path="/forum" screen="Forum"/>
         <mount path="/account" screen="Account"/>
       </public-site>
+      <!-- The security proofs (test/proofs V3WebFrontend, v5.0.0-3.5.5): PASS_HTTP's theme preview host, which serves only the
+          preview render (its PublicSiteHost row is PshkPreview, ShopWalkFixtures); Mantle's host check keeps the framework's
+          routes off it -->
+      <public-site host="preview.pass-http.localhost" site-id="PASS_HTTP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route" host-check-service="mantle.public.ThemeServices.get#PreviewHost">
+        <mount path="/" screen="Shop"/>
+      </public-site>
     </webapp>
   </webapp-list>
 </moqui-conf>
