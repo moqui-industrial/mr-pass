@@ -7,5 +7,8 @@
 # mr-pass 8.2 s of 6; each rounded up.
 # Nov 14, 2026: raised to the final suites of the Dogfood build (DG0 to DG10, Dev AIDE P11 to P13) with the Sales and
 # Marketing apps merged, with the user's agreement: 22.5 s measured, rounded up. A review of regression vs acceptance follows.
+# Nov 18, 2026: proofs, PASS's security proofs (test/proofs, plans/Proofs-Initial.md P4), set with the user's agreement:
+# 2.1 s measured, set to 3.
 server = 23
 client = 9
+proofs = 3
