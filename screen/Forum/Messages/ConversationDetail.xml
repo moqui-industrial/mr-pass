@@ -33,7 +33,7 @@
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="read">
+  <transition name="read" method="post">
     <actions>
       <script><![CDATA[
         ec.web.sendJsonResponse(ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation:'markRead',input:{siteId:resolvedSiteId,rootCommEventId,ordinal:Number(ec.web.parameters.ordinal),expectedRevision:Number(ec.web.parameters.expectedRevision),renderedPostIds:ec.web.parameters.renderedPostIds || []}}).call().result)
