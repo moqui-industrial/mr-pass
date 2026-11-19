@@ -11,4 +11,5 @@
 # 2.1 s measured, set to 3.
 server = 23
 client = 9
-proofs = 3
+# Nov 18, 2026: proofs raised with the user's agreement for P5 (level 2): 3.7 to 4.2 s measured, set to 5.
+proofs = 5
