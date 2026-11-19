@@ -5,6 +5,10 @@ a browser), with no Node. They are in two suites, described in mr-moqui's
 [Build-Test, The two suites](https://github.com/moqui/mr-moqui/blob/master/docs/Build-Test.md#the-two-suites). The
 regression suite is `test/` and `test/client/`, within the budget in `test/budget`; the acceptance suite is
 `test/acceptance/` and `test/acceptance/client/`, run only when asked or after adding or changing one of its tests.
+`test/proofs/` holds PASS's security proofs: black-box client specs filed by OWASP ASVS 5.0.0 requirement, one file a
+chapter, which `--proofs` runs and joins to [ASVS-Matrix](../docs/ASVS-Matrix.md); they need the accounts the last
+feature of `ClientFixtures` sets again on each run, or `--param user=NAME` in the deployment profile
+([JS-Test-Client, Security proofs](https://github.com/moqui/mr-moqui/blob/master/docs/dev/JS-Test-Client.md#security-proofs)).
 In `test/` the specs are in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
 `Account`, ...).
 
@@ -22,6 +26,8 @@ Run from the mr-moqui workspace root:
 ./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess,SmithyDeploy,SalesPortal,SalesPortalAccess,MarketingSubscriptions,MarketingAccess,SubmitForm,FormPublications,MarketingForms,MarketingPages,MarketingTracking,MarketingEvents,MarketingRegistration,Tracking,SitePages,EventRegistrationSetup,EventRegistrations --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
+# the security proofs, with the summary by requirement (proofs.md and proofs.json in the run's output directory)
+./moq test-client mr-pass --nobuild --serve --proofs
 ./moq run --nobuild lint --screens
 # the acceptance suite, only when asked or after adding or changing one of its tests
 ./moq accept mr-pass
