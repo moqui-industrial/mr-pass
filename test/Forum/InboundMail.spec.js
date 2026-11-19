@@ -60,6 +60,7 @@ function receive({
             'delivered-to': to,
             'message-id':
                 messageId || '<' + ec.user.randomString(16) + '@sender.test>',
+            from,
             ...(auth
                 ? {
                       'authentication-results':
