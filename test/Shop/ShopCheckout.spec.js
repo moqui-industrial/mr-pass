@@ -18,6 +18,7 @@ const ids = {
     book: 'PSCHK_BOOK',
     store: 'PASS_SHOP_CHK_STORE',
     gateway: 'PSCHK_HOSTED',
+    pending: 'PSCHK_PENDING',
 }
 const state = {}
 const VISITOR_KEY = 'PassChkVisitor_0123456789ab'
@@ -501,6 +502,119 @@ feature(
             hidden.includes('tabindex="-1" autofocus>')
             !hidden.includes('aria-invalid')
             ok.includes('role="status">') && !ok.includes('autofocus')
+        },
+    },
+)
+feature(
+    "a provider's return keeps a key once the authority read the checkout with it; another shopper's pair offers no payment page",
+    {
+        when() {
+            // SEC-PSF-82: a pending payment whose lookup stays pending
+            lib().run('create#mantle.account.method.PaymentGatewayConfig', {
+                paymentGatewayConfigId: ids.pending,
+                paymentGatewayTypeEnumId: 'PgtTest',
+                description: 'Spec hosted page, still pending',
+                authorizeServiceName:
+                    'mantle.account.PaymentTestServices.hostedPending#PaymentAuthorization',
+                detailsServiceName:
+                    'mantle.account.PaymentTestServices.alwaysPending#PaymentDetails',
+            })
+            lib().run(
+                'create#mantle.account.method.PaymentGatewayOrganization',
+                {
+                    organizationPartyId: lib().ids.org,
+                    paymentGatewayConfigId: ids.pending,
+                    fromDate: 0,
+                    isEnabled: 'Y',
+                },
+            )
+            logout()
+            try {
+                // another shopper's checkout, on a remote frontend's session
+                const remote = (operation, input) =>
+                    lib().remote(operation, { siteId: SITE, ...input })
+                const token = remote('addCartItem', {
+                    productId: ids.book,
+                    quantity: '1',
+                }).result.token
+                remote('beginCheckout', { token })
+                remote('setCheckoutContact', {
+                    token,
+                    emailAddress: 'sender@shop.example.test',
+                    name: 'Sam Sender',
+                })
+                remote('selectPayment', {
+                    token,
+                    paymentOptionId: 'PiCreditCard',
+                })
+                const access = ec.entity
+                    .find('mantle.order.StoreCartAccess')
+                    .condition({
+                        capabilityDigest: ec.resource
+                            .script(
+                                'component://mr-mantle/service/mantle/party/ExternalAccess.js',
+                            )
+                            .tokenDigest(token),
+                    })
+                    .disableAuthz()
+                    .one()
+                const row = ec.entity
+                    .find('mantle.order.StoreCheckout')
+                    .condition({ cartAccessId: access.cartAccessId })
+                    .disableAuthz()
+                    .one()
+                lib().run('update#mantle.order.StoreCheckout', {
+                    checkoutId: row.checkoutId,
+                    paymentGatewayConfigId: ids.pending,
+                })
+                const submitted = remote('submitCheckout', {
+                    token,
+                    expectedRevision: remote('getCheckout', { token }).result
+                        .checkout.revision,
+                })
+                const reference = submitted.result.checkout.reference
+                const key = submitted.result.returnKey
+                // the visitor (one browser session of its own) follows links to Checkout/return: the sender's own pair,
+                // then a made-up key for the same reference
+                const browser = ec.screen
+                    .makeTest()
+                    .rootScreen('component://mr-pass/screen/Pass.xml')
+                const page = (path, more) =>
+                    browser.render(
+                        'Shop/' + path,
+                        {
+                            resolvedSiteId: SITE,
+                            publicHost: HOST,
+                            publicPath: '/shop/' + path,
+                            ref: reference,
+                            ...(more || {}),
+                        },
+                        null,
+                    ).output
+                page('Checkout/return', { returnToken: key })
+                const result = page('PaymentResult')
+                const relay = page('PaymentRelay')
+                page('Checkout/return', { returnToken: 'x'.repeat(40) })
+                return {
+                    submitted,
+                    result,
+                    relay,
+                    afterMadeUp: page('PaymentResult'),
+                }
+            } finally {
+                ec.web.sessionAttributes.remove(shopCheckout().keysKey(SITE))
+                login('john.doe')
+            }
+        },
+        then(r) {
+            r.submitted.result.checkout.state == 'paymentPending'
+            // the pair reads the payment's state, and offers no way to pay it
+            r.result.includes('Your payment is not confirmed yet.')
+            !r.result.includes('Continue to the payment page')
+            r.relay.includes('This page is not available')
+            !r.relay.includes('id="ShopPaymentRelay"')
+            // a made-up key is not kept: it replaced nothing the authority had read
+            r.afterMadeUp.includes('Your payment is not confirmed yet.')
         },
     },
 )

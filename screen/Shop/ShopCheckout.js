@@ -682,21 +682,27 @@ function submit(context) {
             encodeURIComponent(c.reference),
     )
 }
-/* Checkout/return: a provider's return. Only the reference and key are read (kept in this session, so a return on another
- * device or after the session ended reads the result too); whatever else the provider or browser adds is ignored. The key
+/* Checkout/return: a provider's return. Only the reference and key are read; whatever else the provider or browser adds is
+ * ignored. The key is kept in this session only after the authority read the checkout with it (SEC-PSF-82), so a return
+ * after the session ended reads the result too, and a link with a made-up or another shopper's pair puts nothing of use in
+ * a visitor's session: the pair alone reads the payment's state, never its payment page (the authority's rule). The key
  * is returnToken, a name the request log leaves out (SEC-PSS-02); key is its name in a return address made before. */
 function returned(context) {
     const reference = cleanRef(param('ref'))
     const key = String(param('returnToken') || param('key') || '')
         .replace(/[^A-Za-z0-9_-]/g, '')
         .slice(0, 128)
-    if (reference && key) keepIn(keysKey(context.site.siteId), reference, key)
     // the payer is back: the payment looked up now (the result page then shows what the provider said)
-    if (reference)
-        call(context, 'getCheckoutPaymentResult', {
+    if (reference) {
+        const presented = key || keyOf(context.site.siteId, reference)
+        const found = carts().call(context, 'getCheckoutPaymentResult', {
             reference,
+            ...(presented ? { key: presented } : {}),
             returned: 'true',
         })
+        if (key && found.result?.checkout)
+            keepIn(keysKey(context.site.siteId), reference, key)
+    }
     ec.web?.response?.sendRedirect(
         base(context) + '/PaymentResult?ref=' + encodeURIComponent(reference),
     )
