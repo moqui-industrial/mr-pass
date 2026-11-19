@@ -156,9 +156,9 @@ Counts: 98 inherited, 48 met by PASS, 9 configuration, 61 gaps,
 | v5.0.0-6.5.5 | 2 | Code lifetimes bounded | Inherited | framework: Gap ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)); framework (Gap) | - |
 | v5.0.0-6.6.1 | 2 | SMS codes: verified numbers, alternatives, risk notice | N/A | PASS offers no SMS factor (likely) | - |
 | v5.0.0-6.6.2 | 2 | Sent codes bound to their sign-in attempt | Inherited | framework: Gap ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)); framework (Gap) | - |
-| v5.0.0-6.6.3 | 2 | Sent-code guessing rate limited | Inherited | framework: Framework ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)); framework; `throttle('session')` also covers `completeSession` | - |
+| v5.0.0-6.6.3 | 2 | Sent-code guessing rate limited | Inherited | framework: Gap ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)); framework; `throttle('session')` also covers `completeSession` | - |
 | v5.0.0-6.8.1 | 2 | No identity spoofing across identity providers | Inherited | framework: Framework ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)); PASS SSO goes through `login#User`, flows in `pass-authority@sso-flows` | - |
-| v5.0.0-6.8.2 | 2 | Assertion signatures always verified | Inherited | framework: Framework ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)) | - |
+| v5.0.0-6.8.2 | 2 | Assertion signatures always verified | Inherited | framework: Gap ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)) | - |
 | v5.0.0-6.8.3 | 2 | SAML assertions single use | N/A | no SAML | - |
 | v5.0.0-6.8.4 | 2 | IdP-reported strength and recency checked | Inherited | framework: Gap ([V6](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V6-Authentication.md)); framework (Gap) | - |
 
@@ -267,7 +267,7 @@ Counts: 98 inherited, 48 met by PASS, 9 configuration, 61 gaps,
 | Requirement | L | Topic | Status | Evidence | Proof |
 | --- | --- | --- | --- | --- | --- |
 | v5.0.0-12.1.1 | 1 | Only TLS 1.2 and 1.3, newest preferred | Inherited | framework: Framework ([V12](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V12-Secure-Communication.md)) | - |
-| v5.0.0-12.1.2 | 2 | Recommended cipher suites, strongest preferred | Inherited | framework: Framework ([V12](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V12-Secure-Communication.md)) | - |
+| v5.0.0-12.1.2 | 2 | Recommended cipher suites, strongest preferred | Inherited | framework: Gap ([V12](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V12-Secure-Communication.md)) | - |
 | v5.0.0-12.1.3 | 2 | mTLS client certificates checked before identity use | Inherited | framework: Framework ([V12](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V12-Secure-Communication.md)); framework; the gRPC authority takes a client secret, not a certificate | - |
 | v5.0.0-12.2.1 | 1 | TLS for all external HTTP, no clear-text fallback | Inherited | framework: Configuration ([V12](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V12-Secure-Communication.md)); `runtime/conf/pass/MoquiPassConf.xml` puts the host's certificate in `cert/` and leaves `https-enabled` false | - |
 | v5.0.0-12.2.2 | 1 | Publicly trusted certificates on public services | Inherited | framework: Configuration ([V12](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V12-Secure-Communication.md)) | - |
