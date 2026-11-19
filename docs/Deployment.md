@@ -927,8 +927,16 @@ joining links/creates the backend Party without assigning an internal group. Inv
 requires its intended email and a valid invitation token.
 
 Register comma-separated `pass@sender-addresses` and `pass@mail-template-ids` on the authority.
-The selected template's configured sender must match the registered sender. Configure per-site
-mail settings through the Mail screen. Notification templates receive `title`, `siteId`,
+The selected template's configured sender must match the registered sender. A sender serves a site
+when its domain is exactly one of the site's host names; for any other site (a sender of a parent
+domain, `forum@example.com` for `forum.example.com`, or of a custom domain) name the site for it in
+Mantle's `mantle@forum-sender-sites` (`forum@example.com=SITE_A;SITE_B, ...`). Configure per-site
+mail settings through the Mail screen.
+
+**Upgrading:** a site whose stored mail settings name a sender of a parent or other domain sends
+nothing until the operator adds it to `mantle@forum-sender-sites`: the settings are checked against
+the registration each time mail is sent, and the authority logs one error for the site, naming the
+reason, until they hold again. Notification templates receive `title`, `siteId`,
 `rootCommEventId`, `postId`, `postUrl`, `reason`, and `unsubscribeUrl`; mailing-list (Every post)
 mail also receives the sanitized post as `body`, and a digest receives `topics` (`title`, `url`).
 Private conversation notices carry only a generic title and link. Forum email opt-out changes
