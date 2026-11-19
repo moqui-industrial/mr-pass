@@ -421,12 +421,42 @@ feature(
                 reviewId: flagged.reviewId,
                 reason: 'Need earlier messages',
             })
-            run(M + 'escalate#Review', {
+            // the owner who asked does not approve it (SEC-PFS-83); a second owner of the site does
+            const selfApproved = failure(M + 'escalate#Review', {
+                siteId,
+                reviewId: flagged.reviewId,
+                reason: 'Approved by myself',
+                active: true,
+            })
+            sys(() => {
+                party.owner2 = call('mantle.party.PartyServices.create#Person', {
+                    firstName: 'Second',
+                    lastName: 'Owner',
+                }).partyId
+                call('mantle.party.PartyServices.create#PartyUserAccount', {
+                    partyId: party.owner2,
+                    username: 'pass.pm.owner2',
+                    emailAddress: 'owner2.pm@example.test',
+                    newPassword: 'moqui1!!',
+                    newPasswordVerify: 'moqui1!!',
+                })
+                call('create#mantle.public.PublicSiteParty', {
+                    siteId,
+                    partyId: party.owner2,
+                    state: 'active',
+                    role: 'owner',
+                    joinedAt: at,
+                    revision: 1,
+                })
+            })
+            login('pass.pm.owner2', 'moqui1!!')
+            const approved = run(M + 'escalate#Review', {
                 siteId,
                 reviewId: flagged.reviewId,
                 reason: 'Approved for this report only',
                 active: true,
             })
+            login('john.doe')
             const wide = run(M + 'get#Review', {
                 siteId,
                 reviewId: flagged.reviewId,
@@ -435,10 +465,12 @@ feature(
                 siteId,
                 targetId: flagged.reviewId,
             }).map((a) => a.action)
-            return { narrow, wide, audits }
+            return { narrow, selfApproved, approved, wide, audits }
         },
-        then({ narrow, wide, audits }) {
+        then({ narrow, selfApproved, approved, wide, audits }) {
             narrow.context.length === 2
+            selfApproved.includes('Another site owner approves')
+            approved.escalation.approvedBy === party.owner2
             wide.context.length === 3
             audits.filter((a) => a === 'private-evidence-view').length === 2
             audits.includes('escalation-requested')
