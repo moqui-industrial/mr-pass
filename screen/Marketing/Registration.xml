@@ -26,6 +26,20 @@
     </actions>
     <default-response type="none"/>
   </transition>
+  <!-- the receipt's link of a free registration held for its buyer's address confirms it only by this post, never by its
+      opening, so a mail scanner that follows links confirms nothing (Mantle SEC-PSS-88) -->
+  <transition name="confirm" method="post">
+    <actions>
+      <script><![CDATA[
+        const reg=ec.resource.script('component://mr-pass/screen/Marketing/Registrations.js'),marketing=reg.marketing
+        const page=marketing.base(publicPath,'confirm')
+        const ref=marketing.param('ref')
+        const out=reg.call('getRegistration',resolvedSiteId,reg.reachOf(resolvedSiteId,ref,null),{confirm:'Y'})
+        reg.back(page,{ref},out.error || null)
+    ]]></script>
+    </actions>
+    <default-response type="none"/>
+  </transition>
   <transition name="cancel" method="post">
     <actions>
       <script><![CDATA[

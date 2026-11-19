@@ -90,7 +90,9 @@ feature(
                     if (!was) ec.artifactExecution.enableAuthz()
                 }
             })()
-            const completed = fx.call("getRegistration", {siteId: ids.siteId, token: mailed.token})
+            // opened, it confirms nothing (a mail scanner follows links); the page's posted confirm does
+            const opened = fx.call("getRegistration", {siteId: ids.siteId, token: mailed.token})
+            const completed = fx.call("getRegistration", {siteId: ids.siteId, token: mailed.token, confirm: "Y"})
             const own = fx.call("getRegistration", {siteId: ids.siteId, token: first.token})
             // the second reservation's capability names the second reservation alone; a forged one and another site nothing
             const other = fx.call("getRegistration", {siteId: ids.siteId, token: second.token})
@@ -109,7 +111,7 @@ feature(
                 operationId: key()
             })
             const firstAfter = fx.call("getRegistration", {siteId: ids.siteId, token: first.token})
-            return {page, first, second, completedHeld, completed, own, other, forged, elsewhere, wrongKey, cancelOther, firstAfter}
+            return {page, first, second, completedHeld, opened, completed, own, other, forged, elsewhere, wrongKey, cancelOther, firstAfter}
         },
         then(r) {
             r.page.errorMessages.length == 0
@@ -119,6 +121,7 @@ feature(
             !!r.first.token && r.first.registration.state == "held"
             !!r.second.token && r.second.registration.state == "held"
             r.completedHeld.registration.state == "held"
+            r.opened.registration.state == "held" && r.opened.registration.canConfirm == true
             r.completed.registration.state == "confirmed"
             r.own.registration.places.map(place => place.attendeeName + ":" + place.statusId).join() ==
                 "First buyer:EvrConfirmed,Second guest:EvrConfirmed"

@@ -2,6 +2,7 @@
 <#else><article class="card" id="MyRegistration"><h1>${view.title}</h1>
 <p class="event-host"><small>${view.organizationName} · ${view.whenText}<#if view.where> · ${view.where}</#if></small></p>
 <p role="status"><strong>${view.stateText}</strong> · Reference ${view.reference}</p>
+<#if view.canConfirm><form method="post" id="ConfirmRegistration" class="card" action="${publicPath}/confirm"><input type="hidden" name="moquiSessionToken" value="${ec.web.sessionToken}"><input type="hidden" name="ref" value="${view.reference}"><p>Confirm that these places are yours. They are held until you do.</p><button>Confirm my places</button></form></#if>
 <#if flash.error><p role="alert" class="error" id="RegistrationError">${flash.error}</p></#if>
 <#if view.state == 'held' && !view.completed><p><a href="${registerPath}?ref=${encodeURIComponent(view.reference)}">Complete your registration</a> before ${view.holdEndsText}.</p>
 <#elseif view.state == 'held' && view.paymentDue><p><a href="${registerPath}?ref=${encodeURIComponent(view.reference)}">Pay for your registration</a> before ${view.holdEndsText}.</p></#if>
