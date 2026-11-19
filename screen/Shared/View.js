@@ -365,6 +365,7 @@ const definitions = {
                 text('reason', 'Reason'),
             ]),
             form('setReaction', 'React', []),
+            form('releaseHeldMessage', 'Release a held message', []),
             form('votePoll', 'Vote', []),
             form('storeBookmark', 'Bookmark a post', [
                 text('postId', 'Post'),
@@ -1354,7 +1355,7 @@ function load(name, siteId, parameters, bases, identity, scope) {
                         ? !!identity?.authenticated
                         : form.op === 'acceptAnswer'
                           ? metadata.capabilities.canAccept
-                          : ['setReaction', 'votePoll'].includes(form.op)
+                          : ['setReaction', 'votePoll', 'releaseHeldMessage'].includes(form.op)
                             ? false
                             : metadata.capabilities.canModerate,
         )

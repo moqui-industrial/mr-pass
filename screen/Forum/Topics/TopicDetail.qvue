@@ -66,6 +66,16 @@
                     "
                     >Accept answer</a
                 >
+                <span v-if="post.capabilities.canRelease"
+                    >Held as possible spam; not delivered</span
+                >
+                <button
+                    v-if="post.capabilities.canRelease"
+                    type="button"
+                    @click="release(post)"
+                >
+                    Release
+                </button>
                 <a
                     v-if="post.capabilities.canDelete"
                     :href="
@@ -276,6 +286,19 @@ module.exports = {
             })
             if (!response.ok) throw new Error('Action failed')
             return response.json()
+        },
+        // a message of a conversation held as spam: its sender or another participant releases it
+        async release(post) {
+            try {
+                await this.act({
+                    formAction: 'releaseHeldMessage',
+                    postId: post.postId,
+                    expectedRevision: post.revision,
+                })
+                await this.load(true)
+            } catch (e) {
+                this.status = 'The message was not released. Try again.'
+            }
         },
         async react(post, key) {
             try {

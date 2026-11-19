@@ -773,6 +773,11 @@ export interface OperationInputs {
         reason?: string
         hideHistory?: boolean
     }
+    releaseHeldMessage: {
+        siteId: string
+        postId?: string
+        expectedRevision?: number
+    }
     deletePost: {
         siteId: string
         postId?: string
