@@ -351,7 +351,7 @@ feature(
         },
     },
 )
-feature('a product is linked only while the site store sells it, and shows publicly only then', {
+feature('a product is linked and shown only while it is the site store\'s, and to readers only while sold', {
     when() {
         sys(() => {
             call('create#mantle.product.Product', {
@@ -413,7 +413,7 @@ feature('a product is linked only while the site store sells it, and shows publi
                 sourceId: 'PASS_PRINTER',
             }),
         )
-        // the store stops selling it: readers no longer see the card, staff see it unpublished
+        // the store no longer carries it: it is no product of the site's, and nobody sees its card, staff included
         sys(() =>
             ec.entity
                 .find('mantle.product.store.ProductStoreProduct')
@@ -439,7 +439,7 @@ feature('a product is linked only while the site store sells it, and shows publi
         notSold.includes('not found')
         again.linkId === linked.linkId
         !hidden.some((l) => l.sourceType === 'product')
-        staffSees.published === false
+        staffSees === undefined
         shown.some(
             (l) =>
                 l.sourceType === 'product' &&
