@@ -11,6 +11,9 @@
       import-dir="runtime://tmp/pass-import" test-scanner="true" route-domains="lists.example.test"
       classifier-service="pass.test.ClassifierServices.classify#Post"
       preview-frame-origins="http://localhost:* http://127.0.0.1:*"/>
+  <!-- the client walks' server is a production instance: its Shop and portal checkouts pay through the test gateways, which
+    Mantle refuses there unless allowed (SEC-BOS-129) -->
+  <mantle allow-test-gateways="true"/>
   <webapp-list>
     <webapp name="webroot">
       <public-site host="127.0.0.1" site-id="PASS_HTTP" screen-location="component://mr-pass/screen/Pass.xml" resolver-service="pass.RouteServices.resolve#Route">
