@@ -4,43 +4,43 @@
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Checkout">
-  <transition name="begin">
+  <transition name="begin" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'begin')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="contact">
+  <transition name="contact" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'contact')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="addresses">
+  <transition name="addresses" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'addresses')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="delivery">
+  <transition name="delivery" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'delivery')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="payment">
+  <transition name="payment" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'payment')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="submit">
+  <transition name="submit" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'submit')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="resume">
+  <transition name="resume" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCheckout.js').act(shopContext,'resume')</script>
     </actions>

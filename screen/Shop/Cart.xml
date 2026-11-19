@@ -8,37 +8,37 @@
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         require-authentication="false" default-menu-title="Cart">
-  <transition name="add">
+  <transition name="add" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'add')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="quote">
+  <transition name="quote" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'quote')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="update">
+  <transition name="update" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'update')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="remove">
+  <transition name="remove" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'remove')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="applyCode">
+  <transition name="applyCode" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'applyCode')</script>
     </actions>
     <default-response type="none"/>
   </transition>
-  <transition name="removeCode">
+  <transition name="removeCode" method="post">
     <actions>
       <script>ec.resource.script('component://mr-pass/screen/Shop/ShopCart.js').act(shopContext,'removeCode')</script>
     </actions>

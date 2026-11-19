@@ -618,3 +618,45 @@ feature(
         },
     },
 )
+feature("the Shop's cart and checkout writes answer only a POST, so a same-site image runs none", {
+    when() {
+        // SEC-PSF-81: <img src="/shop/Cart/add?..."> or "/shop/Checkout/begin" in member HTML is a GET with the reader's session
+        const carts = () =>
+            ec.entity
+                .find('mantle.order.StoreCartAccess')
+                .condition({ siteId: SITE })
+                .disableAuthz()
+                .count()
+        resetCartCreations()
+        logout()
+        try {
+            const browser = ec.screen
+                .makeTest()
+                .rootScreen('component://mr-pass/screen/Pass.xml')
+            const send = (path, method) =>
+                browser.render(
+                    'Shop/' + path,
+                    {
+                        resolvedSiteId: SITE,
+                        publicHost: HOST,
+                        publicPath: '/shop/' + path,
+                        productId: ids.book,
+                        quantity: '1',
+                    },
+                    method,
+                )
+            const before = carts()
+            send('Cart/add', 'get')
+            const afterGet = carts()
+            send('Checkout/begin', 'get')
+            send('Cart/add', 'post')
+            return { before, afterGet, afterPost: carts() }
+        } finally {
+            login('john.doe')
+        }
+    },
+    then({ before, afterGet, afterPost }) {
+        afterGet == before
+        afterPost == before + 1
+    },
+})
