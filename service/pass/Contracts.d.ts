@@ -241,8 +241,6 @@ export interface OperationInputs {
         targetPartyId?: string
         state?: string
         expectedRevision?: number
-        password?: string
-        code?: string
         reason?: string
     }
     setSiteRole: {
@@ -250,8 +248,6 @@ export interface OperationInputs {
         targetPartyId?: string
         role?: string
         expectedRevision?: number
-        password?: string
-        code?: string
         reason?: string
     }
     findMembers: {
@@ -624,8 +620,6 @@ export interface OperationInputs {
         roleTypeId?: string
         expectedRevision?: number
         reason?: string
-        password?: string
-        code?: string
     }
     bindMailbox: {
         siteId: string

@@ -33,6 +33,8 @@ const reasons = {
         'The payment was declined. Choose another way to pay or try again.',
     rateLimited: messages.Tarpit,
     providerUnavailable: messages.Unavailable,
+    // a change of a site's or a category's rights asks a recent sign-in (Mantle Forum.js reauthenticate)
+    reauthRequired: 'Confirm it is you: sign in again, then do this again.',
     // Shop P1: an operator's mount refusals
     mountTaken: null,
     rootNotAllowed: null,

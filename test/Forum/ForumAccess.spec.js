@@ -356,7 +356,7 @@ feature(
 )
 
 feature(
-    'category membership decisions require current revisions and reauthentication for roles',
+    'category membership decisions require current revisions and a recent sign-in for roles',
     {
         when() {
             login('john.doe')
@@ -376,11 +376,15 @@ feature(
                 ...input,
                 expectedRevision: 0,
             })
+            // a role change asks a recent sign-in (require#RecentAuth): an internal login is none
+            ec.user.logoutUser()
+            ec.user.internalLoginUser('john.doe')
             const noAuth = failure(F + 'set#CategoryMember', {
                 ...input,
                 expectedRevision: added.revision,
                 roleTypeId: 'ListModerator',
             })
+            login('john.doe')
             const current = run(F + 'find#CategoryMembers', {
                 siteId,
                 contactListId: helpId,
@@ -391,7 +395,7 @@ feature(
             missingRevision.includes('State changed')
             added.revision === 1
             stale.includes('State changed')
-            noAuth.length > 0
+            noAuth.includes('Confirm it is you')
             current.revision === 1
             current.roleTypeId == null
         },

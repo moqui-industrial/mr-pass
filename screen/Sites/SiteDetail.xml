@@ -184,16 +184,6 @@
               <text-line input-type="number"/>
             </default-field>
           </field>
-          <field name="password" from="''">
-            <default-field title="Current password">
-              <password/>
-            </default-field>
-          </field>
-          <field name="code">
-            <default-field title="Authentication code">
-              <text-line input-type="text"/>
-            </default-field>
-          </field>
           <field name="reason">
             <default-field title="Decision reason">
               <text-line/>

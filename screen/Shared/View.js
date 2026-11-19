@@ -663,8 +663,6 @@ const definitions = {
                     'owner',
                 ]),
                 field('expectedRevision', 'Membership revision', 'number'),
-                field('password', 'Current password', 'password'),
-                text('code', 'Authentication code'),
                 text('reason', 'Decision reason'),
             ]),
             form('publishSitePage', 'Publish a site page', [
@@ -808,8 +806,6 @@ const definitions = {
                     'ended',
                 ]),
                 field('expectedRevision', 'Revision', 'number'),
-                field('password', 'Current password (for an owner)', 'password'),
-                text('code', 'Authentication code (for an owner)'),
                 text('reason', 'Decision reason'),
             ]),
             form('setCategoryMember', 'Change category membership or role', [
@@ -827,12 +823,6 @@ const definitions = {
                     'number',
                 ),
                 text('reason', 'Decision reason'),
-                field(
-                    'password',
-                    'Reauthenticate for role changes',
-                    'password',
-                ),
-                text('code', 'Second-factor code if required'),
             ]),
             form('createInvitation', 'Create invitation', [
                 field('emailAddress', 'Verified recipient email', 'email'),

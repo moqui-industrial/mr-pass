@@ -94,16 +94,6 @@
               <text-line input-type="number"/>
             </default-field>
           </field>
-          <field name="password" from="''">
-            <default-field title="Current password (for an owner)">
-              <password/>
-            </default-field>
-          </field>
-          <field name="code">
-            <default-field title="Authentication code (for an owner)">
-              <text-line input-type="text"/>
-            </default-field>
-          </field>
           <field name="reason">
             <default-field title="Decision reason">
               <text-line/>
@@ -267,16 +257,6 @@
           </field>
           <field name="reason">
             <default-field title="Decision reason">
-              <text-line input-type="text"/>
-            </default-field>
-          </field>
-          <field name="password" from="''">
-            <default-field title="Reauthenticate for role changes">
-              <password/>
-            </default-field>
-          </field>
-          <field name="code">
-            <default-field title="Second-factor code if required">
               <text-line input-type="text"/>
             </default-field>
           </field>
