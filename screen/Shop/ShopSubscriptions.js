@@ -289,7 +289,13 @@ function changeMethod(context) {
         consent: param('consent') === 'true' ? 'true' : 'false',
         expectedRevision: param('expectedRevision'),
     })
-    h().back(context, detailPath(), found, 'Renewals now use this card.')
+    // past the day's bound of a renewal's resumptions the card is kept and the renewal waits for the job (SEC-PSS-86)
+    h().back(
+        context,
+        detailPath(),
+        found,
+        found.result?.notice?.message || 'Renewals now use this card.',
+    )
 }
 function cancel(context) {
     if (param('confirmCancel') !== 'true')
