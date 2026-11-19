@@ -241,6 +241,8 @@ export interface OperationInputs {
         targetPartyId?: string
         state?: string
         expectedRevision?: number
+        password?: string
+        code?: string
         reason?: string
     }
     setSiteRole: {

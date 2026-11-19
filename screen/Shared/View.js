@@ -800,6 +800,8 @@ const definitions = {
                     'ended',
                 ]),
                 field('expectedRevision', 'Revision', 'number'),
+                field('password', 'Current password (for an owner)', 'password'),
+                text('code', 'Authentication code (for an owner)'),
                 text('reason', 'Decision reason'),
             ]),
             form('setCategoryMember', 'Change category membership or role', [
