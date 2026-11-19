@@ -119,18 +119,19 @@ feature(
             previewed.enabled == false
             previewed.proposals.length > 0
             rowsAfterPreview == 0
-            // ZZWR_TMP's server footer: FreeMarker and server context, the theme renderer's conversion findings
+            // ZZWR_TMP's footers are html pages (its server footer is no longer FreeMarker since SEC-SCR-81): both
+            // convert as they are; the findings of a FreeMarker footer are mr-mantle's StoreAdoption spec's
             previewed.templates.roles.some(
                 (row) =>
                     row.contentTypeEnumId == 'PsctFooterTemplateServer' &&
-                    row.unsupported.includes('FreeMarker directives'),
+                    row.convertible &&
+                    row.unsupported.length == 0,
             )
             previewed.templates.roles.some(
                 (row) =>
                     row.contentTypeEnumId == 'PsctFooterTemplate' &&
                     row.convertible,
             )
-            previewed.findings.some((row) => row.code == 'UNSUPPORTED_SYNTAX')
             previewed.categories.length > 0
             approved.doneCount == Math.min(5, previewed.proposals.length)
             rowsAfterApproval == approved.doneCount
