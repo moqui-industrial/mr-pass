@@ -5,8 +5,8 @@ here is mr-pass with the Mantle services its operations reach. The framework's o
 statuses mean are in mr-moqui's [security proofs](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/README.md);
 the plan is mr-moqui's [Proofs-Initial](https://github.com/moqui/mr-moqui/blob/master/plans/Proofs-Initial.md).
 
-Status 2026-11-18: one reading of the code at mr-pass `d2dfa67`, mr-mantle `dff2c9fe` and mr-moqui `bf7034ec9`; no
-proof is filed yet. The topic of each row is in our words; the requirement's own text is in
+Status 2026-11-18: one reading of the code at mr-pass `d2dfa67`, mr-mantle `dff2c9fe` and mr-moqui `bf7034ec9`,
+with the findings recorded as fixed since then (SEC-PFS-82) taken in; no proof is filed yet. The topic of each row is in our words; the requirement's own text is in
 [ASVS 5.0.0](https://github.com/OWASP/ASVS/tree/v5.0.0/5.0/en) (© The OWASP Foundation, CC BY-SA 4.0, cited by id
 and not copied).
 
@@ -18,7 +18,7 @@ and not copied).
 | Gap | Not met today. |
 | N/A | Does not apply to PASS, with the reason. |
 
-Counts: 94 inherited, 48 met by PASS, 12 configuration, 62 gaps,
+Counts: 95 inherited, 48 met by PASS, 12 configuration, 61 gaps,
 37 not applicable, of 253. An inherited row whose framework status is a Gap is a gap for PASS too.
 
 ## V1 Encoding and Sanitization
@@ -116,8 +116,8 @@ Counts: 94 inherited, 48 met by PASS, 12 configuration, 62 gaps,
 | v5.0.0-5.2.1 | 1 | Upload size bounded to what server handles | Gap | inherits SEC-RTE-82 on PASS pages; own: 10 MiB in `PortalMedia.js` `stage` and `Forum.js` `stageAttachment`; `PassApi` `max-upload="11m"` (`mr-mantle/MoquiConf.xml:57`) | - |
 | v5.0.0-5.2.2 | 1 | Upload extension and content match expected type | Gap | `Forum.js` `stageAttachment` (:2550-2562) trusts the declared type and keeps the given extension; `PortalMedia.js` `sniff` checks Supplier, Support and review files | - |
 | v5.0.0-5.2.3 | 2 | Archive size and entry limits before expanding | PASS | likely: no public upload is expanded; `ForumImport.js:385` (operator only) expands with the framework's bounds | PASS: to write: in-process |
-| v5.0.0-5.3.1 | 1 | Stored uploads never run as server code | Gap | SEC-PFS-82 (release notes and files under the caller's `mantle.content.root` overwrite a server script) | - |
-| v5.0.0-5.3.2 | 1 | File paths built from trusted data, not names | Gap | SEC-PFS-82; SEC-PSS-82 (a product content row names any file or URL and Shop publishes it) | - |
+| v5.0.0-5.3.1 | 1 | Stored uploads never run as server code | Inherited | framework: Gap ([V5](https://github.com/moqui/mr-moqui/blob/master/docs/security/proofs/V5-File-Handling.md)); SEC-PFS-82 fixed: release notes and files go under the `mantle@content-root` setting, not a preference | - |
+| v5.0.0-5.3.2 | 1 | File paths built from trusted data, not names | Gap | SEC-PSS-82 (a product content row names any file or URL and Shop publishes it); SEC-PFS-82 fixed | - |
 | v5.0.0-5.4.1 | 2 | Download name set by server in Content-Disposition | PASS | download locations only from stored rows (map); `Facade.js` names from the stored row; upload names cleaned (`PortalMedia.js`, `Forum.js`) | SecurityScreens "A01 a FOP filename quote stays in one Content-Disposition"; PASS: to write: black-box |
 | v5.0.0-5.4.2 | 2 | Served file names encoded against header injection | PASS | `Facade.js` replaces `"`, `\`, CR, LF in the quoted name; no `filename*` | SecurityScreens "A01 a FOP filename quote stays in one Content-Disposition"; PASS: to write: black-box |
 | v5.0.0-5.4.3 | 2 | Untrusted files scanned for malware | Configuration | `pass@scanner-service` (none ships; uploads refused while empty; `pass@test-scanner` is a test stub) | - |
