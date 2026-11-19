@@ -88,7 +88,17 @@
                     >Delete</a
                 >
             </nav>
-            <m-html-view :html="post.body" :images-bar="false"></m-html-view>
+            <p v-if="post.collapsed">
+                This message is held as possible spam, and its text is hidden.
+                <button type="button" @click="showHeld(post)">
+                    Show the message
+                </button>
+            </p>
+            <m-html-view
+                v-else
+                :html="post.body"
+                :images-bar="false"
+            ></m-html-view>
             <section
                 v-if="post.pollId && polls[post.pollId]"
                 class="poll"
@@ -187,6 +197,8 @@ module.exports = {
     data() {
         return {
             posts: [],
+            // the held message whose text the participant asked to see
+            shownHeld: null,
             nextCursor: null,
             marker: null,
             status: '',
@@ -237,7 +249,14 @@ module.exports = {
         },
         async load(refresh) {
             const response = await fetch(
-                this.base + '/state' + location.search,
+                this.base +
+                    '/state' +
+                    location.search +
+                    (this.shownHeld
+                        ? (location.search ? '&' : '?') +
+                          'showHeld=' +
+                          encodeURIComponent(this.shownHeld)
+                        : ''),
                 { headers: { Accept: 'application/json' } },
             )
             if (
@@ -286,6 +305,11 @@ module.exports = {
             })
             if (!response.ok) throw new Error('Action failed')
             return response.json()
+        },
+        // a held message's text, shown when the participant asks for it
+        async showHeld(post) {
+            this.shownHeld = post.postId
+            await this.load(true)
         },
         // a message of a conversation held as spam: its sender or another participant releases it
         async release(post) {

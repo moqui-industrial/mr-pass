@@ -23,7 +23,7 @@
     <actions>
       <script><![CDATA[
         const call=(operation,input)=>ec.service.sync().throwOnError(true).name('pass.Facade.call#Operation').parameters({operation,input:Object.assign({siteId:resolvedSiteId,rootCommEventId},input || {})}).call().result
-        const window={};for(const key of ['cursor','around','before','after'])if(ec.web.parameters[key]!=null)window[key]=ec.web.parameters[key];const data=call('getPosts',window)
+        const window={};for(const key of ['cursor','around','before','after','showHeld'])if(ec.web.parameters[key]!=null)window[key]=ec.web.parameters[key];const data=call('getPosts',window)
         const topic=call('getTopic',{}).topic
         data.marker=topic.marker
         data.topic={revision:topic.revision,canAccept:topic.capabilities.canAccept,canFlag:topic.capabilities.canFlag,signedIn:!!topic.marker}

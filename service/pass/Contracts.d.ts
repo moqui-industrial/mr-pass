@@ -372,6 +372,7 @@ export interface OperationInputs {
         before?: number
         after?: number
         around?: string
+        showHeld?: string
     }
     searchForum: {
         siteId: string
