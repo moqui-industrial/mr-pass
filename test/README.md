@@ -6,15 +6,21 @@ a browser), with no Node. They are in two suites, described in mr-moqui's
 regression suite is `test/` and `test/client/`, within the budget in `test/budget`; the acceptance suite is
 `test/acceptance/` and `test/acceptance/client/`, run only when asked or after adding or changing one of its tests.
 `test/proofs/` holds PASS's security proofs: black-box client specs filed by OWASP ASVS 5.0.0 requirement, one file a
-chapter, which `--proofs` runs and joins to [ASVS-Matrix](../docs/ASVS-Matrix.md); they need the accounts the last
-feature of `ClientFixtures` sets again on each run, or `--param user=NAME` in the deployment profile
+chapter (`V2Validation`, `V3WebFrontend`, `V4ApiWebService`, `V5FileHandling`, `V6Authentication`, `V10OAuthOidc`,
+`V13Configuration`, `V15SecureCoding`, `V7SessionManagement` last), which `--proofs` runs and joins to
+[ASVS-Matrix](../docs/ASVS-Matrix.md); they need the accounts the last feature of `ClientFixtures` sets again on each run,
+or in the deployment profile `--param user=NAME` (and `site`, `clientId`, `authorityUrl`, `siteHost`, `mfa=required`),
+with `--param bruteForce=yes`, one spec alone, for those that use up the client's rate limits
 ([JS-Test-Client, Security proofs](https://github.com/moqui/mr-moqui/blob/master/docs/dev/JS-Test-Client.md#security-proofs)).
+The in-process proofs, of what a client cannot see, are server specs here: `SourceRules` (strict comparisons, no archive
+a visitor sends is unpacked), two features of `Transport` (no default client secret, an unreachable authority) and
+`Forum/TextNotCode`.
 In `test/` the specs are in subdirectories named for the `screen/` directory of the area they cover (`Forum`,
 `Account`, ...).
 
 `test/MoquiConf.xml` merges into the conf in test runs only. It has the test sites (`127.0.0.1` with every app
-mounted, `smithy.localhost`, the demo shops `shop.zizi.localhost` and `digital.zizi.localhost`, a preview host and
-the two `sites.localhost` hosts), the test scanner and classifier, and mail kept in the capture. Test-only
+mounted, `smithy.localhost`, the demo shops `shop.zizi.localhost` and `digital.zizi.localhost`, a preview host,
+the two `sites.localhost` hosts and `pass.sites.localhost`, the proofs' site on a host of its own), the test scanner and classifier, and mail kept in the capture. Test-only
 configuration, scanner, and captured email fixtures must not be used as production provider configuration.
 
 ## Development checks
@@ -23,7 +29,7 @@ Run from the mr-moqui workspace root:
 
 ```sh
 ./moq build
-./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,TextNotCode,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess,SmithyDeploy,SalesPortal,SalesPortalAccess,MarketingSubscriptions,MarketingAccess,SubmitForm,FormPublications,MarketingForms,MarketingPages,MarketingTracking,MarketingEvents,MarketingRegistration,Tracking,SitePages,EventRegistrationSetup,EventRegistrations --db snapshot
+./moq test mr-pass mr-mantle mr-boss --nobuild --spec Forum,ForumAccess,TextNotCode,SourceRules,Media,PublicIdentity,SsoHandoff,Transport,PassAuthority,Outbox,Mailboxes,InboxMailboxes,Participation,Moderation,Conversations,InboundMail,Entitlements,Subscriptions,Integrations,Operations,Import,CommsModeration,Portals,AccountingPortals,SupplierPages,SupplierPortal,SupportAccess,CaseFeedback,SupportPortal,ShopAccess,ShopThemes,ShopCatalog,ShopCart,ShopCheckout,ShopAccount,ShopSubscriptions,ShopReviews,ShopPreview,ShopFeeds,StoreFeeds,ShopOperations,StoreAdoption,StoreCheckout,StoreFulfillment,ShopCustomer,CartRecovery,ThemeReleases,ThemeAuthoring,Smithy,SmithyReview,SmithyImport,SmithyAccess,SmithyDeploy,SalesPortal,SalesPortalAccess,MarketingSubscriptions,MarketingAccess,SubmitForm,FormPublications,MarketingForms,MarketingPages,MarketingTracking,MarketingEvents,MarketingRegistration,Tracking,SitePages,EventRegistrationSetup,EventRegistrations --db snapshot
 # Billing and Supplier in the browser, at 390 px and on the desktop; Shop's golden-path checkout walk
 ./moq test-client mr-pass --nobuild --serve --spec PortalHttp,ShopCheckoutWalk
 # the security proofs, with the summary by requirement (proofs.md and proofs.json in the run's output directory)

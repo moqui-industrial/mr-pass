@@ -222,3 +222,92 @@ feature(
         },
     },
 )
+// OWASP ASVS 5.0.0 v5.0.0-13.2.3, PASS's in-process proof (docs/ASVS-Matrix.md, V13): no default credential between a
+// PASS frontend and its authority. mr-pass ships pass@client-secret empty, and a frontend with no secret (or the
+// CHANGEME placeholder) calls no remote authority; the authority registers a client only by the secret its conf gives that
+// client (pass-authority/client[id]@secret, compared by digest: framework service/org/moqui/public/Account.js
+// clientRegistered), so no client is registered by an empty secret, a guessed one, or none configured.
+// Does not prove: the strength of the secret an operator sets (the example conf keeps it in runtime/.env), nor the gRPC
+// listener's check, which is the same comparison in Rust (pass_authority.rs).
+feature('v5.0.0-13.2.3: no PASS client is registered by an empty, placeholder or guessed secret', {
+    when() {
+        const account = ec.resource.script('component://framework/service/org/moqui/public/Account.js')
+        const registered = (id, secret) => account.clientRegistered(id, secret, 'PASS_HTTP') === true
+        const built = () => {
+            try {
+                transport().authorityClient('PASS_HTTP', 'site', 'GET')
+                return 'built'
+            } catch (error) {
+                return String(error.message)
+            }
+        }
+        const frontend = (secret) =>
+            withConf('pass@backend-url', 'https://authority.example.test', () =>
+                withConf('pass@client-id', 'test', () =>
+                    secret == null ? built() : withConf('pass@client-secret', secret, built),
+                ),
+            )
+        return {
+            shipped: ec.factory.isConfValueSet('pass@client-secret'),
+            noSecret: frontend(null),
+            placeholder: frontend('CHANGEME'),
+            set: frontend('an operator secret'),
+            empty: registered('test', ''),
+            guessed: ['test', 'secret', 'changeme', 'CHANGEME', 'password', 'admin', 'test-deployment'].filter((g) => registered('test', g)),
+            unconfigured: [registered('nosuchclient', ''), registered('edge', ''), registered('edge', 'edge')],
+            right: registered('test', 'test-deployment-secret'),
+        }
+    },
+    then({ shipped, noSecret, placeholder, set, empty, guessed, unconfigured, right }) {
+        shipped === false
+        noSecret.includes('Remote authority is not configured')
+        placeholder.includes('Remote authority is not configured')
+        !empty
+        guessed.length === 0
+        unconfigured.every((r) => r === false)
+        // the controls: a frontend with a secret set builds its call, and the configured secret registers its client
+        set === 'built'
+        right === true
+    },
+})
+// OWASP ASVS 5.0.0 v5.0.0-16.5.2, PASS's in-process proof (docs/ASVS-Matrix.md, V16): a remote frontend whose authority
+// cannot be reached fails closed and at once. The frontend keeps no business data and nothing kept is served when the
+// authority cannot answer (ShopOperations "site information is kept by generation ..."): here the site information every
+// page reads fails in well under a second, with no answer and no client secret in its error. The authority is loopback's
+// discard port, where nothing listens on a test machine; REST follows no redirect and gives up after 30 seconds
+// (Transport.js authorityClient), a time this proof does not wait out.
+// Does not prove: the text a visitor sees, which is the framework's error page (an error id on a production instance; the
+// connection error names the authority's address, which a development instance shows), nor the gRPC transport's 10 second
+// connect and 30 second call timeouts, nor an authority that answers slowly.
+feature('v5.0.0-16.5.2: an authority that cannot be reached fails the call at once, with nothing served', {
+    when() {
+        const outcome = (operation, input) => {
+            try {
+                return { result: call('pass.Facade.call#Operation', { operation, input }).result }
+            } catch (error) {
+                ec.message.clearErrors()
+                return { result: null, message: String(error.message) }
+            }
+        }
+        const started = Date.now()
+        const read = withConf('pass@backend-url', 'http://127.0.0.1:9', () =>
+            withConf('pass@client-id', 'test', () =>
+                withConf('pass@client-secret', 'proof-client-secret', () =>
+                    withConf('pass@backend-transport', 'rest', () =>
+                        outcome('getSiteInfo', { siteId: 'PASS_HTTP', hostname: '127.0.0.1' }),
+                    ),
+                ),
+            ),
+        )
+        return { read, ms: Date.now() - started, local: transport().current().kind }
+    },
+    then({ read, ms, local }) {
+        read.result == null
+        // the control: the call was sent, and failed at the connection (not refused before it)
+        read.message.includes('http://127.0.0.1:9/rest/s1/pass/v1/sites/PASS_HTTP/')
+        !read.message.includes('proof-client-secret')
+        ms < 3000
+        // and with no authority set the frontend is local again
+        local === 'local'
+    },
+})

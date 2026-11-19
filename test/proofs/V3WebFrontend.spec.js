@@ -170,3 +170,100 @@ feature("v5.0.0-3.5.1: the authority API refuses a cookie-borne form post withou
         drafts.includes(`allowed ${stamp}`)
     },
 })
+
+// Level 2 (P5). Where the site mounts the Forum app: /forum on the fixtures' site, else --param forumPath=/path.
+const FORUM = (params.forumPath ?? "/forum").replace(/\/+$/, "")
+// In the fixtures profile each session names an address of its own in 127.0.0.0/8 (X-Moqui-Test-Peer, which only the
+// project's test server reads), so PASS's sign-in limit per client counts these proofs apart from the rest of the run.
+const peerHeaders = () =>
+    profile == "fixtures"
+        ? { "X-Moqui-Test-Peer": `127.5.${1 + Math.floor(Math.random() * 254)}.${1 + Math.floor(Math.random() * 254)}` }
+        : {}
+
+// Configuration in the matrix: each site has a host of its own whose root screen refuses the framework's routes
+// (root-screen@framework-routes="refuse", as runtime/conf/MoquiSitesConf.xml gives each site host), and the authority's
+// REST stays on the business host. In the fixtures profile the site is ClientFixtures' PASS_HTTP on pass.sites.localhost,
+// which test/MoquiConf.xml gives that rule; in the deployment profile the server named is the site's host, or the host
+// --param siteHost=NAME names (sent as the Host header, for a server reached by its address).
+// Does not prove: that the business apps answer on another host (a proof reaches only the host it is given), nor what a
+// proxy in front serves; the session cookie is the host's alone (no Domain), so a browser sends it to no other host.
+feature("v5.0.0-3.5.4: a site's own host serves its apps and none of the framework's routes", {
+    when() {
+        const host = params.siteHost ?? (profile == "fixtures" ? "pass.sites.localhost" : null)
+        const s = session({ headers: host ? { Host: `${host}:${server.port}` } : {} })
+        const page = s.get(`${ACCOUNT}/Login`)
+        const refused = ["/Login", "/apps", `/rest/s1/pass/v1/sites/${encodeURIComponent(SITE ?? "none")}/site`,
+            "/rest/e1/moqui.basic.Enumeration"].map((path) => ({ path, status: s.get(path).status }))
+        return { page, refused }
+    },
+    then({ page, refused }) {
+        // the control: the site's own sign-in page answers on its host
+        page.status == 200
+        page.text.includes('id="PassLoginStartSession"')
+        page.cookies.length > 0 && page.cookies.every((cookie) => !cookie.domain)
+        refused.every(({ status }) => status == 404)
+    },
+})
+
+// The pages a visitor sees, an island's among them: a topic, which loads Vue's runtime build and Quasar from the site's
+// own /libs (the islands are compiled on the server, so no eval); the policy has object-src 'none', so no plugin content
+// runs even if markup named one. The versions are read from the libraries' own headers.
+// Does not prove: a shop theme's markup (the theme check refuses scripts and plugin elements: mr-mantle ThemeAuthoring),
+// nor that a visitor's browser is current.
+feature("v5.0.0-3.7.1: PASS pages load only their own scripts, current Vue and Quasar, no plugins", {
+    when() {
+        const s = session()
+        const topic = (s.get(FORUM).text.match(/href="(\/[^"]*\/t\/[^"]+)"/) ?? [])[1]
+        if (!topic) skip(`no topic is listed on ${FORUM} to read an island from: --param forumPath=/path`)
+        const pages = [`${ACCOUNT}/Login`, FORUM, topic].map((path) => {
+            const res = s.get(path)
+            return {
+                path,
+                status: res.status,
+                csp: res.header("content-security-policy") ?? "",
+                scripts: (res.text.match(/<script\b[^>]*\bsrc="[^"]*"/g) ?? []).map((tag) => tag.match(/src="([^"]*)"/)[1]),
+                plugins: (res.text.match(/<(?:object|embed|applet)\b/gi) ?? []).length,
+            }
+        })
+        const banner = (pattern) => {
+            const src = pages.flatMap((p) => p.scripts).find((s) => pattern.test(s))
+            return src ? s.get(src, { headers: { Range: "bytes=0-299" } }).text.slice(0, 300) : ""
+        }
+        return { pages, vue: banner(/\/libs\/vue\//), quasar: banner(/\/libs\/quasar\/quasar\./) }
+    },
+    then({ pages, vue, quasar }) {
+        pages.every((p) => p.status == 200)
+        pages.every((p) => /(^|;)\s*object-src 'none'/.test(p.csp) && /(^|;)\s*script-src 'self'(;|$)/.test(p.csp))
+        pages.every((p) => p.plugins == 0)
+        pages.every((p) => p.scripts.every((src) => src.startsWith("/") && !src.startsWith("//")))
+        // the control: the topic page loads the island's scripts
+        pages[2].scripts.length > 0
+        /\bvue v3\.\d+\.\d+/.test(vue)
+        /Quasar Framework v2\.\d+\.\d+/.test(quasar)
+    },
+})
+
+// The site's sign-in form keeps a returnTo only when it is a local path (service/pass/Account.js safeReturnPath: one
+// leading slash, not two, no backslash, white space or control character) and sends a visitor there after signing in;
+// anything else (here a host-relative //host, the form a browser reads as another site) lands on the site's own page.
+// Does not prove: a tracking link's destination (checked when saved, store#TrackingLink) nor the SSO callback (the
+// client's configured one); the framework's own sign-in is the framework's proof.
+feature("v5.0.0-3.7.2: PASS's sign-in follows a returnTo on the site, never one off it", {
+    when() {
+        const { username, password } = account()
+        const signInTo = (returnTo) => {
+            const s = session({ headers: peerHeaders() })
+            s.get(`${ACCOUNT}/Login`, { params: { returnTo } })
+            return s.post(`${ACCOUNT}/Login/save`, { form: { formAction: "startSession", username, password, returnTo } })
+        }
+        return { schemeless: signInTo("//evil.example/phish"), on: signInTo(`${ACCOUNT}/Settings?from=proof`) }
+    },
+    then({ schemeless, on }) {
+        schemeless.status == 302
+        !/evil\.example|\/phish/.test(schemeless.location ?? "")
+        (schemeless.location ?? "").startsWith("/") && !(schemeless.location ?? "").startsWith("//")
+        // the control: a local path is followed
+        on.status == 302
+        on.location == `${ACCOUNT}/Settings?from=proof`
+    },
+})

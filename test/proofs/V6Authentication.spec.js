@@ -160,3 +160,43 @@ feature("v5.0.0-6.4.1: a registration code works once, not after expiry, and nev
         withCode.res.status == 401
     },
 })
+
+// Level 2 (P5). ClientFixtures' pass.mfa.proof: a member of a group that requires a second factor
+// (moqui.security.UserGroup.requireAuthcFactor), with no factor of its own, so its code goes to its email address.
+const MFA_USER = "pass.mfa.proof"
+const MFA_PASSWORD = "PassMfaProof1!!"
+// Settings as a signed-in visitor sees it: with its Change password form.
+const settingsSignedIn = (s) => s.get(`${ACCOUNT}/Settings`).text.includes('id="PassSettingsManageAccount"')
+
+// Configuration in the matrix: an account in a group with requireAuthcFactor Y (on ALL_USERS for everyone) signs in only
+// with a second factor, an emailed code when it has no factor of its own; the site's sign-in form sends it to the
+// SecondFactor page after the right password, and a wrong code signs nobody in. In a deployment the run's account is
+// checked when the deployment says it requires the factor of everyone (--param mfa=required), with no code tried.
+// Does not prove: that the emailed code signs in (a client reads no mailbox), an app password or a login key, which ask
+// no second factor (the framework's 6.3.3 row), nor SSO, whose provider's factors are its own.
+feature("v5.0.0-6.3.3: an account required to use a second factor never signs in by password alone", {
+    given() {
+        if (profile != "fixtures" && params.mfa != "required")
+            skip("a deployment that requires a second factor of every account says so: --param mfa=required, with --param user=NAME")
+        if (profile != "fixtures" && !params.user) skip("needs the deployment's account: --param user=NAME and MOQUI_TEST_PASSWORD")
+    },
+    when() {
+        const fixtures = profile == "fixtures"
+        const first = trySignIn(fixtures ? MFA_USER : params.user, fixtures ? MFA_PASSWORD : params.password ?? "")
+        const s = first.session
+        const afterPassword = settingsSignedIn(s)
+        if (!fixtures) return { first, afterPassword }
+        // a wrong code counts as a failed sign-in, so only the fixtures' account (reset on every run) is given one
+        const wrong = s.post(`${ACCOUNT}/SecondFactor/save`, { form: { formAction: "completeSession", code: "000000" } })
+        // and an account outside the group signs in on the same form with its password alone
+        return { first, afterPassword, wrong, afterWrong: settingsSignedIn(s), without: trySignIn("john.doe", "moqui") }
+    },
+    then({ first, afterPassword, wrong, afterWrong, without }) {
+        // the control: the right password reaches the second step, not a refusal
+        first.res.status == 302
+        (first.res.location ?? "").endsWith(`${ACCOUNT}/SecondFactor`)
+        !afterPassword
+        wrong == null || (wrong.status >= 400 && !afterWrong)
+        without == null || signedIn(without)
+    },
+})

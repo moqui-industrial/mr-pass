@@ -112,8 +112,16 @@ feature('provision a published HTTP test community', {
 // begin#Registration leaves one (a disabled account with a password nobody knows), with two codes: one good for an hour
 // and one already expired. The codes are known here and in the proof, as the mailbox would hold them (the framework's
 // ClientFixtures does the same for its single-use factor); V6Authentication uses each once.
+// Level 2 (P5): pass.session.proof, whose password V7SessionManagement changes, is set again here as pass.pw.proof is;
+// pass.mfa.proof is in a group that requires a second factor (requireAuthcFactor) and has no factor of its own, so its code
+// goes to its email address, as a public account's does. PASS_HTTP also answers on pass.sites.localhost, a host whose
+// framework routes test/MoquiConf.xml refuses (V3WebFrontend, 3.5.4).
 const PROOF_USER = 'pass.pw.proof',
     PROOF_PASSWORD = 'PassPwProof1!!'
+const SESSION_USER = 'pass.session.proof',
+    SESSION_PASSWORD = 'PassSessionProof1!!'
+const MFA_USER = 'pass.mfa.proof',
+    MFA_PASSWORD = 'PassMfaProof1!!'
 const REG_ADDRESS = 'pass.reg.proof@example.test',
     REG_CODE = 'PassRegProofLiveCode'.padEnd(64, '0'),
     REG_EXPIRED_CODE = 'PassRegProofExpiredCode'.padEnd(64, '0')
@@ -121,31 +129,66 @@ feature("the security proofs' accounts are made or set again", {
     when() {
         const account = (username) =>
             ec.entity.find('moqui.security.UserAccount').condition({ username }).one()
-        if (!account(PROOF_USER)) {
-            const partyId = call('mantle.party.PartyServices.create#Person', {
-                firstName: 'Password',
-                lastName: 'Proof',
-            }).partyId
-            call('mantle.party.PartyServices.create#PartyUserAccount', {
-                partyId,
-                username: PROOF_USER,
-                emailAddress: 'pw.proof@example.test',
-                newPassword: PROOF_PASSWORD,
-                newPasswordVerify: PROOF_PASSWORD,
+        // a public account with a party, its password and failed logins as a proof expects them
+        const proofAccount = (username, password, firstName) => {
+            const made = !account(username)
+            if (made) {
+                const partyId = call('mantle.party.PartyServices.create#Person', {
+                    firstName,
+                    lastName: 'Proof',
+                }).partyId
+                call('mantle.party.PartyServices.create#PartyUserAccount', {
+                    partyId,
+                    username,
+                    emailAddress: username.replace(/^pass\./, '') + '@example.test',
+                    newPassword: password,
+                    newPasswordVerify: password,
+                })
+            }
+            const ua = account(username)
+            // an account just made has the password already; one kept from an earlier run gets it again
+            if (!made)
+                ua.setAll({
+                    currentPassword: ec.user.hashPassword(password),
+                    passwordSalt: '',
+                    passwordHashType: 'argon2',
+                    passwordBase64: 'N',
+                })
+            ua.setAll({
+                requirePasswordChange: 'N',
+                disabled: 'N',
+                disabledDateTime: null,
+                successiveFailedLogins: 0,
             })
+            ua.update()
+            return ua
         }
-        const pw = account(PROOF_USER)
-        pw.setAll({
-            currentPassword: ec.user.hashPassword(PROOF_PASSWORD),
-            passwordSalt: '',
-            passwordHashType: 'argon2',
-            passwordBase64: 'N',
-            requirePasswordChange: 'N',
-            disabled: 'N',
-            disabledDateTime: null,
-            successiveFailedLogins: 0,
+        const pw = proofAccount(PROOF_USER, PROOF_PASSWORD, 'Password')
+        const sessionUser = proofAccount(SESSION_USER, SESSION_PASSWORD, 'Session')
+        const mfaUser = proofAccount(MFA_USER, MFA_PASSWORD, 'Factor')
+        const once = (entity, key, fields) => {
+            const old = ec.entity.find(entity).condition(key).one()
+            if (old) {
+                old.setAll(fields)
+                old.update()
+            } else {
+                const row = ec.entity.makeValue(entity)
+                row.setAll({ ...key, ...fields })
+                row.create()
+            }
+        }
+        once('moqui.security.UserGroup', { userGroupId: 'PASS_PROOF_MFA' }, {
+            description: 'PASS proofs: a second factor required',
+            requireAuthcFactor: 'Y',
         })
-        pw.update()
+        once('moqui.security.UserGroupMember', { userGroupId: 'PASS_PROOF_MFA', userId: mfaUser.userId, fromDate: new Date(0) }, {})
+        if (!ec.entity.find('mantle.public.PublicSiteHost').condition({ hostname: 'pass.sites.localhost' }).one())
+            call('create#mantle.public.PublicSiteHost', {
+                hostname: 'pass.sites.localhost',
+                siteId: 'PASS_HTTP',
+                canonical: 'N',
+                hostKindEnumId: 'PshkLive',
+            })
 
         // as begin#Registration makes the account: its address as the user name, disabled, a password nobody knows
         const rules = ec.user.passwordRules
@@ -201,6 +244,8 @@ feature("the security proofs' accounts are made or set again", {
         challenge('PASS_PROOF_REG_EXPIRED', REG_EXPIRED_CODE, now - 60000)
         return {
             pw: account(PROOF_USER),
+            sessionUser: account(SESSION_USER),
+            mfaMember: ec.entity.find('moqui.security.UserGroupMember').condition({ userGroupId: 'PASS_PROOF_MFA', userId: mfaUser.userId }).count(),
             reg: account(REG_ADDRESS),
             open: ec.entity
                 .find('moqui.security.public.RegistrationChallenge')
@@ -209,9 +254,12 @@ feature("the security proofs' accounts are made or set again", {
                 .count(),
         }
     },
-    then({ pw, reg, open }) {
+    then({ pw, sessionUser, mfaMember, reg, open }) {
         pw.disabled === 'N'
         ec.user.passwordsMatch(PROOF_PASSWORD, pw.currentPassword, pw.passwordHashType, pw.passwordSalt, false)
+        sessionUser.disabled === 'N'
+        sessionUser.successiveFailedLogins == 0
+        mfaMember == 1
         reg.disabled === 'Y'
         open === 2
     },
