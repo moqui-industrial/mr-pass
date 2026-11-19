@@ -945,8 +945,11 @@ the authority. Site owners then add route addresses on the Mail screen: a catego
 topics and accepts replies; an address without a category accepts replies only. Each email notice
 carries a reply address with a hashed, expiring token in its plus tag, issued to that recipient for
 that thread. Point the route addresses at a hosted or shared mail account behind the trusted edge
-gateway (`docs/interfaces/Mail-Inbound.md` in mr-moqui) or at a synced account; the `ForumInbound` email ECA
-handles each stored message. Set `smtp-server@authserv-id` on the authority to the gateway's authserv-id (one id: the
+gateway (`docs/interfaces/Mail-Inbound.md` in mr-moqui), fed by the mail listener, and name that account (its
+`emailAccountId`) in `mantle@forum-inbound-accounts`: the forum reads a route's mail only from an account listed there,
+whoever owns it, never from a person's or an organization's mailbox that holds the same address, nor from a synced
+(IMAP or POP) account; mail to a route on any other account is logged as a warning and left alone. A route address that
+is a person's or an organization's own address is refused. The `ForumInbound` email ECA handles each stored message. Set `smtp-server@authserv-id` on the authority to the gateway's authserv-id (one id: the
 listener matches it exactly): mail counts as authenticated by the gateway only when the message's topmost
 `Authentication-Results` field has that id. Left empty, a listener that verifies mail itself (an edge node, or
 `smtp-server@internet`) writes and is trusted under its hostname; behind a gateway, no mail counts, so nothing is posted
