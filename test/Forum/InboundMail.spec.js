@@ -136,6 +136,8 @@ feature('routes take registered domains and unique addresses', {
             subject: 'Forum notice',
             bodyScreenLocation: 'component://mr-pass/test/Forum/NoticeEmail.xml',
         })
+        // the operator registers the deployment's sender for this site (mantle@forum-sender-sites, SEC-PFS-99)
+        setConf('mantle@forum-sender-sites', 'community@example.test=' + siteId)
         run(D + 'store#MailSettings', {
             siteId,
             senderAddress: 'community@example.test',

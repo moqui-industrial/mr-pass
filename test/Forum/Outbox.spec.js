@@ -128,6 +128,8 @@ feature('prepare a registered sender and independent recipients', {
                 })
             }
         })
+        // the operator registers the deployment's sender for this site (mantle@forum-sender-sites, SEC-PFS-99)
+        setConf('mantle@forum-sender-sites', 'community@example.test=' + siteId)
         run(D + 'store#MailSettings', {
             siteId,
             senderAddress: 'community@example.test',
