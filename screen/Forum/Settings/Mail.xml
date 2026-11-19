@@ -190,6 +190,15 @@
         </render-mode>
       </widgets>
     </section>
+    <!-- while the operator names no forum inbound account (mantle@forum-inbound-accounts), no route's mail is read (SEC-PFS-85) -->
+    <section name="PassMailNoInboundAccountSection" condition="view.forms.some(form =&gt; form.op === 'storeRoute')
+            &amp;&amp; !String(ec.factory.getConfValue('mantle@forum-inbound-accounts') || '').trim()">
+      <widgets>
+        <render-mode>
+          <text type="html"><![CDATA[<p class="pass-notice" id="PassMailNoInboundAccount"><strong>Mail to these routes is not read yet.</strong> The server's operator has named no forum inbound mail account (mantle@forum-inbound-accounts), so a route saved here takes no mail until one is named.</p>]]></text>
+        </render-mode>
+      </widgets>
+    </section>
     <section name="PassMailStoreRouteSection" condition="view.forms.some(form =&gt; form.op === 'storeRoute')">
       <widgets>
         <render-mode>

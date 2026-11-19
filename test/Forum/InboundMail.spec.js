@@ -481,21 +481,27 @@ feature('a hard bounce for a forum notice stops email to that member', {
 })
 feature('the mail screen shows routes and masked inbound outcomes', {
     when() {
-        const out = ec.screen
-            .makeTest()
-            .rootScreen('component://mr-pass/screen/Pass.xml')
-            .render(
-                'Forum/Settings/Mail',
-                {
-                    resolvedSiteId: siteId,
-                    publicHost: 'inbound.example.test',
-                    publicPath: '/forum',
-                },
-                null,
-            )
-        return { html: out.output, errors: out.errorMessages }
+        const render = () =>
+            ec.screen
+                .makeTest()
+                .rootScreen('component://mr-pass/screen/Pass.xml')
+                .render(
+                    'Forum/Settings/Mail',
+                    {
+                        resolvedSiteId: siteId,
+                        publicHost: 'inbound.example.test',
+                        publicPath: '/forum',
+                    },
+                    null,
+                )
+        const out = withConf('mantle@forum-inbound-accounts', '', render)
+        // with an inbound account named, no notice that routes take no mail (SEC-PFS-85)
+        const named = withConf('mantle@forum-inbound-accounts', 'SOME_ACCOUNT', render)
+        return { html: out.output, errors: out.errorMessages, namedHtml: named.output }
     },
-    then({ html, errors }) {
+    then({ html, errors, namedHtml }) {
+        html.includes('PassMailNoInboundAccount')
+        !namedHtml.includes('PassMailNoInboundAccount')
         errors.length === 0
         html.includes('support@lists.example.test')
         html.includes('Inbound messages')
