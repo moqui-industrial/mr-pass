@@ -984,7 +984,8 @@ the address, and the group's or the repository's Owner imports the archive and i
 4. **Spam.** Mail the gateway marked as spam (the listener's Junk folder, or `X-Spam-Flag`, `X-Spam-Status` or `X-Spam`
    on the message) is never posted and its sender is not answered: from an account it is held in the review queue with
    the reason `mail-verdict`; from any other address only its receipt is kept (Mail settings, Inbound messages).
-5. **Importing an archive.** Put the old list's mbox file in `pass@import-dir`, take its SHA-256 (`shasum -a 256`), and
+5. **Importing an archive.** Put the old list's mbox file in the site's own directory under `pass@import-dir`
+   (`<import-dir>/<siteId>/`, so one site's staff name no other site's file), take its SHA-256 (`shasum -a 256`), and
    start the import with the file's name and the checksum ("Import an archive"). Messages become topics and posts
    with their dates, threaded by `Message-ID`, `In-Reply-To` and `References`; an author is a profile with no account,
    kept by the hash of the address, and the posts become a person's own when an account verifies that address. No

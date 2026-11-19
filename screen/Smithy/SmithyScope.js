@@ -297,7 +297,8 @@ function listSettings(c, scope, siteId, siteInfo, self) {
     return out
 }
 /* The import of a list's archive (Dogfood §6.3; on the model of Forum/Settings/Import): the operator puts the mbox file in
- * the server's import directory, and the run is started here by the file's name and checksum (importMbox). The page of a
+ * the site's own directory under the server's import directory (<import-dir>/<siteId>/), and the run is started here by
+ * the file's name and checksum (importMbox). The page of a
  * run (?importId=, where the start's answer leads) shows its progress and what was not carried. Starting the same archive
  * again resumes it: nothing is made twice. */
 const REPORT = [
@@ -323,7 +324,7 @@ function listImport(c, scope, siteId, self) {
     const known = REPORT.map(([name]) => name)
     return h`<section class="card" id="SmithyListImport"><h2>Import an archive</h2><p>An mbox file of the old list becomes topics and posts here, threaded by Message-ID, In-Reply-To and References, with their dates. An author is a profile by address, which the person makes theirs by registering with that address. No mail is sent.</p>${
         found?.error ? h`<p role="alert" class="error">${found.error.message}</p>` : ""
-    }${f.error?.notFound ? h`<p id="SmithyListImportMissing">No file of that name is in the server's import directory.</p>` : ""}${
+    }${
         run
             ? h`<div id="SmithyListImportRun"><h3 class="wrap">${run.sourceName || run.archiveName} <small class="smithy-chip">${run.stage}${
                   run.runState ? " · " + run.runState : ""
@@ -348,7 +349,7 @@ function listImport(c, scope, siteId, self) {
             value: run?.archiveName || "",
             required: true,
             maxlength: 200,
-            hint: "The name of an mbox file in the server's import directory (Deployment, Mailing lists)."
+            hint: "The name of an mbox file in this site's directory under the server's import directory (Deployment, Mailing lists)."
         }
     )}${input(f, "checksum", "SHA-256 checksum of the file", {required: true, maxlength: 64, pattern: "[0-9A-Fa-f]{64}", autocomplete: "off"})}${input(
         f,
