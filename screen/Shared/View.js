@@ -124,6 +124,13 @@ const definitions = {
                 text('reason', 'Reason'),
                 field('expectedRevision', 'Current revision', 'number'),
             ]),
+            form('setPostHistory', 'Hide or show the earlier versions', [
+                field('history', 'Earlier versions are', 'select', [
+                    'hidden',
+                    'shown',
+                ]),
+                text('reason', 'Reason'),
+            ]),
         ],
     },
     Categories: {
@@ -1707,7 +1714,9 @@ function load(name, siteId, parameters, bases, identity, scope) {
                 view.forms = view.forms.filter((f) => f.op !== 'appealReview')
         }
         if (name === 'PostHistory') {
-            view.forms = data.canRestore ? view.forms : []
+            view.forms = view.forms.filter((f) =>
+                f.op === 'setPostHistory' ? data.canSetHistory : data.canRestore,
+            )
             view.formValues.restorePostRevision = {
                 expectedRevision: data.revision,
             }
