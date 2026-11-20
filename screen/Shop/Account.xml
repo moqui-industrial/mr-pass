@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- AccountOverview (design-shop §9; impl-shop P6): a signed-in verified buyer's purchases in this store (getShopAccount: recent orders, those in progress, downloads, their invoices) and the store's account links; the PASS Account hub shows the same summary as its Shop card. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your account">
   <!-- pre-actions: run before the PASS shell renders, so a redirect leaves at once (F78) -->
   <pre-actions>

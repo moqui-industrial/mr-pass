@@ -8,7 +8,7 @@
     the provider returns to Register's ?ref=&returnToken=, which reads the state, and the verified result decides. Plain HTML: the payer
     presses Continue (PASS's Marketing pages carry no script). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Payment">
   <actions>
     <script><![CDATA[

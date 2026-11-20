@@ -7,7 +7,7 @@
     Feedback, which a resolved case's feedback invitation opens with its token. Every page calls the authority through
     pass.Facade.call#Operation only (Support.js, Shared/Portal.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Support">
   <always-actions>
     <set field="passApp" value="support"/>

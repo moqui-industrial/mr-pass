@@ -5,7 +5,7 @@
     a customer administrator or the customer's own account; the customer label of each status, dates and whether it waits for a
     reply, 30 to a page (Older cases: the list's opaque cursor). No team, agent or other customer. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="My cases">
   <actions>
     <script><![CDATA[

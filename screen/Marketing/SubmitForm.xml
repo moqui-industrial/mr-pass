@@ -11,7 +11,7 @@
     shows its lead rule's notice of the follow-up above Send; its answer, once kept, is handed to the organization's Sales queue on the
     server (MarketingLeads.js), never from the page. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Form">
   <transition name="submit" method="post">
     <actions>

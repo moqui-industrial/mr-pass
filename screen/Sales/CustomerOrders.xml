@@ -6,7 +6,7 @@
     your PO, the customer when the account acts for several, placed, total, state, delivery and billing, 20 to a page. A bearer
     link never lists; a store's orders are its Shop's. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="My orders">
   <actions>
     <script><![CDATA[

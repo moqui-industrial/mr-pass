@@ -3,7 +3,7 @@
 <!-- Releases (design-smithy §13.3), at -/releases: the repository's releases newest first with their notes and files
     (findReleases; a draft for a Maintainer alone), by cursor, and New release from a tag for a Maintainer (storeRelease). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Releases">
   <actions>
     <script><![CDATA[

@@ -23,7 +23,7 @@
     address of one of the site's hosts, with the request's query. DG8 adds Import (Smithy/SmithyImport.js): a GitHub import's
     page and the site's imports, the Import tab of a group's Settings and the Mirrors tab of a repository's. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Code">
   <always-actions>
     <set field="passApp" value="smithy"/>

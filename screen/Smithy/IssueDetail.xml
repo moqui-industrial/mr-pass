@@ -7,7 +7,7 @@
     (asked again on ?confirm=confidential). Every form posts to Smithy/Do. A confidential issue is marked for those who see
     it and Not Found for everyone else, as an issue that does not exist is. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Issue">
   <parameter name="repositoryId"/>
   <parameter name="namePath"/>

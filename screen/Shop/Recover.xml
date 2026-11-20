@@ -6,7 +6,7 @@
     capability rotated into this session, repriced, its unavailable lines named) and opens the cart. A spent, expired or
     another account's link gets the not-available page. Shop/ShopRecovery.js; no-store. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your cart">
   <transition name="restore" method="post">
     <actions>

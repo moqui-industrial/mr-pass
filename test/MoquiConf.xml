@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-moqui-conf.xsd">
   <pass-authority verification-template="PASS_TEST_VERIFY" sso-flows="PASS_TEST_SSO">
     <client id="test" sites="PASS_AUTH,PASS_HTTP,ZIZI_SHOP,ZIZI_DIGITAL" callback="https://frontend.example.test/account/Sso"
         secret="test-deployment-secret"/>

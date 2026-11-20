@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- PaymentResult (design-shop §6 PaymentResult; impl-shop P5): a submitted checkout's payment for its reference (the key kept in the session): pending with the provider's page to continue to, unknown, approved and placing, or not completed with the way back; polled with backoff (Checkout/enhance), never inferring paid or declined from time. A placed order goes to OrderConfirmation. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Payment">
   <transition name="state" method="get" read-only="true">
     <actions>

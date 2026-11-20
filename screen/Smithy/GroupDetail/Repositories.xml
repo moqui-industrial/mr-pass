@@ -3,7 +3,7 @@
 <!-- GroupRepositories (design-smithy §6 GroupRepositories): subgroups first, then the group's repositories with a filter and
     a sort, a GET form (findGroups, findRepositories). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Repositories">
   <actions>
     <script><![CDATA[

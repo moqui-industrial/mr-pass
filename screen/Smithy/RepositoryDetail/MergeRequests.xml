@@ -5,7 +5,7 @@
     (findMergeRequests). One held for review is listed for its author alone. Not Found where merge requests are off. Never
     kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Merge requests">
   <actions>
     <script><![CDATA[

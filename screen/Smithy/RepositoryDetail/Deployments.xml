@@ -4,7 +4,7 @@
     newest first, a page at a time (findDeployments), and Request deploy for a Developer (requestDeploy: an environment and
     a branch, whose head is deployed). Not Found where pipelines are off. Never kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Deployments">
   <pre-actions>
     <script><![CDATA[

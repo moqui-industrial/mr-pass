@@ -4,7 +4,7 @@
     With a published theme it is the release's home page; without one the store's name, its featured products or the empty
     state in the PASS shell (Shop/Catalog.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Home">
   <always-actions>
     <script>shopPage=ec.resource.script('component://mr-pass/screen/Shop/Catalog.js').show(shopContext,'home',{})</script>

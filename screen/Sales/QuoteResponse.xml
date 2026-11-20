@@ -5,7 +5,7 @@
     customer's PO, the order and what happens next, the issued PDF and the seller's contact. A second click of the same link shows
     the same receipt; before a response, and for a link that is wrong, expired or revoked, it is "not available". -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Receipt">
   <actions>
     <script><![CDATA[

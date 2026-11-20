@@ -4,7 +4,7 @@
     to the page transition and /preview/{token}/asset/{path} to the asset transition on a site's preview host, and nothing
     else; on any other host this screen is Not Found (Pass.xml sets passPreview). Shop/ShopPreview.js renders the draft with
     the preview's own headers (no-store, noindex, frame-ancestors the BOSS origins). -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-include="false">
   <always-actions>
     <script><![CDATA[

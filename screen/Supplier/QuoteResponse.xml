@@ -5,7 +5,7 @@
     the supplier's offer private; Send quote submits it for the buyer's review and answers a receipt, and a repeat answers
     the first receipt. Each line is its own block, so a phone shows one line at a time. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Quote">
   <transition name="respond" method="post">
     <actions>

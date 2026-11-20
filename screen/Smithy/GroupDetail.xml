@@ -6,7 +6,7 @@
     Moderation (Smithy/Moderation) and Settings. DG7: the Overview has the group's landing text, latest release, news and
     activity; the addons transition serves the group's addons.xml. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Group">
   <parameter name="groupId"/>
   <parameter name="namePath"/>

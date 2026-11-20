@@ -6,7 +6,7 @@
     how to fetch it, and the merge box: the allowed methods for who may merge, or why it is refused. A merge and a close
     are asked again on ?confirm=. Every form posts to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Overview">
   <actions>
     <script><![CDATA[

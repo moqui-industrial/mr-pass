@@ -4,7 +4,7 @@
     WebrootPublic.qvt.js over the plain form ShopCart.js makes): the quote transition answers the price of a variant and
     quantity as JSON (quoteSelection; nothing is added); adding goes to Cart/add. The screen itself shows nothing. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Purchase">
   <transition name="quote" method="get" read-only="true">
     <actions>

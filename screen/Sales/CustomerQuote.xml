@@ -8,7 +8,7 @@
     quote's page shows its receipt (QuoteResponse). A link that is wrong, expired, revoked or of an offer no longer open shows
     the same "not available". Plain HTML forms; the PDF downloads through the facade. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Quote">
   <transition name="respond" method="post">
     <actions>

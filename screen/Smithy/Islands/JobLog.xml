@@ -4,7 +4,7 @@
     lines after what the page shows, from the log's JSON (PipelineDetail's log transition), when the notification socket
     says the log grew and every few seconds besides, and stops when the job has ended. The screen shows nothing of its own. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Job log">
   <widgets>
     <render-mode>

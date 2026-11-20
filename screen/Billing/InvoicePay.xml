@@ -5,7 +5,7 @@
     the attempt and shows what the gateway says, never what the return's parameters claim. The return's reference alone
     shows only the attempt's state; the invoice and the payment's amount need the link or a sign-in (SEC-PSS-27). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Invoice">
   <transition name="pay" method="post">
     <actions>

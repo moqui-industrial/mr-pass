@@ -4,7 +4,7 @@
     link (token) or a signed-in contact of its supplier (orderId). The file is scanned before the incoming draft bill is
     made; a repeat answers the first submission, and nothing here approves a bill. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Bill upload">
   <transition name="submit" method="post">
     <actions>

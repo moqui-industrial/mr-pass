@@ -6,7 +6,7 @@
     (downloaded through the facade), the customer's evidence and a form to add more, and withdraw before any physical or
     financial effect; after it, ask an agent. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Return">
   <transition name="evidence" method="post">
     <actions>

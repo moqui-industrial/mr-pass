@@ -4,7 +4,7 @@
     GET form whose choice is redirected to the tree's address), the path's breadcrumb and last commit, and the directory's
     README rendered by the authority; an empty repository shows the push instructions. A path that is a file goes to Blob. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Files">
   <pre-actions>
     <script><![CDATA[

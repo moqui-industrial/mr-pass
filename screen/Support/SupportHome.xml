@@ -5,7 +5,7 @@
     a case: My cases, My returns and Contact us for a signed-in customer, sign in otherwise. A failed search never blocks a
     case. The outside-working-hours notice of the first offered queue. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Help">
   <actions>
     <script><![CDATA[

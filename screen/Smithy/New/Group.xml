@@ -4,7 +4,7 @@
     requestGroup), or with ?parent=<groupPath> a subgroup by its Owner (createSubgroup); the page says which policy applies
     and what happens next. The form posts to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="New group">
   <actions>
     <script><![CDATA[

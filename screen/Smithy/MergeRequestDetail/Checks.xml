@@ -5,7 +5,7 @@
     linked to its run, the notice when the head changes ci.xml, and the head's pipeline runs with their jobs and failed
     tests, with Approve and run for a run that waits (SmithyPipelines.js requestRuns). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Checks">
   <actions>
     <script><![CDATA[

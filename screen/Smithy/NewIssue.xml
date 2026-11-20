@@ -5,7 +5,7 @@
     Reporter labels, assignees and milestone. The form posts to Smithy/Do (createIssue, previewPost). A visitor is sent to
     sign in, and an account without a confirmed address is told to confirm it. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="New issue">
   <parameter name="repositoryId"/>
   <parameter name="namePath"/>

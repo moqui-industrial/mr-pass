@@ -8,7 +8,7 @@
     nothing: a visitor is asked to sign in or register with that address and comes back; an account posts the message
     with the form (claimHeldMail, which needs the account's confirmed address to be the sender's and passes the forum's
     own post gate). A link that was used or has expired says so. A message is kept for 30 days. -->
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd" require-authentication="false" default-menu-include="false">
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd" require-authentication="false" default-menu-include="false">
   <parameter name="token"/>
   <transition name="claim" method="post">
     <parameter name="token"/>

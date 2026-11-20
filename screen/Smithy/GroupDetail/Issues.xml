@@ -4,7 +4,7 @@
     that the caller may view (findIssues with groupId), each row with its repository. New issue asks for the repository
     first (a GET form whose choice the pre-actions redirect to that repository's new-issue page). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Issues">
   <parameter name="groupId"/>
   <pre-actions>

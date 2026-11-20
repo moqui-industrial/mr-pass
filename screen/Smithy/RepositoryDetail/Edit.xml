@@ -6,7 +6,7 @@
     branch with a merge request, a proposal). The steps post to Smithy/Do (editFile, previewPost, commitFile); a conflict
     shows both texts and asks. The agreement's file has the instructions for signing it. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Edit">
   <parameter name="editAction"/>
   <actions>

@@ -5,7 +5,7 @@
     before anything renders). The head may be a fork's ref (<path>:<ref>); when it is ahead the page links to the new merge
     request's form. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Compare">
   <parameter name="repositoryId"/>
   <parameter name="namePath"/>

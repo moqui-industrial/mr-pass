@@ -6,7 +6,7 @@
     setQuota) and (DG7) Redirects, the table of old paths (findRedirects, storeRedirect, deleteRedirect, importRedirects;
     Smithy/SmithySite.js). The forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Site settings">
   <parameter name="tab"/>
   <actions>

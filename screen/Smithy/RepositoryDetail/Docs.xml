@@ -5,7 +5,7 @@
     form whose choice is redirected), the table of contents, the page's headings, Edit this page and the docs search box;
     its relative links made Docs, Blob and raw links (Smithy/SmithySite.js docs). Not Found where docs are off. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Docs">
   <pre-actions>
     <script><![CDATA[

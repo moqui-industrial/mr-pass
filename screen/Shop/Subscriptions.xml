@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Subscriptions (design-shop §10 Subscriptions, SubscriptionDetail; impl-shop P7): the signed-in verified buyer's subscriptions with billing and access apart and the store's offers (SubscriptionList, getSubscriptions); one subscription (SubscriptionDetail, routed from Subscriptions/{contractId}); and its forms: Subscribe or RenewPrepaid (beginSubscriptionPurchase, then the checkout), ChangeMethod, CancelRenewal and ResolveRenewal. PublicSite.subscriptionUrl points here. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your subscriptions">
   <transition name="purchase" method="post">
     <actions>

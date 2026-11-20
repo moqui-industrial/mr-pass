@@ -4,7 +4,7 @@
     content repository, its links made that repository's pages), else its description; its pinned repositories, the latest
     release, news and activity (getGroupLanding), and its subgroups (findGroups). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Overview">
   <actions>
     <script><![CDATA[

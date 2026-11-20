@@ -4,7 +4,7 @@
     of escaped text with the commits linked; a file with no blame (binary, in Git LFS, too large, a history past the limit)
     shows the refusal's text. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Blame">
   <actions>
     <script><![CDATA[

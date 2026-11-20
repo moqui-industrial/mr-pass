@@ -10,7 +10,7 @@
     place's refund shows pending until the provider's result. Another attendee's answers are never shown. An unknown, expired or
     another site's capability shows the same "not available". Plain HTML. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Registration">
   <transition name="showTicket" method="post">
     <actions>

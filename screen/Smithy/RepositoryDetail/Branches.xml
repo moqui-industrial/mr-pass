@@ -4,7 +4,7 @@
     and behind, Protected, Compare. A Developer creates a branch from a ref (createRef) and a Maintainer deletes one after
     confirming (deleteRef); those forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Branches">
   <actions>
     <script><![CDATA[

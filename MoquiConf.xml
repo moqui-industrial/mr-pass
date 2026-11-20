@@ -6,7 +6,7 @@
     kept and the browser does not ask not to be tracked), reaches the authority only through PASS's facade and transport (in process,
     REST or gRPC) by the two schema operations resolveTrackingLink and recordTrackingEvent, and answers the redirect or the image even
     when recording fails; a destination never comes from the request. docs/Deployment.md "Marketing app: Tracking links". -->
-<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-moqui-conf.xsd">
     <!-- PASS's settings (docs/Deployment.md), each also an environment name (moqui_conf__pass__backend_url) and the same on
         an authority that runs Mantle without mr-pass, which reads the media, import, scanner and mail ones. The authority:
         backend-url its final https origin (empty: local mode, with Mantle in this runtime; edge: the edge node's link),

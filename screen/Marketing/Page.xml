@@ -14,7 +14,7 @@
     already holds only where its policy allows and the browser does not ask not to be tracked, and limits it), once the page is read;
     the page sets no cookie and shows the same whatever is recorded. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Page">
   <parameter name="routePath"/>
   <parameter name="tc"/>

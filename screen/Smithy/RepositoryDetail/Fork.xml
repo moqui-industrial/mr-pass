@@ -4,7 +4,7 @@
     group where it may create (forkRepository; the page names the source and is the confirmation), and the repository's
     forks the caller may view (findForks). A visitor is sent to sign in. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Fork">
   <actions>
     <script><![CDATA[

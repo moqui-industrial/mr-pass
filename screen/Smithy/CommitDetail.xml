@@ -4,7 +4,7 @@
     parents, its statuses, the issues it names (those the caller may see; any other only in a count), the file list with
     counts, and the diff rendered on the server as unified text. A commit of a repository the caller may not view, and an id it does not have, are Not Found. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Commit">
   <parameter name="repositoryId"/>
   <parameter name="namePath"/>

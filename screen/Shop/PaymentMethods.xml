@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- PaymentMethods (design-shop §9 PaymentMethods; impl-shop P6): the buyer's cards, masked, with the recurring orders each pays (getPaymentMethods); add goes to the store gateway's hosted setup page (beginPaymentMethodSetup) and return asks the provider for the cards (finishPaymentMethodSetup); end names the orders it affects and needs confirming (endPaymentMethod). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Payment methods">
   <transition name="add" method="post">
     <actions>

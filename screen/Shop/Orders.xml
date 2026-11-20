@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Orders (design-shop §9 Orders, OrderDetail; impl-shop P6): the buyer's orders (OrderList), one order (OrderDetail, routed from Orders/{orderId}), an emailed order link (Status, kept in the session and the address cleaned), an invoice (Document), and reorder. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your orders">
   <transition name="reorder" method="post">
     <actions>

@@ -6,7 +6,7 @@
     helpful? with an optional comment once per view (its nonce) and a limit per requester (rateArticle); Contact support citing
     the article. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Article">
   <transition name="rate" method="post">
     <actions>

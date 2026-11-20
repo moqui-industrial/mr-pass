@@ -12,7 +12,7 @@
     their last push and error, Push now, a secret written and never shown again; a server whose framework has no push mirrors
     says so). The forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Settings">
   <parameter name="tab"/>
   <pre-actions>

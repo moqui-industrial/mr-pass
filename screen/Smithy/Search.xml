@@ -5,7 +5,7 @@
     narrowed to a group or a repository by ?in=<path>; several kinds give ten results each, one kind is paged. Never kept
     by a cache (Shared/Headers.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Search">
   <actions>
     <script><![CDATA[

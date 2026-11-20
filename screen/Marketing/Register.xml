@@ -16,7 +16,7 @@
     An unknown, draft, closed or past offer and a lost or another site's reservation show the same "not available". Plain HTML
     without JavaScript; PASS's default headers (no-store, the shell's CSP, a same-origin referrer policy). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Register">
   <transition name="reserve" method="post">
     <actions>

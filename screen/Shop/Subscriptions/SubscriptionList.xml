@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- SubscriptionList (design-shop §10 Subscriptions; impl-shop P7): the buyer's subscriptions, billing and access apart, and the store's offers (getSubscriptions). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your subscriptions">
   <!-- pre-actions: run before the PASS shell renders, so a redirect leaves at once (F78) -->
   <pre-actions>

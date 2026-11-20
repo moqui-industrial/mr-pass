@@ -3,7 +3,7 @@
 <!-- Explore (design-smithy §6 Explore): the groups and repositories the caller may view (findGroups, findRepositories), with
     one search field and a kind filter, a GET form, and (DG7) the component directory (findComponents). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Explore">
   <actions>
     <script><![CDATA[

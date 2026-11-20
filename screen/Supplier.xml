@@ -5,7 +5,7 @@
     its token, and OrderAcknowledgement, which a purchase order's link opens with BillUpload beside it, are Purchasing's
     (mantle.order.SupplierPortalServices, impl-purchasing P16). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Supplier">
   <always-actions>
     <set field="passApp" value="supplier"/>

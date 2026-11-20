@@ -4,7 +4,7 @@
     version (Commerce P4's get#SitePage by mount, route and locale, through getShopPage's page kind); a route with no live
     page is redirected when the site redirects it, else the not-found page (Shop/Catalog.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Page">
   <parameter name="routePath"/>
   <always-actions>

@@ -4,7 +4,7 @@
     its live Shop pages by title, a page at a time; no-match, an invalid query and an unavailable search are their own
     states; a search with a query is noindex (getShopPage's search kind; Shop/Catalog.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Search">
   <always-actions>
     <script><![CDATA[

@@ -6,7 +6,7 @@
     revised. A subcontract order shows its service lines and the components in custody; a drop-ship order takes the
     supplier's delivery report for the buyer to confirm. Each line is its own block, so a phone shows one at a time. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Purchase order">
   <transition name="acknowledge" method="post">
     <actions>

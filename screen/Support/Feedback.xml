@@ -8,7 +8,7 @@
     framework's /js/moqui-form-when.js itself (CSP script-src 'self') for the show and require rules in the browser. A
     forged, expired or withdrawn link shows only guidance. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Feedback">
   <transition name="submit" method="post">
     <actions>

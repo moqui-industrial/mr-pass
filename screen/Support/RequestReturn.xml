@@ -7,7 +7,7 @@
     refund; a line outside self-service says to ask us. A guest's order link reads; its request needs the code "Email me a code"
     mails to the order's address (sendOrderChangeCode, SEC-PSS-23). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Request a return">
   <transition name="submit" method="post">
     <actions>

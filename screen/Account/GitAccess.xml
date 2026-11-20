@@ -4,7 +4,7 @@
     Remove; a new token is shown once, on the page after its form. Smithy's page in the Account app: its forms post to
     Smithy/Do, and it is Not Found on a site that mounts no Smithy. Never kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Git access">
   <actions>
     <script><![CDATA[

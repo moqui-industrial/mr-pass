@@ -3,7 +3,7 @@
 <!-- NewRepository (design-smithy §6 NewRepository): a repository in the account's own namespace or in a group where it is a
     Maintainer (findGroups mine, createRepository), ?namespace=<groupPath> choosing the group. The form posts to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="New repository">
   <actions>
     <script><![CDATA[

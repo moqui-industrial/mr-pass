@@ -5,7 +5,7 @@
     offer's own words and a request key; and SubscriptionReceipt, the same neutral answer whatever happened (no address or
     membership echoed). A site without the mount, or a list it does not offer, shows the same "not available". Plain HTML. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Subscribe">
   <transition name="request" method="post">
     <actions>

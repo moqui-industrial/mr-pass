@@ -7,7 +7,7 @@
     public is the not-found page, the same for a draft, an excluded variant and another store's product. The head carries
     the schema.org product data of what the page shows (Shop/Catalog.js). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Product">
   <parameter name="productId"/>
   <parameter name="productSlug"/>

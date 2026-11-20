@@ -10,7 +10,7 @@
     reads; its request and cancel need the code "Email me a code" mails to the order's address (sendOrderChangeCode,
     SEC-PSS-23). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="New request">
   <transition name="submit" method="post">
     <actions>

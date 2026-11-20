@@ -6,7 +6,7 @@
     (findGitHubImports). An import starts on the Import tab of a group's Settings. Not Found for anyone else
     (Smithy/SmithyImport.js). The forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Import">
   <parameter name="importId"/>
   <actions>

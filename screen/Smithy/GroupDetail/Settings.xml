@@ -8,7 +8,7 @@
     Import (DG8, Smithy/SmithyImport.js groupImport: a GitHub repository's import started, the group's imports listed, each
     linked to its page at import/<importId>). The forms post to Smithy/Do. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Settings">
   <parameter name="tab"/>
   <pre-actions>

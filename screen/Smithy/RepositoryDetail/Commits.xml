@@ -3,7 +3,7 @@
 <!-- Commits (design-smithy §7 Commits): the history of a ref, or of a path at a ref, by day (findCommits), 30 to a page, Older
     by the last commit's id. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Commits">
   <actions>
     <script><![CDATA[

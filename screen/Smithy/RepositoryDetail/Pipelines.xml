@@ -4,7 +4,7 @@
     event and state in a GET form, by cursor (findPipelineRuns), and Run pipeline for a Developer (runPipeline, with the
     manual pipelines of the default branch's ci.xml). Not Found where pipelines are off. Never kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Pipelines">
   <pre-actions>
     <script><![CDATA[

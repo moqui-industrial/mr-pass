@@ -5,7 +5,7 @@
     for the customer, or the customer's own verified account), each quote's latest issue: reference, the customer when the
     account acts for several, issued, validity, total and state, 20 to a page. A bearer link never lists. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="My quotes">
   <actions>
     <script><![CDATA[

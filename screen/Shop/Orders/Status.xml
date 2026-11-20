@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Status (impl-shop P6, F82): the SalesOrder link a guest is sent (the confirmation's, the download notice's): its order checked, the link kept in the session for that order, and the order's page opened without it in the address. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your order">
   <!-- pre-actions: run before the PASS shell renders, so a redirect leaves at once (F78) -->
   <pre-actions>

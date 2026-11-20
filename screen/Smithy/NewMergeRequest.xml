@@ -5,7 +5,7 @@
     (getCompare), then title, text (a Markdown textarea with a server preview; the composer's island where JavaScript
     runs), draft and, for a Developer, reviewers. The form posts to Smithy/Do (createMergeRequest, previewPost). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="New merge request">
   <parameter name="repositoryId"/>
   <parameter name="namePath"/>

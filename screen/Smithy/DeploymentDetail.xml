@@ -7,7 +7,7 @@
     reason, asked again on ?confirm=refuse) for an approver, Cancel (asked again on ?confirm=cancel) for who may cancel it,
     each a post to Smithy/Do. A deployment the caller may not read is Not Found. Never kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Deployment">
   <parameter name="repositoryId"/>
   <parameter name="namePath"/>

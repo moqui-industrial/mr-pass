@@ -8,7 +8,7 @@
     Read only: no edit, cancel, reorder or payment here. A link's token is kept in this session for its order, so Support takes
     it for that order (Sales.js keepOrderLink). A link that is wrong, expired or of an order not shown reads "not available". -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Order">
   <transition name="document" method="get" read-only="true">
     <actions>

@@ -9,7 +9,7 @@
     site's brand. The release's assets are under the mount at theme/{manifest digest}/{path} (resolve#Route). P3's catalog
     pages (Home, Categories, CategoryDetail, Search, ProductDetail, Page) render through Shop/Catalog.js. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Shop">
   <always-actions>
     <script><![CDATA[

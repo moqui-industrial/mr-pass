@@ -9,7 +9,7 @@
     ([[event ID]], Page). P17: its Register link opens the Register page while registration is open. Plain HTML without JavaScript; the route keeps PASS's default headers
     (no-store, the shell's CSP). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Event">
   <parameter name="offer"/>
   <!-- the lookup in pre-actions, before the shell writes the response, so a Not Found is the response's 404 -->

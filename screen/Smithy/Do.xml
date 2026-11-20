@@ -7,7 +7,7 @@
     form's text as the authority renders it, to the form's next page or as JSON to the composer's island. Nothing here is
     kept by a cache. heldReport alone is a GET: the page of the link a held report's sender got, which writes nothing. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Do">
   <transition name="requestGroup" method="post">
     <actions>

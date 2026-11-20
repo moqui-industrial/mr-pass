@@ -4,7 +4,7 @@
     and rich text toggle and a preview in the page (Smithy/Do previewPost, answered as JSON). The form itself is posted as
     the plain page posts it. The screen shows nothing of its own. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Composer">
   <widgets>
     <render-mode>

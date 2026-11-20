@@ -2,7 +2,7 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- Addresses (design-shop §9 Addresses; impl-shop P6): the signed-in verified buyer's addresses (getAddresses), added or changed at their revision (storeAddress, a carrier's suggestion offered) and ended (endAddress). -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/mr-xml-screen.xsd"
         require-authentication="false" default-menu-title="Your addresses">
   <transition name="store" method="post">
     <actions>
