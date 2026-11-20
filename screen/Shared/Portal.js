@@ -72,6 +72,8 @@ const reasons = {
     importActive: null,
     numbersTaken: null,
     secretRequired: 'Give the secret again for the mirror’s new address, username or host key',
+    // Smithy: a deployment's lease is opened by an approver of its environment's vault; the refusal's own text says how
+    vaultApproverRequired: null,
 }
 /* A refusal's reason, field and text from its message: "CODE: text" or "CODE[field]: text", the code Mantle's UPPER_SNAKE
  * (a local refusal) or the camelCase reason the transport puts back (a remote one). */
