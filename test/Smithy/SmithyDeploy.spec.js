@@ -1,6 +1,7 @@
 // Smithy's deploy environments and deployments (Dogfood DG10; plan/design-smithy.md §10 "Deploy environments", §11 Pipelines):
 // an environment's target stored through Smithy/Do and shown on the Settings › Pipelines tab through its page function, its
-// token in no page, address or flash and an address kept without its user part after a refusal; one render of Deployments
+// token an item of the vault it names (no field takes a token) and an address kept without its user part after a refusal;
+// one render of Deployments
 // (the list and Request deploy, whose post goes to the new deployment's page) and one of DeploymentDetail (the steps with
 // the run linked, Approve and Refuse for an approver, Cancel, the authority's message escaped, a refusal whose form the
 // page does not show); and Refuse and Cancel refused through Smithy/Do without their confirmation page's answer, Refuse
@@ -11,6 +12,7 @@ const SITE = "PASS_SMITHY_DEPLOY"
 const HOST = "smithy-deploy.example.test"
 const DEV = "pass.smd.dev"
 const TOKEN = "smd-target-token-0123456789abcdef"
+const VAULT = "PSMD_VAULT"
 const R = "/code/pass-smd/deploy"
 const BASES = {smithy: "/code", account: "/account"}
 const INFO = {authenticated: true, site: {}, profile: {}}
@@ -34,12 +36,42 @@ spec({
         s.commit = made.commitId
         f.run("update#mantle.smithy.SmithyRepository", {repositoryId: s.repo, pipelinesEnabled: "Y"})
         f.account(SITE, DEV, {confirmed: true, handle: "smddev", role: "SmrDeveloper", repositoryId: s.repo})
+        // the operational vault of the target's token, john.doe a member of it (its rows, as a member's client leaves them)
+        if (!ec.entity.find("moqui.security.vault.Vault").condition("vaultId", VAULT).disableAuthz().one()) {
+            f.run("create#moqui.security.vault.Vault", {
+                vaultId: VAULT,
+                vaultKindEnumId: "VkOperational",
+                lockEnumId: "VlSharedKey",
+                ownerUserId: ec.user.userId,
+                keyVersion: 1,
+                revision: 1,
+                vaultName: "Deploy tokens"
+            })
+            f.run("create#moqui.security.vault.VaultMember", {
+                vaultId: VAULT,
+                userId: ec.user.userId,
+                keyVersion: 1,
+                roleEnumId: "VrManage",
+                fromDate: ec.user.nowTimestamp
+            })
+        }
     },
     cleanup() {
         login("john.doe")
+    },
+    cleanupSpec() {
+        for (const item of Array.from(
+            ec.entity.find("moqui.security.vault.VaultItem").condition("vaultId", VAULT).disableAuthz().list()
+        ))
+            ec.service
+                .sync()
+                .name("delete#moqui.security.vault.VaultItem")
+                .parameters({vaultItemId: item.vaultItemId})
+                .disableAuthz()
+                .call()
     }
 })
-feature("an environment's target is stored through Do and listed on Settings › Pipelines; its token is in no page, address or flash, after a refusal too", {
+feature("an environment's target is stored through Do and listed on Settings › Pipelines; its token is its vault's, in no page, address or flash", {
     when() {
         const f = fixtures()
         const {smithy, pipelines} = scripts()
@@ -53,7 +85,8 @@ feature("an environment's target is stored through Do and listed on Settings ›
             approvalRequired: "true",
             targetUrl: "https://deploy.smd.example.com",
             was_targetUrl: "",
-            token: TOKEN,
+            vaultId: VAULT,
+            was_vaultId: "",
             requiredPipeline: "deploy",
             was_requiredPipeline: "",
             dataTypes: "seed, demo",
@@ -63,8 +96,8 @@ feature("an environment's target is stored through Do and listed on Settings ›
             operationId: ec.user.randomString(32),
             returnTo: tab
         })
-        // refused (a name with a space), with a user part in the addresses (one with no scheme): neither the token nor a user
-        // part kept
+        // refused (a name with a space), with a user part in the addresses (one with no scheme) and a token, which no field
+        // takes: neither the token nor a user part kept
         const refused = f.post(SITE, HOST, "storeCiEnvironment", {
             repositoryId: s.repo,
             environmentId: "",
@@ -77,6 +110,21 @@ feature("an environment's target is stored through Do and listed on Settings ›
         })
         const listed = f.operation("findCiEnvironments", {siteId: SITE, repositoryId: s.repo})
         s.environmentId = (listed.environmentList || []).find(env => env.name === "demo")?.environmentId
+        // the token, made in the vault by a member's client: the item bound to the environment
+        if (s.environmentId)
+            committed(() =>
+                f.run("create#moqui.security.vault.VaultItem", {
+                    vaultItemId: "PSMD_TOKEN",
+                    vaultId: VAULT,
+                    keyVersion: 1,
+                    revision: 1,
+                    vaultItemTypeId: "api-key",
+                    bindingKey: "GitCiEnvironment:" + s.environmentId + ":targetToken",
+                    itemName: "demo target token",
+                    bodyCipher: "sealed",
+                    createdDate: ec.user.nowTimestamp
+                })
+            )
         const html = pipelines.repositorySettings(smithy.repositoryShell(SITE, s.repo, "/code", tab), "", BASES, INFO, tab).html
         // a delete without its confirmation page's answer is not run
         const unasked = f.post(SITE, HOST, "deleteCiEnvironment", {repositoryId: s.repo, environmentId: s.environmentId, returnTo: tab})
@@ -96,16 +144,18 @@ feature("an environment's target is stored through Do and listed on Settings ›
         refused.flash.values.cloneUrl === "https://git.smd.example.com/deploy.git"
         !JSON.stringify(refused).includes(TOKEN)
         !JSON.stringify(refused).includes("someone:pw")
-        // the list: the target, the token set but not shown, the pipeline, the approval; the edit form's token field empty
+        // the list: the target, the token in its vault and not shown, the pipeline, the approval; the edit form names the
+        // vault and has no token field
         html.includes('id="SmithyEnvironment_' + environmentId + '"')
         html.includes("<dd>https://deploy.smd.example.com</dd>")
-        html.includes("<dd>Set (not shown)</dd>")
+        html.includes("<dd>In its vault (not shown)</dd>")
         html.includes("<dd>deploy</dd>")
         html.includes("<dd>Every deployment waits for a Maintainer&#39;s approval</dd>")
         html.includes("<dt>Data types</dt><dd>seed, demo</dd>")
         html.includes('name="was_dataTypes" value="seed, demo"')
-        html.includes('<input type="password" name="token" maxlength="4096" autocomplete="new-password">')
-        html.includes("It has a token, which is not shown. Leave this empty to keep it.")
+        !html.includes('name="token"')
+        html.includes('name="was_vaultId" value="' + VAULT + '"')
+        html.includes("The operational vault that holds the target&#39;s token, which is not shown.")
         html.includes('name="was_targetUrl" value="https://deploy.smd.example.com"')
         !html.includes(TOKEN)
         !html.includes("pproverGroup")

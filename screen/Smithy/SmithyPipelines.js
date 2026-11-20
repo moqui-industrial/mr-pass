@@ -1059,14 +1059,15 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
                 autocomplete: "off",
                 hint: "The instance it deploys to: an https address (or http to 127.0.0.1 or [::1]), with no user or password in it."
             }
-        )}${input(f, "token", "Target token", {
-            type: "password",
-            secret: true,
-            autocomplete: "new-password",
-            maxlength: 4096,
+        )}${input(f, "vaultId", "Token vault", {
+            value: env?.vaultId || "",
+            was: true,
+            maxlength: 64,
+            pattern: "[A-Za-z0-9._\\-]{1,64}",
+            autocomplete: "off",
             hint: env?.hasToken
-                ? "It has a token, which is not shown. Leave this empty to keep it."
-                : "The attestation secret the target gave, at least 32 characters. It is never shown again."
+                ? "The operational vault that holds the target's token, which is not shown."
+                : "The id of an operational vault you are a member of. The target's token is an item of it, bound to GitCiEnvironment:<environment id>:targetToken, which a member makes in their client; it is never entered here."
         })}${input(f, "requiredPipeline", "Required pipeline", {
             value: env?.requiredPipeline || "",
             was: true,
@@ -1097,7 +1098,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
         return h`<article class="card smithy-row" id="SmithyEnvironment_${env.environmentId}"><h3 class="wrap">${env.name}${
             env.approvalFor === "every" ? h` <small class="smithy-chip">Approval required</small>` : ""
         }</h3><dl class="wrap"><dt>Target</dt><dd>${env.targetUrl ? plain(env.targetUrl) : environments.canChange ? "None" : "Hidden"}</dd><dt>Token</dt><dd>${
-            env.hasToken ? "Set (not shown)" : "None"
+            env.hasToken ? "In its vault (not shown)" : env.vaultId ? "Not in its vault yet" : "None"
         }</dd><dt>Required pipeline</dt><dd>${env.requiredPipeline ? plain(env.requiredPipeline) : "None"}</dd><dt>Approval</dt><dd>${
             env.approvalFor === "every"
                 ? "Every deployment waits for a Maintainer's approval"
@@ -1116,7 +1117,7 @@ function repositorySettings(shell, head, bases, siteInfo, self) {
         }</article>`
     })
     const freshEnv = formOf(c, "storeCiEnvironment")
-    const envHtml = h`<section id="SmithyEnvironments" aria-label="Environments"><h3>Environments</h3><p>An environment's secrets are given only to the runs its rules allow. With a target, a token and a required pipeline, a Developer deploys a branch's head to it from Pipelines › Deployments.</p>${
+    const envHtml = h`<section id="SmithyEnvironments" aria-label="Environments"><h3>Environments</h3><p>An environment's secrets are given only to the runs its rules allow. With a target, its token in a vault and a required pipeline, a Developer deploys a branch's head to it from Pipelines › Deployments.</p>${
         envRows.length ? envRows : h`<p class="card">This repository has no environment.</p>`
     }${
         environments.canChange

@@ -1728,12 +1728,12 @@ const DO = {
     // DG10: and its deploy target; the token is sent only when typed and never kept for the next page (SECRET), the target's
     // and the clone's addresses are kept without a user part (inputOf)
     storeCiEnvironment: {
-        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "targetUrl", "requiredPipeline", "dataTypes", "cloneUrl", "operationId"],
-        optional: ["token"],
+        // the target's token is no field: an item of the vault named (vaultId), which a member makes in their client
+        fields: ["repositoryId", "environmentId", "name", "allowedRefs", "targetUrl", "vaultId", "requiredPipeline", "dataTypes", "cloneUrl", "operationId"],
         flags: ["approvalRequired"],
         // the texts are sent only when changed (the form shows the value it read beside each)
-        changed: ["allowedRefs", "targetUrl", "requiredPipeline", "dataTypes", "cloneUrl"],
-        // and what the engine cleared for the change (SEC-GIT-91): the secrets' values or the target's token, to give again
+        changed: ["allowedRefs", "targetUrl", "vaultId", "requiredPipeline", "dataTypes", "cloneUrl"],
+        // and what the engine cleared for the change (SEC-GIT-91): the secrets' values, to give again
         notice: result => "The environment was saved." + (result?.cleared ? " " + String(result.cleared) : "")
     },
     deleteCiEnvironment: {fields: ["repositoryId", "environmentId"], confirm: true, notice: () => "The environment was deleted."},

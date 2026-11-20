@@ -1292,10 +1292,12 @@ commit with no passed run of the pipeline, is the framework's. **Operations** `f
 `storeCiEnvironment`, `deleteCiEnvironment`, `findDeployments`, `getDeployment`, `requestDeploy`, `decideDeploy`,
 `cancelDeploy`. Refined in DG10.
 
-**Settings › Pipelines › Environments** (Maintainer): each environment's name, target URL, whether it has a token,
+**Settings › Pipelines › Environments** (Maintainer): each environment's name, target URL, whether its vault holds its token,
 required pipeline, who waits for a Maintainer's approval (every deployment, or only one of a branch no rule protects), data types, allowed branches, clone URL and last deployment; add and
-edit (an https target and a clone URL with no user part, the token write-only: never echoed, kept after a save left
-empty), Delete asked again. **Deployments** at `B/<repositoryPath>/-/pipelines/deployments` (Developer): the
+edit (an https target and a clone URL with no user part, and the vault of the target's token, an operational vault the
+Maintainer is a member of: the token is that vault's item bound to `GitCiEnvironment:<environmentId>:targetToken`,
+made by a member in their client, and no field takes it; plans/Vault-Instances.md §4.6 of mr-moqui), Delete asked
+again. **Deployments** at `B/<repositoryPath>/-/pipelines/deployments` (Developer): the
 deployments, newest first, a page at a time (environment, commit, branch, state, who asked, dates), and Request deploy
 (an environment and a branch, whose head is deployed) where `canDeploy`. **DeploymentDetail** at
 `…/-/pipelines/deployments/<deploymentId>`: the state and its steps (waiting for the pipeline with its run linked,
@@ -2348,8 +2350,8 @@ Refined in DG5.
 | 10 | `findCiSecrets` | P `find#Secrets` | GET `r/{id}/ci-secrets` | `repositoryId` | `secretList` (`secretId`, `name`, `scope`, `environmentName`, `createdAt`, `lastUsedAt`) | | Maintainer |
 | 11 | `storeCiSecret` | P `store#Secret` | POST `r/{id}/ci-secrets` | `repositoryId`, `secretId`, `name`, `value`, `scope`, `environmentId`, `operationId` | `secretId` | `nameTaken` | Maintainer |
 | 12 | `deleteCiSecret` | P `delete#Secret` | DELETE `r/{id}/ci-secrets/{secretId}` | `repositoryId`, `secretId` | `deleted` | | Maintainer |
-| 13 | `findCiEnvironments` | P `find#Environments` | GET `r/{id}/ci-environments` | `repositoryId` | `environmentList` (`environmentId`, `name`, `targetUrl`, `requiredPipeline`, `approvalRequired`, `hasToken`, `lastCommitId`, `lastDeployAt`) | | Developer |
-| 14 | `storeCiEnvironment` | P `store#Environment` | POST `r/{id}/ci-environments` | `repositoryId`, `environmentId`, `name`, `operationId`, and from DG10 `targetUrl`, `token`, `requiredPipeline`, `approvalRequired` | `environmentId` | `nameTaken` | Maintainer |
+| 13 | `findCiEnvironments` | P `find#Environments` | GET `r/{id}/ci-environments` | `repositoryId` | `environmentList` (`environmentId`, `name`, `targetUrl`, `requiredPipeline`, `approvalRequired`, `vaultId` (a Maintainer's), `hasToken`, `lastCommitId`, `lastDeployAt`) | | Developer |
+| 14 | `storeCiEnvironment` | P `store#Environment` | POST `r/{id}/ci-environments` | `repositoryId`, `environmentId`, `name`, `operationId`, and from DG10 `targetUrl`, `vaultId` (no `token`: the token is an item of that vault), `requiredPipeline`, `approvalRequired` | `environmentId` | `nameTaken` | Maintainer |
 | 15 | `deleteCiEnvironment` | P `delete#Environment` | DELETE `r/{id}/ci-environments/{environmentId}` | `repositoryId`, `environmentId` | `deleted` | `Conflict` with a secret scoped to it | Maintainer |
 | 16 | `getPipelineSettings` | P `get#Settings` | GET `pipeline-settings` | `repositoryId` or `groupId` | `poolList` (`runnerPoolId`, `description`, `trusted`; the pools an operator allowed), `runnerPoolId`, `outsideRunnerPoolId`, `inheritedFromPath`, `usage` (`minutesUsed`, `runnerMinutesMonthly`, `periodKey`), `revision` | | Maintainer |
 | 17 | `storePipelineSettings` | P `store#Settings` | PATCH `pipeline-settings` | `groupId`, `runnerPoolId`, `outsideRunnerPoolId`, `expectedRevision` | `revision` | `Unprocessable` for a pool the group may not use | Owner |
