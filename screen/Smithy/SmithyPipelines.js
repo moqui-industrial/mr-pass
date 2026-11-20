@@ -772,7 +772,10 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
     const leaseText = lease
         ? h`<p class="wrap" id="SmithyDeploymentLease">Its target's token opens under lease <code>${lease.leaseId}</code>, ${
               lease.state === "waiting"
-                  ? "which waits for an approver of the environment's vault: " + approversText(lease.approvers || []) + "."
+                  ? "which waits for an approver of the environment's vault" +
+                    // who they are is a Maintainer's to read
+                    (Array.isArray(lease.approvers) ? ": " + approversText(lease.approvers) : "") +
+                    "."
                   : lease.state === "open"
                     ? "approved" + (lease.approvedBy ? " by " + handleText(lease.approvedBy) : "") + "."
                     : lease.state === "revoked"

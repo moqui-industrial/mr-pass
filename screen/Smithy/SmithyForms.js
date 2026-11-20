@@ -2010,12 +2010,18 @@ const under = (base, location) =>
         ? location
         : null
 /* The framework's lease dialog for a lease (System › Vaults › Lease, plans/Vault-Instances.md §3.7 of mr-moqui), where an
- * approver of its vault opens it in their browser: a path on this server in local mode, else on the authority's web
- * address (pass@backend-web-url); null when that is not configured. */
+ * approver of its vault opens it in their browser. In local mode on this server: a path on this host when it serves the
+ * framework's screens, else (a site on a host of its own that refuses them: /qapps is Not Found there, and its session
+ * is the host's) the webapp's own host, where the person signs in to the apps. Otherwise on the authority's web address
+ * (pass@backend-web-url). Null when neither is known. */
 function leaseDialog(leaseId) {
     const path = "/qapps/system/Vaults/Lease?leaseId=" + encodeURIComponent(String(leaseId))
     const transport = ec.resource.script("component://mr-pass/service/pass/Transport.js")
-    if (transport.current().kind === "local") return path
+    if (transport.current().kind === "local") {
+        if (ec.web.servesFrameworkScreens) return path
+        const root = String(ec.web.getWebappRootUrl(true, true) || "").replace(/\/$/, "")
+        return /^https?:\/\//.test(root) ? root + path : null
+    }
     try {
         return transport.webBase() + path
     } catch (error) {
