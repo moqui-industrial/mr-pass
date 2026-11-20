@@ -97,6 +97,10 @@ Read mr-moqui's [AGENTS.md](https://github.com/moqui/mr-moqui/blob/master/AGENTS
 - `screen/<App>/` and `service/pass/` are the apps, `theme/starter/` the starter shop theme, and `script/` the
   tracking redirect and pixel.
 - [docs/Deployment.md](docs/Deployment.md) has each app's setup and jobs, and [adding an app](docs/Deployment.md#adding-an-app).
+- [docs/security/Attack-Surface-Apps-PASS.md](docs/security/Attack-Surface-Apps-PASS.md) is the security map, with
+  [Commerce](docs/security/Attack-Surface-Apps-PASS-Commerce.md) and
+  [Forum and Smithy](docs/security/Attack-Surface-Apps-PASS-Forum-Smithy.md); it is part of mr-moqui's
+  [attack surface](https://github.com/moqui/mr-moqui/blob/master/docs/security/Attack-Surface.md).
 - Tests are in two suites, described in [test/README.md](test/README.md):
 
 ```sh
