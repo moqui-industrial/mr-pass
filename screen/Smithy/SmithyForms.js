@@ -1733,7 +1733,8 @@ const DO = {
         flags: ["approvalRequired"],
         // the texts are sent only when changed (the form shows the value it read beside each)
         changed: ["allowedRefs", "targetUrl", "requiredPipeline", "dataTypes", "cloneUrl"],
-        notice: () => "The environment was saved."
+        // and what the engine cleared for the change (SEC-GIT-91): the secrets' values or the target's token, to give again
+        notice: result => "The environment was saved." + (result?.cleared ? " " + String(result.cleared) : "")
     },
     deleteCiEnvironment: {fields: ["repositoryId", "environmentId"], confirm: true, notice: () => "The environment was deleted."},
     // DG10 (design §10 Deploy environments): a deployment asked for goes to its page; Refuse and Cancel are asked again on
