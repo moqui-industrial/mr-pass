@@ -3,9 +3,10 @@
 // token an item of the vault it names (no field takes a token) and an address kept without its user part after a refusal;
 // one render of Deployments
 // (the list and Request deploy, whose post goes to the new deployment's page) and one of DeploymentDetail (the steps with
-// the run linked, Approve and Refuse for an approver, Cancel, the authority's message escaped, a refusal whose form the
-// page does not show); and Refuse and Cancel refused through Smithy/Do without their confirmation page's answer, Refuse
-// with it. The deployment shown is a row made here, since a spec cannot play the engine's runner; the routes are in
+// the run linked, the lease of its target's token and Approve in the lease dialog and Refuse for an approver of the
+// vault, Cancel, the authority's message escaped, a refusal whose form the page does not show); Approve going on to the
+// framework's lease dialog; and Refuse and Cancel refused through Smithy/Do without their confirmation page's answer,
+// Refuse with it. The deployment shown is a row made here, since a spec cannot play the engine's runner; the routes are in
 // Smithy's spec, and Mantle's SmithyDeployments covers the rules behind the operations (who reads, decides and cancels).
 const fixtures = () => ec.resource.script("component://mr-pass/test/Smithy/SmithyFixtures.js")
 const SITE = "PASS_SMITHY_DEPLOY"
@@ -211,16 +212,29 @@ feature("Deployments lists a repository's deployments with Request deploy, which
         requested.flash.notice.startsWith("The deployment did not start")
     }
 })
-feature("DeploymentDetail shows the steps with the run linked, the approver's forms and a refusal whose form is not on the page; Refuse and Cancel ask again", {
+feature("DeploymentDetail shows the steps with the run linked, its lease, the approver's forms and a refusal whose form is not on the page; Approve goes on to the lease dialog; Refuse and Cancel ask again", {
     when() {
         const f = fixtures()
         const {pipelines} = scripts()
         const self = R + "/-/pipelines/deployments/" + s.deploymentId
         const key = {repositoryId: s.repo, deploymentId: s.deploymentId, returnTo: self}
+        // the lease of its target's token, as the engine asks for it once the pipeline passed; john.doe approves for the
+        // vault, so approving the deployment is approving the lease, in the framework's lease dialog
+        committed(() => {
+            const system = (name, parameters) => ec.service.sync().name(name).parameters(parameters).disableAuthz().call()
+            const lease = {leaseId: "PSMD_LEASE", vaultId: VAULT, keyVersion: 1, statusId: "VlsRequested", requestedDate: ec.user.nowTimestamp}
+            const known = ec.entity.find("moqui.security.vault.VaultLease").condition("leaseId", "PSMD_LEASE").disableAuthz().one()
+            system((known ? "update" : "create") + "#moqui.security.vault.VaultLease", lease)
+            const member = {vaultId: VAULT, userId: ec.user.userId, keyVersion: 1, roleEnumId: "VrApprove"}
+            system("update#moqui.security.vault.VaultMember", member)
+            system("update#moqui.resource.GitDeployment", {deploymentId: s.deploymentId, leaseId: "PSMD_LEASE"})
+        })
         const refuseUnasked = f.post(SITE, HOST, "decideDeploy", {...key, decision: "refuse", reason: "Not today"})
         // Cancel without its page's answer, its refusal left for the page, which has no Cancel form of its own
         const cancelUnasked = f.post(SITE, HOST, "cancelDeploy", key, true, true)
         const page = f.render(SITE, HOST, self, "Smithy/DeploymentDetail", {repositoryId: s.repo, namePath: "pass-smd/deploy", deploymentId: s.deploymentId})
+        // Approve goes on to the lease dialog, and decides nothing by itself
+        const approved = f.post(SITE, HOST, "decideDeploy", {...key, decision: "approve"})
         const before = f.operation("getDeployment", {siteId: SITE, repositoryId: s.repo, deploymentId: s.deploymentId}).deployment?.state
         const refused = f.post(SITE, HOST, "decideDeploy", {...key, decision: "refuse", reason: "Not today", confirm: "yes", returnTo: self + "?confirm=refuse", successTo: self})
         const after = f.operation("getDeployment", {siteId: SITE, repositoryId: s.repo, deploymentId: s.deploymentId}).deployment?.state
@@ -229,9 +243,9 @@ feature("DeploymentDetail shows the steps with the run linked, the approver's fo
             .deploySteps({state: "failed", startedAt: 1, approvedBy: "x"}, true)
             .map(step => step.mark)
             .join(" ")
-        return {page, html: page.html, refuseUnasked, cancelUnasked, before, refused, after, failed}
+        return {page, html: page.html, refuseUnasked, cancelUnasked, approved, before, refused, after, failed}
     },
-    then({page, html, refuseUnasked, cancelUnasked, before, refused, after, failed}) {
+    then({page, html, refuseUnasked, cancelUnasked, approved, before, refused, after, failed}) {
         page.errors.length === 0
         page.header("Cache-Control") === "no-store"
         html.includes("<h2>Deployment to demo</h2>")
@@ -243,9 +257,16 @@ feature("DeploymentDetail shows the steps with the run linked, the approver's fo
         !html.includes("<script>alert(1)")
         html.includes('<strong>Waiting for the pipeline</strong> · Passed · <a href="' + R + '/-/pipelines/5" id="SmithyDeploymentRun">run #5</a>')
         html.includes('aria-current="step"><strong>Waiting for approval</strong> · Now')
-        // the Owner approves or refuses (asked again), and cancels (asked again)
+        // its lease, waiting for an approver of the vault; the Owner, one, approves in the lease dialog or refuses (asked
+        // again), and cancels (asked again)
+        html.includes(`<p class="wrap" id="SmithyDeploymentLease">Its target's token opens under lease <code>PSMD_LEASE</code>, which waits for an approver of the environment&#39;s vault: `)
         html.includes('id="Smithy_decideDeploy_approve"')
         html.includes('<input type="hidden" name="decision" value="approve">')
+        html.includes("<button>Approve in the lease dialog</button>")
+        !html.includes("Approve and deploy")
+        approved.status === 303
+        approved.location === "/qapps/system/Vaults/Lease?leaseId=PSMD_LEASE"
+        approved.flash.notice === "The deployment goes on once the lease of its target's token is approved in the lease dialog."
         html.includes('href="' + R + '/-/pipelines/deployments/PSMD_DEP1?confirm=refuse"')
         html.includes('href="' + R + '/-/pipelines/deployments/PSMD_DEP1?confirm=cancel"')
         html.includes('<p role="alert" class="card error" id="Smithy_cancelDeploy_error">Confirm this change on its own page first.</p>')

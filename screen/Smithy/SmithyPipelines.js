@@ -750,6 +750,7 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
     const found = need("getDeployment", {siteId: shell.siteId, repositoryId: r.repositoryId, deploymentId})
     const d = found.deployment
     const caps = found.capabilities || {}
+    const lease = found.lease || null
     const page = pu.deployment(d.deploymentId)
     const target = plain(d.environment) || "its environment"
     const what = (d.commitId ? "commit " + shortId(d.commitId) : "the commit") + (d.refName ? " of " + refText(d.refName) : "")
@@ -763,13 +764,29 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
         d.startedAt ? "deploy began " + dateText(d.startedAt) : null,
         d.finishedAt ? "ended " + dateText(d.finishedAt) : null
     ].filter(Boolean)
+    // its lease (the environment's vault holds the target's token): opened by an approver of the vault, which is the approval
+    const approversText = approvers =>
+        approvers.length
+            ? approvers.map(handleText).join(", ")
+            : "none of this repository's Maintainers other than who asked is one, until a manager of the vault adds one"
+    const leaseText = lease
+        ? h`<p class="wrap" id="SmithyDeploymentLease">Its target's token opens under lease <code>${lease.leaseId}</code>, ${
+              lease.state === "waiting"
+                  ? "which waits for an approver of the environment's vault: " + approversText(lease.approvers || []) + "."
+                  : lease.state === "open"
+                    ? "approved" + (lease.approvedBy ? " by " + handleText(lease.approvedBy) : "") + "."
+                    : lease.state === "revoked"
+                      ? "which was revoked."
+                      : "which has ended."
+          }</p>`
+        : ""
     const head = h`<article id="SmithyDeployment" class="wrap"><h2>Deployment to ${target}</h2><p>${deployChip(d.state, "SmithyDeploymentState")}${
         d.refName ? h` · ${refText(d.refName)}` : ""
     }${d.commitId ? h` · <a href="${pu.u.commit(d.commitId)}"><code>${shortId(d.commitId)}</code></a>` : ""}${
         d.componentName ? " · component " + plain(d.componentName) : ""
     } · <a href="${pu.deployments}">All deployments</a></p>${
         d.approvalRequired ? h`<p id="SmithyDeploymentApproval">Needs a Maintainer's approval.</p>` : ""
-    }${facts.length ? h`<p><small>${facts.join(" · ")}</small></p>` : ""}${
+    }${leaseText}${facts.length ? h`<p><small>${facts.join(" · ")}</small></p>` : ""}${
         d.message ? h`<p class="wrap" id="SmithyDeploymentMessage">${messageText(d.message)}</p>` : ""
     }</article>`
     // Cancel and Refuse are asked again on a page of their own
@@ -806,14 +823,33 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
                 step.text ? " · " + step.text : ""
             }${step.run && d.runNum ? h` · <a href="${pu.run(d.runNum)}" id="SmithyDeploymentRun">run #${d.runNum}</a>` : ""}</li>`
     )}</ol></section>`
+    const refuseLink = h`<a href="${page}?confirm=refuse" id="SmithyDeployRefuse">Refuse</a>`
+    const approveForm = button =>
+        h`${open(c, formOf(c, "decideDeploy", "approve"), {plain: true})}${hidden("repositoryId", r.repositoryId)}${hidden(
+            "deploymentId",
+            d.deploymentId
+        )}${hidden("decision", "approve")}<p><button>${button}</button> ${refuseLink}</p></form>`
+    // with a lease waiting: an approver of the vault goes on to the lease dialog (through Smithy/Do on this server, else by
+    // its link), where approving the lease deploys it; another Maintainer is told who approves it
+    const leaseWaiting = !!lease && lease.state === "waiting"
+    const dialog = leaseWaiting && lease.canApprove ? forms.leaseDialog(lease.leaseId) : null
+    const leaseApproval = () => {
+        if (!dialog)
+            return h`<p id="SmithyDeployLeaseApprovers">Approving opens the lease of its target's token, which an approver of the environment's vault does: ${approversText(
+                lease.approvers || []
+            )}.</p><p>${refuseLink}</p>`
+        const why = h`<p>Approving opens the lease of its target's token: the lease dialog shows what it opens, and your approval there deploys it.</p>`
+        return smithy.siteLocal(dialog)
+            ? h`${why}${approveForm("Approve in the lease dialog")}`
+            : h`${why}<p><a href="${dialog}" id="SmithyDeployLeaseDialog">Approve in the lease dialog</a> ${refuseLink}</p>`
+    }
     const approval = waiting
         ? h`<section role="status" class="card" id="SmithyDeployWaiting"><p>The pipeline passed. This deployment waits for a Maintainer's approval, never from who asked for it.</p>${
-              caps.canDecide
-                  ? h`${open(c, formOf(c, "decideDeploy", "approve"), {plain: true})}${hidden("repositoryId", r.repositoryId)}${hidden(
-                        "deploymentId",
-                        d.deploymentId
-                    )}${hidden("decision", "approve")}<p><button>Approve and deploy</button> <a href="${page}?confirm=refuse" id="SmithyDeployRefuse">Refuse</a></p></form>`
-                  : h`<p><small>A Maintainer of this repository other than who asked decides it.</small></p>`
+              !caps.canDecide
+                  ? h`<p><small>A Maintainer of this repository other than who asked decides it.</small></p>`
+                  : leaseWaiting
+                    ? leaseApproval()
+                    : approveForm("Approve and deploy")
           }</section>`
         : ""
     const actions = caps.canCancel
@@ -821,7 +857,7 @@ function deploymentPage(shell, deploymentId, bases, siteInfo, self) {
         : ""
     // a refused Approve, Refuse or Cancel whose form this page no longer shows (another Maintainer decided first, the
     // deployment moved on): its refusal is shown here; Approve's own form shows its refusal where it is still there
-    const approveShown = waiting && caps.canDecide
+    const approveShown = waiting && caps.canDecide && (!leaseWaiting || (!!dialog && smithy.siteLocal(dialog)))
     const refusals = [
         ...(approveShown ? [] : [formOf(c, "decideDeploy", "approve")]),
         formOf(c, "decideDeploy", "refuse"),

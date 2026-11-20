@@ -2,7 +2,8 @@
 <!-- CC0 1.0 Universal plus Grant of Patent License. See LICENSE.md. -->
 <!-- DeploymentDetail (design-smithy §10 Deploy environments, DG10), at -/pipelines/deployments/<deploymentId>, in its
     repository's shell: a deployment (getDeployment) with its steps (waiting for the pipeline, with the run linked; waiting
-    for approval; deploying; the end), who asked and who decided, and the target's result; Approve and Refuse (with a
+    for approval; deploying; the end), who asked and who decided, its lease, and the target's result; Approve (for a
+    deployment with a lease, on to the framework's lease dialog for an approver of the vault) and Refuse (with a
     reason, asked again on ?confirm=refuse) for an approver, Cancel (asked again on ?confirm=cancel) for who may cancel it,
     each a post to Smithy/Do. A deployment the caller may not read is Not Found. Never kept by a cache. -->
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

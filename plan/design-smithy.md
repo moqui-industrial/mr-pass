@@ -1303,7 +1303,11 @@ deployments, newest first, a page at a time (environment, commit, branch, state,
 `…/-/pipelines/deployments/<deploymentId>`: the state and its steps (waiting for the pipeline with its run linked,
 waiting for approval, deploying, the end), who asked and who decided, the authority's message when it gives one, the
 target's result; Approve and Refuse (with a reason, asked again) for an approver (`canDecide`), Cancel (asked again)
-where `canCancel`. **Without JavaScript** all of it.
+where `canCancel`. A deployment whose environment's vault holds the target's token has a lease (`lease`: waiting for an
+approver of the vault, named; approved and by whom; ended), and approving it is opening the lease: Approve takes a
+Maintainer with the vault's approve role on to the framework's lease dialog (System › Vaults › Lease, at the authority's
+web address for a remote frontend), where their approval of the lease deploys it; any other Maintainer is told who
+approves it (`vaultApproverRequired`). **Without JavaScript** all of it.
 
 ## 11. Settings, account and import
 

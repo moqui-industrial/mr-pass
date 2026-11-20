@@ -1753,7 +1753,18 @@ const DO = {
     decideDeploy: {
         fields: ["repositoryId", "deploymentId", "decision", "reason"],
         confirm: () => param("decision") !== "approve",
-        notice: result => (result.state === "refused" ? "The deployment was refused." : "Approved: the deployment goes on.")
+        // a deployment with a lease (its environment's vault holds the target's token): the approver goes on to the lease
+        // dialog, where approving the lease is the decision; on this server, else back to the page, which links to it
+        done: result => {
+            const dialog = result.leaseId ? leaseDialog(result.leaseId) : null
+            return dialog && smithy.siteLocal(dialog) ? dialog : null
+        },
+        notice: result =>
+            result.leaseId
+                ? "The deployment goes on once the lease of its target's token is approved in the lease dialog."
+                : result.state === "refused"
+                  ? "The deployment was refused."
+                  : "Approved: the deployment goes on."
     },
     cancelDeploy: {fields: ["repositoryId", "deploymentId"], confirm: true, notice: () => "The deployment was cancelled."},
     storePipelineSettings: {
@@ -1998,6 +2009,19 @@ const under = (base, location) =>
     smithy.siteLocal(location) && (location === base || location.startsWith(base + "/") || location.startsWith(base + "?"))
         ? location
         : null
+/* The framework's lease dialog for a lease (System › Vaults › Lease, plans/Vault-Instances.md §3.7 of mr-moqui), where an
+ * approver of its vault opens it in their browser: a path on this server in local mode, else on the authority's web
+ * address (pass@backend-web-url); null when that is not configured. */
+function leaseDialog(leaseId) {
+    const path = "/qapps/system/Vaults/Lease?leaseId=" + encodeURIComponent(String(leaseId))
+    const transport = ec.resource.script("component://mr-pass/service/pass/Transport.js")
+    if (transport.current().kind === "local") return path
+    try {
+        return transport.webBase() + path
+    } catch (error) {
+        return null
+    }
+}
 /* One transition of Smithy/Do (Do.xml): the form's operation, then 303, to the page of what was made or changed with a
  * notice, or back to the form with the refusal. The framework has checked the session token before this runs. */
 function run(name, siteId, bases) {
@@ -2151,6 +2175,7 @@ function preview(siteId, back) {
     refForms,
     gitAccess,
     run,
+    leaseDialog,
     DO,
     PREVIEWED,
     inputOf,
